@@ -1,0 +1,32 @@
+{
+  "name": "hacker-kombat",
+  "private": true,
+  "version": "1.0.0",
+  "description": "HACKER KOMBAT — Telegram Mini App Idle/Clicker Game (12+, fictional)",
+  "scripts": {
+    "prebuild": "node scripts/sync-assets.mjs",
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc -b && vite build && node scripts/bundle-api.mjs",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "bot:setup": "node bot/setup-bot.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "@telegram-apps/sdk-react": "^3.1.0",
+    "framer-motion": "^12.4.7",
+    "lucide-react": "^0.475.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.9",
+    "@types/node": "^22.13.5",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^4.0.9",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0"
+  }
+}

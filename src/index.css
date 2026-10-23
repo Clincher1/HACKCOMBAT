@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --cyber-bg: #0a0e1a;
+  --cyber-panel: #10162b;
+  --cyber-cyan: #00f0ff;
+  --cyber-magenta: #ff00a0;
+  --cyber-green: #7dff00;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background-color: #0a0e1a;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  overscroll-behavior-y: none;
+}
+
+.font-display {
+  font-family: 'Orbitron', 'JetBrains Mono', sans-serif;
+}
+
+/* Киберпанк фоновая сетка */
+.cyber-grid-bg {
+  background-color: #0a0e1a;
+  background-image:
+    radial-gradient(circle at 18% 0%, rgba(0, 240, 255, 0.11), transparent 42%),
+    radial-gradient(circle at 85% 12%, rgba(255, 0, 160, 0.09), transparent 40%),
+    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+}
+
+/* Тонкие скан-линии CRT поверх интерактивной сцены */
+.scanline-overlay {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.025) 0px,
+    rgba(255, 255, 255, 0.025) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+}
+
+@keyframes matrixFall {
+  0% {
+    transform: translateY(-45%);
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(45%);
+    opacity: 0.12;
+  }
+}
+
+.matrix-column {
+  animation: matrixFall 5.5s linear infinite;
+}
+
+/* Скрытие полос прокрутки на мобильных фильтрах */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
