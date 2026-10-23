@@ -2,7 +2,6 @@
   "name": "hacker-kombat",
   "private": true,
   "version": "1.0.0",
-  "type": "module",
   "description": "HACKER KOMBAT — Telegram Mini App Idle/Clicker Game (12+, fictional)",
   "scripts": {
     "prebuild": "node scripts/sync-assets.mjs",
