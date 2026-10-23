@@ -4,6 +4,19 @@
 
 Киберпанк-кликер в духе *Hamster Kombat* и *Hacker Clicker* на **100% бесплатном стеке** (React + Vite + TypeScript + TailwindCSS + `@telegram-apps/sdk-react` + Vercel Serverless Functions + Supabase PostgreSQL Free Tier).
 
+## 🌐 Живой продакшн-стенд (Vercel + Supabase Cloud)
+
+| Компонент | Статус | Ссылка / Идентификатор |
+| :--- | :--- | :--- |
+| **WebApp (Vercel Production)** | 🟢 Online | [`https://hacker-kombat.vercel.app`](https://hacker-kombat.vercel.app) |
+| **Healthcheck API (`Supabase`)** | 🟢 `mode: "supabase"` | [`https://hacker-kombat.vercel.app/api/ping`](https://hacker-kombat.vercel.app/api/ping) |
+| **Top-100 Leaderboard API** | 🟢 Online | [`https://hacker-kombat.vercel.app/api/leaderboard`](https://hacker-kombat.vercel.app/api/leaderboard) |
+| **Telegram Webhook Endpoint** | 🟢 Ready | `https://hacker-kombat.vercel.app/api/telegram` |
+| **Supabase PostgreSQL 17 (`eu-west-1`)** | 🟢 `ACTIVE_HEALTHY` | `https://hekzplfftannlzwvgwwm.supabase.co` (`players`, `cards`, `team`, `missions`, `achievements`, `leaderboard`, RLS) |
+| **Supabase Edge Function** | 🟢 `ACTIVE` | `passive-income` (`distribute_passive_income()`) |
+| **Supabase Storage (`game-assets`)** | 🟢 17 ассетов | `scenes/stage-01..30.webp`, `avatars/*.webp`, `cards/*.svg` |
+| **GitHub Репозиторий и PR** | 🟢 Public | [`Clincher1/HACKCOMBAT`](https://github.com/Clincher1/HACKCOMBAT) ([PR #1](https://github.com/Clincher1/HACKCOMBAT/pull/1)) |
+
 ---
 
 ## 🎮 Реализованные игровые механики
