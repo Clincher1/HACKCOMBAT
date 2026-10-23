@@ -10,9 +10,13 @@
  *   TELEGRAM_BOT_TOKEN=... PUBLIC_WEBAPP_URL=https://your-app.vercel.app npm run bot:setup
  */
 
-const token = process.env.TELEGRAM_BOT_TOKEN;
+import crypto from 'node:crypto';
+
+const token = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
 const webAppUrl = (process.env.PUBLIC_WEBAPP_URL || '').replace(/\/$/, '');
-const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET || '';
+const webhookSecret =
+  process.env.TELEGRAM_WEBHOOK_SECRET ||
+  (token ? crypto.createHmac('sha256', 'hk-webhook-v1').update(token).digest('hex').slice(0, 48) : '');
 
 if (!token || !webAppUrl) {
   console.error(

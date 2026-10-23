@@ -4,6 +4,7 @@ import React from 'react';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+import { TutorialModal } from './TutorialModal';
 
 export const ModalsAndOverlays: React.FC = () => {
   const {
@@ -28,6 +29,7 @@ export const ModalsAndOverlays: React.FC = () => {
 
   return (
     <>
+      <TutorialModal />
       {/* Модалка накопленного оффлайн пассивного дохода */}
       <AnimatePresence>
         {offlineModalEarned !== null && (

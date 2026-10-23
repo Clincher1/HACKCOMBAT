@@ -1,4 +1,4 @@
-import { Flame, Gem, Gift, Palette, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
+import { BookOpen, Flame, Gem, Gift, Palette, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 import React from 'react';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -10,6 +10,8 @@ export const TopHud: React.FC = () => {
     toggleSound,
     setDailyModalOpen,
     setSkinModalOpen,
+    openTutorial,
+    tutorialUnseen,
     nowMs,
   } = useGame();
 
@@ -42,6 +44,19 @@ export const TopHud: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={openTutorial}
+              className="relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[#00f0ff]/45 text-[#00f0ff] text-xs font-semibold transition cursor-pointer"
+              title="Обучение: что качать и как играть"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Обучение</span>
+              {tutorialUnseen && (
+                <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-ping absolute -top-0.5 -right-0.5" />
+              )}
+            </button>
+
             <button
               type="button"
               onClick={() => setDailyModalOpen(true)}

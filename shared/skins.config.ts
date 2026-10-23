@@ -1,6 +1,6 @@
 import type { SkinConfig } from './types';
 
-// Эксклюзивные скины рабочего стола за Crypto и Global Hack Престиж (раздел 2 и 5.5 ТЗ)
+// Эксклюзивные скины рабочего стола за Crypto и этапы Global Hack Престижа (все прежние ключи сохранены!)
 export const SKINS_CONFIG: SkinConfig[] = [
   {
     key: 'default',
@@ -16,7 +16,7 @@ export const SKINS_CONFIG: SkinConfig[] = [
   {
     key: 'sakura',
     name: 'Shibuya Overdrive',
-    description: 'Пурпурно-малиновый неон с +5% к мощности тапа.',
+    description: 'Пурпурно-малиновый неон с постоянным +5% к мощности тапа.',
     cryptoCost: 12,
     primaryHex: '#ff00a0',
     secondaryHex: '#bd00ff',
@@ -27,7 +27,7 @@ export const SKINS_CONFIG: SkinConfig[] = [
   {
     key: 'matrix',
     name: 'Zion Phosphor',
-    description: 'Изумрудный терминал Матрицы с +8% к мощности тапа.',
+    description: 'Изумрудный терминал Матрицы с постоянным +8% к мощности тапа.',
     cryptoCost: 22,
     primaryHex: '#7dff00',
     secondaryHex: '#00ff88',
@@ -47,15 +47,26 @@ export const SKINS_CONFIG: SkinConfig[] = [
     clickBonusPct: 0.12,
   },
   {
+    key: 'void_phantom',
+    name: 'Void Phantom Ultra',
+    description: 'Редкий коллекционный скин эндгейма за Crypto (+18% к мощности тапа).',
+    cryptoCost: 65,
+    primaryHex: '#38bdf8',
+    secondaryHex: '#c084fc',
+    accentHex: '#f43f5e',
+    cssFilter: 'hue-rotate(310deg) saturate(1.4) contrast(1.08)',
+    clickBonusPct: 0.18,
+  },
+  {
     key: 'prestige_omega',
     name: 'Omega Singularity',
-    description: 'Уникальный скин Global Hack (открывается при Престиже на 50 ур., +20% к тапу).',
+    description: 'Награда за Global Hack Престиж I (Ур. 50) — даёт +22% к мощности тапа!',
     cryptoCost: 0,
     prestigeRequired: true,
     primaryHex: '#a855f7',
     secondaryHex: '#00f0ff',
     accentHex: '#7dff00',
     cssFilter: 'hue-rotate(48deg) saturate(1.45) contrast(1.08)',
-    clickBonusPct: 0.2,
+    clickBonusPct: 0.22,
   },
 ];

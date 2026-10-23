@@ -1,7 +1,6 @@
 import type { TeamNpcConfig } from './types';
 
-// Сетка NPC-команды (6 персонажей в рамках 5–10 по разделу 4.4 ТЗ)
-// Точные бонусы из ТЗ + 1 легендарный Rep-архитектор (DEFAULT по разделу 2 ТЗ: найм топ-команды за Rep)
+// Сетка NPC-команды (8 специалистов — строго в рамках 5–10 по разделу 4.4 ТЗ, все 6 старых ключей сохранены!)
 export const TEAM_CONFIG: TeamNpcConfig[] = [
   {
     key: 'coder',
@@ -68,7 +67,7 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
     callsign: 'Analyst // Ирис',
     roleTitle: 'Разведчик сетей',
     quote: '«Я вижу закрытые узлы, о которых не знают даже их владельцы.»',
-    effectLabel: 'Открывает секретные «серые» миссии',
+    effectLabel: 'Открывает секретные «серые» миссии (+5% Data/ч)',
     avatarUrl: '/assets/avatars/analyst.webp',
     costCurrency: 'rep',
     costAmount: 45,
@@ -79,7 +78,22 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
     unlocksGreyMissions: true,
   },
   {
-    // DEFAULT: Топ-специалист команды за высокую Репутацию (раздел 2 ТЗ: Rep -> найм топ-команды)
+    // DEFAULT: Мидгейм-специалист за крупный капитал Data
+    key: 'cryptographer',
+    callsign: 'Cryptographer // Шифр',
+    roleTitle: 'Квантовый Криптограф',
+    quote: '«Любой шифр — это просто красивое приглашение войти.»',
+    effectLabel: '+15% Data/час и -10% прирост Heat',
+    avatarUrl: '/assets/avatars/cryptographer.webp',
+    costCurrency: 'data',
+    costAmount: 65000,
+    passiveBonusPct: 0.15,
+    clickBonusPct: 0,
+    autoClickPerSec: 0,
+    heatReductionPct: 0.1,
+    unlocksGreyMissions: false,
+  },
+  {
     key: 'architect',
     callsign: 'AI Architect // Омега',
     roleTitle: 'Архитектор Нейросети',
@@ -92,6 +106,22 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
     clickBonusPct: 0.15,
     autoClickPerSec: 0,
     heatReductionPct: 0,
+    unlocksGreyMissions: false,
+  },
+  {
+    // DEFAULT: Эндгейм-легенда синдиката за высокую Репутацию
+    key: 'zero_day_hunter',
+    callsign: 'Zero-Day Hunter // Спектр',
+    roleTitle: 'Легенда Эндгейма',
+    quote: '«Я нахожу брешь ещё до того, как архитектор дописал код.»',
+    effectLabel: '+25% Data/час, +20% к клику и Автоклик +1/сек',
+    avatarUrl: '/assets/avatars/zero_day_hunter.webp',
+    costCurrency: 'rep',
+    costAmount: 220,
+    passiveBonusPct: 0.25,
+    clickBonusPct: 0.2,
+    autoClickPerSec: 1,
+    heatReductionPct: 0.05,
     unlocksGreyMissions: false,
   },
 ];

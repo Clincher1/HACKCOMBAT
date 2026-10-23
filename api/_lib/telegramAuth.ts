@@ -7,8 +7,36 @@ export interface VerifiedTelegramUser {
   isVerifiedTelegram: boolean;
 }
 
+const MAX_AUTH_AGE_SECONDS = 86400; // 24 часа свежести подписи Telegram initData
+
 /**
- * Официальная проверка подписи Telegram WebApp initData через HMAC-SHA256 (Шаг 2 ТЗ):
+ * Очищает никнейм от управляющих символов, HTML-тегов и лишних пробелов (защита от XSS / инъекций в никнеймах).
+ */
+export function sanitizeUsername(raw: string | undefined, fallbackId: number): string {
+  const cleaned = String(raw ?? '')
+    .replace(/[\u0000-\u001F\u007F<>`"']/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 28);
+  return cleaned.length >= 2 ? cleaned : `Hacker_${Math.abs(fallbackId)}`;
+}
+
+/**
+ * Генерирует изолированный отрицательный ID для браузерного превью (-900_000_000 .. -100_000_000).
+ * Критично для безопасности: никто через curl / DevTools не может подделать заголовок x-demo-user-id
+ * и получить доступ к чужому реальному Telegram-аккаунту (tg_id > 0) или попасть в глобальный Топ-100!
+ */
+function deriveIsolatedGuestId(seed: string | undefined): number {
+  const digest = crypto
+    .createHash('sha256')
+    .update(`hk-guest-sandbox:${seed || 'default-preview-guest'}`)
+    .digest();
+  const num = digest.readUInt32BE(0) % 800_000_000;
+  return -(100_000_000 + num);
+}
+
+/**
+ * Официальная криптографическая проверка подписи Telegram WebApp initData через HMAC-SHA256:
  * secret_key = HMAC_SHA256("WebAppData", bot_token)
  * hex(HMAC_SHA256(secret_key, sorted_data_check_string)) === hash
  */
@@ -19,12 +47,13 @@ export function verifyTelegramInitData(
   demoHeaderName?: string
 ): VerifiedTelegramUser {
   const cleaned = (rawInitData ?? '').trim();
+  const hasRealBotToken = Boolean(botToken && !botToken.includes('AAExampleBotToken'));
 
-  if (cleaned && botToken && !botToken.includes('AAExampleBotToken')) {
+  if (cleaned && hasRealBotToken && botToken) {
     const params = new URLSearchParams(cleaned);
     const receivedHash = params.get('hash');
-    if (!receivedHash) {
-      throw new Error('Missing hash in Telegram initData');
+    if (!receivedHash || !/^[0-9a-f]{64}$/i.test(receivedHash)) {
+      throw new Error('Missing or malformed hash in Telegram initData');
     }
 
     const pairs: string[] = [];
@@ -46,16 +75,17 @@ export function verifyTelegramInitData(
       .update(dataCheckString)
       .digest('hex');
 
-    const a = Buffer.from(receivedHash, 'hex');
-    const b = Buffer.from(expectedHash, 'hex');
+    const a = Buffer.from(receivedHash.toLowerCase(), 'hex');
+    const b = Buffer.from(expectedHash.toLowerCase(), 'hex');
     if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
       throw new Error('Invalid Telegram initData signature');
     }
 
-    // Проверка свежести auth_date (24 часа DEFAULT)
+    // Строгая проверка auth_date: запрещаем пустой auth_date и replay старых сессий (> 24 ч)
     const authDate = Number(params.get('auth_date') ?? '0');
-    if (authDate > 0 && Math.abs(Date.now() / 1000 - authDate) > 86400) {
-      throw new Error('Expired Telegram initData');
+    const nowSec = Math.floor(Date.now() / 1000);
+    if (!Number.isFinite(authDate) || authDate <= 0 || nowSec - authDate > MAX_AUTH_AGE_SECONDS || authDate > nowSec + 300) {
+      throw new Error('Expired or invalid Telegram initData timestamp');
     }
 
     const userJson = params.get('user');
@@ -69,47 +99,33 @@ export function verifyTelegramInitData(
       first_name?: string;
     };
 
+    const tgId = Math.trunc(Number(parsed.id));
+    if (!Number.isSafeInteger(tgId) || tgId <= 0) {
+      throw new Error('Invalid Telegram user ID');
+    }
+
     return {
-      tgId: Number(parsed.id),
-      username: parsed.username || parsed.first_name || `Hacker_${parsed.id}`,
-      firstName: parsed.first_name,
+      tgId,
+      username: sanitizeUsername(parsed.username || parsed.first_name, tgId),
+      firstName: parsed.first_name ? sanitizeUsername(parsed.first_name, tgId) : undefined,
       isVerifiedTelegram: true,
     };
   }
 
-  // DEFAULT: если игра открыта в браузерном превью (вне Telegram или до указания BOT_TOKEN),
-  // разрешаем гостевую сессию, если не включён строгий production-флаг STRICT_TELEGRAM_AUTH=true
+  // Если передан rawInitData при наличии BOT_TOKEN — мы уже проверили его выше; если дошли сюда,
+  // значит запрос пришёл без initData (например, превью в обычном браузере вне Telegram).
   if (process.env.STRICT_TELEGRAM_AUTH === 'true') {
     throw new Error('Telegram WebApp authorization required');
   }
 
-  // Если передан невалидированный initData в dev-режиме без BOT_TOKEN — извлекаем имя пользователя для удобства теста
-  if (cleaned) {
-    try {
-      const params = new URLSearchParams(cleaned);
-      const userJson = params.get('user');
-      if (userJson) {
-        const u = JSON.parse(userJson) as { id?: number; username?: string; first_name?: string };
-        if (u.id) {
-          return {
-            tgId: Number(u.id),
-            username: u.username || u.first_name || `Hacker_${u.id}`,
-            firstName: u.first_name,
-            isVerifiedTelegram: false,
-          };
-        }
-      }
-    } catch {
-      // ignore parse fallback
-    }
-  }
-
-  const fallbackId = Number(demoHeaderId) || 777001;
-  const fallbackName = (demoHeaderName || 'NeoRunner').slice(0, 28);
+  // Изолированная гостевая песочница для браузерного превью:
+  // НИКОГДА не позволяет обратиться к реальному tg_id > 0 или соперникам -1009..-1001!
+  const guestId = deriveIsolatedGuestId(demoHeaderId);
+  const guestName = sanitizeUsername(demoHeaderName || 'CyberGuest', guestId);
   return {
-    tgId: fallbackId,
-    username: fallbackName,
-    firstName: fallbackName,
+    tgId: guestId,
+    username: guestName,
+    firstName: guestName,
     isVerifiedTelegram: false,
   };
 }

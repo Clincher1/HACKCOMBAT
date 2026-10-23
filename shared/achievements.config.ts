@@ -1,6 +1,6 @@
 import type { AchievementConfig } from './types';
 
-// Достижения начисляют редкую валюту Crypto (раздел 2 и 4.5 ТЗ)
+// 24 долгосрочных достижения — все 12 прежних ключей полностью сохранены (0 поломок прогресса у игроков!)
 export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'first_boot',
@@ -17,13 +17,6 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
     icon: '🛠️',
   },
   {
-    key: 'desk_lvl_5',
-    title: 'Двойной Неон',
-    description: 'Достичь 5 уровня и эволюционировать рабочий стол.',
-    cryptoReward: 8,
-    icon: '🖥️',
-  },
-  {
     key: 'first_mission',
     title: 'Полевое Крещение',
     description: 'Успешно завершить первую миссию взлома.',
@@ -36,6 +29,20 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
     description: 'Нанять первого специалиста в команду.',
     cryptoReward: 8,
     icon: '🤝',
+  },
+  {
+    key: 'desk_lvl_5',
+    title: 'Двойной Неон',
+    description: 'Достичь 5 уровня и эволюционировать рабочий стол.',
+    cryptoReward: 8,
+    icon: '🖥️',
+  },
+  {
+    key: 'click_sprinter_500',
+    title: 'Горячие Клавиши',
+    description: 'Набрать 500 кликов по консоли взлома.',
+    cryptoReward: 8,
+    icon: '⌨️',
   },
   {
     key: 'white_hat_path',
@@ -52,6 +59,13 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
     icon: '🕶️',
   },
   {
+    key: 'missions_veteran_15',
+    title: 'Ночной Рейдер',
+    description: 'Успешно выполнить 15 контрактов во вкладке «Взломы».',
+    cryptoReward: 12,
+    icon: '🛰️',
+  },
+  {
     key: 'desk_lvl_15',
     title: 'Небо под Контролем',
     description: 'Достичь 15 уровня и запустить дрон-разведчик.',
@@ -59,18 +73,32 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
     icon: '🛸',
   },
   {
-    key: 'full_squad',
-    title: 'Синдикат Сборе',
-    description: 'Собрать полную команду из всех 6 специалистов.',
-    cryptoReward: 25,
-    icon: '👑',
+    key: 'triple_slots_20',
+    title: 'Мультипоточность',
+    description: 'Достичь 20 уровня и открыть сразу 3 слота миссий.',
+    cryptoReward: 15,
+    icon: '🔀',
   },
   {
     key: 'data_millionaire',
-    title: 'Терабайтный Магнат',
+    title: 'Сто Тысяч Пакет',
     description: 'Накопить 100 000 Data на балансе.',
     cryptoReward: 20,
     icon: '💾',
+  },
+  {
+    key: 'click_master_2500',
+    title: 'Оператор Матрицы',
+    description: 'Совершить 2 500 кликов по терминалу.',
+    cryptoReward: 18,
+    icon: '🔥',
+  },
+  {
+    key: 'energy_overcharge_2500',
+    title: 'Высокое Напряжение',
+    description: 'Разогнать максимальный запас CPU Energy до 2 500+.',
+    cryptoReward: 18,
+    icon: '🔋',
   },
   {
     key: 'desk_lvl_30',
@@ -80,10 +108,66 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
     icon: '🟩',
   },
   {
+    key: 'full_squad',
+    title: 'Костяк Синдиката',
+    description: 'Собрать отряд минимум из 6 специалистов в команде.',
+    cryptoReward: 25,
+    icon: '👑',
+  },
+  {
+    key: 'elite_syndicate_8',
+    title: 'Полный Совет Теней',
+    description: 'Нанять абсолютно всех 8 специалистов команды!',
+    cryptoReward: 40,
+    icon: '🌌',
+  },
+  {
+    key: 'true_millionaire_1m',
+    title: 'Миллионер Данных',
+    description: 'Держать на счёте 1 000 000 Data одновременно.',
+    cryptoReward: 30,
+    icon: '💎',
+  },
+  {
+    key: 'missions_master_50',
+    title: 'Гроза Корпораций',
+    description: 'Успешно завершить 50 миссий взлома.',
+    cryptoReward: 30,
+    icon: '⚔️',
+  },
+  {
+    key: 'click_legend_10k',
+    title: 'Нейро-Рефлексы 10K',
+    description: 'Сделать 10 000 тапов за всё время игры.',
+    cryptoReward: 35,
+    icon: '⚡',
+  },
+  {
+    key: 'rep_guardian_250',
+    title: 'Арбитр Киберпространства',
+    description: 'Накопить 250 единиц чистой Репутации (Rep).',
+    cryptoReward: 30,
+    icon: '🏛️',
+  },
+  {
     key: 'global_hack_prestige',
-    title: 'GLOBAL HACK LEGEND',
-    description: 'Выполнить Престиж на 50 уровне и получить вечный множитель ×2.',
+    title: 'GLOBAL HACK I',
+    description: 'Выполнить первый Престиж на 50 уровне (множитель ×2 навсегда).',
     cryptoReward: 50,
     icon: '🌐',
+  },
+  {
+    key: 'data_tycoon_25m',
+    title: 'Властелин Дата-Центров',
+    description: 'Накопить 25 000 000 Data в эндгейме.',
+    cryptoReward: 60,
+    icon: '🪐',
+  },
+  {
+    key: 'global_hack_prestige_2',
+    title: 'CYBER OVERLORD (PRE-II)',
+    description: 'Выполнить второй Global Hack Престиж (вечный множитель ×4!).',
+    cryptoReward: 100,
+    icon: '🔱',
   },
 ];
