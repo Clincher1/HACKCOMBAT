@@ -57,7 +57,7 @@ export function authenticateRequest(req: ApiRequest, body?: Record<string, unkno
 
   return verifyTelegramInitData(
     rawInitData,
-    process.env.TELEGRAM_BOT_TOKEN,
+    process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
     Array.isArray(demoIdHeader) ? demoIdHeader[0] : demoIdHeader,
     Array.isArray(demoNameHeader) ? decodeURIComponent(demoNameHeader[0]) : demoNameHeader ? decodeURIComponent(demoNameHeader) : undefined
   );
