@@ -10,37 +10,38 @@ export const CARD_CATEGORIES: {
   {
     id: 'hardware',
     label: 'Hardware',
-    subtitle: 'Железо и вычислительные узлы',
+    subtitle: 'Железо, кластеры и квантовые узлы (тап + пассив)',
     accentColor: '#00f0ff',
     iconUrl: '/assets/cards/hardware.svg',
   },
   {
     id: 'software',
     label: 'Software',
-    subtitle: 'Софт, автоматизация и ИИ',
+    subtitle: 'Софт, ИИ-алгоритмы и автономный фарм Data/час',
     accentColor: '#7dff00',
     iconUrl: '/assets/cards/software.svg',
   },
   {
     id: 'comfort',
     label: 'Comfort',
-    subtitle: 'Бусты CPU Energy (до 5000) и фокуса',
+    subtitle: 'Запас CPU Energy (до 5000) + фокус оператора',
     accentColor: '#ff00a0',
     iconUrl: '/assets/cards/comfort.svg',
   },
   {
     id: 'darknet',
     label: 'Darknet',
-    subtitle: 'Сверхдоход Data + рост розыска (Heat)',
+    subtitle: 'Экстремальный доход Data + рост розыска (Heat)',
     accentColor: '#ff3b6b',
     iconUrl: '/assets/cards/darknet.svg',
   },
 ];
 
-// 32 карточки (по 8 в каждой категории = сетка 2×4, макс. уровень карточки = 10)
-// Сумма макс. уровней = 320 -> макс. уровень игрока = 65 (позволяет комфортно достичь 50 ур. для Global Hack Престижа)
+// 48 карточек (по 12 в каждой категории = сетка 2×6, макс. уровень карточки = 10 -> 100% совместимость с БД!)
+// Сумма макс. уровней = 480 -> до 97 уровня игрока за один цикл + многоступенчатый Global Hack Престиж!
+// ВАЖНО: Все 32 базовых ключа (key) полностью сохранены — ни у одного текущего игрока не пропадёт ни один уровень!
 export const CARDS_CONFIG: CardConfig[] = [
-  // ===================== HARDWARE (8) =====================
+  // ===================== HARDWARE (12) =====================
   {
     key: 'monitor',
     name: 'Монитор IPS 240Hz',
@@ -91,7 +92,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🛸',
   },
   {
-    // DEFAULT: расширение линейки Hardware для сетки 2x4 и прогрессии до 50 уровня
     key: 'quantum_cooler',
     name: 'Крио-охлаждение',
     description: 'Держит частоты процессора на пике без троттлинга.',
@@ -101,7 +101,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '❄️',
   },
   {
-    // DEFAULT
     key: 'fiber_uplink',
     name: 'Оптический канал 100G',
     description: 'Прямой гигабитный аплинк в магистральную сеть.',
@@ -112,7 +111,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '⚡',
   },
   {
-    // DEFAULT
     key: 'neural_chip',
     name: 'Нейро-сопроцессор',
     description: 'Тензорный модуль нового поколения.',
@@ -122,8 +120,53 @@ export const CARDS_CONFIG: CardConfig[] = [
     clickBonusPerLevel: 3.0,
     iconGlyph: '🧠',
   },
+  {
+    // DEFAULT: Эндгейм-линейка Hardware (Ур. 18–50+)
+    key: 'asic_blade_array',
+    name: 'Блейд-ферма ASIC X9',
+    description: 'Стойка промышленных вычислителей для мидгейма.',
+    category: 'hardware',
+    basePrice: 42000,
+    dataPerHourPerLevel: 64000,
+    clickBonusPerLevel: 6.5,
+    minLevel: 15,
+    iconGlyph: '🧱',
+  },
+  {
+    key: 'photonic_core',
+    name: 'Фотонный Процессор',
+    description: 'Световые затворы обрабатывают терабайты без нагрева.',
+    category: 'hardware',
+    basePrice: 185000,
+    dataPerHourPerLevel: 215000,
+    clickBonusPerLevel: 14.0,
+    minLevel: 25,
+    iconGlyph: '💎',
+  },
+  {
+    key: 'subsea_datacenter',
+    name: 'Подводный Дата-Бункер',
+    description: 'Автономная капсула серверов на дне северного океана.',
+    category: 'hardware',
+    basePrice: 820000,
+    dataPerHourPerLevel: 740000,
+    clickBonusPerLevel: 32.0,
+    minLevel: 38,
+    iconGlyph: '🌊',
+  },
+  {
+    key: 'orbital_quantum_ring',
+    name: 'Орбитальное Кванто-Кольцо',
+    description: 'Финальный мегапроект Hardware: планетарная вычислительная сеть.',
+    category: 'hardware',
+    basePrice: 3600000,
+    dataPerHourPerLevel: 2650000,
+    clickBonusPerLevel: 75.0,
+    minLevel: 52,
+    iconGlyph: '🪐',
+  },
 
-  // ===================== SOFTWARE (8) =====================
+  // ===================== SOFTWARE (12) =====================
   {
     key: 'vpn',
     name: 'Мульти-VPN Цепь',
@@ -146,7 +189,7 @@ export const CARDS_CONFIG: CardConfig[] = [
   {
     key: 'botnet',
     name: 'Симулятор Ботнета',
-    description: 'Виртуальный рой воркеров генерирует Data каждую минуту.',
+    description: 'Вициальный рой воркеров генерирует Data каждую минуту.',
     category: 'software',
     basePrice: 220,
     dataPerHourPerLevel: 880,
@@ -173,7 +216,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🤖',
   },
   {
-    // DEFAULT
     key: 'poly_compiler',
     name: 'Полиморф-движок',
     description: 'Динамическая пересборка модулей на лету.',
@@ -183,7 +225,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🧬',
   },
   {
-    // DEFAULT
     key: 'packet_sniffer',
     name: 'Спектральный Анализатор',
     description: 'Извлекает ценные пакеты из фонового шума сети.',
@@ -193,7 +234,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '📡',
   },
   {
-    // DEFAULT
     key: 'quantum_decryptor',
     name: 'Квантовый Дешифратор',
     description: 'Мгновенный подбор ключей в игровом симуляторе.',
@@ -203,8 +243,53 @@ export const CARDS_CONFIG: CardConfig[] = [
     clickBonusPerLevel: 4.5,
     iconGlyph: '🔮',
   },
+  {
+    // DEFAULT: Эндгейм-линейка Software
+    key: 'autonomous_agents',
+    name: 'Рой ИИ-Агентов',
+    description: 'Самообучающиеся агенты фармят синтетические узлы круглосуточно.',
+    category: 'software',
+    basePrice: 68000,
+    dataPerHourPerLevel: 105000,
+    clickBonusPerLevel: 9.0,
+    minLevel: 16,
+    iconGlyph: '🧠',
+  },
+  {
+    key: 'zero_knowledge_os',
+    name: 'Ядро Zero-Knowledge OS',
+    description: 'Операционная система криптографической невидимости.',
+    category: 'software',
+    basePrice: 290000,
+    dataPerHourPerLevel: 340000,
+    clickBonusPerLevel: 20.0,
+    minLevel: 28,
+    iconGlyph: '💠',
+  },
+  {
+    key: 'synthetic_metaverse',
+    name: 'Синтетический Мета-Узел',
+    description: 'Собственная виртуальная вселенная, генерирующая потоки Data.',
+    category: 'software',
+    basePrice: 1250000,
+    dataPerHourPerLevel: 1150000,
+    clickBonusPerLevel: 45.0,
+    minLevel: 40,
+    iconGlyph: '🌌',
+  },
+  {
+    key: 'agi_singularity_kernel',
+    name: 'Сверхразум «Сингулярность»',
+    description: 'Венец ветки Software — автономное цифровое сознание.',
+    category: 'software',
+    basePrice: 5400000,
+    dataPerHourPerLevel: 4100000,
+    clickBonusPerLevel: 110.0,
+    minLevel: 55,
+    iconGlyph: '👁️',
+  },
 
-  // ===================== COMFORT (8 — дают +50 Energy Max за уровень => ровно до 5000!) =====================
+  // ===================== COMFORT (12 — буст Energy Max до 5000 + стабильный пассив!) =====================
   {
     key: 'gamer_chair',
     name: 'Кибер-кресло Pro',
@@ -238,7 +323,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🌈',
   },
   {
-    // DEFAULT
     key: 'smart_desk',
     name: 'Смарт-стол с приводом',
     description: 'Идеальная эргономика для марафонов: +50 Energy Max.',
@@ -249,7 +333,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🛸',
   },
   {
-    // DEFAULT
     key: 'synth_audio',
     name: 'Акустика Synthwave',
     description: 'Ритм ночного города ускоряет печать: +50 Energy Max.',
@@ -261,7 +344,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🎧',
   },
   {
-    // DEFAULT
     key: 'energy_fridge',
     name: 'Мини-холодильник',
     description: 'Запас кибер-тоника у руки: +50 Energy Max.',
@@ -272,7 +354,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🧊',
   },
   {
-    // DEFAULT
     key: 'air_ionizer',
     name: 'Климат-капсула',
     description: 'Чистый озон в серверной комнате: +50 Energy Max.',
@@ -283,7 +364,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🌀',
   },
   {
-    // DEFAULT
     key: 'holo_projector',
     name: 'Голо-проектор Сцены',
     description: 'Парящие 3D-виджеты над столом: +50 Energy Max.',
@@ -294,8 +374,57 @@ export const CARDS_CONFIG: CardConfig[] = [
     clickBonusPerLevel: 2.5,
     iconGlyph: '💠',
   },
+  {
+    // DEFAULT: Эндгейм-линейка Comfort
+    key: 'bionic_gloves',
+    name: 'Тактильные Перчатки',
+    description: 'Мгновенный нейро-отклик клавиш: мощный буст тапа и +50 Energy Max.',
+    category: 'comfort',
+    basePrice: 46000,
+    dataPerHourPerLevel: 72000,
+    energyMaxPerLevel: 50,
+    clickBonusPerLevel: 8.5,
+    minLevel: 15,
+    iconGlyph: '🧤',
+  },
+  {
+    key: 'penthouse_loft',
+    name: 'Кибер-Пентхаус 88 Этаж',
+    description: 'Панорамный штаб над неоновым мегаполисом.',
+    category: 'comfort',
+    basePrice: 210000,
+    dataPerHourPerLevel: 245000,
+    energyMaxPerLevel: 50,
+    clickBonusPerLevel: 18.0,
+    minLevel: 26,
+    iconGlyph: '🏙️',
+  },
+  {
+    key: 'neural_sleep_pod',
+    name: 'Капсула Нейро-Фокуса',
+    description: 'Полное восстановление концентрации оператора.',
+    category: 'comfort',
+    basePrice: 940000,
+    dataPerHourPerLevel: 860000,
+    energyMaxPerLevel: 50,
+    clickBonusPerLevel: 42.0,
+    minLevel: 38,
+    iconGlyph: '🛸',
+  },
+  {
+    key: 'orbital_penthouse_station',
+    name: 'Станция «Небесный Штаб»',
+    description: 'Личный командный модуль на низкой орбите.',
+    category: 'comfort',
+    basePrice: 4100000,
+    dataPerHourPerLevel: 3100000,
+    energyMaxPerLevel: 50,
+    clickBonusPerLevel: 95.0,
+    minLevel: 52,
+    iconGlyph: '🚀',
+  },
 
-  // ===================== DARKNET (8 — огромный доход Data, но +Heat при покупке!) =====================
+  // ===================== DARKNET (12 — максимальный доход Data, но +Heat при покупке!) =====================
   {
     key: 'scam_exploits',
     name: 'Скам-эксплойты',
@@ -319,7 +448,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '💀',
   },
   {
-    // DEFAULT
     key: 'phantom_proxy',
     name: 'Теневой Шлюз Onion',
     description: 'Скрытая маршрутизация чёрного рынка: +10 Heat.',
@@ -330,7 +458,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🕷️',
   },
   {
-    // DEFAULT
     key: 'shadow_market',
     name: 'Даркнет-биржа Дампов',
     description: 'Оптовая торговля синтетическими базами: +14 Heat.',
@@ -342,7 +469,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🏴‍☠️',
   },
   {
-    // DEFAULT
     key: 'crypto_tumbler',
     name: 'Миксер Протоколов',
     description: 'Высокодоходный теневой пул ликвидности: +12 Heat.',
@@ -353,7 +479,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🎲',
   },
   {
-    // DEFAULT
     key: 'black_ice',
     name: 'Вирус «Чёрный Лёд»',
     description: 'Пробивает корпоративные периметры: +16 Heat.',
@@ -365,7 +490,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🩸',
   },
   {
-    // DEFAULT
     key: 'sat_hijack',
     name: 'Орбитальный Перехват',
     description: 'Подключение к вымышленному спутнику связи: +18 Heat.',
@@ -376,7 +500,6 @@ export const CARDS_CONFIG: CardConfig[] = [
     iconGlyph: '🛰️',
   },
   {
-    // DEFAULT
     key: 'red_mercury_core',
     name: 'Ядро «Омега-Дарк»',
     description: 'Запрещённый ИИ-кластер максимальной мощности: +22 Heat.',
@@ -386,6 +509,55 @@ export const CARDS_CONFIG: CardConfig[] = [
     clickBonusPerLevel: 8.0,
     heatOnBuy: 22,
     iconGlyph: '🔥',
+  },
+  {
+    // DEFAULT: Эндгейм-линейка Darknet (колоссальный доход за высокий риск!)
+    key: 'ghost_submarine_cable',
+    name: 'Врезка в Донный Кабель',
+    description: 'Перехват межконтинентального трафика симулятора: +20 Heat.',
+    category: 'darknet',
+    basePrice: 195000,
+    dataPerHourPerLevel: 360000,
+    clickBonusPerLevel: 18.0,
+    heatOnBuy: 20,
+    minLevel: 20,
+    iconGlyph: '⚓',
+  },
+  {
+    key: 'shadow_central_ledger',
+    name: 'Теневой Центробанк',
+    description: 'Подпольный клиринговый узел мегаполиса: +24 Heat.',
+    category: 'darknet',
+    basePrice: 780000,
+    dataPerHourPerLevel: 1080000,
+    clickBonusPerLevel: 44.0,
+    heatOnBuy: 24,
+    minLevel: 32,
+    iconGlyph: '🏦',
+  },
+  {
+    key: 'eclipse_satellite_swarm',
+    name: 'Рой Спутников «Затмение»',
+    description: 'Скрытая теневая группировка ретрансляторов: +26 Heat.',
+    category: 'darknet',
+    basePrice: 3200000,
+    dataPerHourPerLevel: 3400000,
+    clickBonusPerLevel: 105.0,
+    heatOnBuy: 26,
+    minLevel: 44,
+    iconGlyph: '🌑',
+  },
+  {
+    key: 'leviathan_protocol',
+    name: 'Протокол «Левиафан»',
+    description: 'Абсолютная вершина Даркнета — максимальный доход в игре (+30 Heat)!',
+    category: 'darknet',
+    basePrice: 11500000,
+    dataPerHourPerLevel: 9800000,
+    clickBonusPerLevel: 260.0,
+    heatOnBuy: 30,
+    minLevel: 58,
+    iconGlyph: '🐉',
   },
 ];
 

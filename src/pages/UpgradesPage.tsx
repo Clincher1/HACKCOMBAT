@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Flame, Sparkles, Zap } from 'lucide-react';
+import { BookOpen, Flame, Lock, Sparkles, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import {
   CARD_CATEGORIES,
@@ -13,7 +13,7 @@ import { formatCompact } from '../lib/format';
 import { triggerHapticSelection } from '../lib/telegram';
 
 export const UpgradesPage: React.FC = () => {
-  const { player, buyCard, busyKey } = useGame();
+  const { player, buyCard, busyKey, openTutorial } = useGame();
   const [selectedCategory, setSelectedCategory] = useState<CardCategory>('hardware');
 
   if (!player) return null;
@@ -24,24 +24,28 @@ export const UpgradesPage: React.FC = () => {
 
   return (
     <div className="space-y-3.5 pb-4">
-      {/* Шапка прогресса уровня от карточек */}
+      {/* Шапка прогресса уровня от карточек + кнопка подсказки */}
       <div className="rounded-2xl bg-[#10172e] border border-[#00f0ff]/25 p-3.5 flex items-center justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <div className="text-xs font-bold text-white flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-[#00f0ff]" />
-            <span>Мастерская Рабочего Стола</span>
+            <Sparkles className="w-4 h-4 text-[#00f0ff] shrink-0" />
+            <span>Мастерская Рабочего Стола (48 модулей)</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-0.5">
-            Каждые 5 купленных уровней повышают ваш Уровень (+1) и эволюционируют сцену!
+            Каждые 5 уровней карточек = +1 Уровень игрока (макс. 97 ур. + Global Hack Престиж).
           </p>
         </div>
-        <div className="text-right shrink-0">
+        <div className="text-right shrink-0 space-y-1">
           <div className="font-display text-sm font-extrabold text-[#00f0ff]">
             УР. {player.derived.level}
           </div>
-          <div className="text-[10px] text-slate-400">
-            Всего апгрейдов: {player.derived.totalCardLevels}
-          </div>
+          <button
+            type="button"
+            onClick={openTutorial}
+            className="inline-flex items-center gap-1 text-[10px] font-bold text-[#7dff00] hover:underline cursor-pointer"
+          >
+            <BookOpen className="w-3 h-3" /> Что качать?
+          </button>
         </div>
       </div>
 
@@ -82,29 +86,40 @@ export const UpgradesPage: React.FC = () => {
         </span>
       </div>
 
-      {/* Сетка карточек 2×N по разделу 4.2 ТЗ */}
+      {/* Сетка карточек 2×N */}
       <div className="grid grid-cols-2 gap-2.5">
         {filteredCards.map((card) => {
           const level = player.cards[card.key] ?? 0;
           const isMax = level >= MAX_CARD_LEVEL;
+          const lockedByLevel = Boolean(card.minLevel && player.derived.level < card.minLevel);
           const price = getCardPrice(card, level);
-          const canAfford = !isMax && player.data >= price;
+          const canAfford = !isMax && !lockedByLevel && player.data >= price;
           const isBusy = busyKey === `card:${card.key}`;
 
           return (
             <motion.div
               key={card.key}
               whileTap={canAfford ? { scale: 0.98 } : undefined}
-              className="rounded-2xl bg-[#10172e]/95 border border-slate-800/90 p-3 flex flex-col justify-between gap-2.5"
+              className={`rounded-2xl border p-3 flex flex-col justify-between gap-2.5 ${
+                lockedByLevel
+                  ? 'bg-[#0b1021]/90 border-slate-800/60 opacity-80'
+                  : 'bg-[#10172e]/95 border-slate-800/90'
+              }`}
             >
               <div className="space-y-1.5">
                 <div className="flex items-start justify-between gap-1.5">
                   <div className="w-9 h-9 rounded-xl bg-[#0a0e1a] border border-slate-800 flex items-center justify-center text-lg shrink-0">
-                    {card.iconGlyph}
+                    {lockedByLevel ? <Lock className="w-4 h-4 text-slate-500" /> : card.iconGlyph}
                   </div>
-                  <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a] border border-slate-700/80 text-[10px] font-bold text-[#00f0ff]">
-                    Ур. {level}/{MAX_CARD_LEVEL}
-                  </span>
+                  {lockedByLevel ? (
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/12 border border-amber-500/35 text-[10px] font-bold text-amber-300">
+                      Ур. {card.minLevel}+
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a] border border-slate-700/80 text-[10px] font-bold text-[#00f0ff]">
+                      Ур. {level}/{MAX_CARD_LEVEL}
+                    </span>
+                  )}
                 </div>
 
                 <div>
@@ -152,17 +167,23 @@ export const UpgradesPage: React.FC = () => {
 
                 <button
                   type="button"
-                  disabled={isMax || !canAfford || isBusy}
+                  disabled={isMax || lockedByLevel || !canAfford || isBusy}
                   onClick={() => void buyCard(card.key)}
                   className={`w-full py-2 px-2.5 rounded-xl text-xs font-display font-bold transition cursor-pointer ${
                     isMax
                       ? 'bg-[#7dff00]/15 text-[#7dff00] border border-[#7dff00]/35 cursor-default'
-                      : canAfford
-                        ? 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
-                        : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
+                      : lockedByLevel
+                        ? 'bg-[#0a0e1a] text-amber-300/75 border border-amber-500/25 cursor-not-allowed'
+                        : canAfford
+                          ? 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
+                          : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
                   }`}
                 >
-                  {isMax ? 'МАКСИМУМ' : `Купить • ${formatCompact(price)}`}
+                  {isMax
+                    ? 'МАКСИМУМ'
+                    : lockedByLevel
+                      ? `🔒 Нужен Ур. ${card.minLevel}`
+                      : `Купить • ${formatCompact(price)}`}
                 </button>
               </div>
             </motion.div>

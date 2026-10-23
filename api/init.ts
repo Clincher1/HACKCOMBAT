@@ -1,7 +1,15 @@
 import { handleInitPlayer } from './_lib/gameEngine';
-import { authenticateRequest, readJsonBody, sendJson, type ApiRequest, type ApiResponse } from './_lib/http';
+import {
+  authenticateRequest,
+  enforceHttpSecurity,
+  readJsonBody,
+  sendJson,
+  type ApiRequest,
+  type ApiResponse,
+} from './_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+  if (!enforceHttpSecurity(req, res)) return;
   try {
     const body = req.method === 'POST' ? await readJsonBody(req) : {};
     const user = authenticateRequest(req, body);

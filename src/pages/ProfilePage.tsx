@@ -1,7 +1,7 @@
-import { Award, Crown, Edit3, Globe, Scale, Shield, Trophy } from 'lucide-react';
+import { Award, BookOpen, Crown, Edit3, Globe, Scale, Trophy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { ACHIEVEMENTS_CONFIG } from '../../shared/achievements.config';
-import { PRESTIGE_REQUIRED_LEVEL } from '../../shared/mechanics';
+import { getPrestigeRequiredLevel } from '../../shared/mechanics';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -14,6 +14,7 @@ export const ProfilePage: React.FC = () => {
     refreshLeaderboard,
     triggerPrestige,
     updateDemoName,
+    openTutorial,
     busyKey,
   } = useGame();
 
@@ -33,7 +34,8 @@ export const ProfilePage: React.FC = () => {
   const alignmentDiff = player.heat - player.rep;
   const alignmentMarkerPct = Math.min(95, Math.max(5, 50 + alignmentDiff * 0.45));
 
-  const canPrestige = derived.level >= PRESTIGE_REQUIRED_LEVEL;
+  const requiredPrestigeLevel = getPrestigeRequiredLevel(player.prestigeCount);
+  const canPrestige = derived.level >= requiredPrestigeLevel;
 
   return (
     <div className="space-y-3.5 pb-6">
@@ -80,10 +82,17 @@ export const ProfilePage: React.FC = () => {
             </div>
           </div>
 
-          <div className="text-right shrink-0">
+          <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
             <span className="text-[10px] px-2 py-0.5 rounded bg-[#0a0e1a] border border-slate-800 text-slate-400">
               {storageMode === 'supabase' ? '🟢 Supabase Cloud' : '⚡ Local Sync'}
             </span>
+            <button
+              type="button"
+              onClick={openTutorial}
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#00f0ff]/12 border border-[#00f0ff]/35 text-[10px] font-bold text-[#00f0ff] hover:bg-[#00f0ff]/20 cursor-pointer"
+            >
+              <BookOpen className="w-3 h-3" /> Справка и Билды
+            </button>
           </div>
         </div>
 
@@ -176,14 +185,15 @@ export const ProfilePage: React.FC = () => {
             <span>GLOBAL HACK — ПРЕСТИЖ</span>
           </div>
           <span className="text-xs font-bold text-purple-300">
-            Ур. {derived.level} / {PRESTIGE_REQUIRED_LEVEL}
+            Ур. {derived.level} / {requiredPrestigeLevel}
           </span>
         </div>
 
         <p className="text-[11px] text-slate-300 leading-relaxed">
-          На 50 уровне вы можете перезапустить матрицу: карточки, команда и Data обнулятся, но вы
-          навсегда получите <strong>множитель ×{derived.prestigeMultiplier * 2} к доходу</strong>,
-          эксклюзивный скин <em>Omega Singularity</em> и легендарную ачивку (+50 💎)!
+          На {requiredPrestigeLevel} уровне вы можете перезапустить матрицу: карточки, команда и Data
+          обнулятся, но вы навсегда получите{' '}
+          <strong>множитель ×{derived.prestigeMultiplier * 2} к доходу</strong>, сохраните все{' '}
+          <strong>💎 Crypto, достижения, скины и Rep</strong>!
         </p>
 
         <button
@@ -197,8 +207,8 @@ export const ProfilePage: React.FC = () => {
           }`}
         >
           {canPrestige
-            ? '🌐 ЗАПУСТИТЬ GLOBAL HACK (×2 НАВСЕГДА)'
-            : `Требуется ${PRESTIGE_REQUIRED_LEVEL} уровень (ещё ${PRESTIGE_REQUIRED_LEVEL - derived.level} ур.)`}
+            ? `🌐 ЗАПУСТИТЬ GLOBAL HACK (×${derived.prestigeMultiplier * 2} НАВСЕГДА)`
+            : `Требуется ${requiredPrestigeLevel} уровень (ещё ${requiredPrestigeLevel - derived.level} ур.)`}
         </button>
       </div>
 

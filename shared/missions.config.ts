@@ -1,9 +1,9 @@
 import type { MissionConfig } from './types';
 
-// Ровно 20 вымышленных миссий (Шаг 7 и раздел 9 ТЗ — никаких реальных брендов!)
-// Длительность: строго 5–30 секунд (раздел 4.3 ТЗ)
+// 28 вымышленных миссий (все 20 базовых ключей полностью сохранены + 8 высокоуровневых контрактов для долгой игры!)
+// Длительность: строго 5–30 секунд (раздел 4.3 ТЗ). Ни одного реального бренда или уязвимости!
 export const MISSIONS_CONFIG: MissionConfig[] = [
-  // 🔴 BAD SITES (7) — взлом мошеннических узлов: +Data, +Rep, 0 Heat
+  // 🔴 BAD SITES (9) — взлом мошеннических узлов: +Data, +Rep, 0 Heat
   {
     key: 'scam_shop',
     targetName: 'ScamShop.xyz',
@@ -74,8 +74,28 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
     repDelta: 30,
     heatDelta: 0,
   },
+  {
+    key: 'deepfake_cartel',
+    targetName: 'DeepFake Syndicate',
+    targetType: 'bad',
+    description: 'Эндгейм-рейд: обрушить ферму синтетических дипфейк-ботов.',
+    durationSec: 26,
+    baseDataReward: 2400,
+    repDelta: 42,
+    heatDelta: 0,
+  },
+  {
+    key: 'phantom_ponzi_core',
+    targetName: 'Pyramid Core AI',
+    targetType: 'bad',
+    description: 'Разоблачить глобальную кибер-пирамиду и вернуть средства.',
+    durationSec: 30,
+    baseDataReward: 4200,
+    repDelta: 60,
+    heatDelta: 0,
+  },
 
-  // 🟢 GOOD SITES (7) — защищённые гиганты: +++Data, +Heat, -Rep
+  // 🟢 GOOD SITES (9) — защищённые гиганты: +++Data, +Heat, -Rep
   {
     key: 'mega_corp',
     targetName: 'MegaCorp Mainframe',
@@ -140,14 +160,34 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
     key: 'star_orbital',
     targetName: 'OrbitalLink Relay',
     targetType: 'good',
-    description: 'Максимальный куш Data, но патруль киберполиции уже близко!',
+    description: 'Крупный куш Data, но патруль киберполиции уже близко!',
     durationSec: 30,
     baseDataReward: 2100,
     repDelta: -25,
     heatDelta: 40,
   },
+  {
+    key: 'quantum_exchange',
+    targetName: 'Helios Quantum Exchange',
+    targetType: 'good',
+    description: 'Дерзкий рейд на межпланетную клиринговую биржу симулятора.',
+    durationSec: 28,
+    baseDataReward: 4800,
+    repDelta: -32,
+    heatDelta: 44,
+  },
+  {
+    key: 'citadel_ai_vault',
+    targetName: 'Citadel Prime Core',
+    targetType: 'good',
+    description: 'Финальный корпоративный бастион с колоссальным запасом Data.',
+    durationSec: 30,
+    baseDataReward: 8200,
+    repDelta: -40,
+    heatDelta: 48,
+  },
 
-  // ⚪ NEUTRAL SITES (4) — небольшие цели: +Data, +немного Heat
+  // ⚪ NEUTRAL SITES (6) — небольшие цели: +Data, +немного Heat
   {
     key: 'retro_blog',
     targetName: 'RetroCyberBlog',
@@ -188,8 +228,28 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
     repDelta: 1,
     heatDelta: 6,
   },
+  {
+    key: 'drone_racing_hub',
+    targetName: 'SkyDrift Telemetry',
+    targetType: 'neutral',
+    description: 'Скачать телеметрию ночной лиги гоночных дронов.',
+    durationSec: 12,
+    baseDataReward: 620,
+    repDelta: 2,
+    heatDelta: 7,
+  },
+  {
+    key: 'holo_cinema_grid',
+    targetName: 'NeoCinema Stream',
+    targetType: 'neutral',
+    description: 'Запустить голографическое лого клана перед премьерой.',
+    durationSec: 15,
+    baseDataReward: 1100,
+    repDelta: 2,
+    heatDelta: 8,
+  },
 
-  // 🟣 GREY SITES (2) — открываются при найме Analyst (раздел 4.4 ТЗ): +++Data, +Rep, шанс Crypto!
+  // 🟣 GREY SITES (4) — открываются при найме Analyst: +++Data, +Rep и шанс 💎 Crypto!
   {
     key: 'grey_offshore_ledger',
     targetName: 'OffshoreGhost Ledger',
@@ -211,5 +271,27 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
     repDelta: 22,
     heatDelta: 8,
     cryptoDropChance: 0.6,
+  },
+  {
+    key: 'grey_ghost_sat',
+    targetName: 'GhostSat Blackbox',
+    targetType: 'grey',
+    description: 'Расшифровка потерянного орбитального чёрного ящика (+шанс 💎 Crypto).',
+    durationSec: 26,
+    baseDataReward: 3800,
+    repDelta: 30,
+    heatDelta: 10,
+    cryptoDropChance: 0.65,
+  },
+  {
+    key: 'grey_quantum_archive',
+    targetName: 'Enigma Vault Zero',
+    targetType: 'grey',
+    description: 'Высший секретный контракт: квантовый архив синдиката (+высокий шанс 💎 Crypto).',
+    durationSec: 30,
+    baseDataReward: 6500,
+    repDelta: 42,
+    heatDelta: 12,
+    cryptoDropChance: 0.75,
   },
 ];

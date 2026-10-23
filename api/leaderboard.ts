@@ -1,7 +1,14 @@
 import { handleGetLeaderboard } from './_lib/gameEngine';
-import { authenticateRequest, sendJson, type ApiRequest, type ApiResponse } from './_lib/http';
+import {
+  authenticateRequest,
+  enforceHttpSecurity,
+  sendJson,
+  type ApiRequest,
+  type ApiResponse,
+} from './_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+  if (!enforceHttpSecurity(req, res)) return;
   try {
     const user = authenticateRequest(req);
     const result = await handleGetLeaderboard(user);

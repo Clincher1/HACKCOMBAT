@@ -1,7 +1,15 @@
 import { handleGlobalHackPrestige } from './_lib/gameEngine';
-import { authenticateRequest, readJsonBody, sendJson, type ApiRequest, type ApiResponse } from './_lib/http';
+import {
+  authenticateRequest,
+  enforceHttpSecurity,
+  readJsonBody,
+  sendJson,
+  type ApiRequest,
+  type ApiResponse,
+} from './_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
+  if (!enforceHttpSecurity(req, res)) return;
   if (req.method !== 'POST') {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }

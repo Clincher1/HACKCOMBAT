@@ -44,6 +44,10 @@ interface GameContextValue {
   setDailyModalOpen: (v: boolean) => void;
   skinModalOpen: boolean;
   setSkinModalOpen: (v: boolean) => void;
+  tutorialModalOpen: boolean;
+  tutorialUnseen: boolean;
+  openTutorial: () => void;
+  closeTutorial: () => void;
   tapHack: () => boolean;
   buyCard: (cardKey: string) => Promise<void>;
   startMission: (missionKey: string) => Promise<void>;
@@ -74,7 +78,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [soundMuted, setSoundMuted] = useState(() => cyberSound.isMuted());
   const [dailyModalOpen, setDailyModalOpen] = useState(false);
   const [skinModalOpen, setSkinModalOpen] = useState(false);
+  const [tutorialModalOpen, setTutorialModalOpen] = useState(false);
+  const [tutorialUnseen, setTutorialUnseen] = useState(() => {
+    try {
+      return localStorage.getItem('hk_tutorial_seen_v1') !== '1';
+    } catch {
+      return true;
+    }
+  });
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+
+  const openTutorial = useCallback(() => {
+    setTutorialModalOpen(true);
+    setTutorialUnseen(false);
+    try {
+      localStorage.setItem('hk_tutorial_seen_v1', '1');
+    } catch {
+      // ignore storage quota
+    }
+  }, []);
+
+  const closeTutorial = useCallback(() => {
+    setTutorialModalOpen(false);
+  }, []);
 
   const pendingClicksRef = useRef<number>(0);
   const flushingRef = useRef<boolean>(false);
@@ -418,6 +444,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setDailyModalOpen,
         skinModalOpen,
         setSkinModalOpen,
+        tutorialModalOpen,
+        tutorialUnseen,
+        openTutorial,
+        closeTutorial,
         tapHack,
         buyCard,
         startMission,
