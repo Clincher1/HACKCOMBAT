@@ -1,0 +1,29 @@
+name: Supabase Keep-Alive Ping
+
+# Supabase Free засыпает после 7 дней неактивности — пингуем каждые 3 дня (раздел 6 и шаг 10 ТЗ)
+on:
+  schedule:
+    - cron: '0 9 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Vercel API & Supabase REST health
+        env:
+          APP_URL: ${{ secrets.PUBLIC_WEBAPP_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -n "$APP_URL" ]; then
+            echo "Pinging $APP_URL/api/ping ..."
+            curl -fsS --max-time 10 "$APP_URL/api/ping" || true
+          fi
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_ANON_KEY" ]; then
+            echo "Querying Supabase leaderboard view..."
+            curl -fsS --max-time 10 \
+              -H "apikey: $SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+              "$SUPABASE_URL/rest/v1/leaderboard?select=username&limit=1"
+          fi
