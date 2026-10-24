@@ -205,6 +205,16 @@ export interface PlayerProgressStats {
   totalXpEarned: number;
   /** Когда последний раз начислялась «фоновая копилка тапов» (ISO). */
   lastTapClaimAt?: string | null;
+  /** v3.2: игровой день (YYYY-MM-DD по Москве), за который считаем активность. */
+  activeDayKey?: string | null;
+  /** v3.2: сколько секунд активной игры набрано в текущем игровом дне. */
+  activeSecondsToday?: number;
+  /** v3.2: последний день, в котором набрано 8+ минут активности (даёт право на оффлайн). */
+  lastQualifiedDayKey?: string | null;
+  /** v3.2: время последнего запроса к серверу — «пульс» активной сессии. */
+  lastActiveAt?: string | null;
+  /** v3.2: одноразовая поблажка для сейвов, созданных до появления счётчиков. */
+  offlineGraceUsed?: boolean;
 }
 
 export interface DerivedStats {

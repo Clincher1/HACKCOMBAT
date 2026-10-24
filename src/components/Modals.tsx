@@ -54,16 +54,21 @@ export const ModalsAndOverlays: React.FC = () => {
                 Пассивный майнинг завершён!
               </h3>
               <p className="text-xs text-slate-300 mt-1">
-                Пока вы были оффлайн, ваши серверы и команда заработали:
+                Пока вы были оффлайн, ваши серверы и команда заработали. Только Data — опыт, Crypto
+                и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те
+                сутки, где вы наиграли 8 минут.
               </p>
               <div className="my-4 py-3 rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 font-display text-2xl font-black text-[#7dff00]">
                 +{formatCompact(offlineModalEarned)} DATA
               </div>
               {offlineModalTaps > 0 && (
-                <p className="text-[11px] text-slate-400 -mt-2 mb-3">
+                <p className="text-[11px] text-slate-400 -mt-2 mb-1">
                   в том числе {formatCompact(offlineModalTaps)} фоновых тапов × сила клика
                 </p>
               )}
+              <p className="text-[10px] text-slate-500 mb-3">
+                карточки в оффлайне платят 50% от обычной ставки
+              </p>
               <button
                 type="button"
                 onClick={dismissOfflineModal}

@@ -7,6 +7,20 @@ export interface VerifiedTelegramUser {
   isVerifiedTelegram: boolean;
 }
 
+
+/**
+ * Настоящий ли токен бота? Отсекаем плейсхолдеры из .env.example и пустые значения,
+ * чтобы приложение не пыталось проверять HMAC по заглушке.
+ * Формат токена BotFather: <id>:<35 символов>.
+ */
+export function isRealBotToken(token: string | undefined): boolean {
+  const t = (token ?? '').trim();
+  if (t.length < 20 || !t.includes(':')) return false;
+  if (/^[<#$]/.test(t)) return false; // <вставьте_токен_из_@BotFather>, $TOKEN, #...
+  if (/example|botfather|placeholder|your[_-]?token|replace[_-]?with|changeme|xxx+/i.test(t)) return false;
+  return true;
+}
+
 const MAX_AUTH_AGE_SECONDS = 86400; // 24 часа свежести подписи Telegram initData
 
 /**
@@ -47,7 +61,7 @@ export function verifyTelegramInitData(
   demoHeaderName?: string
 ): VerifiedTelegramUser {
   const cleaned = (rawInitData ?? '').trim();
-  const hasRealBotToken = Boolean(botToken && !botToken.includes('AAExampleBotToken'));
+  const hasRealBotToken = isRealBotToken(botToken);
 
   if (cleaned && hasRealBotToken && botToken) {
     const params = new URLSearchParams(cleaned);
