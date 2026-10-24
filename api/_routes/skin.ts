@@ -1,4 +1,4 @@
-import { handleSkinAction } from './_lib/gameEngine';
+import { handleSkinAction } from '../_lib/gameEngine';
 import {
   authenticateRequest,
   enforceHttpSecurity,
@@ -6,7 +6,7 @@ import {
   sendJson,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
+} from '../_lib/http';
 
 const ALLOWED_SKIN_ACTIONS = new Set(['buy_or_equip', 'clear_lockdown']);
 

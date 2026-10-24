@@ -1,4 +1,4 @@
-import { handleClickBatch } from './_lib/gameEngine';
+import { handleDailyBonus } from '../_lib/gameEngine';
 import {
   authenticateRequest,
   enforceHttpSecurity,
@@ -6,7 +6,7 @@ import {
   sendJson,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
+} from '../_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
@@ -14,14 +14,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }
   try {
-    const body = await readJsonBody<{ clicks?: number; initData?: string }>(req);
+    const body = await readJsonBody<{ initData?: string }>(req);
     const user = authenticateRequest(req, body);
-    const result = await handleClickBatch(user, Number(body.clicks ?? 1));
+    const result = await handleDailyBonus(user);
     return sendJson(res, 200, result);
   } catch (err) {
     return sendJson(res, 400, {
       ok: false,
-      error: err instanceof Error ? err.message : 'Click batch failed',
+      error: err instanceof Error ? err.message : 'Daily bonus unavailable',
     });
   }
 }

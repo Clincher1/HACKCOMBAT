@@ -3,28 +3,10 @@ import react from '@vitejs/plugin-react';
 import type { Plugin } from 'vite';
 import { defineConfig, loadEnv } from 'vite';
 
-const API_ROUTES = new Set([
-  'telegram',
-  'init',
-  'click',
-  'buy-card',
-  'missions',
-  'hire',
-  'daily',
-  'skin',
-  'prestige',
-  'leaderboard',
-  'pets',
-  'base',
-  'tier',
-  'track',
-  'ping',
-]);
-
 /**
  * Dev-серверный адаптер Vercel Functions (/api/*):
- * В локальной разработке и Live Preview обрабатывает все /api/* через те же TypeScript-хендлеры,
- * что деплоятся на Vercel Serverless Functions.
+ * В локальной разработке и Live Preview обрабатывает все /api/* через тот же роутер,
+ * что деплоится на Vercel одной catch-all функцией (api/[...path].ts -> api/_router.ts).
  */
 function vercelApiDevPlugin(): Plugin {
   return {
@@ -36,15 +18,9 @@ function vercelApiDevPlugin(): Plugin {
           return next();
         }
         const routeName = rawUrl.replace(/^\/api\//, '').split('?')[0].replace(/\/$/, '');
-        if (!API_ROUTES.has(routeName)) {
-          res.statusCode = 404;
-          res.setHeader('Content-Type', 'application/json');
-          res.end(JSON.stringify({ ok: false, error: `Unknown API route: /api/${routeName}` }));
-          return;
-        }
         try {
-          const mod = await server.ssrLoadModule(`/api/${routeName}.ts`);
-          await mod.default(req, res);
+          const mod = await server.ssrLoadModule('/api/_router.ts');
+          await mod.dispatchApiRequest(req, res);
         } catch (err) {
           console.error(`[API /api/${routeName}]`, err);
           if (!res.headersSent) {

@@ -1,4 +1,4 @@
-import { handleDailyBonus } from './_lib/gameEngine';
+import { handleBuyBaseUpgrade } from '../_lib/gameEngine';
 import {
   authenticateRequest,
   enforceHttpSecurity,
@@ -6,7 +6,7 @@ import {
   sendJson,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
+} from '../_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
@@ -14,14 +14,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }
   try {
-    const body = await readJsonBody<{ initData?: string }>(req);
+    const body = await readJsonBody<{ upgradeKey?: string; initData?: string }>(req);
     const user = authenticateRequest(req, body);
-    const result = await handleDailyBonus(user);
+    if (!body.upgradeKey || typeof body.upgradeKey !== 'string') {
+      return sendJson(res, 400, { ok: false, error: 'upgradeKey is required' });
+    }
+    const result = await handleBuyBaseUpgrade(user, body.upgradeKey.slice(0, 48));
     return sendJson(res, 200, result);
   } catch (err) {
     return sendJson(res, 400, {
       ok: false,
-      error: err instanceof Error ? err.message : 'Daily bonus unavailable',
+      error: err instanceof Error ? err.message : 'Base upgrade failed',
     });
   }
 }

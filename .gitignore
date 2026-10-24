@@ -6,7 +6,3 @@ dist/
 .vercel/
 .local-db.json
 *.tsbuildinfo
-
-# Артефакты сборки API (генерируются scripts/bundle-api.mjs на Vercel)
-api/*.js
-api/_core.cjs

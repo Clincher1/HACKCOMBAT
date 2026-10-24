@@ -1,4 +1,4 @@
-import { handleGlobalHackPrestige } from './_lib/gameEngine';
+import { handleInitPlayer } from '../_lib/gameEngine';
 import {
   authenticateRequest,
   enforceHttpSecurity,
@@ -6,22 +6,19 @@ import {
   sendJson,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
+} from '../_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
-  if (req.method !== 'POST') {
-    return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
-  }
   try {
-    const body = await readJsonBody<{ initData?: string }>(req);
+    const body = req.method === 'POST' ? await readJsonBody(req) : {};
     const user = authenticateRequest(req, body);
-    const result = await handleGlobalHackPrestige(user);
+    const result = await handleInitPlayer(user);
     return sendJson(res, 200, result);
   } catch (err) {
     return sendJson(res, 400, {
       ok: false,
-      error: err instanceof Error ? err.message : 'Prestige failed',
+      error: err instanceof Error ? err.message : 'Init error',
     });
   }
 }

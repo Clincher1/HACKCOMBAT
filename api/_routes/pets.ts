@@ -1,4 +1,4 @@
-import { handlePetAction } from './_lib/gameEngine';
+import { handlePetAction } from '../_lib/gameEngine';
 import {
   authenticateRequest,
   enforceHttpSecurity,
@@ -6,7 +6,7 @@ import {
   sendJson,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
+} from '../_lib/http';
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
