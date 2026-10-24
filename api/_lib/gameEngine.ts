@@ -30,6 +30,8 @@ import {
   HEAT_PENALTY_THRESHOLD,
   HEAT_RESET_AFTER_PENALTY,
   normalizePetState,
+  OFFLINE_TAP_CAP_SECONDS,
+  OFFLINE_TAP_RATE_PER_SEC,
   RANK_TITLES,
   syncEnergy,
 } from '../../shared/mechanics';
@@ -126,6 +128,7 @@ const EMPTY_STATS: PlayerProgressStats = {
   hackSuccessByType: {},
   hackFailByType: {},
   totalXpEarned: 0,
+  lastTapClaimAt: null,
 };
 
 function normalizeStats(raw: unknown): PlayerProgressStats {
@@ -173,6 +176,10 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     hackSuccessByType: numRecord(src.hackSuccessByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     hackFailByType: numRecord(src.hackFailByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     totalXpEarned: num(src.totalXpEarned, 1e12),
+    lastTapClaimAt:
+      typeof src.lastTapClaimAt === 'string' && !Number.isNaN(new Date(src.lastTapClaimAt).getTime())
+        ? src.lastTapClaimAt
+        : null,
   };
 }
 
@@ -646,7 +653,7 @@ async function syncTimeAndRules(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
   alerts: GameAlert[]
-): Promise<{ offlineEarned: number }> {
+): Promise<{ offlineEarned: number; offlineTaps: number }> {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
@@ -680,6 +687,30 @@ async function syncTimeAndRules(
     }
   } else {
     record.lastPassiveClaim = nowIso;
+  }
+
+  // 2.1. «Фоновая копилка тапов» (v3.1).
+  // Пока игра закрыта, за игрока медленно тапают: доход идёт от силы клика,
+  // поэтому прокачка клика усиливает и оффлайн-доход. Кап — 8 часов.
+  let offlineTaps = 0;
+  const lastTapIso = record.stats.lastTapClaimAt ?? null;
+  const lastTapMs = lastTapIso ? new Date(lastTapIso).getTime() : nowMs;
+  if (!lastTapIso || Number.isNaN(lastTapMs)) {
+    record.stats.lastTapClaimAt = nowIso;
+  } else if (nowMs > lastTapMs && derived.clickPower > 0) {
+    const tapSec = Math.min(OFFLINE_TAP_CAP_SECONDS, (nowMs - lastTapMs) / 1000);
+    const taps = Math.floor(tapSec * OFFLINE_TAP_RATE_PER_SEC);
+    if (taps > 0) {
+      const tapEarned = Math.floor(taps * derived.clickPower * 10) / 10;
+      if (tapEarned > 0) {
+        record.data += tapEarned;
+        record.stats.lastTapClaimAt = nowIso;
+        if (tapSec >= 45) {
+          offlineTaps = taps;
+          offlineEarned += Math.round(tapEarned);
+        }
+      }
+    }
   }
 
   // 3. Авто-обновление витрины миссий каждые 15 минут
@@ -912,14 +943,15 @@ async function syncTimeAndRules(
     }
   }
 
-  return { offlineEarned };
+  return { offlineEarned, offlineTaps };
 }
 
 function buildResponse(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
   alerts: GameAlert[] = [],
-  offlineEarned = 0
+  offlineEarned = 0,
+  offlineTaps = 0
 ): ApiSyncResponse {
   const derived = deriveStats(record);
 
@@ -973,6 +1005,7 @@ function buildResponse(
     ok: true,
     player,
     offlineEarned: offlineEarned > 0 ? offlineEarned : undefined,
+    offlineTaps: offlineTaps > 0 ? offlineTaps : undefined,
     alerts: alerts.length > 0 ? alerts : undefined,
     storageMode: mode,
   };
@@ -986,9 +1019,9 @@ export async function handleInitPlayer(user: VerifiedTelegramUser): Promise<ApiS
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
-    const { offlineEarned } = await syncTimeAndRules(record, mode, alerts);
+    const { offlineEarned, offlineTaps } = await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts, offlineEarned);
+    return buildResponse(record, mode, alerts, offlineEarned, offlineTaps);
   });
 }
 
@@ -1010,17 +1043,19 @@ export async function handleClickBatch(
       return buildResponse(record, mode, alerts);
     }
 
-    // Жёсткий серверный Anti-Cheat:
-    // 1) не более 50 кликов в одной пачке;
-    // 2) не более 20 кликов/сек (включая кросс-инстанс проверку через energyUpdated из БД!).
-    const rawCount = Math.max(0, Math.min(50, Math.floor(Number(requestedClicks) || 0)));
+    // Серверный Anti-Cheat кликов (v3.1 — дружелюбнее к живому пальцу):
+    // 1) не более 60 кликов в одной пачке (клиент отправляет по 20);
+    // 2) не более 30 кликов/сек — это вдвое быстрее, чем реально тапает человек,
+    //    но всё ещё не даёт скрипту «бесконечный» поток;
+    // 3) главный ограничитель — энергия: каждый клик её сжигает, запас не бесконечен.
+    const rawCount = Math.max(0, Math.min(60, Math.floor(Number(requestedClicks) || 0)));
     let allowedByRate = rawCount;
     if (record.lastClickBatchAt > 0) {
       const elapsedSec = Math.max(0.15, (nowMs - record.lastClickBatchAt) / 1000);
-      const maxHumanBurst = Math.max(1, Math.ceil(elapsedSec * 20));
+      const maxHumanBurst = Math.max(1, Math.ceil(elapsedSec * 30));
       allowedByRate = Math.min(rawCount, maxHumanBurst);
     } else {
-      allowedByRate = Math.min(rawCount, 20);
+      allowedByRate = Math.min(rawCount, 30);
     }
 
     const validClicks = Math.min(allowedByRate, record.energy);

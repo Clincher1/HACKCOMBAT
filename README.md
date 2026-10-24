@@ -70,6 +70,11 @@ npm run dev
    - `002` закрывает `SECURITY DEFINER` RPC и прямые записи для `anon`/`authenticated`.
    - `003` снимает старый потолок `cards.level <= 10` (теперь 25), добавляет `players.chips`, `players.card_tier`, `players.stats` и таблицы `pets` + `base_upgrades`. Миграция полностью аддитивная: прогресс существующих игроков не теряется.
 4. *(Опционально)* В разделе **Database → Extensions** включите `pg_cron` и повторно выполните блок планировщика из конца миграции (либо задеплойте Edge Function `supabase functions deploy passive-income`).
+> **⚠️ Правило обновлений (с v3.1): прогресс игроков не сбрасывается.**
+> Все новые миграции строго аддитивные (`ADD COLUMN IF NOT EXISTS`, новые таблицы, `CREATE OR REPLACE FUNCTION`).
+> Никаких `TRUNCATE`/`DELETE` по игрокам, никакого пересчёта XP «с нуля» — апдейты выходят маленькими порциями,
+> чтобы у действующих игроков ничего не ломалось. Подробности и чек-лист: [`supabase/migrations/README.md`](./supabase/migrations/README.md).
+
 5. В разделе **Project Settings → API** скопируйте:
    - `Project URL` → `SUPABASE_URL` и `VITE_SUPABASE_URL`
    - `anon public` → `VITE_SUPABASE_ANON_KEY`

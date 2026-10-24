@@ -1,7 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, Lock, Sparkles, Terminal, Zap } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { getDeskStageInfo } from '../../shared/mechanics';
+import {
+  ENERGY_REGEN_SECONDS,
+  getDeskStageInfo,
+  OFFLINE_TAP_CAP_SECONDS,
+  OFFLINE_TAP_RATE_PER_SEC,
+} from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -314,7 +319,7 @@ export const DeskScene: React.FC = () => {
         </span>
         {player.energy <= 0 && (
           <span className="block text-[10px] font-mono text-[#0a0e1a] mt-0.5">
-            Нет энергии CPU — ждите регенерации (+1⚡/3с)
+            Нет энергии CPU — ждите регенерации (+1⚡/{ENERGY_REGEN_SECONDS}с)
           </span>
         )}
       </motion.button>
@@ -337,6 +342,16 @@ export const DeskScene: React.FC = () => {
             {player.activeMissions.length} / {derived.missionSlots}
           </div>
         </div>
+      </div>
+
+      {/* Фоновая копилка: за игрока тапают, пока приложение закрыто */}
+      <div className="rounded-xl bg-[#0a0e1a]/70 border border-slate-800/70 px-3 py-2 flex items-center justify-between gap-2">
+        <span className="text-[10px] text-slate-400">
+          Фоновые тапы в оффлайне (копилка до {Math.round(OFFLINE_TAP_CAP_SECONDS / 3600)} ч)
+        </span>
+        <span className="text-[11px] font-mono font-bold text-[#7dff00]">
+          +{formatCompact(Math.round(derived.clickPower * OFFLINE_TAP_RATE_PER_SEC * 3600))} DATA/час
+        </span>
       </div>
     </div>
   );
