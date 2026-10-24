@@ -13,7 +13,7 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameContext';
 import { triggerHapticSelection } from '../lib/telegram';
@@ -29,9 +29,20 @@ const TABS: { id: GuideTab; short: string; icon: React.ReactNode }[] = [
 ];
 
 export const TutorialModal: React.FC = () => {
-  const { player, tutorialModalOpen, closeTutorial } = useGame();
+  const { player, tutorialModalOpen, closeTutorial, trackEvent } = useGame();
   const [activeTab, setActiveTab] = useState<GuideTab>('currencies');
   const navigate = useNavigate();
+
+  // Достижения «Прилежный Студент» и «Перечитал Мануал»: сообщаем серверу главы Академии
+  useEffect(() => {
+    if (!tutorialModalOpen) return;
+    trackEvent('tutorial_open');
+  }, [tutorialModalOpen, trackEvent]);
+
+  useEffect(() => {
+    if (!tutorialModalOpen) return;
+    trackEvent(`tutorial_tab:${activeTab}`);
+  }, [activeTab, tutorialModalOpen, trackEvent]);
 
   if (!player) return null;
 
@@ -185,6 +196,21 @@ export const TutorialModal: React.FC = () => {
                     </p>
                   </div>
 
+                  <div className="rounded-xl bg-[#0a0e1a] border border-[#ff00a0]/35 p-3">
+                    <div className="font-bold text-[#ff00a0] mb-1">
+                      ⚙️ Чипы и Тира — почему нельзя «раскачаться» за час
+                    </div>
+                    <p>
+                      У каждой карточки теперь <strong>25 уровней</strong>, но потолок открывается
+                      <strong> Тиром</strong>: Тир I даёт 1–10, Тир II — 15, Тир III — 20, Тир IV — 25.
+                      Тиры стоят <strong>⚙️ Чипы</strong>, а Чипы падают{' '}
+                      <strong>только за завершённые контракты</strong> (+3 за ежедневный бонус).
+                      Плюс действует <strong>глобальный индекс цен</strong>: чем больше суммарных
+                      уровней у тебя уже есть, тем дороже следующий апгрейд. Поэтому прогресс плавный,
+                      а не «полтинник за неделю».
+                    </p>
+                  </div>
+
                   <div className="space-y-2">
                     <div className="rounded-xl bg-[#101935] border border-cyan-500/30 p-3">
                       <div className="font-bold text-[#00f0ff]">
@@ -212,7 +238,7 @@ export const TutorialModal: React.FC = () => {
 
                     <div className="rounded-xl bg-[#101935] border border-rose-500/30 p-3">
                       <div className="font-bold text-rose-300">
-                        🔥 Этап 3 (Ур. 25–90+): Мегапроекты и Darknet
+                        🔥 Этап 3 (Ур. 25–60+): Мегапроекты и Darknet
                       </div>
                       <p className="mt-1">
                         Карты <strong>Darknet</strong> дают <strong>самый огромный доход в игре</strong>{' '}
@@ -326,6 +352,28 @@ export const TutorialModal: React.FC = () => {
                       </strong>{' '}
                       → мощнейшие эндгейм-усилители пассива, тапа и автоклика!
                     </div>
+                  </div>
+
+                  <div className="rounded-xl bg-[#0a0e1a] border border-[#ff00a0]/35 p-3 space-y-1.5">
+                    <div className="font-bold text-[#ff00a0]">🐾 Питомцы-компаньоны</div>
+                    <p>
+                      Три питомца на вкладке «Команда»: <strong>хомяк «Байт»</strong> (+3% пассива),{' '}
+                      <strong>крыса «Глитч»</strong> (+4% к клику) и{' '}
+                      <strong>морская свинка «Пиксель»</strong> (−9% Heat, +4% к контрактам).
+                      Покупаются один раз и <strong>не сбрасываются Престижем</strong>. Корми их:
+                      при сытости 60–100% баф полный, 30–60% — половина, ниже 30% — питомец спит.
+                      Стрик кормлений и привязанность (до 10) усиливают баф. Питомцы не умирают.
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 p-3 space-y-1.5">
+                    <div className="font-bold text-[#7dff00]">🏠 База (вкладка «Улучшения»)</div>
+                    <p>
+                      10 пассивных покупок по 10 уровней: кофемашина (реген энергии), авто-скрипт
+                      (автоклик), ИБП (+к оффлайн-копилке), талисман удачи (шанс Crypto) и другие.
+                      Стоят Data + ⚙️ Чипы и <strong>переживают Global Hack</strong> — это твоя
+                      постоянная инвестиция в комфорт.
+                    </p>
                   </div>
 
                   <button

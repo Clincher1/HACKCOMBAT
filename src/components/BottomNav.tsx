@@ -18,9 +18,14 @@ export const BottomNav: React.FC = () => {
 
   const affordableCardsCount = React.useMemo(() => {
     if (!player) return 0;
+    const maxLevel = Math.min(MAX_CARD_LEVEL, player.derived.maxCardLevel);
+    const totalLevels = player.derived.totalCardLevels;
     return CARDS_CONFIG.filter((c) => {
       const lvl = player.cards[c.key] ?? 0;
-      return lvl < MAX_CARD_LEVEL && player.data >= getCardPrice(c, lvl);
+      return (
+        lvl < maxLevel &&
+        player.data >= getCardPrice(c, lvl, totalLevels, player.derived.cardPriceDiscountPct)
+      );
     }).length;
   }, [player]);
 

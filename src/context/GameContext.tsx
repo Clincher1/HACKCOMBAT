@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import type {
@@ -55,6 +56,10 @@ interface GameContextValue {
   skipMission: (missionId: string) => Promise<void>;
   refreshMissions: () => Promise<void>;
   hireNpc: (npcKey: string) => Promise<void>;
+  unlockTier: () => Promise<void>;
+  buyBaseUpgrade: (upgradeKey: string) => Promise<void>;
+  petAction: (action: 'buy' | 'feed', petKey: string) => Promise<void>;
+  trackEvent: (event: string, value?: number) => void;
   claimDailyBonus: () => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
   clearHeatLockdown: () => Promise<void>;
@@ -277,6 +282,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     cyberSound.playClick();
     triggerHapticImpact('light');
+    lastActivityAtRef.current = Date.now();
+    idleReportedRef.current = false;
 
     pendingClicksRef.current += 1;
 
@@ -313,6 +320,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (playUpgradeTone) {
           cyberSound.playUpgrade();
           triggerHapticImpact('medium');
+        }
+        if (key.startsWith('card:') || key.startsWith('base:') || key.startsWith('pet:buy:')) {
+          lastBuyAtRef.current = Date.now();
+          freezeReportedRef.current = false;
         }
         applyServerSync(res);
       } catch (err) {
@@ -369,6 +380,37 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const unlockTier = useCallback(
+    () => runAction('tier', () => gameApi.unlockTier(), true),
+    [runAction]
+  );
+
+  const buyBaseUpgrade = useCallback(
+    (upgradeKey: string) =>
+      runAction(`base:${upgradeKey}`, () => gameApi.buyBaseUpgrade(upgradeKey), true),
+    [runAction]
+  );
+
+  const petAction = useCallback(
+    (action: 'buy' | 'feed', petKey: string) =>
+      runAction(`pet:${action}:${petKey}`, () => gameApi.petAction(action, petKey), true),
+    [runAction]
+  );
+
+  // Телеметрия для «неочевидных» достижений: fire-and-forget, без блокировки UI
+  const trackEvent = useCallback((event: string, value?: number) => {
+    void gameApi
+      .track(event, value)
+      .then((res) => {
+        if (res.alerts && res.alerts.length > 0) {
+          setAlerts((prev) => [...res.alerts!, ...prev].slice(0, 5));
+        }
+      })
+      .catch(() => {
+        // молча игнорируем: телеметрия не должна мешать игре
+      });
+  }, []);
+
   const claimDailyBonus = useCallback(
     () => runAction('daily', () => gameApi.claimDaily(), true),
     [runAction]
@@ -423,6 +465,54 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.style.setProperty('--cyber-green', activeSkin.accentHex);
   }, [player?.equippedSkin]);
 
+  // ==========================================================================
+  // АВТО-ТЕЛЕМЕТРИЯ ДЛЯ «НЕОЧЕВИДНЫХ» ДОСТИЖЕНИЙ
+  // Сообщаем серверу только безопасные факты (вкладка, глава Академии, время суток).
+  // ==========================================================================
+  const location = useLocation();
+  const lastActivityAtRef = useRef<number>(Date.now());
+  const lastBuyAtRef = useRef<number>(Date.now());
+  const idleReportedRef = useRef<boolean>(false);
+  const freezeReportedRef = useRef<boolean>(false);
+  const sessionStartRef = useRef<number>(Date.now());
+
+  // Заход на вкладку
+  useEffect(() => {
+    if (!player) return;
+    trackEvent(`tab:${location.pathname}`);
+  }, [location.pathname, player, trackEvent]);
+
+  // Локальный час (для «Ночной Смены» и «Ранней Пташки»)
+  useEffect(() => {
+    if (!player) return;
+    trackEvent('local_hour', new Date().getHours());
+  }, [player, trackEvent]);
+
+  // Каждую минуту: сессия, «кофе-брейк» и «дзен-режим»
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      const now = Date.now();
+      const sessionMinutes = Math.floor((now - sessionStartRef.current) / 60_000);
+      if (sessionMinutes > 0 && sessionMinutes % 5 === 0) {
+        trackEvent('session', sessionMinutes);
+      }
+      if (!idleReportedRef.current && now - lastActivityAtRef.current >= 15 * 60_000) {
+        idleReportedRef.current = true;
+        trackEvent('idle_15');
+      }
+      if (
+        !freezeReportedRef.current &&
+        (player?.derived.level ?? 0) >= 10 &&
+        now - lastBuyAtRef.current >= 30 * 60_000
+      ) {
+        freezeReportedRef.current = true;
+        trackEvent('shop_freeze_30');
+      }
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [player?.derived.level, trackEvent]);
+
   return (
     <GameContext.Provider
       value={{
@@ -455,6 +545,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         skipMission,
         refreshMissions,
         hireNpc,
+        unlockTier,
+        buyBaseUpgrade,
+        petAction,
+        trackEvent,
         claimDailyBonus,
         buyOrEquipSkin,
         clearHeatLockdown,

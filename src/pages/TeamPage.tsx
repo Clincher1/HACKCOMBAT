@@ -1,6 +1,7 @@
 import { Check, Shield, Users } from 'lucide-react';
 import React from 'react';
 import { TEAM_CONFIG } from '../../shared/team.config';
+import { PetsSection } from '../components/PetsSection';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -25,6 +26,8 @@ export const TeamPage: React.FC = () => {
           <span>{player.rep} Rep</span>
         </div>
       </div>
+
+      <PetsSection />
 
       {/* Сетка NPC-персонажей 2×3 с ИИ-аватарками WebP */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

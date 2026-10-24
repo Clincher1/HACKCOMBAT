@@ -1,31 +1,65 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { ACHIEVEMENTS_CONFIG } from '../../shared/achievements.config';
-import { CARDS_CONFIG, getCardPrice, MAX_CARD_LEVEL } from '../../shared/cards.config';
+import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
+import {
+  BASE_UPGRADES_CONFIG,
+  CHIP_DAILY_CAP,
+  CHIP_REWARD_PER_DAILY,
+  CHIP_REWARD_PER_GREY_MISSION,
+  CHIP_REWARD_PER_MISSION,
+  getBaseUpgradeChipCost,
+  getBaseUpgradeConfig,
+  getBaseUpgradePrice,
+} from '../../shared/base.config';
+import {
+  CARDS_CONFIG,
+  CARD_TIERS,
+  getCardPrice,
+  getCardTierConfig,
+  getMaxCardLevel,
+  MAX_CARD_LEVEL,
+} from '../../shared/cards.config';
 import {
   BASE_MAX_ENERGY,
   computeDerivedStats,
+  getPetFeedPrice,
   getPrestigeRequiredLevel,
   HEAT_LOCKDOWN_SECONDS,
   HEAT_PENALTY_DATA_LOSS_PCT,
   HEAT_PENALTY_THRESHOLD,
   HEAT_RESET_AFTER_PENALTY,
+  normalizePetState,
   RANK_TITLES,
   syncEnergy,
 } from '../../shared/mechanics';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
+import {
+  getPetAffection,
+  getEffectiveHunger,
+  getPetBuffMultiplier,
+  PETS_CONFIG,
+} from '../../shared/pets.config';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import type {
   ActiveMissionInstance,
   ApiSyncResponse,
+  DerivedStats,
   GameAlert,
   LeaderboardEntry,
+  PlayerProgressStats,
   PlayerState,
 } from '../../shared/types';
 import { getSupabaseAdmin } from './supabaseAdmin';
 import type { VerifiedTelegramUser } from './telegramAuth';
+
+interface StoredPet {
+  key: string;
+  hunger: number;
+  lastFedAt: string;
+  feedCount: number;
+}
 
 interface StoredPlayerRecord {
   id: string;
@@ -33,11 +67,13 @@ interface StoredPlayerRecord {
   username: string;
   data: number;
   crypto: number;
+  chips: number;
   energy: number;
   energyUpdated: string;
   heat: number;
   rep: number;
   prestigeCount: number;
+  cardTier: number;
   clickBlockedUntil: string | null;
   dailyStreak: number;
   lastDailyClaim: string | null;
@@ -49,10 +85,104 @@ interface StoredPlayerRecord {
   lastClickBatchAt: number;
   cards: Record<string, number>;
   team: string[];
+  pets: StoredPet[];
+  baseUpgrades: Record<string, number>;
+  stats: PlayerProgressStats;
   activeMissions: ActiveMissionInstance[];
   availableMissionKeys: string[];
   missionsRefreshedAt: string;
   achievements: string[];
+}
+
+const EMPTY_STATS: PlayerProgressStats = {
+  tutorialTabs: [],
+  tutorialOpens: 0,
+  tabsVisited: [],
+  petFeedings: 0,
+  petHungrySeen: 0,
+  missionFails: 0,
+  missionTypes: [],
+  greyMissions: 0,
+  nightSessions: 0,
+  earlySessions: 0,
+  idleSessions: 0,
+  maxSessionMinutes: 0,
+  bestHeatEscape: 0,
+  heatPenalties: 0,
+  shopFreezeMinutes: 0,
+  petFeedingStreakDays: 0,
+  lastPetFeedDay: null,
+  trackEventsToday: 0,
+  trackEventsDay: null,
+};
+
+function normalizeStats(raw: unknown): PlayerProgressStats {
+  const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const num = (v: unknown, max = 1_000_000_000) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.min(max, Math.floor(n)) : 0;
+  };
+  const strArr = (v: unknown, allowed?: Set<string>) => {
+    if (!Array.isArray(v)) return [];
+    const out = v
+      .map((x) => String(x).slice(0, 32))
+      .filter((x) => (allowed ? allowed.has(x) : true));
+    return Array.from(new Set(out)).slice(0, 32);
+  };
+  return {
+    tutorialTabs: strArr(src.tutorialTabs),
+    tutorialOpens: num(src.tutorialOpens, 100_000),
+    tabsVisited: strArr(src.tabsVisited),
+    petFeedings: num(src.petFeedings),
+    petHungrySeen: num(src.petHungrySeen),
+    missionFails: num(src.missionFails),
+    missionTypes: strArr(src.missionTypes, new Set(['bad', 'good', 'neutral', 'grey'])),
+    greyMissions: num(src.greyMissions),
+    nightSessions: num(src.nightSessions),
+    earlySessions: num(src.earlySessions),
+    idleSessions: num(src.idleSessions),
+    maxSessionMinutes: num(src.maxSessionMinutes, 240),
+    bestHeatEscape: num(src.bestHeatEscape, 100),
+    heatPenalties: num(src.heatPenalties),
+    shopFreezeMinutes: num(src.shopFreezeMinutes),
+    petFeedingStreakDays: num(src.petFeedingStreakDays, 3650),
+    lastPetFeedDay: typeof src.lastPetFeedDay === 'string' ? src.lastPetFeedDay.slice(0, 10) : null,
+    trackEventsToday: num(src.trackEventsToday, 10_000),
+    trackEventsDay: typeof src.trackEventsDay === 'string' ? src.trackEventsDay.slice(0, 10) : null,
+  };
+}
+
+/** Единая точка расчёта производных характеристик — чтобы сервер и UI считали одинаково. */
+function deriveStats(record: StoredPlayerRecord, nowMs: number = Date.now()): DerivedStats {
+  return computeDerivedStats({
+    cards: record.cards,
+    team: record.team,
+    rep: record.rep,
+    heat: record.heat,
+    data: record.data,
+    prestigeCount: record.prestigeCount,
+    equippedSkin: record.equippedSkin,
+    baseUpgrades: record.baseUpgrades,
+    cardTier: record.cardTier,
+    pets: record.pets.map((p) => {
+      const cfg = PETS_CONFIG.find((c) => c.key === p.key);
+      const hunger = cfg
+        ? getEffectiveHunger(p.hunger, p.lastFedAt, cfg.hungerDecayPerHour, nowMs)
+        : p.hunger;
+      return {
+        key: p.key,
+        hunger: p.hunger,
+        lastFedAt: p.lastFedAt,
+        feedCount: p.feedCount,
+        affection: getPetAffection(p.feedCount),
+        effectiveHunger: hunger,
+        isHungry: hunger < 30,
+        buffMultiplier: cfg ? getPetBuffMultiplier(hunger, p.feedCount) : 0,
+        canFeedAt: new Date(nowMs).toISOString(),
+      };
+    }),
+    nowMs,
+  });
 }
 
 // DEFAULT: Локальное dev/preview-хранилище (используется автоматически, если .env Supabase не задан)
@@ -132,7 +262,7 @@ function persistLocalDb(): void {
  */
 const manualRefreshSalt = new Map<number, number>();
 
-export function pickMissionOffer(unlockedGrey: boolean, seed = 0): string[] {
+export function pickMissionOffer(unlockedGrey: boolean, seed = 0, playerLevel = 99): string[] {
   let state = (Math.abs(seed) || 1337) % 2147483647;
   const nextRand = () => {
     state = (state * 48271) % 2147483647;
@@ -148,10 +278,12 @@ export function pickMissionOffer(unlockedGrey: boolean, seed = 0): string[] {
     return copy;
   };
 
-  const badPool = shuffle(MISSIONS_CONFIG.filter((m) => m.targetType === 'bad'));
-  const goodPool = shuffle(MISSIONS_CONFIG.filter((m) => m.targetType === 'good'));
-  const neutralPool = shuffle(MISSIONS_CONFIG.filter((m) => m.targetType === 'neutral'));
-  const greyPool = shuffle(MISSIONS_CONFIG.filter((m) => m.targetType === 'grey'));
+  // Контракты открываются по уровню игрока: не даём новичку сразу взять эндгейм-цель на миллионы
+  const unlocked = MISSIONS_CONFIG.filter((m) => (m.minLevel ?? 1) <= playerLevel);
+  const badPool = shuffle(unlocked.filter((m) => m.targetType === 'bad'));
+  const goodPool = shuffle(unlocked.filter((m) => m.targetType === 'good'));
+  const neutralPool = shuffle(unlocked.filter((m) => m.targetType === 'neutral'));
+  const greyPool = shuffle(unlocked.filter((m) => m.targetType === 'grey'));
 
   const selected: string[] = [
     ...badPool.slice(0, 3).map((m) => m.key),
@@ -166,31 +298,39 @@ export function pickMissionOffer(unlockedGrey: boolean, seed = 0): string[] {
   return selected;
 }
 
-function computeOfferWindow(tgId: number, unlockedGrey: boolean): { keys: string[]; refreshedAt: string } {
+function computeOfferWindow(
+  tgId: number,
+  unlockedGrey: boolean,
+  playerLevel = 99
+): { keys: string[]; refreshedAt: string } {
   const windowMs = 15 * 60 * 1000;
   const windowIndex = Math.floor(Date.now() / windowMs);
   const salt = manualRefreshSalt.get(tgId) ?? 0;
   const seed = Math.abs(tgId * 31 + windowIndex * 7919 + salt * 104729);
   return {
-    keys: pickMissionOffer(unlockedGrey, seed),
+    keys: pickMissionOffer(unlockedGrey, seed, playerLevel),
     refreshedAt: new Date(windowIndex * windowMs).toISOString(),
   };
 }
 
 function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
   const nowIso = new Date().toISOString();
-  const offer = computeOfferWindow(user.tgId, false);
+  const offer = computeOfferWindow(user.tgId, false, 1);
   return {
     id: crypto.randomUUID(),
     tgId: user.tgId,
     username: user.username,
-    data: 0,
+    // DEFAULT: стартовый капитал 250 Data — чтобы первые 2 улучшения покупались сразу,
+    // а дальше уже начиналась честная (медленная) прогрессия.
+    data: 250,
     crypto: 5,
+    chips: 0,
     energy: BASE_MAX_ENERGY,
     energyUpdated: nowIso,
     heat: 0,
     rep: 0,
     prestigeCount: 0,
+    cardTier: 1,
     clickBlockedUntil: null,
     dailyStreak: 0,
     lastDailyClaim: null,
@@ -202,6 +342,9 @@ function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
     lastClickBatchAt: 0,
     cards: {},
     team: [],
+    pets: [],
+    baseUpgrades: {},
+    stats: { ...EMPTY_STATS, tutorialTabs: [], tabsVisited: [], missionTypes: [] },
     activeMissions: [],
     availableMissionKeys: offer.keys,
     missionsRefreshedAt: offer.refreshedAt,
@@ -228,8 +371,17 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     if (!db.playersByTgId[key]) {
       db.playersByTgId[key] = createFreshRecord(user);
       persistLocalDb();
-    } else if (user.username && db.playersByTgId[key].username !== user.username) {
-      db.playersByTgId[key].username = user.username;
+    } else {
+      const rec = db.playersByTgId[key];
+      if (user.username && rec.username !== user.username) {
+        rec.username = user.username;
+      }
+      // Совместимость со старыми локальными сейвами (до 003-й миграции)
+      rec.chips = Math.floor(safeNonNeg(rec.chips, 0));
+      rec.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(rec.cardTier, 1)) || 1));
+      rec.pets = Array.isArray(rec.pets) ? rec.pets : [];
+      rec.baseUpgrades = rec.baseUpgrades && typeof rec.baseUpgrades === 'object' ? rec.baseUpgrades : {};
+      rec.stats = normalizeStats(rec.stats);
     }
     return { record: db.playersByTgId[key], mode: 'memory-fallback' };
   }
@@ -243,7 +395,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   }
 
   const pid = playerRow.id as string;
-  const [cardsRes, teamRes, missionsRes, achRes] = await Promise.all([
+  const [cardsRes, teamRes, missionsRes, achRes, petsRes, baseRes] = await Promise.all([
     sb.from('cards').select('card_key, level').eq('player_id', pid),
     sb.from('team').select('npc_key').eq('player_id', pid),
     sb
@@ -254,6 +406,9 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       .eq('player_id', pid)
       .eq('status', 'active'),
     sb.from('achievements').select('key').eq('player_id', pid),
+    // Если миграция 003 ещё не применена — просто получим пустой список, игра не упадёт
+    sb.from('pets').select('pet_key, hunger, last_fed_at, feed_count').eq('player_id', pid),
+    sb.from('base_upgrades').select('upgrade_key, level').eq('player_id', pid),
   ]);
 
   const cardsMap: Record<string, number> = {};
@@ -266,10 +421,35 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   const teamList = Array.from(new Set((teamRes.data ?? []).map((r) => String(r.npc_key))));
   const hasAnalyst = teamList.includes('analyst');
 
+  const previewLevel = 1 + Math.floor(
+    Object.values(cardsMap).reduce((acc, lvl) => acc + lvl, 0) / 5
+  );
+
   let offer = missionOfferCache.get(user.tgId);
   if (!offer) {
-    offer = computeOfferWindow(user.tgId, hasAnalyst);
+    offer = computeOfferWindow(user.tgId, hasAnalyst, previewLevel);
     missionOfferCache.set(user.tgId, offer);
+  }
+
+  const petsList: StoredPet[] = (petsRes.data ?? [])
+    .map((row) => {
+      const cfg = PETS_CONFIG.find((p) => p.key === String(row.pet_key));
+      if (!cfg) return null;
+      return {
+        key: cfg.key,
+        hunger: Math.max(0, Math.min(100, Number(row.hunger) || 0)),
+        lastFedAt: new Date(String(row.last_fed_at ?? new Date().toISOString())).toISOString(),
+        feedCount: Math.floor(safeNonNeg(row.feed_count, 0)),
+      } satisfies StoredPet;
+    })
+    .filter((p): p is StoredPet => p !== null);
+
+  const baseUpgradesMap: Record<string, number> = {};
+  for (const row of baseRes.data ?? []) {
+    const cfg = getBaseUpgradeConfig(String(row.upgrade_key));
+    if (!cfg) continue;
+    const lvl = Math.max(0, Math.min(cfg.maxLevel, Math.floor(safeNonNeg(row.level, 0))));
+    if (lvl > 0) baseUpgradesMap[cfg.key] = lvl;
   }
 
   const energyUpdatedIso = String(playerRow.energy_updated ?? new Date().toISOString());
@@ -283,6 +463,8 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     username: String(playerRow.username),
     data: safeNonNeg(playerRow.data, 0),
     crypto: Math.floor(safeNonNeg(playerRow.crypto, 5)),
+    chips: Math.floor(safeNonNeg(playerRow.chips, 0)),
+    cardTier: Math.max(1, Math.min(4, Math.floor(safeNonNeg(playerRow.card_tier, 1)) || 1)),
     energy: Math.floor(safeNonNeg(playerRow.energy, BASE_MAX_ENERGY)),
     energyUpdated: energyUpdatedIso,
     heat: Math.floor(safeNonNeg(playerRow.heat, 0)),
@@ -301,6 +483,9 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     lastClickBatchAt: warmClickTs,
     cards: cardsMap,
     team: teamList,
+    pets: petsList,
+    baseUpgrades: baseUpgradesMap,
+    stats: normalizeStats(playerRow.stats),
     activeMissions: (missionsRes.data ?? []).map((m) => ({
       id: String(m.id),
       missionKey: String(m.mission_key),
@@ -338,16 +523,11 @@ async function savePlayerCore(
   record.heat = Math.max(0, Math.floor(safeNonNeg(record.heat, 0)));
   record.totalClicks = Math.max(0, Math.floor(safeNonNeg(record.totalClicks, 0)));
   record.totalMissions = Math.max(0, Math.floor(safeNonNeg(record.totalMissions, 0)));
+  record.chips = Math.max(0, Math.floor(safeNonNeg(record.chips, 0)));
+  record.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(record.cardTier, 1)) || 1));
+  record.stats = normalizeStats(record.stats);
 
-  const derived = computeDerivedStats({
-    cards: record.cards,
-    team: record.team,
-    rep: record.rep,
-    heat: record.heat,
-    data: record.data,
-    prestigeCount: record.prestigeCount,
-    equippedSkin: record.equippedSkin,
-  });
+  const derived = deriveStats(record);
 
   record.energy = Math.max(0, Math.min(derived.maxEnergy, Math.floor(safeNonNeg(record.energy, 0))));
 
@@ -383,11 +563,43 @@ async function savePlayerCore(
       total_clicks: record.totalClicks,
       total_missions: record.totalMissions,
       last_passive_claim: record.lastPassiveClaim,
+      chips: record.chips,
+      card_tier: record.cardTier,
+      stats: record.stats,
     })
     .eq('id', record.id);
 
   if (error) {
     throw new Error(`Supabase update player error: ${error.message}`);
+  }
+
+  // Питомцы и «База» живут в отдельных таблицах: сохраняем только при изменениях,
+  // ошибки из-за ещё не применённой миграции 003 не должны ломать игровую сессию.
+  try {
+    if (record.pets.length > 0) {
+      await sb.from('pets').upsert(
+        record.pets.map((p) => ({
+          player_id: record.id,
+          pet_key: p.key,
+          hunger: Math.max(0, Math.min(100, p.hunger)),
+          last_fed_at: p.lastFedAt,
+          feed_count: Math.max(0, Math.floor(p.feedCount)),
+        })),
+        { onConflict: 'player_id,pet_key' }
+      );
+    }
+    const baseRows = Object.entries(record.baseUpgrades)
+      .filter(([, lvl]) => Number.isFinite(lvl) && lvl > 0)
+      .map(([key, lvl]) => ({
+        player_id: record.id,
+        upgrade_key: key,
+        level: Math.max(1, Math.min(10, Math.floor(lvl))),
+      }));
+    if (baseRows.length > 0) {
+      await sb.from('base_upgrades').upsert(baseRows, { onConflict: 'player_id,upgrade_key' });
+    }
+  } catch {
+    // таблицы появятся после миграции 003
   }
 }
 
@@ -399,18 +611,16 @@ async function syncTimeAndRules(
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
-  const derived = computeDerivedStats({
-    cards: record.cards,
-    team: record.team,
-    rep: record.rep,
-    heat: record.heat,
-    data: record.data,
-    prestigeCount: record.prestigeCount,
-    equippedSkin: record.equippedSkin,
-  });
+  const derived = deriveStats(record);
 
-  // 1. Восстановление энергии 1 Energy / 3 сек
-  const syncedEnergy = syncEnergy(record.energy, record.energyUpdated, derived.maxEnergy, nowMs);
+  // 1. Восстановление энергии (базово 1 Energy / 3 сек, «Кофемашина» ускоряет)
+  const syncedEnergy = syncEnergy(
+    record.energy,
+    record.energyUpdated,
+    derived.maxEnergy,
+    nowMs,
+    derived.energyRegenPerSec
+  );
   record.energy = syncedEnergy.energy;
   record.energyUpdated = syncedEnergy.updatedAtIso;
 
@@ -418,7 +628,7 @@ async function syncTimeAndRules(
   let offlineEarned = 0;
   const lastPassiveMs = new Date(record.lastPassiveClaim).getTime();
   if (!Number.isNaN(lastPassiveMs) && nowMs > lastPassiveMs && derived.dataPerHour > 0) {
-    const elapsedSec = Math.min(86400, (nowMs - lastPassiveMs) / 1000);
+    const elapsedSec = Math.min(derived.offlineCapSeconds, (nowMs - lastPassiveMs) / 1000);
     if (elapsedSec >= 2) {
       const earned = Math.floor(((derived.dataPerHour / 3600) * elapsedSec) * 10) / 10;
       if (earned > 0) {
@@ -447,6 +657,7 @@ async function syncTimeAndRules(
     record.data = Math.max(0, record.data - lostData);
     record.heat = HEAT_RESET_AFTER_PENALTY;
     record.clickBlockedUntil = new Date(nowMs + HEAT_LOCKDOWN_SECONDS * 1000).toISOString();
+    record.stats.heatPenalties += 1;
     alerts.push({
       id: crypto.randomUUID(),
       type: 'penalty',
@@ -459,16 +670,52 @@ async function syncTimeAndRules(
     record.clickBlockedUntil = null;
   }
 
-  // 5. Проверка всех 24 достижений (автоматически и безопасно доначисляет новые ачивки существующим игрокам!)
-  const updatedDerived = computeDerivedStats({
-    cards: record.cards,
-    team: record.team,
-    rep: record.rep,
-    heat: record.heat,
-    data: record.data,
-    prestigeCount: record.prestigeCount,
-    equippedSkin: record.equippedSkin,
-  });
+  // 4.1. Фиксируем, что игрок видел голодного питомца (секретная ачивка «Ну Где Ты Был»)
+  if (record.pets.length > 0) {
+    const hungry = record.pets.some((pet) => {
+      const cfg = PETS_CONFIG.find((c) => c.key === pet.key);
+      if (!cfg) return false;
+      return getEffectiveHunger(pet.hunger, pet.lastFedAt, cfg.hungerDecayPerHour, nowMs) < 30;
+    });
+    if (hungry) record.stats.petHungrySeen = Math.min(1_000_000, record.stats.petHungrySeen + 1);
+  }
+
+  // 5. Авто-кормление питомцев (открывается покупкой «Авто-кормушки» на Базе)
+  let autoFed = 0;
+  if (derived.autoFeedEnabled && record.pets.length > 0) {
+    for (const pet of record.pets) {
+      const cfg = PETS_CONFIG.find((c) => c.key === pet.key);
+      if (!cfg) continue;
+      const hunger = getEffectiveHunger(pet.hunger, pet.lastFedAt, cfg.hungerDecayPerHour, nowMs);
+      if (hunger >= 60) continue;
+      const cooldownMs = cfg.feedCooldownHours * 3_600_000;
+      if (nowMs - new Date(pet.lastFedAt).getTime() < cooldownMs) continue;
+      const price = getPetFeedPrice(cfg, derived.dataPerHour, derived.feedDiscountPct);
+      if (record.data < price) continue;
+      record.data -= price;
+      pet.hunger = Math.min(100, Math.round((hunger + cfg.feedHunger) * 10) / 10);
+      pet.lastFedAt = nowIso;
+      pet.feedCount += 1;
+      record.stats.petFeedings += 1;
+      autoFed += 1;
+    }
+    if (autoFed > 0) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: '🍽️ Авто-кормушка сработала',
+        message: `Питомцы покормлены автоматически (${autoFed} шт.). Бафы снова активны!`,
+      });
+    }
+  }
+
+  // 6. Отслеживаем «грань» Heat для секретной ачивки «На Лезвии»
+  if (record.heat > record.stats.bestHeatEscape && record.heat <= HEAT_PENALTY_THRESHOLD) {
+    record.stats.bestHeatEscape = Math.max(0, Math.floor(record.heat));
+  }
+
+  // 7. Проверка всех 80 достижений (автоматически доначисляет новые ачивки существующим игрокам!)
+  const updatedDerived = deriveStats(record, nowMs);
 
   const newlyUnlocked: string[] = [];
   const tryUnlock = (key: string, condition: boolean) => {
@@ -478,37 +725,123 @@ async function syncTimeAndRules(
     }
   };
 
+  const ownedCards = Object.values(record.cards);
+  const maxCardLvl = ownedCards.length > 0 ? Math.max(...ownedCards) : 0;
+  const baseLevels = Object.values(record.baseUpgrades);
+  const baseOwned = baseLevels.filter((lvl) => lvl > 0).length;
+  const maxBaseLevel = baseLevels.length > 0 ? Math.max(...baseLevels) : 0;
+  const allCardsAt = (min: number) =>
+    CARDS_CONFIG.every((card) => (record.cards[card.key] ?? 0) >= min);
+  const maxAffection =
+    record.pets.length > 0 ? Math.max(...record.pets.map((p) => getPetAffection(p.feedCount))) : 0;
+  const stats = record.stats;
+
   tryUnlock('first_boot', record.totalClicks >= 25);
   tryUnlock('first_upgrade', updatedDerived.totalCardLevels >= 1);
   tryUnlock('first_mission', record.totalMissions >= 1);
   tryUnlock('first_teammate', record.team.length >= 1);
+  tryUnlock('first_pet', record.pets.length >= 1);
+  tryUnlock('first_feed', stats.petFeedings >= 1);
+  tryUnlock('first_base', baseOwned >= 1);
+  tryUnlock(
+    'first_chip',
+    record.chips > 0 || baseOwned > 0 || record.cardTier > 1 || record.totalMissions >= 1
+  );
+
   tryUnlock('desk_lvl_5', updatedDerived.level >= 5);
-  tryUnlock('click_sprinter_500', record.totalClicks >= 500);
-  tryUnlock('white_hat_path', updatedDerived.alignment === 'white_hat' && record.rep >= 40);
-  tryUnlock('black_hat_path', updatedDerived.alignment === 'black_hat' && record.heat >= 35);
-  tryUnlock('missions_veteran_15', record.totalMissions >= 15);
+  tryUnlock('desk_lvl_10', updatedDerived.level >= 10);
   tryUnlock('desk_lvl_15', updatedDerived.level >= 15);
   tryUnlock('triple_slots_20', updatedDerived.level >= 20);
-  tryUnlock('data_millionaire', record.data >= 100_000);
-  tryUnlock('click_master_2500', record.totalClicks >= 2_500);
-  tryUnlock('energy_overcharge_2500', updatedDerived.maxEnergy >= 2_500);
+  tryUnlock('desk_lvl_25', updatedDerived.level >= 25);
   tryUnlock('desk_lvl_30', updatedDerived.level >= 30);
+  tryUnlock('level_40', updatedDerived.level >= 40);
+  tryUnlock('level_50', updatedDerived.level >= 50);
+  tryUnlock('level_60', updatedDerived.level >= 60);
+
+  tryUnlock('card_first_max', maxCardLvl >= updatedDerived.maxCardLevel);
+  tryUnlock('tier_2', record.cardTier >= 2);
+  tryUnlock('tier_3', record.cardTier >= 3);
+  tryUnlock('tier_4', record.cardTier >= 4);
+  tryUnlock('card_level_15', maxCardLvl >= 15);
+  tryUnlock('card_level_20', maxCardLvl >= 20);
+  tryUnlock('card_level_25', maxCardLvl >= 25);
+  tryUnlock('cards_all_5', allCardsAt(5));
+  tryUnlock('cards_all_10', allCardsAt(10));
+  tryUnlock('cards_all_15', allCardsAt(15));
+
+  tryUnlock('chips_50', record.chips >= 50);
+  tryUnlock('chips_250', record.chips >= 250);
+  tryUnlock('chips_1000', record.chips >= 1000);
+  tryUnlock('chips_no_spend', record.chips >= 500 && record.cardTier === 1);
+
   tryUnlock('full_squad', record.team.length >= 6);
   tryUnlock('elite_syndicate_8', record.team.length >= TEAM_CONFIG.length);
-  tryUnlock('true_millionaire_1m', record.data >= 1_000_000);
+  tryUnlock('grey_missions_10', stats.greyMissions >= 10);
+
+  tryUnlock('missions_veteran_15', record.totalMissions >= 15);
   tryUnlock('missions_master_50', record.totalMissions >= 50);
+  tryUnlock('missions_100', record.totalMissions >= 100);
+  tryUnlock('missions_250', record.totalMissions >= 250);
+  tryUnlock('mission_fail', stats.missionFails >= 1);
+  tryUnlock('missions_all_types', stats.missionTypes.length >= 4);
+
+  tryUnlock('click_sprinter_500', record.totalClicks >= 500);
+  tryUnlock('click_master_2500', record.totalClicks >= 2_500);
   tryUnlock('click_legend_10k', record.totalClicks >= 10_000);
-  tryUnlock('rep_guardian_250', record.rep >= 250);
-  tryUnlock('global_hack_prestige', record.prestigeCount >= 1);
+  tryUnlock('click_25k', record.totalClicks >= 25_000);
+  tryUnlock('click_50k', record.totalClicks >= 50_000);
+
+  tryUnlock('data_millionaire', record.data >= 100_000);
+  tryUnlock('true_millionaire_1m', record.data >= 1_000_000);
   tryUnlock('data_tycoon_25m', record.data >= 25_000_000);
+  tryUnlock('data_100m', record.data >= 100_000_000);
+  tryUnlock('crypto_baron_500', record.crypto >= 500);
+  tryUnlock('energy_overcharge_2500', updatedDerived.maxEnergy >= 2_500);
+
+  tryUnlock('white_hat_path', updatedDerived.alignment === 'white_hat' && record.rep >= 40);
+  tryUnlock('black_hat_path', updatedDerived.alignment === 'black_hat' && record.heat >= 35);
+  tryUnlock('rep_guardian_250', record.rep >= 250);
+  tryUnlock('heat_edge', stats.bestHeatEscape >= 95 && stats.bestHeatEscape < 100);
+  tryUnlock('clean_hands_20', updatedDerived.level >= 20 && stats.bestHeatEscape === 0);
+
+  tryUnlock('global_hack_prestige', record.prestigeCount >= 1);
   tryUnlock('global_hack_prestige_2', record.prestigeCount >= 2);
+  tryUnlock('prestige_3', record.prestigeCount >= 3);
+
+  tryUnlock('all_pets', record.pets.length >= PETS_CONFIG.length);
+  tryUnlock('pet_feed_50', stats.petFeedings >= 50);
+  tryUnlock('pet_streak_7', stats.petFeedingStreakDays >= 7);
+  tryUnlock('pet_max_affection', maxAffection >= 10);
+
+  tryUnlock('base_all_bought', baseOwned >= BASE_UPGRADES_CONFIG.length);
+  tryUnlock('base_max_one', maxBaseLevel >= 10);
+  tryUnlock(
+    'base_all_max',
+    BASE_UPGRADES_CONFIG.every((u) => (record.baseUpgrades[u.key] ?? 0) >= u.maxLevel)
+  );
+
+  tryUnlock('skins_3', record.unlockedSkins.length >= 3);
+  tryUnlock('skins_all', record.unlockedSkins.length >= SKINS_CONFIG.length);
+
+  tryUnlock('tutorial_all_tabs', stats.tutorialTabs.length >= 5);
+  tryUnlock('tutorial_reread_10', stats.tutorialOpens >= 10);
+  tryUnlock('tabs_tourist', stats.tabsVisited.length >= 5);
+  tryUnlock('night_owl', stats.nightSessions >= 1);
+  tryUnlock('early_bird', stats.earlySessions >= 1);
+  tryUnlock('coffee_break', stats.idleSessions >= 1);
+  tryUnlock('session_30m', stats.maxSessionMinutes >= 30);
+  tryUnlock('shop_freeze_30', stats.shopFreezeMinutes >= 30);
+  tryUnlock('stubborn_50', updatedDerived.level >= 50 && record.prestigeCount === 0);
+  tryUnlock('pet_hungry', stats.petHungrySeen >= 1);
+  tryUnlock('zoo_keeper_30', stats.petFeedings >= 30);
+  tryUnlock('heat_survivor', stats.heatPenalties >= 1 && stats.bestHeatEscape >= 1);
 
   if (newlyUnlocked.length > 0) {
     const sb = getSupabaseAdmin();
     for (const achKey of newlyUnlocked) {
       let granted = true;
       if (mode === 'supabase' && sb) {
-        // Атомарная вставка достижения с ignoreDuplicates защищает от двойного начисления Crypto при гонках!
+        // Атомарная вставка достижения с ignoreDuplicates защищает от двойного начисления награды при гонках!
         const { data: insertedRows, error: achErr } = await sb
           .from('achievements')
           .upsert({ player_id: record.id, key: achKey }, { onConflict: 'player_id,key', ignoreDuplicates: true })
@@ -518,14 +851,22 @@ async function syncTimeAndRules(
         }
       }
       if (granted) {
-        const cfg = ACHIEVEMENTS_CONFIG.find((a) => a.key === achKey);
+        const cfg = ACHIEVEMENTS_BY_KEY[achKey];
         if (cfg) {
           record.crypto += cfg.cryptoReward;
+          if (cfg.chipReward) record.chips += cfg.chipReward;
+          if (cfg.dataReward) record.data += cfg.dataReward;
+          const extra: string[] = [];
+          if (cfg.chipReward) extra.push(`+${cfg.chipReward} ⚙️ Чипов`);
+          if (cfg.dataReward) extra.push(`+${cfg.dataReward.toLocaleString('ru-RU')} Data`);
           alerts.push({
             id: crypto.randomUUID(),
             type: 'achievement',
-            title: `🏆 Достижение: ${cfg.title}`,
-            message: `+${cfg.cryptoReward} 💎 Crypto начислено на счёт!`,
+            title: cfg.secret ? `🏆 Секретное достижение: ${cfg.title}` : `🏆 Достижение: ${cfg.title}`,
+            message:
+              `+${cfg.cryptoReward} 💎 Crypto` +
+              (extra.length > 0 ? `, ${extra.join(', ')}` : '') +
+              ' начислено на счёт!',
           });
         }
       }
@@ -541,15 +882,20 @@ function buildResponse(
   alerts: GameAlert[] = [],
   offlineEarned = 0
 ): ApiSyncResponse {
-  const derived = computeDerivedStats({
-    cards: record.cards,
-    team: record.team,
-    rep: record.rep,
-    heat: record.heat,
-    data: record.data,
-    prestigeCount: record.prestigeCount,
-    equippedSkin: record.equippedSkin,
-  });
+  const derived = deriveStats(record);
+
+  const nowMs = Date.now();
+  const petStates = record.pets
+    .map((pet) => {
+      const cfg = PETS_CONFIG.find((c) => c.key === pet.key);
+      if (!cfg) return null;
+      return normalizePetState(
+        cfg,
+        { hunger: pet.hunger, lastFedAt: pet.lastFedAt, feedCount: pet.feedCount },
+        nowMs
+      );
+    })
+    .filter((p): p is NonNullable<typeof p> => p !== null);
 
   const player: PlayerState = {
     id: record.id,
@@ -557,6 +903,11 @@ function buildResponse(
     username: record.username,
     data: Math.round(record.data * 10) / 10,
     crypto: record.crypto,
+    chips: record.chips,
+    cardTier: record.cardTier,
+    pets: petStates,
+    baseUpgrades: record.baseUpgrades,
+    stats: record.stats,
     energy: record.energy,
     energyUpdated: record.energyUpdated,
     heat: record.heat,
@@ -634,15 +985,7 @@ export async function handleClickBatch(
 
     const validClicks = Math.min(allowedByRate, record.energy);
     if (validClicks > 0) {
-      const derived = computeDerivedStats({
-        cards: record.cards,
-        team: record.team,
-        rep: record.rep,
-        heat: record.heat,
-        data: record.data,
-        prestigeCount: record.prestigeCount,
-        equippedSkin: record.equippedSkin,
-      });
+      const derived = deriveStats(record);
 
       // Атомарная кросс-Lambda проверка на уровне PostgreSQL (защита от параллельного флуда с 10 инстансов)
       if (mode === 'supabase') {
@@ -690,27 +1033,28 @@ export async function handleBuyCard(
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
 
-    const prevDerived = computeDerivedStats({
-      cards: record.cards,
-      team: record.team,
-      rep: record.rep,
-      heat: record.heat,
-      data: record.data,
-      prestigeCount: record.prestigeCount,
-      equippedSkin: record.equippedSkin,
-    });
+    const prevDerived = deriveStats(record);
 
     // Серверная проверка требования по уровню для эндгейм-карт!
     if (card.minLevel && prevDerived.level < card.minLevel) {
       throw new Error(`Эта карточка открывается на ${card.minLevel} уровне игрока!`);
     }
 
+    const tierCfg = getCardTierConfig(record.cardTier);
+    const maxLevel = getMaxCardLevel(record.cardTier);
     const currentLevel = record.cards[card.key] ?? 0;
-    if (currentLevel >= MAX_CARD_LEVEL) {
-      throw new Error('Достигнут максимальный 10-й уровень карточки');
+    if (currentLevel >= maxLevel) {
+      throw new Error(
+        `Достигнут максимум ${maxLevel} уровней для текущего Тира. Открой следующий Тир за Чипы!`
+      );
     }
 
-    const price = getCardPrice(card, currentLevel);
+    const price = getCardPrice(
+      card,
+      currentLevel,
+      prevDerived.totalCardLevels,
+      prevDerived.cardPriceDiscountPct
+    );
     if (record.data < price) {
       throw new Error(`Недостаточно Data (нужно ${price.toLocaleString('ru-RU')})`);
     }
@@ -744,15 +1088,7 @@ export async function handleBuyCard(
 
     await syncTimeAndRules(record, mode, alerts);
 
-    const newDerived = computeDerivedStats({
-      cards: record.cards,
-      team: record.team,
-      rep: record.rep,
-      heat: record.heat,
-      data: record.data,
-      prestigeCount: record.prestigeCount,
-      equippedSkin: record.equippedSkin,
-    });
+    const newDerived = deriveStats(record);
 
     if (newDerived.deskStage > prevDerived.deskStage) {
       alerts.push({
@@ -763,6 +1099,112 @@ export async function handleBuyCard(
       });
     }
 
+    if (nextLevel === maxLevel && tierCfg.tier === record.cardTier) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: `🧱 ${card.name} — максимум Тира ${tierCfg.tier}`,
+        message:
+          tierCfg.tier < CARD_TIERS.length
+            ? `Дальше только через Тир ${tierCfg.tier + 1}: ${CARD_TIERS[tierCfg.tier].chipCost} ⚙️ Чипов.`
+            : 'Это абсолютный максимум карточки — 25 уровней!',
+      });
+    }
+
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts);
+  });
+}
+
+/** Открытие следующего Тира карточек за Чипы + Data. */
+export async function handleUnlockTier(user: VerifiedTelegramUser): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    const nextTier = record.cardTier + 1;
+    if (nextTier > CARD_TIERS.length) {
+      throw new Error('Все Тира уже открыты — ты на максимуме!');
+    }
+    const tierCfg = getCardTierConfig(nextTier);
+    const derived = deriveStats(record);
+
+    if (derived.level < tierCfg.requiredPlayerLevel) {
+      throw new Error(
+        `${tierCfg.title} откроется на ${tierCfg.requiredPlayerLevel} уровне (сейчас ${derived.level})`
+      );
+    }
+    if (record.chips < tierCfg.chipCost) {
+      throw new Error(
+        `Недостаточно Чипов: нужно ${tierCfg.chipCost} ⚙️ (у тебя ${record.chips}). Чипы падают с контрактов!`
+      );
+    }
+    if (record.data < tierCfg.dataCost) {
+      throw new Error(`Недостаточно Data: нужно ${tierCfg.dataCost.toLocaleString('ru-RU')}`);
+    }
+
+    record.chips -= tierCfg.chipCost;
+    record.data -= tierCfg.dataCost;
+    record.cardTier = nextTier;
+
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `🔓 ${tierCfg.title} ОТКРЫТ!`,
+      message: `Потолок всех карточек поднят до ${tierCfg.maxLevel} уровня. Вперёд за железом!`,
+    });
+
+    await syncTimeAndRules(record, mode, alerts);
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts);
+  });
+}
+
+/** Покупка уровня пассивного улучшения «База» (переживает престиж). */
+export async function handleBuyBaseUpgrade(
+  user: VerifiedTelegramUser,
+  upgradeKey: string
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const cfg = getBaseUpgradeConfig(upgradeKey);
+    if (!cfg) {
+      throw new Error('Улучшение Базы не найдено');
+    }
+
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    const currentLevel = record.baseUpgrades[cfg.key] ?? 0;
+    if (currentLevel >= cfg.maxLevel) {
+      throw new Error(`${cfg.name} уже прокачан до максимума`);
+    }
+
+    const price = getBaseUpgradePrice(cfg, currentLevel);
+    const chipCost = getBaseUpgradeChipCost(cfg, currentLevel);
+
+    if (record.data < price) {
+      throw new Error(`Недостаточно Data (нужно ${price.toLocaleString('ru-RU')})`);
+    }
+    if (record.chips < chipCost) {
+      throw new Error(`Недостаточно Чипов (нужно ${chipCost} ⚙️)`);
+    }
+
+    record.data -= price;
+    record.chips -= chipCost;
+    record.baseUpgrades[cfg.key] = currentLevel + 1;
+
+    if (record.baseUpgrades[cfg.key] === cfg.maxLevel) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `🔧 ${cfg.name} — МАКСИМУМ!`,
+        message: 'Улучшение Базы прокачано до 10 уровня и сохранено навсегда.',
+      });
+    }
+
+    await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
     return buildResponse(record, mode, alerts);
   });
@@ -815,7 +1257,7 @@ export async function handleHireNpc(
 
     if (npc.unlocksGreyMissions) {
       manualRefreshSalt.set(user.tgId, (manualRefreshSalt.get(user.tgId) ?? 0) + 1);
-      const nextOffer = computeOfferWindow(user.tgId, true);
+      const nextOffer = computeOfferWindow(user.tgId, true, deriveStats(record).level);
       record.availableMissionKeys = nextOffer.keys;
       record.missionsRefreshedAt = new Date().toISOString();
       alerts.push({
@@ -842,19 +1284,11 @@ export async function handleMissionAction(
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
 
-    const derived = computeDerivedStats({
-      cards: record.cards,
-      team: record.team,
-      rep: record.rep,
-      heat: record.heat,
-      data: record.data,
-      prestigeCount: record.prestigeCount,
-      equippedSkin: record.equippedSkin,
-    });
+    const derived = deriveStats(record);
 
     if (action === 'refresh') {
       manualRefreshSalt.set(user.tgId, (manualRefreshSalt.get(user.tgId) ?? 0) + 1);
-      const nextOffer = computeOfferWindow(user.tgId, derived.unlockedGreyMissions);
+      const nextOffer = computeOfferWindow(user.tgId, derived.unlockedGreyMissions, derived.level);
       record.availableMissionKeys = nextOffer.keys;
       record.missionsRefreshedAt = new Date().toISOString();
       await savePlayerCore(record, mode);
@@ -878,19 +1312,30 @@ export async function handleMissionAction(
       if (cfg.targetType === 'grey' && !derived.unlockedGreyMissions) {
         throw new Error('Серые миссии требуют найма Analyst в разделе «Команда»');
       }
+      if ((cfg.minLevel ?? 1) > derived.level) {
+        throw new Error(`Этот контракт открывается на ${cfg.minLevel} уровне игрока`);
+      }
       if (record.activeMissions.some((m) => m.missionKey === cfg.key)) {
         throw new Error('Эта цель уже взламывается в данный момент');
       }
 
-      const levelScale = 1 + (derived.level - 1) * 0.22;
+      // Скейл награды мягкий: основной доход идёт от пассивки, а не от контрактов
+      const levelScale = 1 + (derived.level - 1) * 0.06;
       const whiteHatBonus = derived.alignment === 'white_hat' && cfg.targetType === 'bad' ? 2 : 1;
       const reward = Math.round(
-        cfg.baseDataReward * levelScale * whiteHatBonus * derived.prestigeMultiplier
+        cfg.baseDataReward *
+          levelScale *
+          whiteHatBonus *
+          derived.prestigeMultiplier *
+          (1 + derived.missionRewardBonusPct)
       );
       const repDelta = cfg.repDelta * (whiteHatBonus > 1 && cfg.repDelta > 0 ? 2 : 1);
       const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier);
+      // «Талисман удачи» на Базе повышает шанс редкого дропа Crypto
+      const baseDropChance =
+        cfg.targetType === 'grey' ? 0.35 : cfg.cryptoDropChance ?? 0;
       const cryptoReward =
-        cfg.cryptoDropChance && Math.random() < cfg.cryptoDropChance ? 1 : 0;
+        Math.random() < Math.min(0.9, baseDropChance + derived.cryptoDropBonusPct) ? 1 : 0;
 
       const nowMs = Date.now();
       const startedAt = new Date(nowMs).toISOString();
@@ -976,6 +1421,8 @@ export async function handleMissionAction(
 
     if (action === 'skip') {
       record.crypto -= 1;
+      // Пропуск контракта = «провал» для секретной ачивки «Первый Блин Комом»
+      record.stats.missionFails += 1;
     }
 
     record.activeMissions.splice(idx, 1);
@@ -985,6 +1432,25 @@ export async function handleMissionAction(
     record.crypto += mission.cryptoReward;
     record.totalMissions += 1;
 
+    // Чипы начисляются только за доведённый до конца контракт (пропуск за Crypto — исключение)
+    const chipsGained =
+      action === 'skip'
+        ? 0
+        : mission.targetType === 'grey'
+          ? CHIP_REWARD_PER_GREY_MISSION
+          : CHIP_REWARD_PER_MISSION;
+    if (chipsGained > 0) {
+      record.chips += chipsGained;
+    }
+
+    // Счётчики для «неочевидных» достижений
+    if (!record.stats.missionTypes.includes(mission.targetType)) {
+      record.stats.missionTypes.push(mission.targetType);
+    }
+    if (mission.targetType === 'grey') {
+      record.stats.greyMissions += 1;
+    }
+
     alerts.push({
       id: crypto.randomUUID(),
       type: 'success',
@@ -993,7 +1459,8 @@ export async function handleMissionAction(
         `+${mission.reward.toLocaleString('ru-RU')} Data` +
         (mission.repDelta !== 0 ? ` | ${mission.repDelta > 0 ? '+' : ''}${mission.repDelta} Rep` : '') +
         (mission.heatDelta > 0 ? ` | +${mission.heatDelta} Heat` : '') +
-        (mission.cryptoReward > 0 ? ` | +${mission.cryptoReward} 💎 Crypto!` : ''),
+        (mission.cryptoReward > 0 ? ` | +${mission.cryptoReward} 💎 Crypto!` : '') +
+        (chipsGained > 0 ? ` | +${chipsGained} ⚙️ Чип` : ''),
     });
 
     await syncTimeAndRules(record, mode, alerts);
@@ -1048,15 +1515,21 @@ export async function handleDailyBonus(user: VerifiedTelegramUser): Promise<ApiS
     record.lastDailyClaim = nowIso;
 
     const cryptoBonus = 3 + record.dailyStreak * 2;
-    const dataBonus = 150 * record.dailyStreak * Math.max(1, Math.pow(2, record.prestigeCount));
+    const dataBonus =
+      150 *
+      record.dailyStreak *
+      Math.max(1, Math.pow(2, record.prestigeCount)) *
+      Math.max(1, Math.ceil(deriveStats(record).level / 3));
+    const chipsBonus = CHIP_REWARD_PER_DAILY;
     record.crypto += cryptoBonus;
     record.data += dataBonus;
+    record.chips += chipsBonus;
 
     alerts.push({
       id: crypto.randomUUID(),
       type: 'success',
       title: `🎁 День ${record.dailyStreak}/7 получен!`,
-      message: `Начислено +${cryptoBonus} 💎 Crypto и +${dataBonus.toLocaleString('ru-RU')} Data!`,
+      message: `Начислено +${cryptoBonus} 💎 Crypto, +${chipsBonus} ⚙️ Чипов и +${dataBonus.toLocaleString('ru-RU')} Data!`,
     });
 
     await syncTimeAndRules(record, mode, alerts);
@@ -1133,15 +1606,7 @@ export async function handleGlobalHackPrestige(
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
 
-    const derived = computeDerivedStats({
-      cards: record.cards,
-      team: record.team,
-      rep: record.rep,
-      heat: record.heat,
-      data: record.data,
-      prestigeCount: record.prestigeCount,
-      equippedSkin: record.equippedSkin,
-    });
+    const derived = deriveStats(record);
 
     const requiredLevel = getPrestigeRequiredLevel(record.prestigeCount);
     if (derived.level < requiredLevel) {
@@ -1171,6 +1636,8 @@ export async function handleGlobalHackPrestige(
       }
     }
 
+    // ВАЖНО: сбрасываются только карточки, команда, активные миссии и Data/Heat.
+    // Питомцы, «База», Чипы, Тир, скины, Crypto и достижения — сохраняются навсегда.
     record.cards = {};
     record.team = [];
     record.activeMissions = [];
@@ -1188,9 +1655,240 @@ export async function handleGlobalHackPrestige(
       id: crypto.randomUUID(),
       type: 'achievement',
       title: `🌐 GLOBAL HACK #${record.prestigeCount} ВЫПОЛНЕН!`,
-      message: `Постоянный множитель дохода теперь ×${Math.pow(2, record.prestigeCount)}! Все ваши Crypto, достижения, скины и Rep сохранены!`,
+      message: `Постоянный множитель дохода теперь ×${Math.pow(2, record.prestigeCount)}! Crypto, достижения, скины, Rep, питомцы, База и Чипы сохранены!`,
     });
 
+    await syncTimeAndRules(record, mode, alerts);
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts);
+  });
+}
+
+/** Покупка и кормление питомцев-компаньонов. */
+export async function handlePetAction(
+  user: VerifiedTelegramUser,
+  action: 'buy' | 'feed',
+  petKey: string
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const cfg = PETS_CONFIG.find((p) => p.key === petKey);
+    if (!cfg) {
+      throw new Error('Питомец не найден');
+    }
+
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    const owned = record.pets.find((p) => p.key === cfg.key);
+    const nowMs = Date.now();
+    const nowIso = new Date(nowMs).toISOString();
+
+    if (action === 'buy') {
+      if (owned) {
+        throw new Error('Этот питомец уже живёт у тебя на базе');
+      }
+      if (cfg.costCurrency === 'data') {
+        if (record.data < cfg.costAmount) {
+          throw new Error(`Недостаточно Data (нужно ${cfg.costAmount.toLocaleString('ru-RU')})`);
+        }
+        record.data -= cfg.costAmount;
+      } else if (cfg.costCurrency === 'rep') {
+        if (record.rep < cfg.costAmount) {
+          throw new Error(`Недостаточно Rep (нужно ${cfg.costAmount})`);
+        }
+        record.rep -= cfg.costAmount;
+      } else {
+        if (record.crypto < cfg.costAmount) {
+          throw new Error(`Недостаточно Crypto (нужно ${cfg.costAmount} 💎)`);
+        }
+        record.crypto -= cfg.costAmount;
+      }
+
+      record.pets.push({
+        key: cfg.key,
+        hunger: 100,
+        lastFedAt: nowIso,
+        feedCount: 0,
+      });
+
+      if (mode === 'supabase') {
+        const sb = getSupabaseAdmin();
+        if (sb) {
+          const { error } = await sb.from('pets').upsert(
+            {
+              player_id: record.id,
+              pet_key: cfg.key,
+              hunger: 100,
+              last_fed_at: nowIso,
+              feed_count: 0,
+            },
+            { onConflict: 'player_id,pet_key', ignoreDuplicates: true }
+          );
+          if (error) throw new Error(`Не удалось заселить питомца: ${error.message}`);
+        }
+      }
+
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `${cfg.emoji} ${cfg.name} теперь с тобой!`,
+        message: `${cfg.buffLabel}. Не забывай кормить — баф растёт от сытости и привязанности.`,
+      });
+
+      await syncTimeAndRules(record, mode, alerts);
+      await savePlayerCore(record, mode);
+      return buildResponse(record, mode, alerts);
+    }
+
+    // ---- feed ----
+    if (!owned) {
+      throw new Error('Сначала заведи этого питомца');
+    }
+    const derived = deriveStats(record, nowMs);
+    const hunger = getEffectiveHunger(
+      owned.hunger,
+      owned.lastFedAt,
+      cfg.hungerDecayPerHour,
+      nowMs
+    );
+    if (hunger >= 99) {
+      throw new Error(`${cfg.name} абсолютно сыт — баф и так работает на максимум`);
+    }
+    const cooldownMs = cfg.feedCooldownHours * 3_600_000;
+    const elapsed = nowMs - new Date(owned.lastFedAt).getTime();
+    if (elapsed < cooldownMs) {
+      const leftMin = Math.ceil((cooldownMs - elapsed) / 60_000);
+      throw new Error(`Кормление перезаряжается: ещё ~${leftMin} мин.`);
+    }
+
+    const price = getPetFeedPrice(cfg, derived.dataPerHour, derived.feedDiscountPct);
+    if (record.data < price) {
+      throw new Error(`Недостаточно Data на корм (нужно ${price.toLocaleString('ru-RU')})`);
+    }
+
+    record.data -= price;
+    owned.hunger = Math.min(100, Math.round((hunger + cfg.feedHunger) * 10) / 10);
+    owned.lastFedAt = nowIso;
+    owned.feedCount += 1;
+    record.stats.petFeedings += 1;
+    record.stats.petHungrySeen = Math.max(0, record.stats.petHungrySeen);
+
+    const today = nowIso.slice(0, 10);
+    if (record.stats.lastPetFeedDay !== today) {
+      const yesterday = new Date(nowMs - 86_400_000).toISOString().slice(0, 10);
+      record.stats.petFeedingStreakDays =
+        record.stats.lastPetFeedDay === yesterday ? record.stats.petFeedingStreakDays + 1 : 1;
+      record.stats.lastPetFeedDay = today;
+    }
+
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `🥕 ${cfg.name} покормлен!`,
+      message: `Сытость ${Math.round(owned.hunger)}%, привязанность ${getPetAffection(
+        owned.feedCount
+      )}/10. Баф: ${cfg.buffLabel}.`,
+    });
+
+    await syncTimeAndRules(record, mode, alerts);
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts);
+  });
+}
+
+const TRACK_TUTORIAL_TABS = new Set(['currencies', 'upgrades', 'hacks', 'team', 'endgame']);
+const TRACK_APP_TABS = new Set(['/', '/upgrades', '/hacks', '/team', '/profile']);
+const MAX_TRACK_EVENTS_PER_DAY = 200;
+
+/**
+ * Клиентская телеметрия ТОЛЬКО для «неочевидных» достижений (главы Академии, вкладки, ночная сессия).
+ * Жёсткий whitelist событий, суточный кап и никакого влияния на экономику — начислить себе Data/Crypto этим нельзя.
+ */
+export async function handleTrackEvent(
+  user: VerifiedTelegramUser,
+  event: string,
+  value?: number
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    const nowMs = Date.now();
+    const today = new Date(nowMs).toISOString().slice(0, 10);
+    if (record.stats.trackEventsDay !== today) {
+      record.stats.trackEventsDay = today;
+      record.stats.trackEventsToday = 0;
+    }
+    if (record.stats.trackEventsToday >= MAX_TRACK_EVENTS_PER_DAY) {
+      return buildResponse(record, mode, alerts);
+    }
+
+    const raw = typeof event === 'string' ? event.slice(0, 64) : '';
+    const [kind, arg] = raw.split(':');
+    let touched = false;
+
+    switch (kind) {
+      case 'tutorial_open': {
+        record.stats.tutorialOpens = Math.min(100_000, record.stats.tutorialOpens + 1);
+        touched = true;
+        break;
+      }
+      case 'tutorial_tab': {
+        if (TRACK_TUTORIAL_TABS.has(arg)) {
+          if (!record.stats.tutorialTabs.includes(arg)) record.stats.tutorialTabs.push(arg);
+          touched = true;
+        }
+        break;
+      }
+      case 'tab': {
+        if (TRACK_APP_TABS.has(arg)) {
+          if (!record.stats.tabsVisited.includes(arg)) record.stats.tabsVisited.push(arg);
+          touched = true;
+        }
+        break;
+      }
+      case 'idle_15': {
+        record.stats.idleSessions = Math.min(100_000, record.stats.idleSessions + 1);
+        touched = true;
+        break;
+      }
+      case 'session': {
+        const minutes = Math.max(0, Math.min(240, Math.floor(Number(value) || 0)));
+        if (minutes > record.stats.maxSessionMinutes) {
+          record.stats.maxSessionMinutes = minutes;
+          touched = true;
+        }
+        break;
+      }
+      case 'shop_freeze_30': {
+        record.stats.shopFreezeMinutes = Math.min(100_000, record.stats.shopFreezeMinutes + 30);
+        touched = true;
+        break;
+      }
+      case 'local_hour': {
+        const hour = Math.floor(Number(value));
+        if (Number.isFinite(hour) && hour >= 0 && hour <= 23) {
+          if (hour >= 2 && hour < 5) {
+            record.stats.nightSessions = Math.min(100_000, record.stats.nightSessions + 1);
+            touched = true;
+          } else if (hour >= 5 && hour < 7) {
+            record.stats.earlySessions = Math.min(100_000, record.stats.earlySessions + 1);
+            touched = true;
+          }
+        }
+        break;
+      }
+      default:
+        break;
+    }
+
+    if (!touched) {
+      return buildResponse(record, mode, alerts);
+    }
+
+    record.stats.trackEventsToday += 1;
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
     return buildResponse(record, mode, alerts);
@@ -1231,15 +1929,7 @@ export async function handleGetLeaderboard(
   const realEntries: LeaderboardEntry[] = Object.values(db.playersByTgId)
     .filter((rec) => rec.tgId > -10_000_000 || rec.tgId === currentUser.tgId)
     .map((rec) => {
-    const d = computeDerivedStats({
-      cards: rec.cards,
-      team: rec.team,
-      rep: rec.rep,
-      heat: rec.heat,
-      data: rec.data,
-      prestigeCount: rec.prestigeCount,
-      equippedSkin: rec.equippedSkin,
-    });
+    const d = deriveStats(rec);
     return {
       username: rec.username,
       level: d.level,
