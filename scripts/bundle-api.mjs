@@ -2,10 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { build } from 'esbuild';
 
-// На Vercel собираем все api/*.ts с общим серверным ядром api/_core.cjs:
-// 1) Мгновенный cold-start (~25мс), 0 конфликтов ESM/CJS
-// 2) Единый общий пул rate-limit (IP) и per-player мьютексов (withPlayerLock) между ВСЕМИ /api/* эндпоинтами!
-if (process.env.VERCEL || process.env.FORCE_BUNDLE_API) {
+// РУЧНОЙ инструмент (npm run bundle:api). На Vercel НЕ запускается: платформа
+// сама собирает api/*.ts в отдельные Serverless-функции, а этот скрипт удаляет
+// исходники (.ts), из-за чего `vercel build` падает с ENOENT на api/<route>.ts.
+// Нужен только для локальной проверки «всё ядро в одном файле».
+if (process.env.FORCE_BUNDLE_API) {
   const apiDir = path.resolve('api');
   const routeNames = fs
     .readdirSync(apiDir)
