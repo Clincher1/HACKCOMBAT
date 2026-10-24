@@ -18,9 +18,18 @@ import type {
   PetState,
 } from './types';
 
-export const BASE_MAX_ENERGY = 1000;
+// v3.1: быстрый тап не должен задыхаться. Было 1000 энергии и +1 за 3 сек —
+// после двух минут активного клика кнопка «умирала». Стало 1500 и +1 за 2 сек,
+// потолок с апгрейдами Базы прежний (MAX_ENERGY_CAP).
+export const BASE_MAX_ENERGY = 1500;
 export const MAX_ENERGY_CAP = 5000;
-export const ENERGY_REGEN_SECONDS = 3; // 1 Energy / 3 сек (раздел 5.1 ТЗ)
+export const ENERGY_REGEN_SECONDS = 2; // 1 Energy / 2 сек
+
+// «Фоновая копилка тапов»: пока игрок оффлайн, за него медленно тапают.
+// Доход = тапы × сила клика, поэтому прокачка клика усиливает и оффлайн.
+// DEFAULT: 12 тапов в минуту, копится максимум 8 часов.
+export const OFFLINE_TAP_RATE_PER_SEC = 0.2;
+export const OFFLINE_TAP_CAP_SECONDS = 8 * 3600;
 export const HEAT_PENALTY_THRESHOLD = 100; // Heat > 100 -> штраф (раздел 2 и 5.4 ТЗ)
 export const HEAT_RESET_AFTER_PENALTY = 50;
 export const HEAT_PENALTY_DATA_LOSS_PCT = 0.1; // Потеря 10% Data

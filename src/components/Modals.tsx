@@ -15,6 +15,7 @@ export const ModalsAndOverlays: React.FC = () => {
     skinModalOpen,
     setSkinModalOpen,
     offlineModalEarned,
+    offlineModalTaps,
     dismissOfflineModal,
     claimDailyBonus,
     buyOrEquipSkin,
@@ -58,6 +59,11 @@ export const ModalsAndOverlays: React.FC = () => {
               <div className="my-4 py-3 rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 font-display text-2xl font-black text-[#7dff00]">
                 +{formatCompact(offlineModalEarned)} DATA
               </div>
+              {offlineModalTaps > 0 && (
+                <p className="text-[11px] text-slate-400 -mt-2 mb-3">
+                  в том числе {formatCompact(offlineModalTaps)} фоновых тапов × сила клика
+                </p>
+              )}
               <button
                 type="button"
                 onClick={dismissOfflineModal}

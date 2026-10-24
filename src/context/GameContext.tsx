@@ -16,7 +16,7 @@ import type {
   LeaderboardEntry,
   PlayerState,
 } from '../../shared/types';
-import { gameApi } from '../lib/api';
+import { ApiError, gameApi } from '../lib/api';
 import { cyberSound } from '../lib/sound';
 import {
   initTelegramMiniApp,
@@ -34,6 +34,7 @@ interface GameContextValue {
   storageMode: 'supabase' | 'memory-fallback';
   alerts: GameAlert[];
   offlineModalEarned: number | null;
+  offlineModalTaps: number;
   dismissOfflineModal: () => void;
   dismissAlert: (id: string) => void;
   pushClientAlert: (alert: Omit<GameAlert, 'id'>) => void;
@@ -71,6 +72,20 @@ interface GameContextValue {
 
 const GameContext = createContext<GameContextValue | null>(null);
 
+// ============================================================================
+// Настройки отправки кликов (v3.1).
+// Задача: быстрый «палец» не должен ловить rate-limit и терять клики.
+//  • CLICK_MAX_BATCH   — сколько кликов уходит в одном запросе (сервер разрешает до 60);
+//  • CLICK_MIN_GAP_MS  — минимальная пауза между запросами (анти-дребезг);
+//  • CLICK_FLUSH_DELAY_MS — как долго копим клики, если их набралось мало;
+//  • CLICK_QUEUE_LIMIT — предохранитель, чтобы очередь не росла бесконечно.
+// ============================================================================
+const CLICK_MAX_BATCH = 20;
+const CLICK_MIN_GAP_MS = 900;
+const CLICK_FLUSH_DELAY_MS = 2_500;
+const CLICK_QUEUE_LIMIT = 600;
+
+
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
   const [player, setPlayer] = useState<PlayerState | null>(null);
@@ -79,6 +94,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [storageMode, setStorageMode] = useState<'supabase' | 'memory-fallback'>('memory-fallback');
   const [alerts, setAlerts] = useState<GameAlert[]>([]);
   const [offlineModalEarned, setOfflineModalEarned] = useState<number | null>(null);
+  const [offlineModalTaps, setOfflineModalTaps] = useState<number>(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [soundMuted, setSoundMuted] = useState(() => cyberSound.isMuted());
   const [dailyModalOpen, setDailyModalOpen] = useState(false);
@@ -110,6 +126,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const pendingClicksRef = useRef<number>(0);
   const flushingRef = useRef<boolean>(false);
   const flushTimerRef = useRef<number | null>(null);
+  const lastFlushAtRef = useRef<number>(0);
+  const backoffUntilRef = useRef<number>(0);
+  const hiddenAtRef = useRef<number>(0);
 
   const pushAlerts = useCallback((incoming?: GameAlert[]) => {
     if (!incoming || incoming.length === 0) return;
@@ -151,39 +170,85 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setPlayer(adjustedPlayer);
       if (showOfflineModal && res.offlineEarned && res.offlineEarned >= 10) {
         setOfflineModalEarned(res.offlineEarned);
+        setOfflineModalTaps(res.offlineTaps ?? 0);
       }
       pushAlerts(res.alerts);
     },
     [pushAlerts]
   );
 
-  // Batch-отправка кликов на /api/click (каждые 10 кликов ИЛИ каждые 5 секунд — Шаг 4 и п. 5.1 ТЗ)
-  const flushClicks = useCallback(async () => {
-    if (flushingRef.current || pendingClicksRef.current <= 0) return;
-    const countToSend = pendingClicksRef.current;
-    pendingClicksRef.current = 0;
-    flushingRef.current = true;
-    if (flushTimerRef.current) {
-      window.clearTimeout(flushTimerRef.current);
-      flushTimerRef.current = null;
-    }
+  // ==========================================================================
+  // Batch-отправка кликов на /api/click (v3.1)
+  // --------------------------------------------------------------------------
+  // Было: пачка каждые 10 кликов или 5 секунд, а при ошибке счётчик обнулялся —
+  // быстрый тап упирался в rate-limit и клики терялись с тостом «Слишком много
+  // запросов». Стало: пачка до 20 кликов, не чаще раза в 900 мс, а при 429/сети
+  // клики возвращаются в очередь и досылаются молча, с экспоненциальным откатом.
+  // ==========================================================================
+  const flushClicksRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
 
-    try {
-      const res = await gameApi.clickBatch(countToSend);
-      applyServerSync(res);
-    } catch (err) {
-      pushClientAlert({
-        type: 'warning',
-        title: 'Синхронизация',
-        message: err instanceof Error ? err.message : 'Ошибка отправки кликов',
-      });
-    } finally {
-      flushingRef.current = false;
-      if (pendingClicksRef.current >= 10) {
-        void flushClicks();
+  const scheduleFlush = useCallback((delayMs: number) => {
+    if (flushTimerRef.current) return;
+    flushTimerRef.current = window.setTimeout(() => {
+      flushTimerRef.current = null;
+      void flushClicksRef.current(true);
+    }, Math.max(120, delayMs));
+  }, []);
+
+  const flushClicks = useCallback(
+    async (force = false) => {
+      if (flushingRef.current || pendingClicksRef.current <= 0) return;
+
+      const now = Date.now();
+      const earliest = Math.max(lastFlushAtRef.current + CLICK_MIN_GAP_MS, backoffUntilRef.current);
+      if (!force && now < earliest) {
+        scheduleFlush(earliest - now);
+        return;
       }
-    }
-  }, [applyServerSync, pushClientAlert]);
+
+      if (flushTimerRef.current) {
+        window.clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+
+      const countToSend = Math.min(pendingClicksRef.current, CLICK_MAX_BATCH);
+      pendingClicksRef.current -= countToSend;
+      flushingRef.current = true;
+      lastFlushAtRef.current = now;
+
+      try {
+        const res = await gameApi.clickBatch(countToSend);
+        applyServerSync(res);
+      } catch (err) {
+        const status = err instanceof ApiError ? err.status : 0;
+        const retryAfterMs = err instanceof ApiError && err.retryAfterSec > 0 ? err.retryAfterSec * 1000 : 0;
+
+        if (status === 400 || status === 403) {
+          // Некорректный запрос — повторять бессмысленно, но и клики не выкидываем.
+          pendingClicksRef.current = 0;
+          pushClientAlert({
+            type: 'warning',
+            title: 'Синхронизация',
+            message: err instanceof Error ? err.message : 'Ошибка отправки кликов',
+          });
+        } else {
+          // 429 / сеть / 5xx: возвращаем клики в очередь и досылаем без шума.
+          pendingClicksRef.current = Math.min(pendingClicksRef.current + countToSend, CLICK_QUEUE_LIMIT);
+          backoffUntilRef.current = Date.now() + Math.max(600, retryAfterMs + 250);
+        }
+      } finally {
+        flushingRef.current = false;
+        if (pendingClicksRef.current > 0) {
+          scheduleFlush(CLICK_MIN_GAP_MS);
+        }
+      }
+    },
+    [applyServerSync, pushClientAlert, scheduleFlush]
+  );
+
+  useEffect(() => {
+    flushClicksRef.current = flushClicks;
+  }, [flushClicks]);
 
   // Первичная загрузка профиля игрока
   useEffect(() => {
@@ -252,8 +317,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 30000);
 
     const onVisibility = () => {
-      if (document.visibilityState === 'hidden' && pendingClicksRef.current > 0) {
-        void flushClicks();
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        // Уходим с экрана — досылаем очередь немедленно, не дожидаясь паузы.
+        if (pendingClicksRef.current > 0) void flushClicks(true);
+        return;
+      }
+      // Вернулись после долгой паузы — сразу подтягиваем копилку и показываем «пока вас не было»
+      if (hiddenAtRef.current > 0 && Date.now() - hiddenAtRef.current >= 60_000) {
+        hiddenAtRef.current = 0;
+        void gameApi
+          .init()
+          .then((res) => applyServerSync(res, true))
+          .catch(() => {});
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
@@ -297,24 +373,22 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     });
 
-    if (pendingClicksRef.current >= 10) {
+    if (pendingClicksRef.current >= CLICK_MAX_BATCH) {
       void flushClicks();
-    } else if (!flushTimerRef.current) {
-      flushTimerRef.current = window.setTimeout(() => {
-        flushTimerRef.current = null;
-        void flushClicks();
-      }, 5000);
+    } else {
+      scheduleFlush(CLICK_FLUSH_DELAY_MS);
     }
 
     return true;
-  }, [flushClicks, lockdownRemainingSec, player]);
+  }, [flushClicks, scheduleFlush, lockdownRemainingSec, player]);
 
   const runAction = useCallback(
     async (key: string, fn: () => Promise<ApiSyncResponse>, playUpgradeTone = false) => {
       setBusyKey(key);
       try {
         if (pendingClicksRef.current > 0) {
-          await flushClicks();
+          // Перед покупкой важно «дослать» клики прямо сейчас, иначе сервер увидит старое Data.
+          await flushClicks(true);
         }
         const res = await fn();
         if (playUpgradeTone) {
@@ -523,7 +597,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         storageMode,
         alerts,
         offlineModalEarned,
-        dismissOfflineModal: () => setOfflineModalEarned(null),
+        offlineModalTaps,
+        dismissOfflineModal: () => {
+          setOfflineModalEarned(null);
+          setOfflineModalTaps(0);
+        },
         dismissAlert: (id) => setAlerts((prev) => prev.filter((a) => a.id !== id)),
         pushClientAlert,
         lockdownRemainingSec,

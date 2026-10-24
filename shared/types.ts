@@ -203,6 +203,8 @@ export interface PlayerProgressStats {
   hackFailByType: Record<string, number>;
   /** Всего XP добыто (дублирует players.xp для статистики профиля). */
   totalXpEarned: number;
+  /** Когда последний раз начислялась «фоновая копилка тапов» (ISO). */
+  lastTapClaimAt?: string | null;
 }
 
 export interface DerivedStats {
@@ -290,6 +292,8 @@ export interface ApiSyncResponse {
   ok: true;
   player: PlayerState;
   offlineEarned?: number;
+  /** Сколько «фоновых тапов» накопилось за отсутствие (для окна «пока вас не было»). */
+  offlineTaps?: number;
   alerts?: GameAlert[];
   storageMode: 'supabase' | 'memory-fallback';
 }

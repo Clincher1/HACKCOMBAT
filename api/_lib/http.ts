@@ -12,15 +12,54 @@ export type ApiResponse = ServerResponse & {
 };
 
 const MAX_BODY_BYTES = 16_384; // 16 KB лимит тела запроса (защита от DoS переполнением памяти)
-const IP_WINDOW_MS = 60_000;
-const MAX_REQUESTS_PER_WINDOW = 140; // Защита от HTTP-флуда с одного IP
 
-const ipRateBuckets = new Map<string, { count: number; resetAt: number }>();
+// ============================================================================
+// RATE LIMIT (v3.1)
+// ----------------------------------------------------------------------------
+// Раньше был один лимит 140 запросов в минуту на IP — и живой человек, который
+// быстро тапает ХАК, упирался в него (клики идут пачками, а мобильные операторы
+// ещё и держат десятки игроков за одним IP через CGNAT).
+// Теперь бюджеты разделены и сильно подняты:
+//   • IP        — только грубый антифлуд (не мешает живому тапу);
+//   • игрок     — свой бюджет по стабильному id (заголовок X-Demo-User-Id);
+//   • anti-cheat по кликам живёт отдельно, в gameEngine (пачки + клики/сек + энергия),
+//     поэтому поднятие HTTP-лимита НЕ открывает дыру для автокликера.
+// ============================================================================
+const RATE_WINDOW_MS = 60_000;
+const IP_REQUESTS_PER_WINDOW = 900; // ~15 запросов/сек с одного IP
+const USER_REQUESTS_PER_WINDOW = 600; // ~10 запросов/сек на одного игрока
+const MAX_RATE_BUCKETS = 20_000;
+
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
 function getClientIp(req: ApiRequest): string {
   const xff = req.headers['x-forwarded-for'];
   const raw = Array.isArray(xff) ? xff[0] : xff;
   return (raw ? raw.split(',')[0].trim() : req.socket?.remoteAddress || 'local').slice(0, 64);
+}
+
+/** Стабильный «ключ игрока» для лимита: id из заголовка превью/Telegram-клиента. */
+function getRateLimitUserKey(req: ApiRequest): string {
+  const raw = req.headers['x-demo-user-id'];
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (!value) return '';
+  return String(value).replace(/[^0-9a-zA-Z_-]/g, '').slice(0, 32);
+}
+
+/**
+ * Считает запрос в бакете. Возвращает 0, если лимит не превышен,
+ * либо число секунд до сброса окна (для заголовка Retry-After).
+ */
+function hitRateBucket(key: string, limit: number, nowMs: number): number {
+  const bucket = rateBuckets.get(key);
+  if (!bucket || nowMs >= bucket.resetAt) {
+    if (rateBuckets.size > MAX_RATE_BUCKETS) rateBuckets.clear();
+    rateBuckets.set(key, { count: 1, resetAt: nowMs + RATE_WINDOW_MS });
+    return 0;
+  }
+  bucket.count += 1;
+  if (bucket.count <= limit) return 0;
+  return Math.max(1, Math.ceil((bucket.resetAt - nowMs) / 1000));
 }
 
 export function enforceHttpSecurity(req: ApiRequest, res: ApiResponse): boolean {
@@ -29,24 +68,22 @@ export function enforceHttpSecurity(req: ApiRequest, res: ApiResponse): boolean 
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
 
-  // Rate-limit на уровне IP
+  // Rate-limit: сначала грубый потолок на IP, затем персональный бюджет игрока.
   const now = Date.now();
   const ip = getClientIp(req);
-  const bucket = ipRateBuckets.get(ip);
-  if (!bucket || now >= bucket.resetAt) {
-    if (ipRateBuckets.size > 5000) {
-      ipRateBuckets.clear();
-    }
-    ipRateBuckets.set(ip, { count: 1, resetAt: now + IP_WINDOW_MS });
-  } else {
-    bucket.count += 1;
-    if (bucket.count > MAX_REQUESTS_PER_WINDOW) {
-      sendJson(res, 429, {
-        ok: false,
-        error: 'Слишком много запросов в минуту — подождите пару секунд.',
-      });
-      return false;
-    }
+  const userKey = getRateLimitUserKey(req);
+  let retryAfterSec = hitRateBucket(`ip:${ip}`, IP_REQUESTS_PER_WINDOW, now);
+  if (retryAfterSec === 0 && userKey) {
+    retryAfterSec = hitRateBucket(`u:${userKey}`, USER_REQUESTS_PER_WINDOW, now);
+  }
+  if (retryAfterSec > 0) {
+    res.setHeader('Retry-After', String(retryAfterSec));
+    sendJson(res, 429, {
+      ok: false,
+      error: 'Слишком быстро — синхронизация догонит автоматически.',
+      retryAfterSec,
+    });
+    return false;
   }
 
   // Проверка Origin на мутирующих POST-запросах (защита от межсайтового CSRF, включая чужие *.vercel.app!)
