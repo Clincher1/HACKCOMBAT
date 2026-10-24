@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from './_lib/http';
+import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from '../_lib/http';
 
 interface TelegramUpdate {
   message?: {

@@ -3,8 +3,8 @@ import {
   sendJson,
   type ApiRequest,
   type ApiResponse,
-} from './_lib/http';
-import { getSupabaseAdmin } from './_lib/supabaseAdmin';
+} from '../_lib/http';
+import { getSupabaseAdmin } from '../_lib/supabaseAdmin';
 
 /**
  * GET /api/ping — Cron Keep-Alive пинг каждые 3 дня (раздел 6 и шаг 10 ТЗ)
