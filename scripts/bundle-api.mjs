@@ -21,11 +21,18 @@ await build({
   logLevel: 'warning',
 });
 
-fs.writeFileSync(
-  path.join(apiDir, '[...path].js'),
+// Обёртка ЗАКОММИЧЕНА в репозиторий (Vercel определяет функции по исходникам до сборки),
+// здесь лишь страхуемся, что её содержимое не разъехалось с ядром.
+const wrapperPath = path.join(apiDir, '[...path].js');
+const wrapperSource =
   "'use strict';\n" +
-    '// Генерируется scripts/bundle-api.mjs на этапе сборки: единственная Serverless-функция приложения.\n' +
-    "module.exports = require('./_core.cjs').dispatchApiRequest;\n"
-);
+  '// Единственная Serverless-функция приложения (Vercel Hobby: максимум 12 на деплой).\n' +
+  '// Файл обязан лежать в репозитории: Vercel определяет список функций по исходникам,\n' +
+  '// ДО запуска `npm run build`. Само ядро (api/_core.cjs) собирает scripts/bundle-api.mjs.\n' +
+  "module.exports = require('./_core.cjs').dispatchApiRequest;\n";
+const current = fs.existsSync(wrapperPath) ? fs.readFileSync(wrapperPath, 'utf8') : '';
+if (current !== wrapperSource) {
+  fs.writeFileSync(wrapperPath, wrapperSource);
+}
 
 console.log('[bundle-api] Единая функция api/[...path].js -> api/_core.cjs (все маршруты в одном ядре).');

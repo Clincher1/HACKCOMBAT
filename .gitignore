@@ -7,6 +7,5 @@ dist/
 .local-db.json
 *.tsbuildinfo
 
-# Генерируется scripts/bundle-api.mjs на этапе сборки (единственная функция Vercel)
+# Генерируется scripts/bundle-api.mjs на этапе сборки (ядро единственной функции Vercel)
 api/_core.cjs
-api/*.js
