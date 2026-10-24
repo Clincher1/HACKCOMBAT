@@ -240,8 +240,11 @@ export const DeskScene: React.FC = () => {
         {/* Нижний прогресс-индикатор до следующего уровня */}
         <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-slate-300 pointer-events-none">
           <span className="bg-[#0a0e1a]/80 px-2 py-0.5 rounded border border-slate-800">
-            Апгрейдов до Ур. {derived.level + 1}:{' '}
-            <strong className="text-[#00f0ff]">{derived.nextLevelProgress}/5</strong>
+            До Ур. {derived.level + 1}:{' '}
+            <strong className="text-[#00f0ff]">
+              {Math.round(derived.xpIntoLevel).toLocaleString('ru-RU')}/
+              {derived.xpToNext > 0 ? Math.round(derived.xpToNext).toLocaleString('ru-RU') : '∞'} XP
+            </strong>
           </span>
           {stageInfo.nextLevel && (
             <span className="bg-[#0a0e1a]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">

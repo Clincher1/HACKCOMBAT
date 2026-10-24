@@ -148,6 +148,38 @@ export const ProfilePage: React.FC = () => {
             <div className="text-xs font-bold text-[#7dff00]">×{derived.prestigeMultiplier}</div>
           </div>
         </div>
+
+        {/* Опыт и подготовка к взломам */}
+        <div className="rounded-xl bg-[#0a0e1a] border border-purple-500/25 p-2.5 space-y-1.5 mt-2">
+          <div className="flex items-center justify-between text-[10px] font-bold">
+            <span className="text-purple-300">
+              XP {formatCompact(derived.xpIntoLevel)} /{' '}
+              {derived.xpToNext > 0 ? formatCompact(derived.xpToNext) : 'MAX'}
+            </span>
+            <span className="text-slate-400">всего {formatCompact(derived.totalXp)} XP</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${
+                  derived.xpToNext > 0
+                    ? Math.min(100, (derived.xpIntoLevel / derived.xpToNext) * 100)
+                    : 100
+                }%`,
+                background: 'linear-gradient(90deg, #a855f7 0%, #00f0ff 100%)',
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-slate-400">
+            <span>
+              Сила железа: <strong className="text-white">{Math.round(derived.hackPower)}⚡</strong>
+            </span>
+            <span>
+              Провалов: <strong className="text-rose-400">{player.stats.missionFails ?? 0}</strong>
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Визуальная шкала «White Hat <---> Black Hat» (п. 4.5 и 5.4 ТЗ) */}

@@ -9,7 +9,7 @@ import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
 /**
- * «База» — 10 пассивных покупок игрока по 10 уровней.
+ * «База» — 10 пассивных покупок игрока по 15 уровней.
  * Не сбрасываются Global Hack Престижем: это долгая инвестиция в комфорт.
  */
 export const BaseUpgradeList: React.FC = () => {
@@ -28,7 +28,7 @@ export const BaseUpgradeList: React.FC = () => {
         </div>
         <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
           Пассивные покупки <strong className="text-[#7dff00]">не сбрасываются Престижем</strong>. Суммарно{' '}
-          {totalLevels}/{BASE_UPGRADES_CONFIG.length * 10} уровней. Стоят Data + ⚙️ Чипы.
+          {totalLevels}/{BASE_UPGRADES_CONFIG.length * 15} уровней. Стоят Data + ⚙️ Чипы.
         </p>
       </div>
 
@@ -38,8 +38,9 @@ export const BaseUpgradeList: React.FC = () => {
           const isMax = level >= cfg.maxLevel;
           const price = getBaseUpgradePrice(cfg, level);
           const chipCost = getBaseUpgradeChipCost(cfg, level);
+          const levelLocked = (cfg.requiredLevel ?? 1) > player.derived.level;
           const canBuy =
-            !isMax && player.data >= price && player.chips >= chipCost;
+            !isMax && !levelLocked && player.data >= price && player.chips >= chipCost;
           const isBusy = busyKey === `base:${cfg.key}`;
 
           return (
@@ -68,11 +69,11 @@ export const BaseUpgradeList: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <div className="grid grid-cols-10 gap-0.5">
+                <div className="flex gap-0.5">
                   {Array.from({ length: cfg.maxLevel }).map((_, idx) => (
                     <div
                       key={idx}
-                      className={`h-1 rounded-full ${idx < level ? 'bg-[#7dff00]' : 'bg-slate-800'}`}
+                      className={`h-1 flex-1 rounded-full ${idx < level ? 'bg-[#7dff00]' : 'bg-slate-800'}`}
                     />
                   ))}
                 </div>
@@ -90,6 +91,10 @@ export const BaseUpgradeList: React.FC = () => {
                 >
                   {isMax ? (
                     'МАКСИМУМ'
+                  ) : levelLocked ? (
+                    <span className="inline-flex items-center justify-center gap-1">
+                      <Lock className="w-3 h-3" /> Ур. {cfg.requiredLevel}
+                    </span>
                   ) : (
                     <span className="inline-flex items-center justify-center gap-1">
                       {canBuy ? 'Купить' : <Lock className="w-3 h-3" />}

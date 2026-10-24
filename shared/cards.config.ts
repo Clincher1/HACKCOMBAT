@@ -562,51 +562,53 @@ export const CARDS_CONFIG: CardConfig[] = [
 ];
 
 // ============================================================================
-// ПРОГРЕССИЯ КАРТОЧЕК: 4 ГЛОБАЛЬНЫХ ТИРА × ДО 25 УРОВНЕЙ
+// ПРОГРЕССИЯ КАРТОЧЕК: 4 ГЛОБАЛЬНЫХ ТИРА × ДО 60 УРОВНЕЙ
 // ----------------------------------------------------------------------------
-// Было: 10 уровней и цена base * 1.5^lvl — 480 уровней набирались за неделю.
-// Стало: 25 уровней, но потолок открывается ТИРАМИ за Чипы (дроп только с контрактов)
-// + глобальный индекс цен: каждая купленная единица уровня удорожает ВСЁ остальное.
-// Совместимость: все прежние уровни (1..10) читаются как есть, MAX_CARD_LEVEL только вырос.
+// Было (v2): 10 уровней, всё скупалось за вечер.
+// v2.1:    25 уровней в 4 Тирах + глобальный индекс цен.
+// v3 (ТЗ):  15/30/45/60 уровней, цена растёт ×1.30 за уровень при базовом
+//           множителе ×40, но и вклад уровня в доход растёт геометрически (×1.16).
+//           Итог: чтобы дойти до 30–60 уровня, нужны дни и недели.
+// Совместимость: все прежние уровни (1..25) читаются как есть, MAX_CARD_LEVEL только вырос.
 // ============================================================================
-export const MAX_CARD_LEVEL = 25;
+export const MAX_CARD_LEVEL = 60;
 
 export const CARD_TIERS: CardTierConfig[] = [
   {
     tier: 1,
-    title: 'Тир I — Комнатный Сетап',
-    maxLevel: 10,
+    title: 'Тир I — Подвальный Стенд',
+    maxLevel: 15,
     requiredPlayerLevel: 1,
     chipCost: 0,
     dataCost: 0,
-    description: 'Базовые 10 уровней каждого модуля. Доступно с первого запуска терминала.',
+    description: 'Базовое железо: до 15 уровней каждого модуля. Дальше нужны Чипы.',
   },
   {
     tier: 2,
     title: 'Тир II — Промышленный Разгон',
-    maxLevel: 15,
-    requiredPlayerLevel: 8,
-    chipCost: 35,
-    dataCost: 30_000,
-    description: 'Открывает уровни 11–15. Чипы падают только с завершённых контрактов.',
+    maxLevel: 30,
+    requiredPlayerLevel: 10,
+    chipCost: 60,
+    dataCost: 120_000,
+    description: 'Открывает уровни 16–30. Чипы падают только за завершённые взломы.',
   },
   {
     tier: 3,
-    title: 'Тир III — Военный Подряд',
-    maxLevel: 20,
-    requiredPlayerLevel: 18,
-    chipCost: 90,
-    dataCost: 350_000,
-    description: 'Открывает уровни 16–20. Требует дисциплины: контракты, а не просто фарм.',
+    title: 'Тир III — Квантовый Арсенал',
+    maxLevel: 45,
+    requiredPlayerLevel: 22,
+    chipCost: 150,
+    dataCost: 1_500_000,
+    description: 'Уровни 31–45. Требует дисциплины: контракты, а не просто фарм.',
   },
   {
     tier: 4,
     title: 'Тир IV — Теневой Арсенал',
-    maxLevel: 25,
-    requiredPlayerLevel: 30,
-    chipCost: 220,
-    dataCost: 2_500_000,
-    description: 'Максимальные 25 уровней модулей — вершина инженерной мысли.',
+    maxLevel: 60,
+    requiredPlayerLevel: 36,
+    chipCost: 320,
+    dataCost: 12_000_000,
+    description: 'Максимальные 60 уровней модулей — вершина инженерной мысли.',
   },
 ];
 
@@ -619,14 +621,17 @@ export function getMaxCardLevel(tier: number): number {
   return getCardTierConfig(tier).maxLevel;
 }
 
-// Базовая цена за уровень: base * 1.42^level
-export const CARD_PRICE_GROWTH = 1.42;
+// Базовая цена за уровень модуля (ТЗ v3: экспоненциальный рост, «моментальных» покупок нет)
+export const CARD_PRICE_GROWTH = 1.24;
+// Вклад уровня в доход тоже растёт — иначе глубокие уровни (30–60) были бы бессмысленны.
+// Итоговый доход карточки = dataPerHourPerLevel * сумма геометрической прогрессии.
+export const CARD_LEVEL_INCOME_GROWTH = 1.18;
 // Глобальный индекс: чем больше суммарных уровней у игрока, тем дороже следующий уровень ЛЮБОЙ карточки
-export const CARD_GLOBAL_INDEX_DIVISOR = 35;
-export const CARD_GLOBAL_INDEX_POWER = 2.2;
+export const CARD_GLOBAL_INDEX_DIVISOR = 50;
+export const CARD_GLOBAL_INDEX_POWER = 1.2;
 // Глобальный множитель цен: растягивает всю кривую прогресса.
 // ВАЖНО: править цену безопасно — уже купленные уровни и доход игроков не меняются.
-export const CARD_PRICE_SCALE = 6;
+export const CARD_PRICE_SCALE = 40;
 
 /**
  * Вес глобального индекса для конкретной карточки.
@@ -636,6 +641,18 @@ export const CARD_PRICE_SCALE = 6;
 function getCardIndexWeight(basePrice: number): number {
   const safe = Math.max(1, Number(basePrice) || 1);
   return Math.max(0, Math.min(1, 1 - Math.log10(safe / 20) / 6));
+}
+
+/**
+ * Множитель вклада уровня: сумма геометрической прогрессии.
+ * Уровень 1 = 1.0, 10 ≈ 4.4, 25 ≈ 60, 60 ≈ 39 000.
+ * Благодаря этому прокачка на 40–60 уровень остаётся осмысленной, хотя и дорогой.
+ */
+export function getCardLevelIncomeMultiplier(level: number): number {
+  const safe = Math.max(0, Math.min(MAX_CARD_LEVEL, Math.floor(Number(level) || 0)));
+  if (safe <= 0) return 0;
+  const growth = CARD_LEVEL_INCOME_GROWTH;
+  return (Math.pow(growth, safe) - 1) / (growth - 1);
 }
 
 /** Во сколько раз глобальный индекс раздул цену конкретной карточки (для UI). */
@@ -658,9 +675,12 @@ export function getCardPrice(
 ): number {
   const safeLevel = Math.max(0, Math.min(MAX_CARD_LEVEL, Math.floor(Number(currentLevel) || 0)));
   const safeTotal = Math.max(0, Number(totalCardLevels) || 0);
-  const base = card.basePrice * Math.pow(CARD_PRICE_GROWTH, safeLevel) * CARD_PRICE_SCALE;
-  const rawIndex = Math.pow(1 + safeTotal / CARD_GLOBAL_INDEX_DIVISOR, CARD_GLOBAL_INDEX_POWER);
   const weight = getCardIndexWeight(card.basePrice);
+  // Глобальный множитель цен применяется только к дешёвому железу: топовые модули
+  // (от миллионов Data) уже стоят дорого, умножать их на 40 — значит сделать недостижимыми.
+  const priceScale = 1 + (CARD_PRICE_SCALE - 1) * weight;
+  const base = card.basePrice * Math.pow(CARD_PRICE_GROWTH, safeLevel) * priceScale;
+  const rawIndex = Math.pow(1 + safeTotal / CARD_GLOBAL_INDEX_DIVISOR, CARD_GLOBAL_INDEX_POWER);
   const globalIndex = 1 + (rawIndex - 1) * weight;
   const safeDiscount = Math.max(0, Math.min(0.25, Number(discountPct) || 0));
   return Math.max(1, Math.floor(base * globalIndex * (1 - safeDiscount)));
