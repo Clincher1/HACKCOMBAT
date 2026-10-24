@@ -182,7 +182,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'tier_4',
     title: 'Теневой Арсенал',
-    description: 'Открыть Тир IV — максимальные 25 уровней модулей.',
+    description: 'Открыть Тир IV — максимальные 60 уровней модулей.',
     cryptoReward: 90,
     icon: '🚀',
     rarity: 'legendary',
@@ -570,7 +570,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'base_max_one',
     title: 'Доведено До Ума',
-    description: 'Прокачать любое улучшение Базы до 10 уровня.',
+    description: 'Прокачать любое улучшение Базы до 15 уровня.',
     cryptoReward: 50,
     icon: '🔧',
     rarity: 'epic',
@@ -578,7 +578,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'base_all_max',
     title: 'Идеальный Штаб',
-    description: 'Прокачать ВСЕ 10 улучшений Базы до 10 уровня.',
+    description: 'Прокачать ВСЕ 10 улучшений Базы до 15 уровня.',
     cryptoReward: 200,
     icon: '🏙️',
     rarity: 'legendary',

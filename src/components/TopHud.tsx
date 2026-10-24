@@ -1,5 +1,6 @@
 import { BookOpen, Cog, Flame, Gem, Gift, Palette, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 import React from 'react';
+import { getSkinByKey } from '../../shared/skins.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -19,6 +20,11 @@ export const TopHud: React.FC = () => {
 
   const { derived } = player;
   const energyPct = Math.min(100, Math.max(0, (player.energy / derived.maxEnergy) * 100));
+  const xpPct =
+    derived.xpToNext > 0
+      ? Math.min(100, Math.max(0, (derived.xpIntoLevel / derived.xpToNext) * 100))
+      : 100;
+  const equippedSkin = getSkinByKey(player.equippedSkin);
 
   const dailyAvailable =
     !player.lastDailyClaim ||
@@ -30,6 +36,13 @@ export const TopHud: React.FC = () => {
         {/* Верхняя строка: Уровень/Ранг + быстрые кнопки Бонуса, Скинов и Звука */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="w-6 h-6 shrink-0 rounded-lg bg-[#0a0e1a] border border-[#00f0ff]/40 flex items-center justify-center text-sm leading-none"
+              style={{ boxShadow: `0 0 10px ${equippedSkin?.primaryHex ?? '#00f0ff'}44` }}
+              title={equippedSkin?.name ?? 'Аватар'}
+            >
+              {equippedSkin?.avatarGlyph ?? '🕶️'}
+            </div>
             <div className="px-2 py-0.5 rounded-md bg-[#00f0ff]/15 border border-[#00f0ff]/40 text-[#00f0ff] font-display text-xs font-bold shrink-0">
               УР. {derived.level}
             </div>
@@ -91,6 +104,28 @@ export const TopHud: React.FC = () => {
           </div>
         </div>
 
+        {/* Опыт: уровень качается только взломами */}
+        <div className="space-y-0.5">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="font-bold text-[#c084fc] uppercase tracking-wider">
+              XP {formatCompact(derived.xpIntoLevel)} / {derived.xpToNext > 0 ? formatCompact(derived.xpToNext) : 'MAX'}
+            </span>
+            <span className="text-slate-400">
+              сила железа {Math.round(derived.hackPower)}⚡
+            </span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-[#090d19] border border-slate-800 p-[1px] overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${xpPct}%`,
+                background: 'linear-gradient(90deg, #a855f7 0%, #00f0ff 100%)',
+                boxShadow: '0 0 8px rgba(168, 85, 247, 0.5)',
+              }}
+            />
+          </div>
+        </div>
+
         {/* Средняя строка: 4 основные валюты (Data, Data/ч, Crypto, Rep / Heat) */}
         <div className="grid grid-cols-4 gap-1.5">
           <div className="col-span-2 rounded-xl bg-[#10172e] border border-[#00f0ff]/25 px-3 py-1.5 flex items-center justify-between">
@@ -128,25 +163,18 @@ export const TopHud: React.FC = () => {
               <span className="text-[#7dff00] flex items-center gap-0.5" title="Чипы — нужны для Тиров карточек и Базы">
                 <Cog className="w-3 h-3" /> {player.chips}
               </span>
-              <span
-                className={`flex items-center gap-0.5 ${
-                  player.heat >= 75 ? 'text-rose-400 animate-pulse' : 'text-[#ff00a0]'
-                }`}
-                title="Розыск (Heat > 100 = штраф!)"
-              >
-                <Flame className="w-3 h-3" /> {player.heat}
+              <span className="text-[#00f0ff] flex items-center gap-0.5" title="Репутация (Rep)">
+                <Shield className="w-3 h-3" /> {player.rep}
               </span>
             </div>
             <div className="flex items-center justify-between text-[10px] font-bold mt-0.5">
-              <span className="text-[#00f0ff] flex items-center gap-0.5" title="Репутация (Rep)">
-                <Shield className="w-2.5 h-2.5" /> {player.rep}
-              </span>
               <span
                 className={player.heat >= 75 ? 'text-rose-400 animate-pulse' : 'text-[#ff00a0]'}
                 title="Розыск (Heat > 100 = штраф!)"
               >
-                🔥 {player.heat}
+                <Flame className="w-3 h-3 inline" /> Heat {player.heat}/100
               </span>
+              <span className="text-slate-500">⚙️ / 🛡️</span>
             </div>
             <div className="w-full h-1 rounded-full bg-slate-800 overflow-hidden mt-0.5">
               <div

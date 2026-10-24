@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Gem, Gift, Sparkles, X } from 'lucide-react';
-import React from 'react';
-import { SKINS_CONFIG } from '../../shared/skins.config';
+import { Check, Gem, Gift, Lock, Sparkles, X } from 'lucide-react';
+import React, { useState } from 'react';
+import { SKIN_CATEGORIES, SKINS_CONFIG } from '../../shared/skins.config';
+import type { SkinCategory } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 import { TutorialModal } from './TutorialModal';
@@ -20,6 +21,8 @@ export const ModalsAndOverlays: React.FC = () => {
     busyKey,
     nowMs,
   } = useGame();
+
+  const [skinFilter, setSkinFilter] = useState<'all' | SkinCategory>('all');
 
   if (!player) return null;
 
@@ -163,7 +166,7 @@ export const ModalsAndOverlays: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Gem className="w-5 h-5 text-purple-400" />
                   <h3 className="font-display font-bold text-base text-white">
-                    Кибер-Скины Стола ({player.crypto} 💎)
+                    Кибер-Косметика ({player.crypto} 💎)
                   </h3>
                 </div>
                 <button
@@ -175,10 +178,31 @@ export const ModalsAndOverlays: React.FC = () => {
                 </button>
               </div>
 
+              {/* Категории косметики: рабочий стол / интерфейс / аватар */}
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                {[{ id: 'all' as const, label: 'Все' }, ...SKIN_CATEGORIES].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setSkinFilter(cat.id)}
+                    className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                      skinFilter === cat.id
+                        ? 'bg-[#ff00a0]/18 border-[#ff00a0] text-[#ff00a0]'
+                        : 'bg-[#0a0e1a] border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
               <div className="space-y-2.5">
-                {SKINS_CONFIG.map((skin) => {
+                {SKINS_CONFIG.filter(
+                  (skin) => skinFilter === 'all' || skin.category === skinFilter
+                ).map((skin) => {
                   const unlocked = player.unlockedSkins.includes(skin.key);
                   const equipped = player.equippedSkin === skin.key;
+                  const levelLocked = (skin.requiredLevel ?? 1) > player.derived.level;
                   return (
                     <div
                       key={skin.key}
@@ -192,29 +216,41 @@ export const ModalsAndOverlays: React.FC = () => {
                               background: `linear-gradient(135deg, ${skin.primaryHex}, ${skin.secondaryHex})`,
                             }}
                           />
-                          <span className="font-bold text-sm text-white truncate">{skin.name}</span>
+                          <span className="font-bold text-sm text-white truncate">
+                            {skin.avatarGlyph ? `${skin.avatarGlyph} ` : ''}
+                            {skin.name}
+                          </span>
+                          {levelLocked && !unlocked && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 shrink-0">
+                              <Lock className="w-2.5 h-2.5" /> Ур. {skin.requiredLevel}
+                            </span>
+                          )}
                         </div>
                         <p className="text-[11px] text-slate-400">{skin.description}</p>
                       </div>
 
                       <button
                         type="button"
-                        disabled={equipped || busyKey === `skin:${skin.key}`}
+                        disabled={equipped || levelLocked || busyKey === `skin:${skin.key}`}
                         onClick={() => void buyOrEquipSkin(skin.key)}
                         className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                           equipped
                             ? 'bg-[#00f0ff]/15 text-[#00f0ff] border border-[#00f0ff]/40'
-                            : unlocked
-                              ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
-                              : skin.prestigeRequired
-                                ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
-                                : 'bg-[#ff00a0] hover:bg-[#ff00a0]/85 text-white'
+                            : levelLocked
+                              ? 'bg-[#0a0e1a] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
+                              : unlocked
+                                ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
+                                : skin.prestigeRequired
+                                  ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
+                                  : 'bg-[#ff00a0] hover:bg-[#ff00a0]/85 text-white'
                         }`}
                       >
                         {equipped ? (
                           <span className="flex items-center gap-1">
                             <Check className="w-3.5 h-3.5" /> Активен
                           </span>
+                        ) : levelLocked ? (
+                          `Ур. ${skin.requiredLevel}`
                         ) : unlocked ? (
                           'Надеть'
                         ) : skin.prestigeRequired ? (

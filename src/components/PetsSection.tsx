@@ -1,4 +1,4 @@
-import { Heart, Utensils } from 'lucide-react';
+import { Heart, Lock, Utensils } from 'lucide-react';
 import React from 'react';
 import {
   getEffectiveHunger,
@@ -62,6 +62,7 @@ export const PetsSection: React.FC = () => {
                 ? player.crypto
                 : player.rep;
           const canAfford = usesCurrency >= cfg.costAmount;
+          const levelLocked = (cfg.requiredLevel ?? 1) > player.derived.level;
 
           const hunger = owned
             ? getEffectiveHunger(owned.hunger, owned.lastFedAt, cfg.hungerDecayPerHour, nowMs)
@@ -163,15 +164,25 @@ export const PetsSection: React.FC = () => {
               ) : (
                 <button
                   type="button"
-                  disabled={!canAfford || isBusy}
+                  disabled={!canAfford || levelLocked || isBusy}
                   onClick={() => void petAction('buy', cfg.key)}
                   className={`w-full py-2 rounded-xl font-display font-bold text-xs transition cursor-pointer ${
-                    canAfford
-                      ? 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018]'
-                      : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
+                    levelLocked
+                      ? 'bg-[#0a0e1a] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
+                      : canAfford
+                        ? 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018]'
+                        : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
                   }`}
                 >
-                  Завести • {formatCompact(cfg.costAmount)} {CURRENCY_LABEL[cfg.costCurrency]}
+                  {levelLocked ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Lock className="w-3.5 h-3.5" /> Ур. {cfg.requiredLevel}
+                    </span>
+                  ) : (
+                    <>
+                      Завести • {formatCompact(cfg.costAmount)} {CURRENCY_LABEL[cfg.costCurrency]}
+                    </>
+                  )}
                 </button>
               )}
             </div>

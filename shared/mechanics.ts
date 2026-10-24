@@ -1,5 +1,6 @@
 import { getMaxCardLevel } from './cards.config';
-import { CARDS_CONFIG, MAX_CARD_LEVEL } from './cards.config';
+import { CARDS_CONFIG, getCardLevelIncomeMultiplier, MAX_CARD_LEVEL } from './cards.config';
+import { getLevelProgress } from './hack.config';
 import { BASE_UPGRADES_CONFIG, getBaseUpgradeConfig } from './base.config';
 import {
   getEffectiveHunger,
@@ -324,6 +325,7 @@ export function computeDerivedStats(params: {
   rep: number;
   heat: number;
   data: number;
+  xp?: number;
   prestigeCount: number;
   equippedSkin: string;
   pets?: PetState[];
@@ -337,6 +339,7 @@ export function computeDerivedStats(params: {
     rep,
     heat,
     data,
+    xp = 0,
     prestigeCount,
     equippedSkin,
     pets,
@@ -361,19 +364,28 @@ export function computeDerivedStats(params: {
       : 0;
     if (lvl <= 0) continue;
     totalCardLevels += lvl;
-    baseDataPerHour += card.dataPerHourPerLevel * lvl;
-    cardClickBonus += (card.clickBonusPerLevel ?? 0) * lvl;
+    // Доход модуля растёт геометрически: каждый следующий уровень весит +16%.
+    // Так прокачка до 30–60 уровня остаётся осмысленной, хотя цена растёт ещё быстрее.
+    const incomeMult = getCardLevelIncomeMultiplier(lvl);
+    baseDataPerHour += card.dataPerHourPerLevel * incomeMult;
+    cardClickBonus += (card.clickBonusPerLevel ?? 0) * incomeMult;
     extraMaxEnergy += (card.energyMaxPerLevel ?? 0) * lvl;
   }
 
-  // Каждые 5 уровней карточек повышают уровень игрока (макс. 48 * 25 = 1200 уровней карт = 241 уровень)
-  const level = 1 + Math.floor(totalCardLevels / 5);
-  const nextLevelProgress = totalCardLevels % 5;
+  // УРОВЕНЬ = ОПЫТ. ТЗ v3: карточки дают доход, но не уровень — карьеру делают взломы.
+  const levelProgress = getLevelProgress(xp);
+  const level = levelProgress.level;
+  // Оставлено для совместимости UI: доля пройденного пути до следующего уровня (0..1).
+  const nextLevelProgress =
+    levelProgress.xpToNext > 0
+      ? Math.round((levelProgress.xpIntoLevel / levelProgress.xpToNext) * 100) / 100
+      : 1;
 
   let teamPassiveBonusPct = 0;
   let teamClickBonusPct = 0;
   let autoClickPerSec = 0;
   let heatReductionPct = 0;
+  let teamHackPower = 0;
   let unlockedGreyMissions = false;
 
   const uniqueTeam = Array.from(new Set(team));
@@ -384,6 +396,7 @@ export function computeDerivedStats(params: {
     teamClickBonusPct += npc.clickBonusPct;
     autoClickPerSec += npc.autoClickPerSec;
     heatReductionPct += npc.heatReductionPct;
+    teamHackPower += npc.hackPower ?? 0;
     if (npc.unlocksGreyMissions) unlockedGreyMissions = true;
   }
 
@@ -438,21 +451,33 @@ export function computeDerivedStats(params: {
   let rankIndex = 1;
   let rankTitle = RANK_TITLES[0].title;
   RANK_TITLES.forEach((r, idx) => {
-    const qualifies =
-      idx === 0 ||
-      (safePrestige > 0 && level >= r.minLevel) ||
-      (level >= r.minLevel && (data >= r.minData * 0.25 || totalCardLevels >= r.minLevel * 5));
+    // Ранг — это карьерный уровень, а не кошелёк: он не сбрасывается Престижем.
+    const qualifies = idx === 0 || level >= r.minLevel;
     if (qualifies) {
       rankIndex = idx + 1;
       rankTitle = r.title;
     }
   });
 
-  const missionSlots = level >= 20 ? 3 : 1;
+  // Слоты миссий: 1 → 2 на 10 уровне → 3 на 20 уровне (теперь это награда за наигранные взломы).
+  const missionSlots = level >= 20 ? 3 : level >= 10 ? 2 : 1;
+
+  const baseLevelsTotal = Object.values(baseUpgrades ?? {}).reduce(
+    (acc, lvl) => acc + Math.max(0, Math.floor(Number(lvl) || 0)),
+    0
+  );
+  // «Сила железа»: сколько взломов игрок реально может потянуть. Используется в шансе успеха.
+  const hackPower = Math.round(
+    10 + totalCardLevels * 1.6 + teamHackPower + baseLevelsTotal * 3 + safePrestige * 40
+  );
 
   return {
     level,
     totalCardLevels,
+    xpIntoLevel: levelProgress.xpIntoLevel,
+    xpToNext: levelProgress.xpToNext,
+    totalXp: levelProgress.totalXp,
+    hackPower,
     nextLevelProgress,
     rankIndex,
     rankTitle,

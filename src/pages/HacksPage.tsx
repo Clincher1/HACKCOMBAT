@@ -1,6 +1,12 @@
-import { CheckCircle2, Clock, Flame, Gem, Lock, RefreshCw, Shield } from 'lucide-react';
+import { CheckCircle2, Clock, Flame, Gem, Lock, RefreshCw, Shield, Zap } from 'lucide-react';
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  describeReadiness,
+  getHackOdds,
+  getMissionRewardScale,
+  getMissionXpAward,
+} from '../../shared/hack.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { MissionTargetType } from '../../shared/types';
 import { useGame } from '../context/GameContext';
@@ -38,6 +44,23 @@ const TYPE_META: Record<
   },
 };
 
+/** «4 мин 20 с» вместо «260 сек» — таймеры теперь длинные, секунды читать неудобно. */
+function formatDuration(sec: number): string {
+  if (sec < 60) return `${sec} сек`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return s > 0 ? `${m} мин ${s} с` : `${m} мин`;
+}
+
+const TIER_LABEL: Record<number, string> = {
+  1: 'T1 · Разминка',
+  2: 'T2 · Бытовая сеть',
+  3: 'T3 · Корпоратив',
+  4: 'T4 · Госструктура',
+  5: 'T5 · Инфраструктура',
+  6: 'T6 · Орбита',
+};
+
 export const HacksPage: React.FC = () => {
   const {
     player,
@@ -68,38 +91,51 @@ export const HacksPage: React.FC = () => {
     return true;
   });
 
-  const levelScale = 1 + (derived.level - 1) * 0.22;
+  const rewardScale = getMissionRewardScale(derived.level);
 
   return (
     <div className="space-y-3.5 pb-4">
       {/* Верхняя панель слотов и 15-минутного обновления */}
-      <div className="rounded-2xl bg-[#10172e] border border-[#00f0ff]/25 p-3.5 flex items-center justify-between gap-2">
-        <div>
-          <div className="text-xs font-extrabold text-white">
-            Активные слоты: {player.activeMissions.length} / {derived.missionSlots}
-            {derived.missionSlots < 3 && (
-              <span className="ml-1.5 text-[10px] font-normal text-slate-400">
-                (3 слота с 20 ур.)
-              </span>
-            )}
+      <div className="rounded-2xl bg-[#10172e] border border-[#00f0ff]/25 p-3.5 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <div className="text-xs font-extrabold text-white">
+              Активные слоты: {player.activeMissions.length} / {derived.missionSlots}
+              {derived.missionSlots < 3 && (
+                <span className="ml-1.5 text-[10px] font-normal text-slate-400">
+                  ({derived.missionSlots === 1 ? '2 слота с 10 ур.' : '3 слота с 20 ур.'})
+                </span>
+              )}
+            </div>
+            <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
+              <Clock className="w-3 h-3 text-[#00f0ff]" />
+              <span>Автообновление целей: {formatCountdown(refreshLeftSec)}</span>
+            </div>
           </div>
-          <div className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-            <Clock className="w-3 h-3 text-[#00f0ff]" />
-            <span>Автообновление целей: {formatCountdown(refreshLeftSec)}</span>
-          </div>
+
+          <button
+            type="button"
+            disabled={busyKey === 'mission:refresh'}
+            onClick={() => void refreshMissions()}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#162244] hover:bg-[#1f305e] border border-[#00f0ff]/35 text-xs font-bold text-[#00f0ff] transition cursor-pointer"
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${busyKey === 'mission:refresh' ? 'animate-spin' : ''}`}
+            />
+            <span>Обновить</span>
+          </button>
         </div>
 
-        <button
-          type="button"
-          disabled={busyKey === 'mission:refresh'}
-          onClick={() => void refreshMissions()}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#162244] hover:bg-[#1f305e] border border-[#00f0ff]/35 text-xs font-bold text-[#00f0ff] transition cursor-pointer"
-        >
-          <RefreshCw
-            className={`w-3.5 h-3.5 ${busyKey === 'mission:refresh' ? 'animate-spin' : ''}`}
-          />
-          <span>Обновить</span>
-        </button>
+        {/* Сила железа = главный множитель шанса успеха */}
+        <div className="flex items-center justify-between gap-2 rounded-xl bg-[#0a0e1a] border border-slate-800 px-2.5 py-1.5">
+          <span className="text-[11px] text-slate-300 flex items-center gap-1">
+            <Zap className="w-3.5 h-3.5 text-[#ffe600]" /> Сила железа:
+            <strong className="text-white">{Math.round(derived.hackPower)}</strong>
+          </span>
+          <span className="text-[10px] text-slate-500">
+            карточки + База + команда = шанс успеха
+          </span>
+        </div>
       </div>
 
       {/* Секция текущих запущенных миссий с живыми прогресс-барами */}
@@ -113,6 +149,7 @@ export const HacksPage: React.FC = () => {
             const pct = Math.min(100, Math.max(0, ((nowMs - startMs) / totalMs) * 100));
             const remSec = Math.max(0, Math.ceil((finishMs - nowMs) / 1000));
             const ready = remSec <= 0;
+            const chance = Math.round((active.successChance ?? 0) * 100);
 
             return (
               <div
@@ -125,10 +162,18 @@ export const HacksPage: React.FC = () => {
                       {active.targetName}
                     </div>
                     <div className="text-[11px] text-[#7dff00] font-semibold">
-                      Награда: +{formatCompact(active.reward)} Data
+                      До +{formatCompact(active.reward)} Data · +{formatCompact(active.xpReward ?? 0)}{' '}
+                      XP
                       {active.repDelta !== 0 &&
-                        ` • ${active.repDelta > 0 ? '+' : ''}${active.repDelta} Rep`}
-                      {active.heatDelta > 0 && ` • +${active.heatDelta} Heat`}
+                        ` · ${active.repDelta > 0 ? '+' : ''}${active.repDelta} Rep`}
+                      {active.heatDelta > 0 && ` · +${active.heatDelta} Heat`}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      Шанс успеха{' '}
+                      <strong className={chance >= 80 ? 'text-[#7dff00]' : chance >= 55 ? 'text-amber-300' : 'text-rose-400'}>
+                        {chance}%
+                      </strong>{' '}
+                      · при провале — 15% опыта и никаких Чипов
                     </div>
                   </div>
 
@@ -140,7 +185,7 @@ export const HacksPage: React.FC = () => {
                       className="px-3.5 py-2 rounded-xl bg-[#7dff00] text-[#071005] font-display font-extrabold text-xs flex items-center gap-1.5 animate-pulse cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Забрать!</span>
+                      <span>Взломать!</span>
                     </button>
                   ) : (
                     <button
@@ -148,7 +193,7 @@ export const HacksPage: React.FC = () => {
                       disabled={busyKey === `mission:skip:${active.id}`}
                       onClick={() => void skipMission(active.id)}
                       className="px-3 py-1.5 rounded-xl bg-purple-600/85 hover:bg-purple-500 text-white font-bold text-[11px] flex items-center gap-1 cursor-pointer"
-                      title="Мгновенно завершить за 1 Crypto"
+                      title="Мгновенно завершить за 1 Crypto (частичный результат)"
                     >
                       <Gem className="w-3 h-3" />
                       <span>Пропустить (1💎)</span>
@@ -172,7 +217,7 @@ export const HacksPage: React.FC = () => {
                   <div className="flex justify-between text-[10px] text-slate-400">
                     <span>{ready ? 'Прорыв завершён!' : 'Подбор ключей доступа...'}</span>
                     <span className="font-bold text-white">
-                      {ready ? 'ГОТОВО' : `${remSec} сек`}
+                      {ready ? 'ГОТОВО' : formatCountdown(remSec)}
                     </span>
                   </div>
                 </div>
@@ -227,25 +272,46 @@ export const HacksPage: React.FC = () => {
           const whiteHatMult =
             derived.alignment === 'white_hat' && m.targetType === 'bad' ? 2 : 1;
           const estReward = Math.round(
-            m.baseDataReward * levelScale * whiteHatMult * derived.prestigeMultiplier
+            m.baseDataReward *
+              rewardScale *
+              whiteHatMult *
+              derived.prestigeMultiplier *
+              (1 + derived.missionRewardBonusPct)
           );
           const estRep = m.repDelta * (whiteHatMult > 1 && m.repDelta > 0 ? 2 : 1);
           const estHeat = Math.round(m.heatDelta * derived.heatMultiplier);
           const alreadyRunning = player.activeMissions.some((am) => am.missionKey === m.key);
           const slotsFull = player.activeMissions.length >= derived.missionSlots;
+          const levelLocked = (m.minLevel ?? 1) > derived.level && filter !== 'all';
+          const odds = getHackOdds({
+            mission: m,
+            level: derived.level,
+            hackPower: derived.hackPower,
+            heat: player.heat,
+            tierSuccesses: player.stats.hackSuccessByType?.[m.targetType] ?? 0,
+            tierFails: player.stats.hackFailByType?.[m.targetType] ?? 0,
+          });
+          const chancePct = Math.round(odds.chance * 100);
+          const readiness = describeReadiness(odds);
+          const xpAward = getMissionXpAward(m.xpReward ?? 10, m.tier ?? 1, derived.level);
 
           return (
             <div
               key={m.key}
-              className={`rounded-2xl bg-[#10172e]/95 border ${meta.border} p-3.5 flex items-center justify-between gap-3`}
+              className={`rounded-2xl bg-[#10172e]/95 border ${meta.border} p-3.5 flex items-center justify-between gap-3 ${
+                levelLocked ? 'opacity-60' : ''
+              }`}
             >
-              <div className="space-y-1.5 min-w-0">
+              <div className="space-y-1.5 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${meta.bg}`}>
                     {meta.badge}
                   </span>
                   <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                    <Clock className="w-3 h-3" /> {m.durationSec} сек
+                    <Clock className="w-3 h-3" /> {formatDuration(m.durationSec)}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-bold">
+                    {TIER_LABEL[m.tier ?? 1] ?? `T${m.tier}`}
                   </span>
                 </div>
 
@@ -256,6 +322,7 @@ export const HacksPage: React.FC = () => {
 
                 <div className="flex flex-wrap items-center gap-2 pt-0.5 text-[11px] font-bold">
                   <span className="text-[#7dff00]">+{formatCompact(estReward)} Data</span>
+                  <span className="text-[#00f0ff]">+{formatCompact(xpAward)} XP</span>
                   {estRep !== 0 && (
                     <span
                       className={`flex items-center gap-0.5 ${
@@ -271,21 +338,66 @@ export const HacksPage: React.FC = () => {
                     </span>
                   )}
                 </div>
+
+                {/* Шанс успеха: главный элемент выбора цели */}
+                <div className="flex items-center gap-2 pt-0.5">
+                  <div className="h-1.5 w-20 rounded-full bg-[#090d1a] border border-slate-800 overflow-hidden">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${chancePct}%`,
+                        background:
+                          chancePct >= 80 ? '#7dff00' : chancePct >= 55 ? '#ffb800' : '#ff3b6b',
+                      }}
+                    />
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      chancePct >= 80
+                        ? 'text-[#7dff00]'
+                        : chancePct >= 55
+                          ? 'text-amber-300'
+                          : 'text-rose-400'
+                    }`}
+                  >
+                    {chancePct}% · {readiness.label}
+                  </span>
+                  <span className="text-[10px] text-slate-500">
+                    (нужно {m.requiredPower}⚡ железа)
+                  </span>
+                </div>
               </div>
 
               <button
                 type="button"
-                disabled={alreadyRunning || slotsFull || busyKey === `mission:start:${m.key}`}
+                disabled={
+                  levelLocked ||
+                  alreadyRunning ||
+                  slotsFull ||
+                  busyKey === `mission:start:${m.key}`
+                }
                 onClick={() => void startMission(m.key)}
                 className={`shrink-0 px-4 py-2.5 rounded-xl font-display font-extrabold text-xs uppercase tracking-wider transition cursor-pointer ${
-                  alreadyRunning
-                    ? 'bg-[#7dff00]/15 text-[#7dff00] border border-[#7dff00]/40'
-                    : slotsFull
-                      ? 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
-                      : 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
+                  levelLocked
+                    ? 'bg-[#0a0e1a] text-slate-400 border border-slate-800 cursor-not-allowed'
+                    : alreadyRunning
+                      ? 'bg-[#7dff00]/15 text-[#7dff00] border border-[#7dff00]/40'
+                      : slotsFull
+                        ? 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
+                        : 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
                 }`}
               >
-                {alreadyRunning ? 'Активна' : slotsFull ? 'Занято' : 'HACK'}
+                {levelLocked ? (
+                  <span className="flex items-center gap-1">
+                    <Lock className="w-3 h-3" /> {m.minLevel} ур.
+                  </span>
+                ) : alreadyRunning ? (
+                  'Активна'
+                ) : slotsFull ? (
+                  'Занято'
+                ) : (
+                  'HACK'
+                )}
               </button>
             </div>
           );

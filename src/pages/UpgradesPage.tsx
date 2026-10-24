@@ -187,7 +187,7 @@ export const UpgradesPage: React.FC = () => {
               })()
             ) : (
               <p className="text-[10px] text-[#7dff00] font-bold">
-                ✅ Тир IV открыт — все 48 модулей доступны до 25 уровня!
+                ✅ Тир IV открыт — все 48 модулей доступны до 60 уровня!
               </p>
             )}
           </div>
@@ -307,11 +307,11 @@ export const UpgradesPage: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="grid grid-cols-[repeat(25,minmax(0,1fr))] gap-px">
+                    <div className="flex gap-px">
                       {Array.from({ length: maxLevel }).map((_, idx) => (
                         <div
                           key={idx}
-                          className={`h-1 rounded-full ${
+                          className={`h-1 flex-1 rounded-full ${
                             idx < level ? 'bg-[#00f0ff]' : idx === level ? 'bg-[#00f0ff]/35' : 'bg-slate-800'
                           }`}
                         />

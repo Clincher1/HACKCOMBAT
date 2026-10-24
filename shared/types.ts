@@ -33,10 +33,19 @@ export interface MissionConfig {
   targetName: string;
   targetType: MissionTargetType;
   description: string;
-  durationSec: number; // 5–30 сек по ТЗ
+  /** Тир сложности 1..6: чем выше, тем дольше взлом и тем больше добыча. */
+  tier: number;
+  /** Реальная длительность взлома в секундах: от 40 до 900 (ТЗ v3: не мгновенный клик). */
+  durationSec: number;
   baseDataReward: number;
   repDelta: number;
   heatDelta: number;
+  /** Опыт за успешный взлом (до множителей уровня и исхода). */
+  xpReward: number;
+  /** Требуемая «сила железа» (hackPower) для комфортного взлома. */
+  requiredPower: number;
+  /** Базовый шанс успеха у подготовленного игрока (0..1). */
+  baseSuccess: number;
   minLevel?: number; // Минимальный уровень игрока, чтобы контракт появился в витрине
   cryptoDropChance?: number; // DEFAULT: шанс редкого дропа 1 Crypto на серых миссиях
 }
@@ -50,6 +59,12 @@ export interface TeamNpcConfig {
   avatarUrl: string;
   costCurrency: 'data' | 'rep';
   costAmount: number;
+  /** Минимальный уровень игрока: специалисты не нанимаются на старте (ТЗ v3). */
+  requiredLevel: number;
+  /** Сколько контрактов нужно закрыть, прежде чем синдикат вообще станет доступен. */
+  requiredMissions: number;
+  /** Вклад в «силу железа» (hackPower) — влияет на шанс успеха взлома. */
+  hackPower: number;
   passiveBonusPct: number; // % к Data/hour (например 0.05 = +5%)
   clickBonusPct: number; // % к Data за клик (например 0.10 = +10%)
   autoClickPerSec: number; // Botmaster = 1 клик/сек
@@ -69,6 +84,7 @@ export interface PetConfig {
   quote: string;
   costCurrency: 'data' | 'crypto' | 'rep';
   costAmount: number;
+  requiredLevel: number; // Питомцы тоже не для первого дня (ТЗ v3)
   buffType: PetBuffType;
   buffPct: number; // Базовый баф при полной сытости (0.03 = +3%)
   buffLabel: string;
@@ -94,6 +110,7 @@ export interface PetState {
 // ===================== БАЗА: ПАССИВНЫЕ ПОКУПКИ =====================
 export interface BaseUpgradeConfig {
   key: string;
+  requiredLevel?: number; // Минимальный уровень игрока для покупки
   name: string;
   description: string;
   effectLabel: string; // Описание эффекта на 1 уровне
@@ -121,17 +138,23 @@ export interface AchievementConfig {
   dataReward?: number;
 }
 
+export type SkinCategory = 'desk' | 'ui' | 'avatar';
+
 export interface SkinConfig {
   key: string;
   name: string;
   description: string;
+  category: SkinCategory; // рабочий стол / элементы интерфейса / аватар
   cryptoCost: number;
+  requiredLevel?: number;
   prestigeRequired?: boolean;
   primaryHex: string;
   secondaryHex: string;
   accentHex: string;
   cssFilter: string;
   clickBonusPct: number; // DEFAULT: небольшой косметический бонус к стилю/клику
+  /** Эмодзи-аватар для категории 'avatar' (0 = не аватар). */
+  avatarGlyph?: string;
 }
 
 export type AlignmentBranch = 'neutral' | 'white_hat' | 'black_hat';
@@ -147,6 +170,11 @@ export interface ActiveMissionInstance {
   repDelta: number;
   heatDelta: number;
   cryptoReward: number;
+  xpReward: number;
+  /** Зафиксированный на старте шанс успеха (0..1) — игрок видит, на что шёл. */
+  successChance: number;
+  /** Исход фиксируется сервером в момент забора: success / partial / fail. */
+  outcome?: 'success' | 'partial' | 'fail' | null;
 }
 
 // Счётчики для «неочевидных» достижений. Живут в players.stats (jsonb), считает сервер.
@@ -170,12 +198,22 @@ export interface PlayerProgressStats {
   lastPetFeedDay: string | null;
   trackEventsToday: number;
   trackEventsDay: string | null;
+  /** Опыт по классам целей: сколько успехов и провалов было для каждого типа. */
+  hackSuccessByType: Record<string, number>;
+  hackFailByType: Record<string, number>;
+  /** Всего XP добыто (дублирует players.xp для статистики профиля). */
+  totalXpEarned: number;
 }
 
 export interface DerivedStats {
   level: number;
   totalCardLevels: number;
-  nextLevelProgress: number; // 0..4 из 5
+  xpIntoLevel: number;
+  xpToNext: number;
+  totalXp: number;
+  /** Сила железа: суммарная подготовка к взломам (карточки + команда + база). */
+  hackPower: number;
+  nextLevelProgress: number; // 0..4 из 5 (устарело, оставлено для совместимости UI)
   rankIndex: number; // 1..N
   rankTitle: string;
   alignment: AlignmentBranch;
@@ -206,6 +244,7 @@ export interface PlayerState {
   data: number;
   crypto: number;
   chips: number;
+  xp: number;
   energy: number;
   energyUpdated: string;
   heat: number;

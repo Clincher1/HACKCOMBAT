@@ -189,10 +189,11 @@ export const TutorialModal: React.FC = () => {
                       📐 Главное правило уровня игрока:
                     </div>
                     <p>
-                      Каждые <strong className="text-[#00f0ff]">5 любых купленных уровней карточек</strong>{' '}
-                      повышают твой <strong>Уровень игрока (+1)</strong>. Каждые <strong>5 уровней</strong>{' '}
-                      визуально эволюционирует твой рабочий стол, а на <strong>20 уровне</strong>{' '}
-                      открываются сразу <strong>3 слота одновременных миссий</strong>!
+                      <strong className="text-[#00f0ff]">Уровень = опыт.</strong> XP дают только
+                      взломами — карточки больше не повышают уровень. Каждые <strong>5 уровней</strong>{' '}
+                      визуально эволюционирует рабочий стол, на <strong>10 уровне</strong> открывается
+                      второй слот миссий, а на <strong>20</strong> — третий. Команда и питомцы
+                      требуют <strong>12–20 уровня</strong>, поэтому «прыгнуть» в эндгейм нельзя.
                     </p>
                   </div>
 
@@ -201,8 +202,8 @@ export const TutorialModal: React.FC = () => {
                       ⚙️ Чипы и Тира — почему нельзя «раскачаться» за час
                     </div>
                     <p>
-                      У каждой карточки теперь <strong>25 уровней</strong>, но потолок открывается
-                      <strong> Тиром</strong>: Тир I даёт 1–10, Тир II — 15, Тир III — 20, Тир IV — 25.
+                      У каждой карточки теперь <strong>до 60 уровней</strong>, но потолок открывается
+                      <strong> Тиром</strong>: Тир I — 15, Тир II — 30, Тир III — 45, Тир IV — 60.
                       Тиры стоят <strong>⚙️ Чипы</strong>, а Чипы падают{' '}
                       <strong>только за завершённые контракты</strong> (+3 за ежедневный бонус).
                       Плюс действует <strong>глобальный индекс цен</strong>: чем больше суммарных
@@ -268,6 +269,18 @@ export const TutorialModal: React.FC = () => {
                     Уровнем и Престижем!
                   </p>
 
+                  <div className="rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 p-3">
+                    <div className="font-bold text-[#7dff00] mb-1">🎲 Взлом не гарантирован</div>
+                    <p>
+                      У каждой цели есть <strong>сила железа</strong> и базовый шанс успеха. Твой
+                      шанс = сила твоих карточек, Базы и команды против этой цели, плюс запас уровня
+                      и опыт по такому же классу целей, минус высокий Heat. Провал даёт{' '}
+                      <strong>15% опыта</strong> и +50% Heat, частичный результат — половину.
+                      Не прыгай на сложные цели: сначала закрой <strong>8–10</strong> обычных
+                      контрактов, прокачай железо — и только потом HACK на Тир выше.
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-2">
                     <div className="rounded-xl bg-[#0a0e1a] border border-emerald-500/35 p-2.5">
                       <span className="font-bold text-emerald-300">🔴 Bad-цели (Скам и Фишинг):</span>{' '}
@@ -281,13 +294,13 @@ export const TutorialModal: React.FC = () => {
                     </div>
                     <div className="rounded-xl bg-[#0a0e1a] border border-slate-700 p-2.5">
                       <span className="font-bold text-slate-200">⚪ Neutral-цели (Блоги и Хабы):</span>{' '}
-                      быстрые вылазки на 5–15 сек со средним доходом и минимальным Heat.
+                      быстрые вылазки на 40–60 сек со средним доходом и минимальным Heat.
                     </div>
                     <div className="rounded-xl bg-purple-950/35 border border-purple-400/40 p-2.5">
                       <span className="font-bold text-purple-300">
                         🟣 Grey-цели (Секретные контракты):
                       </span>{' '}
-                      открываются только после найма <strong>Analyst (45 Rep)</strong> — дают сразу
+                      открываются только после найма <strong>Analyst (320 Rep, 18 ур.)</strong> — дают сразу
                       много Data, +Rep и <strong>45–75% шанс выбить 1 💎 Crypto</strong>!
                     </div>
                   </div>
@@ -369,7 +382,7 @@ export const TutorialModal: React.FC = () => {
                   <div className="rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 p-3 space-y-1.5">
                     <div className="font-bold text-[#7dff00]">🏠 База (вкладка «Улучшения»)</div>
                     <p>
-                      10 пассивных покупок по 10 уровней: кофемашина (реген энергии), авто-скрипт
+                      10 пассивных покупок по 15 уровней: кофемашина (реген энергии), авто-скрипт
                       (автоклик), ИБП (+к оффлайн-копилке), талисман удачи (шанс Crypto) и другие.
                       Стоят Data + ⚙️ Чипы и <strong>переживают Global Hack</strong> — это твоя
                       постоянная инвестиция в комфорт.

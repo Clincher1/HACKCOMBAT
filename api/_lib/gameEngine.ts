@@ -33,6 +33,14 @@ import {
   RANK_TITLES,
   syncEnergy,
 } from '../../shared/mechanics';
+import {
+  getHackOdds,
+  getLevelProgress,
+  getMissionRewardScale,
+  getMissionXpAward,
+  HACK_OUTCOME_REWARD,
+  rollHackOutcome,
+} from '../../shared/hack.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import {
   getPetAffection,
@@ -68,6 +76,7 @@ interface StoredPlayerRecord {
   data: number;
   crypto: number;
   chips: number;
+  xp: number;
   energy: number;
   energyUpdated: string;
   heat: number;
@@ -114,6 +123,9 @@ const EMPTY_STATS: PlayerProgressStats = {
   lastPetFeedDay: null,
   trackEventsToday: 0,
   trackEventsDay: null,
+  hackSuccessByType: {},
+  hackFailByType: {},
+  totalXpEarned: 0,
 };
 
 function normalizeStats(raw: unknown): PlayerProgressStats {
@@ -121,6 +133,15 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
   const num = (v: unknown, max = 1_000_000_000) => {
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? Math.min(max, Math.floor(n)) : 0;
+  };
+  const numRecord = (v: unknown, allowed?: Set<string>) => {
+    const out: Record<string, number> = {};
+    if (!v || typeof v !== 'object') return out;
+    for (const [key, value] of Object.entries(v as Record<string, unknown>)) {
+      if (allowed && !allowed.has(key)) continue;
+      out[key] = num(value);
+    }
+    return out;
   };
   const strArr = (v: unknown, allowed?: Set<string>) => {
     if (!Array.isArray(v)) return [];
@@ -149,6 +170,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     lastPetFeedDay: typeof src.lastPetFeedDay === 'string' ? src.lastPetFeedDay.slice(0, 10) : null,
     trackEventsToday: num(src.trackEventsToday, 10_000),
     trackEventsDay: typeof src.trackEventsDay === 'string' ? src.trackEventsDay.slice(0, 10) : null,
+    hackSuccessByType: numRecord(src.hackSuccessByType, new Set(['bad', 'good', 'neutral', 'grey'])),
+    hackFailByType: numRecord(src.hackFailByType, new Set(['bad', 'good', 'neutral', 'grey'])),
+    totalXpEarned: num(src.totalXpEarned, 1e12),
   };
 }
 
@@ -160,6 +184,7 @@ function deriveStats(record: StoredPlayerRecord, nowMs: number = Date.now()): De
     rep: record.rep,
     heat: record.heat,
     data: record.data,
+    xp: record.xp,
     prestigeCount: record.prestigeCount,
     equippedSkin: record.equippedSkin,
     baseUpgrades: record.baseUpgrades,
@@ -325,6 +350,7 @@ function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
     data: 250,
     crypto: 5,
     chips: 0,
+    xp: 0,
     energy: BASE_MAX_ENERGY,
     energyUpdated: nowIso,
     heat: 0,
@@ -350,6 +376,13 @@ function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
     missionsRefreshedAt: offer.refreshedAt,
     achievements: [],
   };
+}
+
+/** Человеческая формулировка шанса успеха для алертов. */
+function describeOdds(chance: number): string {
+  if (chance >= 0.8) return 'полная готовность';
+  if (chance >= 0.55) return 'рискованно, но реально';
+  return 'не готов — высокий риск провала';
 }
 
 const recentClickTimestamps = new Map<number, number>();
@@ -378,6 +411,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       }
       // Совместимость со старыми локальными сейвами (до 003-й миграции)
       rec.chips = Math.floor(safeNonNeg(rec.chips, 0));
+      rec.xp = Math.floor(safeNonNeg(rec.xp, 0));
       rec.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(rec.cardTier, 1)) || 1));
       rec.pets = Array.isArray(rec.pets) ? rec.pets : [];
       rec.baseUpgrades = rec.baseUpgrades && typeof rec.baseUpgrades === 'object' ? rec.baseUpgrades : {};
@@ -401,7 +435,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     sb
       .from('missions')
       .select(
-        'id, mission_key, target_type, target_name, started_at, finish_at, reward, rep_delta, heat_delta, crypto_reward'
+        'id, mission_key, target_type, target_name, started_at, finish_at, reward, rep_delta, heat_delta, crypto_reward, xp_reward, success_chance, outcome'
       )
       .eq('player_id', pid)
       .eq('status', 'active'),
@@ -421,9 +455,8 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   const teamList = Array.from(new Set((teamRes.data ?? []).map((r) => String(r.npc_key))));
   const hasAnalyst = teamList.includes('analyst');
 
-  const previewLevel = 1 + Math.floor(
-    Object.values(cardsMap).reduce((acc, lvl) => acc + lvl, 0) / 5
-  );
+  // Уровень для витрины миссий считается по опыту (v3), а не по уровням карточек.
+  const previewLevel = getLevelProgress(Math.floor(safeNonNeg(playerRow.xp, 0))).level;
 
   let offer = missionOfferCache.get(user.tgId);
   if (!offer) {
@@ -464,6 +497,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     data: safeNonNeg(playerRow.data, 0),
     crypto: Math.floor(safeNonNeg(playerRow.crypto, 5)),
     chips: Math.floor(safeNonNeg(playerRow.chips, 0)),
+    xp: Math.floor(safeNonNeg(playerRow.xp, 0)),
     cardTier: Math.max(1, Math.min(4, Math.floor(safeNonNeg(playerRow.card_tier, 1)) || 1)),
     energy: Math.floor(safeNonNeg(playerRow.energy, BASE_MAX_ENERGY)),
     energyUpdated: energyUpdatedIso,
@@ -497,6 +531,9 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       repDelta: Number.isFinite(Number(m.rep_delta)) ? Math.trunc(Number(m.rep_delta)) : 0,
       heatDelta: Math.floor(safeNonNeg(m.heat_delta, 0)),
       cryptoReward: Math.floor(safeNonNeg(m.crypto_reward, 0)),
+      xpReward: Math.floor(safeNonNeg(m.xp_reward, 0)),
+      successChance: Math.max(0, Math.min(1, Number(m.success_chance) || 0)),
+      outcome: m.outcome === 'success' || m.outcome === 'fail' ? m.outcome : ('partial' as const),
     })),
     availableMissionKeys: offer.keys,
     missionsRefreshedAt: offer.refreshedAt,
@@ -524,6 +561,7 @@ async function savePlayerCore(
   record.totalClicks = Math.max(0, Math.floor(safeNonNeg(record.totalClicks, 0)));
   record.totalMissions = Math.max(0, Math.floor(safeNonNeg(record.totalMissions, 0)));
   record.chips = Math.max(0, Math.floor(safeNonNeg(record.chips, 0)));
+  record.xp = Math.max(0, Math.floor(safeNonNeg(record.xp, 0)));
   record.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(record.cardTier, 1)) || 1));
   record.stats = normalizeStats(record.stats);
 
@@ -564,6 +602,7 @@ async function savePlayerCore(
       total_missions: record.totalMissions,
       last_passive_claim: record.lastPassiveClaim,
       chips: record.chips,
+      xp: record.xp,
       card_tier: record.cardTier,
       stats: record.stats,
     })
@@ -593,7 +632,7 @@ async function savePlayerCore(
       .map(([key, lvl]) => ({
         player_id: record.id,
         upgrade_key: key,
-        level: Math.max(1, Math.min(10, Math.floor(lvl))),
+        level: Math.max(1, Math.min(15, Math.floor(lvl))),
       }));
     if (baseRows.length > 0) {
       await sb.from('base_upgrades').upsert(baseRows, { onConflict: 'player_id,upgrade_key' });
@@ -646,7 +685,7 @@ async function syncTimeAndRules(
   // 3. Авто-обновление витрины миссий каждые 15 минут
   const refreshedMs = new Date(record.missionsRefreshedAt).getTime();
   if (Number.isNaN(refreshedMs) || nowMs - refreshedMs >= 15 * 60 * 1000) {
-    const nextOffer = computeOfferWindow(record.tgId, derived.unlockedGreyMissions);
+    const nextOffer = computeOfferWindow(record.tgId, derived.unlockedGreyMissions, derived.level);
     record.availableMissionKeys = nextOffer.keys;
     record.missionsRefreshedAt = nowIso;
   }
@@ -904,6 +943,7 @@ function buildResponse(
     data: Math.round(record.data * 10) / 10,
     crypto: record.crypto,
     chips: record.chips,
+    xp: record.xp,
     cardTier: record.cardTier,
     pets: petStates,
     baseUpgrades: record.baseUpgrades,
@@ -1180,6 +1220,12 @@ export async function handleBuyBaseUpgrade(
     if (currentLevel >= cfg.maxLevel) {
       throw new Error(`${cfg.name} уже прокачан до максимума`);
     }
+    const baseLevelNow = deriveStats(record).level;
+    if ((cfg.requiredLevel ?? 1) > baseLevelNow) {
+      throw new Error(
+        `«${cfg.name}» открывается на ${cfg.requiredLevel} уровне (ты — ${baseLevelNow}).`
+      );
+    }
 
     const price = getBaseUpgradePrice(cfg, currentLevel);
     const chipCost = getBaseUpgradeChipCost(cfg, currentLevel);
@@ -1200,7 +1246,7 @@ export async function handleBuyBaseUpgrade(
         id: crypto.randomUUID(),
         type: 'success',
         title: `🔧 ${cfg.name} — МАКСИМУМ!`,
-        message: 'Улучшение Базы прокачано до 10 уровня и сохранено навсегда.',
+        message: `Улучшение Базы прокачано до ${cfg.maxLevel} уровня и сохранено навсегда.`,
       });
     }
 
@@ -1226,6 +1272,18 @@ export async function handleHireNpc(
 
     if (record.team.includes(npc.key)) {
       throw new Error('Специалист уже в вашей команде');
+    }
+
+    const derivedNow = deriveStats(record);
+    if ((npc.requiredLevel ?? 1) > derivedNow.level) {
+      throw new Error(
+        `Найм «${npc.callsign}» открывается на ${npc.requiredLevel} уровне (ты — ${derivedNow.level}). Уровень качается только взломами.`
+      );
+    }
+    if ((npc.requiredMissions ?? 0) > record.totalMissions) {
+      throw new Error(
+        `Нужно закрыть ${npc.requiredMissions} контрактов (закрыто ${record.totalMissions}) — репутация в сети не покупается.`
+      );
     }
 
     if (npc.costCurrency === 'data') {
@@ -1319,12 +1377,23 @@ export async function handleMissionAction(
         throw new Error('Эта цель уже взламывается в данный момент');
       }
 
-      // Скейл награды мягкий: основной доход идёт от пассивки, а не от контрактов
-      const levelScale = 1 + (derived.level - 1) * 0.06;
+      // Шанс успеха фиксируется НА СТАРТЕ и хранится в БД: подкрутить задним числом нельзя.
+      // Он зависит от силы железа (hackPower), запаса уровня, опыта по этому классу целей и Heat.
+      const odds = getHackOdds({
+        mission: cfg,
+        level: derived.level,
+        hackPower: derived.hackPower,
+        heat: record.heat,
+        tierSuccesses: record.stats.hackSuccessByType[cfg.targetType] ?? 0,
+        tierFails: record.stats.hackFailByType[cfg.targetType] ?? 0,
+      });
+      const successChance = Math.round(odds.chance * 1000) / 1000;
+
+      // Денежная награда за успешный взлом. Растёт по уровню игрока, но решает всё-таки успех.
       const whiteHatBonus = derived.alignment === 'white_hat' && cfg.targetType === 'bad' ? 2 : 1;
       const reward = Math.round(
         cfg.baseDataReward *
-          levelScale *
+          getMissionRewardScale(derived.level) *
           whiteHatBonus *
           derived.prestigeMultiplier *
           (1 + derived.missionRewardBonusPct)
@@ -1336,6 +1405,7 @@ export async function handleMissionAction(
         cfg.targetType === 'grey' ? 0.35 : cfg.cryptoDropChance ?? 0;
       const cryptoReward =
         Math.random() < Math.min(0.9, baseDropChance + derived.cryptoDropBonusPct) ? 1 : 0;
+      const xpReward = getMissionXpAward(cfg.xpReward ?? 10, cfg.tier ?? 1, derived.level);
 
       const nowMs = Date.now();
       const startedAt = new Date(nowMs).toISOString();
@@ -1360,6 +1430,9 @@ export async function handleMissionAction(
               rep_delta: repDelta,
               heat_delta: heatDelta,
               crypto_reward: cryptoReward,
+              xp_reward: xpReward,
+              success_chance: successChance,
+              outcome: 'partial',
             })
             .select('id')
             .single();
@@ -1379,6 +1452,20 @@ export async function handleMissionAction(
         repDelta,
         heatDelta,
         cryptoReward,
+        xpReward,
+        successChance,
+        outcome: 'partial',
+      });
+
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: `🛰️ Взлом ${cfg.targetName} запущен`,
+        message:
+          `Шанс успеха ${Math.round(successChance * 100)}% · ` +
+          `до ${xpReward.toLocaleString('ru-RU')} XP · ` +
+          `до ${reward.toLocaleString('ru-RU')} Data. ` +
+          `Готовность: ${describeOdds(successChance)}.`,
       });
 
       await savePlayerCore(record, mode);
@@ -1403,12 +1490,19 @@ export async function handleMissionAction(
       }
     }
 
+    // Бросок исхода. Пропуск за Crypto = гарантированный «частичный» результат: таймер обошёл — плати выходом.
+    const outcome: 'success' | 'partial' | 'fail' =
+      action === 'skip'
+        ? 'partial'
+        : rollHackOutcome(mission.successChance ?? 0.5);
+    const outcomeMult = HACK_OUTCOME_REWARD[outcome];
+
     if (mode === 'supabase') {
       const sb = getSupabaseAdmin();
       if (sb) {
         const { data: claimedRows, error: claimErr } = await sb
           .from('missions')
-          .update({ status: 'completed' })
+          .update({ status: 'completed', outcome })
           .eq('id', mission.id)
           .eq('player_id', record.id)
           .eq('status', 'active')
@@ -1421,26 +1515,45 @@ export async function handleMissionAction(
 
     if (action === 'skip') {
       record.crypto -= 1;
-      // Пропуск контракта = «провал» для секретной ачивки «Первый Блин Комом»
-      record.stats.missionFails += 1;
     }
 
     record.activeMissions.splice(idx, 1);
-    record.data += mission.reward;
-    record.rep = Math.max(0, record.rep + mission.repDelta);
-    record.heat = Math.max(0, record.heat + mission.heatDelta);
-    record.crypto += mission.cryptoReward;
-    record.totalMissions += 1;
 
-    // Чипы начисляются только за доведённый до конца контракт (пропуск за Crypto — исключение)
+    const levelBefore = deriveStats(record).level;
+    const dataGain = Math.round(mission.reward * outcomeMult.data);
+    const repGain = Math.round(mission.repDelta * outcomeMult.rep);
+    const heatGain = Math.round(mission.heatDelta * outcomeMult.heat);
+    const xpGain = Math.max(1, Math.round((mission.xpReward || 0) * outcomeMult.xp));
+    const cryptoGain = outcome === 'success' ? mission.cryptoReward : 0;
+
+    record.data += dataGain;
+    record.rep = Math.max(0, record.rep + repGain);
+    record.heat = Math.max(0, record.heat + heatGain);
+    record.crypto += cryptoGain;
+    record.xp += xpGain;
+    record.totalMissions += 1;
+    record.stats.totalXpEarned += xpGain;
+
+    // Чипы начисляются только за ЧИСТЫЙ успех.
     const chipsGained =
-      action === 'skip'
-        ? 0
-        : mission.targetType === 'grey'
+      outcome === 'success'
+        ? mission.targetType === 'grey'
           ? CHIP_REWARD_PER_GREY_MISSION
-          : CHIP_REWARD_PER_MISSION;
+          : CHIP_REWARD_PER_MISSION
+        : 0;
     if (chipsGained > 0) {
       record.chips += chipsGained;
+    }
+
+    // Опыт по классу целей: успехи немного помогают, настоящие провалы штрафуют сильнее.
+    // Частичный результат (в том числе пропуск за Crypto) опыт не портит.
+    if (outcome === 'success') {
+      const ok = record.stats.hackSuccessByType;
+      ok[mission.targetType] = (ok[mission.targetType] ?? 0) + 1;
+    } else if (outcome === 'fail') {
+      const bad = record.stats.hackFailByType;
+      bad[mission.targetType] = (bad[mission.targetType] ?? 0) + 1;
+      record.stats.missionFails += 1;
     }
 
     // Счётчики для «неочевидных» достижений
@@ -1451,17 +1564,61 @@ export async function handleMissionAction(
       record.stats.greyMissions += 1;
     }
 
-    alerts.push({
-      id: crypto.randomUUID(),
-      type: 'success',
-      title: `✅ Цель ${mission.targetName} взломана!`,
-      message:
-        `+${mission.reward.toLocaleString('ru-RU')} Data` +
-        (mission.repDelta !== 0 ? ` | ${mission.repDelta > 0 ? '+' : ''}${mission.repDelta} Rep` : '') +
-        (mission.heatDelta > 0 ? ` | +${mission.heatDelta} Heat` : '') +
-        (mission.cryptoReward > 0 ? ` | +${mission.cryptoReward} 💎 Crypto!` : '') +
-        (chipsGained > 0 ? ` | +${chipsGained} ⚙️ Чип` : ''),
-    });
+    const levelAfter = getLevelProgress(record.xp).level;
+    if (levelAfter > levelBefore) {
+      const slotsBefore = levelBefore >= 20 ? 3 : levelBefore >= 10 ? 2 : 1;
+      const slotsAfter = levelAfter >= 20 ? 3 : levelAfter >= 10 ? 2 : 1;
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'achievement',
+        title: `⬆️ НОВЫЙ УРОВЕНЬ: ${levelAfter}!`,
+        message:
+          `Опыт ${record.xp.toLocaleString('ru-RU')} XP. ` +
+          (slotsAfter > slotsBefore
+            ? `Открыт ${slotsAfter}-й слот взлома! `
+            : '') +
+          (levelAfter >= 12 && levelBefore < 12
+            ? 'В «Команде» стал доступен первый специалист (Coder). '
+            : '') +
+          'Новые контракты и Тир-пороги открываются автоматически.',
+      });
+    }
+
+    const rewardLine =
+      `+${xpGain.toLocaleString('ru-RU')} XP` +
+      (dataGain > 0 ? ` | +${dataGain.toLocaleString('ru-RU')} Data` : ' | 0 Data') +
+      (repGain !== 0 ? ` | ${repGain > 0 ? '+' : ''}${repGain} Rep` : '') +
+      (heatGain > 0 ? ` | +${heatGain} Heat` : '') +
+      (cryptoGain > 0 ? ` | +${cryptoGain} 💎 Crypto!` : '') +
+      (chipsGained > 0 ? ` | +${chipsGained} ⚙️ Чип` : '');
+
+    if (outcome === 'success') {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `✅ Цель ${mission.targetName} взломана!`,
+        message: rewardLine,
+      });
+    } else if (outcome === 'partial') {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: `🟡 ${mission.targetName}: частичный доступ`,
+        message:
+          `Цель закрылась на середине — данные вытащены частично. ${rewardLine}` +
+          (action === 'skip' ? ' (мгновенный пропуск всегда даёт частичный результат)' : ''),
+      });
+    } else {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'penalty',
+        title: `❌ ${mission.targetName}: взлом сорвался`,
+        message:
+          `Цель подняла тревогу и сожгла след. ${rewardLine}. ` +
+          `Подними силу железа (карточки, База) или вернись на цели попроще — Chance сейчас ` +
+          `${Math.round((mission.successChance ?? 0) * 100)}%.`,
+      });
+    }
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
@@ -1578,6 +1735,12 @@ export async function handleSkinAction(
       if (skin.prestigeRequired && record.prestigeCount < 1) {
         throw new Error('Этот скин открывается только через Global Hack Престиж!');
       }
+      const skinLevel = deriveStats(record).level;
+      if ((skin.requiredLevel ?? 1) > skinLevel) {
+        throw new Error(
+          `Скин «${skin.name}» открывается на ${skin.requiredLevel} уровне (ты — ${skinLevel}).`
+        );
+      }
       if (record.crypto < skin.cryptoCost) {
         throw new Error(`Недостаточно Crypto (нужно ${skin.cryptoCost} 💎)`);
       }
@@ -1687,6 +1850,12 @@ export async function handlePetAction(
     if (action === 'buy') {
       if (owned) {
         throw new Error('Этот питомец уже живёт у тебя на базе');
+      }
+      const petLevel = deriveStats(record).level;
+      if ((cfg.requiredLevel ?? 1) > petLevel) {
+        throw new Error(
+          `Питомец «${cfg.name}» появляется на ${cfg.requiredLevel} уровне (ты — ${petLevel}).`
+        );
       }
       if (cfg.costCurrency === 'data') {
         if (record.data < cfg.costAmount) {
