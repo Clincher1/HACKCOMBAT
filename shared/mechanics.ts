@@ -27,15 +27,41 @@ export const ENERGY_REGEN_SECONDS = 2; // 1 Energy / 2 сек
 
 // «Фоновая копилка тапов»: пока игрок оффлайн, за него медленно тапают.
 // Доход = тапы × сила клика, поэтому прокачка клика усиливает и оффлайн.
-// DEFAULT: 12 тапов в минуту, копится максимум 8 часов.
-export const OFFLINE_TAP_RATE_PER_SEC = 0.2;
+// v3.2: ставка снижена вдвое (6 тапов в минуту) — оффлайн не должен заменять игру.
+export const OFFLINE_TAP_RATE_PER_SEC = 0.1;
 export const OFFLINE_TAP_CAP_SECONDS = 8 * 3600;
+
+// v3.2: пассив карточек в оффлайне платит половину — ресурсы нельзя получать «на халяву».
+export const OFFLINE_PASSIVE_RATE_MULT = 0.5;
+
+// v3.2: оффлайн копится только тем, кто в текущем игровом дне реально играл.
+export const OFFLINE_REQUIRED_ACTIVE_SECONDS = 8 * 60; // 8 минут активной игры в день
+/** Сутки считаем по Москве (UTC+3): смена дня = сброс счётчика активности. */
+export const GAME_DAY_UTC_OFFSET_MINUTES = 180;
+/** Разрыв между запросами, после которого сессия считается прерванной (клиент пингует раз в 30 с). */
+export const ACTIVITY_HEARTBEAT_MAX_GAP_SEC = 45;
+
+/** Ключ игрового дня 'YYYY-MM-DD' по Москве (UTC+3). */
+export function getGameDayKey(nowMs: number = Date.now()): string {
+  const shifted = new Date(nowMs + GAME_DAY_UTC_OFFSET_MINUTES * 60_000);
+  const y = shifted.getUTCFullYear();
+  const m = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/** Границы игровых суток (Москва) в миллисекундах: [start, end). */
+export function getGameDayBoundsMs(dayKey: string): { start: number; end: number } {
+  const start = Date.parse(`${dayKey}T00:00:00Z`) - GAME_DAY_UTC_OFFSET_MINUTES * 60_000;
+  return { start, end: start + 86_400_000 };
+}
+
 export const HEAT_PENALTY_THRESHOLD = 100; // Heat > 100 -> штраф (раздел 2 и 5.4 ТЗ)
 export const HEAT_RESET_AFTER_PENALTY = 50;
 export const HEAT_PENALTY_DATA_LOSS_PCT = 0.1; // Потеря 10% Data
 export const HEAT_LOCKDOWN_SECONDS = 60; // Блок кликов на 60 сек
 export const PRESTIGE_REQUIRED_LEVEL = 50; // Базовый Global Hack I на 50 уровне (раздел 5.5 ТЗ)
-export const BASE_OFFLINE_CAP_SECONDS = 86_400; // 24 часа оффлайн-копилки
+export const BASE_OFFLINE_CAP_SECONDS = 8 * 3600; // v3.2: 8 часов оффлайн-копилки (было 24 ч)
 
 // Для долгой прогрессии каждый следующий цикл Global Hack требует на +10 уровней выше (50 -> 60 -> 70 -> 80 -> 90)
 export function getPrestigeRequiredLevel(prestigeCount: number): number {

@@ -4,10 +4,14 @@ import React, { useEffect, useState } from 'react';
 import {
   ENERGY_REGEN_SECONDS,
   getDeskStageInfo,
+  getGameDayKey,
+  OFFLINE_PASSIVE_RATE_MULT,
+  OFFLINE_REQUIRED_ACTIVE_SECONDS,
   OFFLINE_TAP_CAP_SECONDS,
   OFFLINE_TAP_RATE_PER_SEC,
 } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
+import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -344,14 +348,65 @@ export const DeskScene: React.FC = () => {
         </div>
       </div>
 
-      {/* Фоновая копилка: за игрока тапают, пока приложение закрыто */}
-      <div className="rounded-xl bg-[#0a0e1a]/70 border border-slate-800/70 px-3 py-2 flex items-center justify-between gap-2">
+      {/* v3.2: оффлайн-копилка работает только после 8 минут игры за текущий день */}
+      <OfflineBankNote derived={derived} stats={player.stats} />
+    </div>
+  );
+};
+
+/**
+ * Плашка оффлайн-копилки (v3.2).
+ * Показывает, сколько капает в час и сколько ещё нужно поиграть сегодня,
+ * чтобы копилка «открылась». Считаем тот же день, что и сервер (Москва, UTC+3).
+ */
+const OfflineBankNote: React.FC<{
+  derived: DerivedStats;
+  stats: PlayerProgressStats;
+}> = ({ derived, stats }) => {
+  const requiredSec = OFFLINE_REQUIRED_ACTIVE_SECONDS;
+  // Живые сутки по Москве: после полуночи счётчик начинается заново.
+  const [dayKey, setDayKey] = useState(() => getGameDayKey());
+  useEffect(() => {
+    const timer = window.setInterval(() => setDayKey(getGameDayKey()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const isToday = stats.activeDayKey === dayKey;
+  const activeSec = isToday ? Math.min(requiredSec, Math.floor(stats.activeSecondsToday ?? 0)) : 0;
+  const qualified = activeSec >= requiredSec;
+  const perHour =
+    derived.clickPower * OFFLINE_TAP_RATE_PER_SEC * 3600 +
+    derived.dataPerHour * OFFLINE_PASSIVE_RATE_MULT;
+  const leftMin = Math.max(0, Math.ceil((requiredSec - activeSec) / 60));
+
+  return (
+    <div
+      className={`rounded-xl border px-3 py-2 space-y-1.5 ${
+        qualified
+          ? 'bg-[#0a0e1a]/70 border-[#7dff00]/35'
+          : 'bg-[#0a0e1a]/70 border-slate-800/70'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-slate-400">
-          Фоновые тапы в оффлайне (копилка до {Math.round(OFFLINE_TAP_CAP_SECONDS / 3600)} ч)
+          Оффлайн-копилка (до {Math.round(OFFLINE_TAP_CAP_SECONDS / 3600)} ч)
         </span>
         <span className="text-[11px] font-mono font-bold text-[#7dff00]">
-          +{formatCompact(Math.round(derived.clickPower * OFFLINE_TAP_RATE_PER_SEC * 3600))} DATA/час
+          +{formatCompact(Math.round(perHour))} DATA/час
         </span>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10px] text-slate-400">
+          {qualified ? '✅ копилка активна' : `Активность сегодня: ${leftMin > 0 ? `${leftMin} мин осталось` : '—'}`}
+        </span>
+        <span className={`text-[11px] font-mono font-bold ${qualified ? 'text-[#7dff00]' : 'text-[#ffc400]'}`}>
+          {Math.floor(activeSec / 60)} / {Math.round(requiredSec / 60)} мин
+        </span>
+      </div>
+      <div className="h-1 rounded-full bg-slate-800/80 overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${qualified ? 'bg-[#7dff00]' : 'bg-[#ffc400]'}`}
+          style={{ width: `${Math.min(100, (activeSec / requiredSec) * 100)}%` }}
+        />
       </div>
     </div>
   );

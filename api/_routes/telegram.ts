@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from '../_lib/http';
+import { isRealBotToken } from '../_lib/telegramAuth';
 
 interface TelegramUpdate {
   message?: {
@@ -92,7 +93,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   // При открытии /api/telegram в браузере отдаём мастер настройки бота в 1 клик (с CSP-заголовком)
   const accept = String(req.headers.accept || '');
   if (req.method === 'GET' && accept.includes('text/html') && urlObj.searchParams.get('format') !== 'json') {
-    const hasEnvToken = Boolean(botToken);
+    const hasEnvToken = isRealBotToken(botToken);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.statusCode = 200;

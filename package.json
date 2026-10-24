@@ -11,7 +11,9 @@
     "bot:setup": "node bot/setup-bot.mjs",
     "balance:sim": "npx esbuild scripts/balance-sim.ts --bundle --platform=node --format=cjs --outfile=/tmp/hk-sim.cjs --log-level=warning && node /tmp/hk-sim.cjs",
     "qa:api": "node scripts/qa/api.mjs",
-    "qa:clicks": "node scripts/qa/clicks.mjs"
+    "qa:clicks": "node scripts/qa/clicks.mjs",
+    "qa:offline": "node scripts/qa/offline-v32.mjs",
+    "qa:all": "npm run build && npm run qa:offline"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
