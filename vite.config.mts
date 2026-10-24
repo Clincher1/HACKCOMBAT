@@ -14,6 +14,10 @@ const API_ROUTES = new Set([
   'skin',
   'prestige',
   'leaderboard',
+  'pets',
+  'base',
+  'tier',
+  'track',
   'ping',
 ]);
 

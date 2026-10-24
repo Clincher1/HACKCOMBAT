@@ -6,7 +6,7 @@ import path from 'node:path';
 if (!fs.existsSync('public/assets/scenes/stage-01.webp') || !fs.existsSync('src/App.tsx')) {
   console.log('[sync-assets] Syncing source & WebP/SVG assets from GitHub repository...');
   execSync(
-    'rm -rf /tmp/hk_assets && mkdir -p /tmp/hk_assets && (curl -fsSL https://codeload.github.com/Clincher1/HACKCOMBAT/tar.gz/main || curl -fsSL https://codeload.github.com/Clincher1/HACKCOMBAT/tar.gz/arena/75214337-hackcombat) | tar -xz -C /tmp/hk_assets --strip-components=1 && cp -rf /tmp/hk_assets/public /tmp/hk_assets/src /tmp/hk_assets/shared /tmp/hk_assets/api /tmp/hk_assets/scripts . && rm -rf /tmp/hk_assets',
+    'rm -rf /tmp/hk_assets && mkdir -p /tmp/hk_assets && (curl -fsSL https://codeload.github.com/Clincher1/HACKCOMBAT/tar.gz/main || curl -fsSL https://codeload.github.com/Clincher1/HACKCOMBAT/tar.gz/arena/17b78f65-hackcombat) | tar -xz -C /tmp/hk_assets --strip-components=1 && cp -rf /tmp/hk_assets/public /tmp/hk_assets/src /tmp/hk_assets/shared /tmp/hk_assets/api /tmp/hk_assets/scripts . && rm -rf /tmp/hk_assets',
     { stdio: 'inherit' }
   );
 }

@@ -1,6 +1,10 @@
 import { Award, BookOpen, Crown, Edit3, Globe, Scale, Trophy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { ACHIEVEMENTS_CONFIG } from '../../shared/achievements.config';
+import {
+  ACHIEVEMENTS_CONFIG,
+  PUBLIC_ACHIEVEMENTS_COUNT,
+} from '../../shared/achievements.config';
+import { AchievementsPanel } from '../components/AchievementsPanel';
 import { getPrestigeRequiredLevel } from '../../shared/mechanics';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -36,6 +40,9 @@ export const ProfilePage: React.FC = () => {
 
   const requiredPrestigeLevel = getPrestigeRequiredLevel(player.prestigeCount);
   const canPrestige = derived.level >= requiredPrestigeLevel;
+  const publicUnlockedCount = ACHIEVEMENTS_CONFIG.filter(
+    (a) => !a.secret && player.achievements.includes(a.key)
+  ).length;
 
   return (
     <div className="space-y-3.5 pb-6">
@@ -238,7 +245,7 @@ export const ProfilePage: React.FC = () => {
         >
           <Award className="w-4 h-4" />
           <span>
-            Ачивки ({player.achievements.length}/{ACHIEVEMENTS_CONFIG.length})
+            Ачивки ({publicUnlockedCount}/{PUBLIC_ACHIEVEMENTS_COUNT})
           </span>
         </button>
       </div>
@@ -287,32 +294,7 @@ export const ProfilePage: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {ACHIEVEMENTS_CONFIG.map((ach) => {
-            const unlocked = player.achievements.includes(ach.key);
-            return (
-              <div
-                key={ach.key}
-                className={`rounded-xl p-3 border flex items-start gap-2.5 ${
-                  unlocked
-                    ? 'bg-[#101c28] border-[#7dff00]/50'
-                    : 'bg-[#0d1224] border-slate-800/80 opacity-65'
-                }`}
-              >
-                <div className="text-xl shrink-0">{ach.icon}</div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-xs font-bold text-white truncate">{ach.title}</span>
-                    <span className="text-[10px] font-bold text-purple-300 shrink-0">
-                      +{ach.cryptoReward}💎
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{ach.description}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <AchievementsPanel />
       )}
 
       {/* Обязательное уведомление юридической безопасности (раздел 9 ТЗ) */}

@@ -1,4 +1,4 @@
-import type { CardCategory, CardConfig } from './types';
+import type { CardCategory, CardConfig, CardTierConfig } from './types';
 
 export const CARD_CATEGORIES: {
   id: CardCategory;
@@ -561,9 +561,107 @@ export const CARDS_CONFIG: CardConfig[] = [
   },
 ];
 
-export const MAX_CARD_LEVEL = 10;
+// ============================================================================
+// ПРОГРЕССИЯ КАРТОЧЕК: 4 ГЛОБАЛЬНЫХ ТИРА × ДО 25 УРОВНЕЙ
+// ----------------------------------------------------------------------------
+// Было: 10 уровней и цена base * 1.5^lvl — 480 уровней набирались за неделю.
+// Стало: 25 уровней, но потолок открывается ТИРАМИ за Чипы (дроп только с контрактов)
+// + глобальный индекс цен: каждая купленная единица уровня удорожает ВСЁ остальное.
+// Совместимость: все прежние уровни (1..10) читаются как есть, MAX_CARD_LEVEL только вырос.
+// ============================================================================
+export const MAX_CARD_LEVEL = 25;
 
-// Формула цены строго по разделу 4.2 ТЗ: base_price * 1.5^level
-export function getCardPrice(card: CardConfig, currentLevel: number): number {
-  return Math.floor(card.basePrice * Math.pow(1.5, currentLevel));
+export const CARD_TIERS: CardTierConfig[] = [
+  {
+    tier: 1,
+    title: 'Тир I — Комнатный Сетап',
+    maxLevel: 10,
+    requiredPlayerLevel: 1,
+    chipCost: 0,
+    dataCost: 0,
+    description: 'Базовые 10 уровней каждого модуля. Доступно с первого запуска терминала.',
+  },
+  {
+    tier: 2,
+    title: 'Тир II — Промышленный Разгон',
+    maxLevel: 15,
+    requiredPlayerLevel: 8,
+    chipCost: 35,
+    dataCost: 30_000,
+    description: 'Открывает уровни 11–15. Чипы падают только с завершённых контрактов.',
+  },
+  {
+    tier: 3,
+    title: 'Тир III — Военный Подряд',
+    maxLevel: 20,
+    requiredPlayerLevel: 18,
+    chipCost: 90,
+    dataCost: 350_000,
+    description: 'Открывает уровни 16–20. Требует дисциплины: контракты, а не просто фарм.',
+  },
+  {
+    tier: 4,
+    title: 'Тир IV — Теневой Арсенал',
+    maxLevel: 25,
+    requiredPlayerLevel: 30,
+    chipCost: 220,
+    dataCost: 2_500_000,
+    description: 'Максимальные 25 уровней модулей — вершина инженерной мысли.',
+  },
+];
+
+export function getCardTierConfig(tier: number): CardTierConfig {
+  const safe = Math.max(1, Math.min(CARD_TIERS.length, Math.floor(Number(tier) || 1)));
+  return CARD_TIERS[safe - 1];
+}
+
+export function getMaxCardLevel(tier: number): number {
+  return getCardTierConfig(tier).maxLevel;
+}
+
+// Базовая цена за уровень: base * 1.42^level
+export const CARD_PRICE_GROWTH = 1.42;
+// Глобальный индекс: чем больше суммарных уровней у игрока, тем дороже следующий уровень ЛЮБОЙ карточки
+export const CARD_GLOBAL_INDEX_DIVISOR = 35;
+export const CARD_GLOBAL_INDEX_POWER = 2.2;
+// Глобальный множитель цен: растягивает всю кривую прогресса.
+// ВАЖНО: править цену безопасно — уже купленные уровни и доход игроков не меняются.
+export const CARD_PRICE_SCALE = 6;
+
+/**
+ * Вес глобального индекса для конкретной карточки.
+ * Дешёвое стартовое железо дорожает максимально (нельзя «раскачаться» на копеечных модулях),
+ * дорогие эндгейм-модули почти не задевает — иначе топ-карточки стали бы недостижимы навсегда.
+ */
+function getCardIndexWeight(basePrice: number): number {
+  const safe = Math.max(1, Number(basePrice) || 1);
+  return Math.max(0, Math.min(1, 1 - Math.log10(safe / 20) / 6));
+}
+
+/** Во сколько раз глобальный индекс раздул цену конкретной карточки (для UI). */
+export function getCardIndexMultiplier(card: CardConfig, totalCardLevels: number): number {
+  const safeTotal = Math.max(0, Number(totalCardLevels) || 0);
+  const rawIndex = Math.pow(1 + safeTotal / CARD_GLOBAL_INDEX_DIVISOR, CARD_GLOBAL_INDEX_POWER);
+  return 1 + (rawIndex - 1) * getCardIndexWeight(card.basePrice);
+}
+
+/**
+ * Цена следующего уровня карточки.
+ * @param totalCardLevels суммарные уровни всех карточек (глобальный индекс прогресса)
+ * @param discountPct скидка от пассивного апгрейда «Термопласта» (0..0.25)
+ */
+export function getCardPrice(
+  card: CardConfig,
+  currentLevel: number,
+  totalCardLevels = 0,
+  discountPct = 0
+): number {
+  const safeLevel = Math.max(0, Math.min(MAX_CARD_LEVEL, Math.floor(Number(currentLevel) || 0)));
+  const safeTotal = Math.max(0, Number(totalCardLevels) || 0);
+  const base = card.basePrice * Math.pow(CARD_PRICE_GROWTH, safeLevel) * CARD_PRICE_SCALE;
+  const rawIndex = Math.pow(1 + safeTotal / CARD_GLOBAL_INDEX_DIVISOR, CARD_GLOBAL_INDEX_POWER);
+  const weight = getCardIndexWeight(card.basePrice);
+  const globalIndex = 1 + (rawIndex - 1) * weight;
+  const safeDiscount = Math.max(0, Math.min(0.25, Number(discountPct) || 0));
+  return Math.max(1, Math.floor(base * globalIndex * (1 - safeDiscount)));
 }

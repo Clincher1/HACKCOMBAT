@@ -1,4 +1,4 @@
-import { BookOpen, Flame, Gem, Gift, Palette, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
+import { BookOpen, Cog, Flame, Gem, Gift, Palette, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 import React from 'react';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -125,8 +125,8 @@ export const TopHud: React.FC = () => {
 
           <div className="rounded-xl bg-[#10172e] border border-slate-700/60 px-2.5 py-1.5 flex flex-col justify-between">
             <div className="flex items-center justify-between text-[11px] font-bold">
-              <span className="text-[#00f0ff] flex items-center gap-0.5" title="Репутация (Rep)">
-                <Shield className="w-3 h-3" /> {player.rep}
+              <span className="text-[#7dff00] flex items-center gap-0.5" title="Чипы — нужны для Тиров карточек и Базы">
+                <Cog className="w-3 h-3" /> {player.chips}
               </span>
               <span
                 className={`flex items-center gap-0.5 ${
@@ -137,7 +137,18 @@ export const TopHud: React.FC = () => {
                 <Flame className="w-3 h-3" /> {player.heat}
               </span>
             </div>
-            <div className="w-full h-1 rounded-full bg-slate-800 overflow-hidden mt-1">
+            <div className="flex items-center justify-between text-[10px] font-bold mt-0.5">
+              <span className="text-[#00f0ff] flex items-center gap-0.5" title="Репутация (Rep)">
+                <Shield className="w-2.5 h-2.5" /> {player.rep}
+              </span>
+              <span
+                className={player.heat >= 75 ? 'text-rose-400 animate-pulse' : 'text-[#ff00a0]'}
+                title="Розыск (Heat > 100 = штраф!)"
+              >
+                🔥 {player.heat}
+              </span>
+            </div>
+            <div className="w-full h-1 rounded-full bg-slate-800 overflow-hidden mt-0.5">
               <div
                 className="h-full transition-all duration-300"
                 style={{

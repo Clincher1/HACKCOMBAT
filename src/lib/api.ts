@@ -38,6 +38,13 @@ export const gameApi = {
   skinAction: (action: 'buy_or_equip' | 'clear_lockdown', skinKey?: string) =>
     apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey }),
   prestige: () => apiRequest<ApiSyncResponse>('/api/prestige', 'POST'),
+  unlockTier: () => apiRequest<ApiSyncResponse>('/api/tier', 'POST'),
+  buyBaseUpgrade: (upgradeKey: string) =>
+    apiRequest<ApiSyncResponse>('/api/base', 'POST', { upgradeKey }),
+  petAction: (action: 'buy' | 'feed', petKey: string) =>
+    apiRequest<ApiSyncResponse>('/api/pets', 'POST', { action, petKey }),
+  track: (event: string, value?: number) =>
+    apiRequest<ApiSyncResponse>('/api/track', 'POST', { event, value }),
   leaderboard: () =>
     apiRequest<{ ok: true; entries: LeaderboardEntry[] }>('/api/leaderboard', 'GET'),
 };
