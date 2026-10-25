@@ -45,6 +45,7 @@ import {
   getLevelProgress,
   getMissionRewardScale,
   getMissionXpAward,
+  getTotalXpForLevel,
   HACK_OUTCOME_REWARD,
   rollHackOutcome,
 } from '../../shared/hack.config';
@@ -63,6 +64,9 @@ import type {
   DerivedStats,
   GameAlert,
   LeaderboardEntry,
+  LeaderboardResponse,
+  LeaderboardSelf,
+  LeaderboardSort,
   PlayerProgressStats,
   PlayerState,
 } from '../../shared/types';
@@ -285,17 +289,21 @@ export interface LocalDatabase {
   donations?: Record<string, unknown>;
 }
 
-const RIVAL_NPCS_LEADERBOARD: LeaderboardEntry[] = [
-  { username: 'CipherQueen', level: 54, data: 2_840_000, rankTitle: 'Phantom Architect', prestigeCount: 2 },
-  { username: 'ZeroCool_RU', level: 48, data: 1_490_000, rankTitle: 'Darknet Legend', prestigeCount: 1 },
-  { username: 'GhostProtocol', level: 39, data: 780_500, rankTitle: 'Darknet Legend', prestigeCount: 1 },
-  { username: 'Kira_Neon', level: 31, data: 412_900, rankTitle: 'Shadow Broker', prestigeCount: 0 },
-  { username: 'RootKit_77', level: 24, data: 164_200, rankTitle: 'Cybercriminal', prestigeCount: 0 },
-  { username: 'ByteSamurai', level: 18, data: 68_400, rankTitle: 'Cybercriminal', prestigeCount: 0 },
-  { username: 'SynthRunner', level: 12, data: 19_800, rankTitle: 'Netrunner', prestigeCount: 0 },
-  { username: 'NullPointer', level: 7, data: 4_350, rankTitle: 'Hacker', prestigeCount: 0 },
-  { username: 'PingFlood', level: 3, data: 820, rankTitle: 'Script Kiddie', prestigeCount: 0 },
-];
+// XP у NPC выводим из кривой уровней: иначе в рейтинге «по опыту» они
+// показывали бы 0 и проваливались в самый низ, хотя уровни у них высокие.
+const RIVAL_NPCS_LEADERBOARD: LeaderboardEntry[] = (
+  [
+    { username: 'CipherQueen', level: 54, data: 2_840_000, rankTitle: 'Phantom Architect', prestigeCount: 2 },
+    { username: 'ZeroCool_RU', level: 48, data: 1_490_000, rankTitle: 'Darknet Legend', prestigeCount: 1 },
+    { username: 'GhostProtocol', level: 39, data: 780_500, rankTitle: 'Darknet Legend', prestigeCount: 1 },
+    { username: 'Kira_Neon', level: 31, data: 412_900, rankTitle: 'Shadow Broker', prestigeCount: 0 },
+    { username: 'RootKit_77', level: 24, data: 164_200, rankTitle: 'Cybercriminal', prestigeCount: 0 },
+    { username: 'ByteSamurai', level: 18, data: 68_400, rankTitle: 'Cybercriminal', prestigeCount: 0 },
+    { username: 'SynthRunner', level: 12, data: 19_800, rankTitle: 'Netrunner', prestigeCount: 0 },
+    { username: 'NullPointer', level: 7, data: 4_350, rankTitle: 'Hacker', prestigeCount: 0 },
+    { username: 'PingFlood', level: 3, data: 820, rankTitle: 'Script Kiddie', prestigeCount: 0 },
+  ] as Omit<LeaderboardEntry, 'xp'>[]
+).map((npc) => ({ ...npc, xp: getTotalXpForLevel(npc.level) }));
 
 let memoryDb: LocalDatabase | null = null;
 
@@ -2368,18 +2376,124 @@ export async function handleTrackEvent(
   });
 }
 
+/** Колонка в БД, по которой сортируем таблицу. */
+const LEADERBOARD_METRIC: Record<LeaderboardSort, 'data' | 'xp' | 'level'> = {
+  data: 'data',
+  xp: 'xp',
+  level: 'level',
+};
+
+function leaderboardValue(
+  entry: { data: number; xp: number; level: number },
+  sort: LeaderboardSort
+): number {
+  if (sort === 'xp') return entry.xp;
+  if (sort === 'level') return entry.level;
+  return entry.data;
+}
+
+function sortLeaderboard<T extends { data: number; xp: number; level: number; username: string }>(
+  list: T[],
+  sort: LeaderboardSort
+): T[] {
+  return [...list].sort((a, b) => {
+    const diff = leaderboardValue(b, sort) - leaderboardValue(a, sort);
+    if (diff !== 0) return diff;
+    // Ничья по метрике: выше тот, у кого больше опыта (он реально дальше прошёл),
+    // затем — по нику, чтобы порядок не «прыгал» между запросами.
+    if (b.xp !== a.xp) return b.xp - a.xp;
+    return a.username.localeCompare(b.username);
+  });
+}
+
+/**
+ * Своё место в рейтинге. В топ-100 попадают не все, а играть интереснее,
+ * когда видно «ты #37 и до #36 не хватает 4 200 XP».
+ */
+async function buildLeaderboardSelf(
+  sb: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
+  currentUser: VerifiedTelegramUser,
+  sort: LeaderboardSort
+): Promise<LeaderboardSelf | null> {
+  const metric = LEADERBOARD_METRIC[sort];
+
+  const { data: selfRow, error: selfError } = await sb
+    .from('players')
+    .select('tg_id, username, level, data, xp')
+    .eq('tg_id', currentUser.tgId)
+    .maybeSingle();
+  if (selfError || !selfRow) return null;
+  // Гости из браузерного превью (отрицательные tg_id) в глобальном рейтинге не участвуют.
+  if (Number(selfRow.tg_id) < -10_000_000) return null;
+
+  const myLevel = Math.max(1, Number(selfRow.level ?? 1));
+  const myData = Math.round(Math.max(0, Number(selfRow.data ?? 0)));
+  const myXp = Math.round(Math.max(0, Number(selfRow.xp ?? 0)));
+  const myValue =
+    metric === 'xp' ? myXp : metric === 'level' ? myLevel : myData;
+
+  const [aheadCount, aheadRow, totalRow] = await Promise.all([
+    sb
+      .from('players')
+      .select('*', { count: 'exact', head: true })
+      .gt('tg_id', -10_000_000)
+      .gt(metric, myValue),
+    sb
+      .from('players')
+      .select('username, level, data, xp, rank')
+      .gt('tg_id', -10_000_000)
+      .gt(metric, myValue)
+      .order(metric, { ascending: true })
+      .limit(1),
+    sb
+      .from('players')
+      .select('*', { count: 'exact', head: true })
+      .gt('tg_id', -10_000_000),
+  ]);
+
+  const ahead = aheadRow.data?.[0] ?? null;
+  const aheadValue = ahead
+    ? metric === 'xp'
+      ? Math.round(Number(ahead.xp ?? 0))
+      : metric === 'level'
+        ? Number(ahead.level ?? 1)
+        : Math.round(Number(ahead.data ?? 0))
+    : null;
+
+  return {
+    rank: (aheadCount.count ?? 0) + 1,
+    total: totalRow.count ?? 0,
+    level: myLevel,
+    data: myData,
+    xp: myXp,
+    metric: sort,
+    value: myValue,
+    aheadUsername: ahead ? String(ahead.username) : null,
+    aheadValue,
+    gap: aheadValue === null ? 0 : Math.max(0, aheadValue - myValue),
+  };
+}
+
 export async function handleGetLeaderboard(
-  currentUser: VerifiedTelegramUser
-): Promise<{ ok: true; entries: LeaderboardEntry[] }> {
+  currentUser: VerifiedTelegramUser,
+  sort: LeaderboardSort = 'data'
+): Promise<LeaderboardResponse> {
+  const safeSort: LeaderboardSort =
+    sort === 'xp' || sort === 'level' || sort === 'data' ? sort : 'data';
+  const metric = LEADERBOARD_METRIC[safeSort];
+
   const sb = getSupabaseAdmin();
   if (sb) {
-    // Выбираем только реальных верифицированных игроков Telegram (tg_id > 0) и официальных кибер-соперников (-1009..-1001)!
-    // Ни один неавторизованный гость из браузерного превью (-900M..-100M) не попадает в глобальный рейтинг!
+    // Выбираем только реальных верифицированных игроков Telegram (tg_id > 0)
+    // и официальных кибер-соперников (-1009..-1001)!
+    // Ни один неавторизованный гость из браузерного превью (-900M..-100M)
+    // не попадает в глобальный рейтинг!
     const { data, error } = await sb
       .from('players')
-      .select('tg_id, username, level, data, rank, prestige_count')
+      .select('tg_id, username, level, data, xp, rank, prestige_count')
       .gt('tg_id', -10_000_000)
-      .order('data', { ascending: false })
+      .order(metric, { ascending: false })
+      .order(metric === 'xp' ? 'data' : 'xp', { ascending: false })
       .limit(100);
 
     if (!error && data) {
@@ -2387,14 +2501,24 @@ export async function handleGetLeaderboard(
         const rankIdx = Math.max(1, Math.min(RANK_TITLES.length, Number(row.rank ?? 1)));
         return {
           username: String(row.username),
-          level: Number(row.level ?? 1),
-          data: Math.round(Number(row.data ?? 0)),
+          level: Math.max(1, Number(row.level ?? 1)),
+          data: Math.round(Math.max(0, Number(row.data ?? 0))),
+          xp: Math.round(Math.max(0, Number(row.xp ?? 0))),
           rankTitle: RANK_TITLES[rankIdx - 1]?.title ?? 'Script Kiddie',
           prestigeCount: Number(row.prestige_count ?? 0),
           isCurrentUser: Number(row.tg_id) === currentUser.tgId,
         };
       });
-      return { ok: true, entries };
+
+      let me: LeaderboardSelf | null = null;
+      try {
+        me = await buildLeaderboardSelf(sb, currentUser, safeSort);
+      } catch {
+        // Рейтинг не должен падать из-за необязательной карточки «твоё место».
+        me = null;
+      }
+
+      return { ok: true, sort: safeSort, entries, me };
     }
   }
 
@@ -2402,20 +2526,39 @@ export async function handleGetLeaderboard(
   const realEntries: LeaderboardEntry[] = Object.values(db.playersByTgId)
     .filter((rec) => rec.tgId > -10_000_000 || rec.tgId === currentUser.tgId)
     .map((rec) => {
-    const d = deriveStats(rec);
-    return {
-      username: rec.username,
-      level: d.level,
-      data: Math.round(rec.data),
-      rankTitle: d.rankTitle,
-      prestigeCount: rec.prestigeCount,
-      isCurrentUser: rec.tgId === currentUser.tgId,
+      const d = deriveStats(rec);
+      return {
+        username: rec.username,
+        level: d.level,
+        data: Math.round(rec.data),
+        xp: Math.round(d.totalXp),
+        rankTitle: d.rankTitle,
+        prestigeCount: rec.prestigeCount,
+        isCurrentUser: rec.tgId === currentUser.tgId,
+      };
+    });
+
+  const sorted = sortLeaderboard([...realEntries, ...RIVAL_NPCS_LEADERBOARD], safeSort);
+  const myIndex = sorted.findIndex((entry) => entry.isCurrentUser);
+  let me: LeaderboardSelf | null = null;
+  if (myIndex >= 0) {
+    const myEntry = sorted[myIndex];
+    const aheadEntry = myIndex > 0 ? sorted[myIndex - 1] : null;
+    const myValue = leaderboardValue(myEntry, safeSort);
+    const aheadValue = aheadEntry ? leaderboardValue(aheadEntry, safeSort) : null;
+    me = {
+      rank: myIndex + 1,
+      total: sorted.length,
+      level: myEntry.level,
+      data: myEntry.data,
+      xp: myEntry.xp,
+      metric: safeSort,
+      value: myValue,
+      aheadUsername: aheadEntry?.username ?? null,
+      aheadValue,
+      gap: aheadValue === null ? 0 : Math.max(0, aheadValue - myValue),
     };
-  });
+  }
 
-  const merged = [...realEntries, ...RIVAL_NPCS_LEADERBOARD]
-    .sort((a, b) => b.data - a.data)
-    .slice(0, 100);
-
-  return { ok: true, entries: merged };
+  return { ok: true, sort: safeSort, entries: sorted.slice(0, 100), me };
 }

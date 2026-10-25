@@ -288,13 +288,46 @@ export interface PlayerState {
   derived: DerivedStats;
 }
 
+/** По какой метрике строится турнирная таблица. */
+export type LeaderboardSort = 'data' | 'xp' | 'level';
+
 export interface LeaderboardEntry {
   username: string;
   level: number;
   data: number;
+  /** Суммарный накопленный опыт — не тратится, поэтому честно показывает прогресс. */
+  xp: number;
   rankTitle: string;
   prestigeCount: number;
   isCurrentUser?: boolean;
+}
+
+/**
+ * Своя строка в рейтинге. Нужна, чтобы игрок видел место, даже если он
+ * не попал в топ-100 — иначе таблица «не про него» и играть неинтересно.
+ */
+export interface LeaderboardSelf {
+  rank: number;
+  total: number;
+  level: number;
+  data: number;
+  xp: number;
+  /** Метрика, по которой посчитано место. */
+  metric: LeaderboardSort;
+  /** Моё значение в этой метрике. */
+  value: number;
+  /** Ник игрока прямо над тобой (null — ты первый). */
+  aheadUsername: string | null;
+  aheadValue: number | null;
+  /** Сколько не хватает до места выше (в единицах метрики). */
+  gap: number;
+}
+
+export interface LeaderboardResponse {
+  ok: true;
+  sort: LeaderboardSort;
+  entries: LeaderboardEntry[];
+  me: LeaderboardSelf | null;
 }
 
 export interface GameAlert {

@@ -1,4 +1,4 @@
-import { Award, BookOpen, Cog, Crown, Edit3, Globe, Scale, Trophy } from 'lucide-react';
+import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Scale, Sparkles, Trophy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import {
   ACHIEVEMENTS_CONFIG,
@@ -14,6 +14,7 @@ import {
   CHIP_REWARD_PER_MISSION,
 } from '../../shared/base.config';
 import { getGameDayKey, getPrestigeRequiredLevel } from '../../shared/mechanics';
+import type { LeaderboardSort } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -23,6 +24,9 @@ export const ProfilePage: React.FC = () => {
     tgProfile,
     storageMode,
     leaderboard,
+    leaderboardSort,
+    leaderboardSelf,
+    setLeaderboardSort,
     refreshLeaderboard,
     triggerPrestige,
     updateDemoName,
@@ -34,9 +38,11 @@ export const ProfilePage: React.FC = () => {
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
 
+  // Рейтинг обновляем при входе на вкладку и при смене метрики. Раньше он
+  // перезапрашивался на каждое изменение Data — то есть на каждый тап.
   useEffect(() => {
-    void refreshLeaderboard();
-  }, [refreshLeaderboard, player?.data]);
+    if (tab === 'leaderboard') void refreshLeaderboard();
+  }, [refreshLeaderboard, tab]);
 
   if (!player) return null;
 
@@ -55,6 +61,25 @@ export const ProfilePage: React.FC = () => {
     : 0;
   const chipsLeftToday = Math.max(0, CHIP_DAILY_CAP - chipsToday);
   const canPrestige = derived.level >= requiredPrestigeLevel;
+
+  // Метрики турнирной таблицы. Data тратится (купил карточки — упал в таблице),
+  // XP не тратится никогда, уровень — карьерный итог. Пусть игрок выбирает зачёт.
+  const leaderboardTabs: { id: LeaderboardSort; label: string; icon: React.ReactNode }[] = [
+    { id: 'data', label: 'По Data', icon: <Gem className="w-3.5 h-3.5" /> },
+    { id: 'xp', label: 'По XP', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { id: 'level', label: 'По уровню', icon: <Trophy className="w-3.5 h-3.5" /> },
+  ];
+
+  const gapLabel =
+    leaderboardSelf === null
+      ? ''
+      : leaderboardSelf.metric === 'level'
+        ? leaderboardSelf.gap === 0
+          ? 'тот же уровень — решает XP'
+          : `${leaderboardSelf.gap} ур.`
+        : leaderboardSelf.metric === 'xp'
+          ? `${formatCompact(leaderboardSelf.gap)} XP`
+          : `${formatCompact(leaderboardSelf.gap)} Data`;
   const publicUnlockedCount = ACHIEVEMENTS_CONFIG.filter(
     (a) => !a.secret && player.achievements.includes(a.key)
   ).length;
@@ -342,47 +367,127 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {tab === 'leaderboard' ? (
-        <div className="rounded-2xl bg-[#10172e] border border-slate-800 divide-y divide-slate-800/80 overflow-hidden">
-          {leaderboard.map((entry, idx) => (
-            <div
-              key={`${entry.username}-${idx}`}
-              className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs ${
-                entry.isCurrentUser ? 'bg-[#00f0ff]/12' : ''
-              }`}
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span
-                  className={`w-6 text-center font-display font-extrabold ${
-                    idx === 0
-                      ? 'text-amber-300'
-                      : idx === 1
-                        ? 'text-slate-200'
-                        : idx === 2
-                          ? 'text-amber-600'
-                          : 'text-slate-500'
+        <div className="space-y-2">
+          {/* Переключатель зачёта */}
+          <div className="grid grid-cols-3 gap-1.5">
+            {leaderboardTabs.map(({ id, label, icon }) => {
+              const active = leaderboardSort === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setLeaderboardSort(id)}
+                  className={`py-1.5 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition cursor-pointer ${
+                    active
+                      ? 'bg-[#00f0ff]/16 border-[#00f0ff] text-[#00f0ff]'
+                      : 'bg-[#10172e] border-slate-800 text-slate-400 hover:text-slate-200'
                   }`}
                 >
-                  #{idx + 1}
-                </span>
-                <div className="min-w-0">
-                  <div className="font-bold text-white truncate flex items-center gap-1.5">
-                    <span>{entry.username}</span>
-                    {entry.isCurrentUser && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#00f0ff] text-[#061018] font-extrabold">
-                        ВЫ
-                      </span>
-                    )}
+                  {icon}
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Своё место: видно даже если ты не в топ-100 */}
+          {leaderboardSelf && (
+            <div className="rounded-xl bg-[#10172e] border border-[#00f0ff]/30 px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-[11px] text-slate-400 shrink-0">
+                Ты{' '}
+                <span className="font-display font-extrabold text-white">
+                  #{leaderboardSelf.rank}
+                </span>{' '}
+                из {leaderboardSelf.total}
+              </span>
+              <span className="text-[10px] text-slate-400 text-right min-w-0 truncate">
+                {leaderboardSelf.aheadUsername ? (
+                  <>
+                    до #{leaderboardSelf.rank - 1} ({leaderboardSelf.aheadUsername}):{' '}
+                    <span className="text-[#00f0ff] font-bold">+{gapLabel}</span>
+                  </>
+                ) : (
+                  <span className="text-amber-300 font-bold">Ты первый — держи позицию</span>
+                )}
+              </span>
+            </div>
+          )}
+
+          {!leaderboardSelf && player.tgId < 0 && (
+            <div className="rounded-xl bg-[#10172e] border border-slate-800 px-3 py-2 text-[10px] text-slate-400">
+              Гостевой режим: место в турнирной таблице считается только для игроков Telegram.
+            </div>
+          )}
+
+          <div className="rounded-2xl bg-[#10172e] border border-slate-800 divide-y divide-slate-800/80 overflow-hidden">
+            {leaderboard.map((entry, idx) => (
+              <div
+                key={`${entry.username}-${idx}`}
+                className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs ${
+                  entry.isCurrentUser ? 'bg-[#00f0ff]/12' : ''
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span
+                    className={`w-6 text-center font-display font-extrabold ${
+                      idx === 0
+                        ? 'text-amber-300'
+                        : idx === 1
+                          ? 'text-slate-200'
+                          : idx === 2
+                            ? 'text-amber-600'
+                            : 'text-slate-500'
+                    }`}
+                  >
+                    #{idx + 1}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="font-bold text-white truncate flex items-center gap-1.5">
+                      <span>{entry.username}</span>
+                      {entry.isCurrentUser && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#00f0ff] text-[#061018] font-extrabold">
+                          ВЫ
+                        </span>
+                      )}
+                      {entry.prestigeCount > 0 && (
+                        <span className="text-[9px] px-1 rounded bg-[#ff00a0]/20 border border-[#ff00a0]/45 text-[#ff00a0] font-bold shrink-0">
+                          ×{Math.pow(2, Math.min(20, entry.prestigeCount))}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={`text-[10px] ${
+                        leaderboardSort === 'level'
+                          ? 'text-[#00f0ff] font-semibold'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      Ур. {entry.level} • {entry.rankTitle}
+                    </div>
                   </div>
-                  <div className="text-[10px] text-slate-400">
-                    Ур. {entry.level} • {entry.rankTitle}
+                </div>
+
+                <div className="shrink-0 text-right leading-tight space-y-0.5">
+                  <div
+                    className={`text-[11px] font-bold tabular-nums ${
+                      leaderboardSort === 'xp' ? 'text-[#c084fc]' : 'text-slate-500'
+                    }`}
+                    title="Опыт за всё время — не тратится"
+                  >
+                    ⚡ {formatCompact(entry.xp)} XP
+                  </div>
+                  <div
+                    className={`text-[11px] font-bold tabular-nums ${
+                      leaderboardSort === 'data' ? 'text-[#7dff00]' : 'text-slate-500'
+                    }`}
+                    title="Текущий баланс Data"
+                  >
+                    💠 {formatCompact(entry.data)}
                   </div>
                 </div>
               </div>
-              <div className="font-display font-bold text-[#7dff00] shrink-0">
-                {formatCompact(entry.data)}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       ) : (
         <AchievementsPanel />
