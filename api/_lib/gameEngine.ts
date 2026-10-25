@@ -76,7 +76,7 @@ interface StoredPet {
   feedCount: number;
 }
 
-interface StoredPlayerRecord {
+export interface StoredPlayerRecord {
   id: string;
   tgId: number;
   username: string;
@@ -239,8 +239,10 @@ function deriveStats(record: StoredPlayerRecord, nowMs: number = Date.now()): De
 // DEFAULT: Локальное dev/preview-хранилище (используется автоматически, если .env Supabase не задан)
 const LOCAL_DB_PATH = path.resolve(process.cwd(), '.local-db.json');
 
-interface LocalDatabase {
+export interface LocalDatabase {
   playersByTgId: Record<string, StoredPlayerRecord>;
+  /** v3.4: леджер донатов (ключ — telegram_payment_charge_id). */
+  donations?: Record<string, unknown>;
 }
 
 const RIVAL_NPCS_LEADERBOARD: LeaderboardEntry[] = [
@@ -303,6 +305,18 @@ function persistLocalDb(): void {
   } catch {
     // ignore read-only serverless fs on Vercel when using memory mode
   }
+}
+
+/**
+ * Доступ к тому же локальному JSON-хранилищу для других модулей (донаты).
+ * Важно возвращать ОДИН И ТОТ ЖЕ объект, иначе запись донатов затрёт игроков.
+ */
+export function getLocalDatabase(): LocalDatabase {
+  return getLocalDb();
+}
+
+export function persistLocalDatabase(): void {
+  persistLocalDb();
 }
 
 /**

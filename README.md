@@ -57,6 +57,13 @@
   (`clicks` в теле запроса): один сетевой круг вместо двух, и сервер уже видит свежий баланс,
   поэтому пропал ложный тост «Недостаточно Data» при видимых деньгах. Сервер возвращает
   `appliedClicks`, чтобы клиент дослал не зачтённое античитом. Проверка: `npm run qa:buy`.
+- **❤️ Донат в Telegram Stars (v3.4)** — добровольная поддержка проекта, **не магазин**:
+  - Оплата только встроенными **Telegram Stars** (`XTR`), без сторонних провайдеров и без карт.
+  - Суммы фиксированы сервером (`10 / 25 / 50 / 100 ⭐` из `shared/donate.config.ts`): подставить цену из DevTools нельзя.
+  - Донат **не даёт игровых преимуществ** — ни Data, ни чипов, ни скинов со статами. Это принципиально: продажа цифровых товаров внутри Telegram требует Stars + фактически делает проект коммерческим (а Vercel Hobby разрешает только донаты).
+  - Поток: счёт → `pre_checkout_query` (ответ ≤10 сек) → `successful_payment` → запись в `donations` по `telegram_payment_charge_id` (идемпотентно) → «спасибо».
+  - Возврат: `/paysupport` в боте (список платежей + `refundStarPayment`), условия — `/terms`, команда доната — `/donate`.
+  - Проверка: `npm run qa:donate` (36 проверок, сеть не нужна — Bot API замокан).
 - **Anti-cheat и защита Telegram `initData`**: HMAC-SHA256 валидация на сервере (`api/_lib/telegramAuth.ts`), батчи кликов по 10 тапов / 5 сек, проверка `energy` и лимита `≤ 30 кликов/сек`.
 
 ---
@@ -110,7 +117,8 @@ npm run dev
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
 3. Нажмите **Deploy** (или выполните `npx vercel --prod`).
-4. Привяжите Webhook, кнопку запуска WebApp и описание `12+` одной командой локально:
+4. **Донаты (опционально, 0 ₽)**: включите в [@BotFather](https://t.me/BotFather) → `/mybots` → *Payments* → **Telegram Stars** и примените миграцию `supabase/migrations/005_donations.sql`. Больше ничего не нужно — `provider_token` для Stars не используется. Без `BOT_TOKEN` карточка доната просто показывает «недоступно».
+5. Привяжите Webhook, кнопку запуска WebApp и описание `12+` одной командой локально:
 ```bash
 TELEGRAM_BOT_TOKEN="ваш_токен" PUBLIC_WEBAPP_URL="https://ваш-домен.vercel.app" npm run bot:setup
 ```

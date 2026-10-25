@@ -1,12 +1,63 @@
 import crypto from 'node:crypto';
+import {
+  buildDonatePayload,
+  DONATE_CURRENCY,
+  DONATE_DESCRIPTION,
+  DONATE_THANKS,
+  DONATE_TIER_STARS,
+  DONATE_TITLE,
+  formatStars,
+  parseDonatePayload,
+} from '../../shared/donate.config';
+import {
+  createDonateInvoiceLink,
+  findDonationByChargeId,
+  getDonationSummary,
+  listDonations,
+  markDonationRefunded,
+  recordDonation,
+  tgApi,
+  validatePreCheckoutQuery,
+} from '../_lib/donations';
 import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from '../_lib/http';
 import { isRealBotToken } from '../_lib/telegramAuth';
+
+interface TelegramUser {
+  id: number;
+  first_name?: string;
+  username?: string;
+}
+
+interface TelegramSuccessfulPayment {
+  currency: string;
+  total_amount: number;
+  invoice_payload: string;
+  telegram_payment_charge_id: string;
+  provider_payment_charge_id?: string;
+}
 
 interface TelegramUpdate {
   message?: {
     chat: { id: number };
-    from?: { first_name?: string; username?: string };
+    from?: TelegramUser;
     text?: string;
+    successful_payment?: TelegramSuccessfulPayment;
+  };
+  // Telegram присылает это перед оплатой и ждёт ответ ≤10 секунд,
+  // иначе платёж отменяется. Без allowed_updates=pre_checkout_query
+  // апдейт вообще не придёт — и любая оплата отвалится.
+  pre_checkout_query?: {
+    id: string;
+    from?: TelegramUser;
+    currency: string;
+    total_amount: number;
+    invoice_payload: string;
+  };
+  callback_query?: {
+    id: string;
+    from?: TelegramUser;
+    data?: string;
+    message?: { chat: { id: number } };
   };
 }
 
@@ -18,6 +69,61 @@ function escapeHtml(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Экран доната. Если stars === null — показываем выбор суммы кнопками.
+ * Оплата в Stars проходит прямо в чате (sendInvoice) — без Mini App и без
+ * сторонних провайдеров, это требование Telegram для цифровых платежей.
+ */
+async function sendDonateInvoice(
+  token: string,
+  chatId: number,
+  stars: number | null,
+  tgId: number
+): Promise<void> {
+  if (!token) return;
+
+  if (stars === null) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text:
+        '❤️ <b>Поддержать HACKER KOMBAT</b>\n\n' +
+        'Игра бесплатная, без рекламы и без платных преимуществ. Если хочется угостить ' +
+        'разработчика звёздами — вот кнопки. Донат <b>не даёт</b> Data, чипов, скинов ' +
+        'со статами или ускорений: только «спасибо» и содержание серверов.\n\n' +
+        'Оплата — Telegram Stars ⭐ (встроенная валюта Telegram).\n' +
+        '<i>Возврат: /paysupport • Условия: /terms</i>',
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          DONATE_TIER_STARS.map((amount) => ({
+            text: `${amount} ⭐`,
+            callback_data: `donate:${amount}`,
+          })),
+        ],
+      },
+    });
+    return;
+  }
+
+  const link = await createDonateInvoiceLink(tgId, stars);
+  if (!link.ok || !link.invoiceLink) {
+    await tgApi(token, 'sendMessage', {
+      chat_id: chatId,
+      text: `❌ Не удалось выставить счёт: ${escapeHtml(link.error ?? 'ошибка')}`,
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+  await tgApi(token, 'sendInvoice', {
+    chat_id: chatId,
+    title: DONATE_TITLE.slice(0, 32),
+    description: DONATE_DESCRIPTION.slice(0, 255),
+    payload: buildDonatePayload(tgId, stars),
+    currency: DONATE_CURRENCY,
+    prices: [{ label: 'Поддержка проекта', amount: stars }],
+  });
 }
 
 /**
@@ -64,6 +170,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url: webhookUrl,
+        // Явно перечисляем типы апдейтов: pre_checkout_query нужен для оплаты
+        // Stars, иначе Telegram не спросит подтверждение и платёж отвалится.
+        allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
         ...(derivedSecret ? { secret_token: derivedSecret } : {}),
       }),
     }).then((r) => r.json());
@@ -180,13 +289,89 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       body: JSON.stringify({
         url: `${webAppUrl}/api/telegram`,
         secret_token: derivedSecret,
-        allowed_updates: ['message', 'callback_query'],
+        allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
       }),
     }).catch(() => undefined);
   }
 
   try {
     const update = await readJsonBody<TelegramUpdate>(req);
+
+    // ========================================================================
+    // ПЛАТЕЖИ В TELEGRAM STARS (v3.4)
+    // ------------------------------------------------------------------------
+    // Порядок строго по документации Telegram:
+    //   1) pre_checkout_query  → ответить за 10 секунд (иначе платёж отменяется);
+    //   2) successful_payment  → выдать благодарность (и только тут!);
+    //   3) charge_id           → сохранить, по нему делается возврат.
+    // ========================================================================
+    if (update.pre_checkout_query) {
+      const q = update.pre_checkout_query;
+      const problem = validatePreCheckoutQuery(q);
+      await tgApi(botToken ?? '', 'answerPreCheckoutQuery', {
+        pre_checkout_query_id: q.id,
+        ok: problem === null,
+        ...(problem ? { error_message: problem.slice(0, 200) } : {}),
+      });
+      return sendJson(res, 200, { ok: true, preCheckout: problem === null });
+    }
+
+    if (update.message?.successful_payment) {
+      const pay = update.message.successful_payment;
+      const payerId = update.message.from?.id ?? update.message.chat.id;
+      const parsed = parseDonatePayload(pay.invoice_payload);
+
+      // Три состояния вместо двух: «записали», «уже было» и «не смогли
+      // записать» (например, не применена миграция). Игрок в любом случае
+      // должен увидеть спасибо, а не «платёж уже учтён» на первом платеже.
+      let recordState: 'recorded' | 'duplicate' | 'unknown' = 'unknown';
+      if (parsed && parsed.tgId === payerId && pay.currency === 'XTR') {
+        try {
+          const result = await recordDonation({
+            tgId: payerId,
+            stars: pay.total_amount,
+            chargeId: pay.telegram_payment_charge_id,
+            providerChargeId: pay.provider_payment_charge_id ?? null,
+            payload: pay.invoice_payload,
+          });
+          recordState = result.created ? 'recorded' : 'duplicate';
+        } catch (err) {
+          // Деньги уже у нас: молчим в чат, но пишем в логи — по charge_id
+          // платёж всегда можно найти в Telegram и оформить возврат вручную.
+          console.error('[donate] не удалось записать платёж', err);
+          recordState = 'unknown';
+        }
+      }
+
+      const receipt = escapeHtml(pay.telegram_payment_charge_id.slice(0, 40));
+      const text =
+        recordState === 'duplicate'
+          ? `❤️ Спасибо! Этот платёж уже учтён ранее — повторно ничего не списывалось.\n\n<i>Возврат: /paysupport</i>`
+          : `${DONATE_THANKS}\n\n⭐ <b>${pay.total_amount}</b> — чек: <code>${receipt}</code>\n\n<i>Возврат: /paysupport • Условия: /terms</i>`;
+
+      await tgApi(botToken ?? '', 'sendMessage', {
+        chat_id: update.message.chat.id,
+        text,
+        parse_mode: 'HTML',
+      });
+      return sendJson(res, 200, { ok: true, donationRecorded: recordState === 'recorded', recordState });
+    }
+
+    // Кнопки «Поддержать проект» (инлайн-клавиатура с суммами)
+    if (update.callback_query) {
+      const cq = update.callback_query;
+      const cqChatId = cq.message?.chat.id;
+      const data = String(cq.data ?? '');
+      await tgApi(botToken ?? '', 'answerCallbackQuery', { callback_query_id: cq.id });
+
+      if (cqChatId && data.startsWith('donate:')) {
+        const raw = data.slice('donate:'.length);
+        const stars = raw === 'menu' ? null : Number(raw);
+        await sendDonateInvoice(botToken ?? '', cqChatId, stars, cq.from?.id ?? cqChatId);
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+
     const chatId = update.message?.chat?.id;
     const text = (update.message?.text ?? '').trim();
     const rawName = update.message?.from?.first_name || update.message?.from?.username || 'Хакер';
@@ -194,6 +379,88 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     if (!chatId || !Number.isSafeInteger(chatId) || !botToken) {
       return sendJson(res, 200, { ok: true, note: 'Webhook acknowledged' });
+    }
+
+    // --- Команды донат-контура ------------------------------------------------
+    if (text.startsWith('/donate') || text.startsWith('/start donate')) {
+      await sendDonateInvoice(botToken, chatId, null, update.message?.from?.id ?? chatId);
+      return sendJson(res, 200, { ok: true, donate: true });
+    }
+
+    if (text.startsWith('/paysupport')) {
+      const rows = await listDonations(update.message?.from?.id ?? chatId, 5);
+      const summary = await getDonationSummary(update.message?.from?.id ?? chatId);
+      const list =
+        rows.length > 0
+          ? rows
+              .map(
+                (row) =>
+                  `• ${formatStars(row.stars)} — ${row.createdAt.slice(0, 10)}${
+                    row.refundedAt ? ' (возвращено)' : ''
+                  }\n  <code>${escapeHtml(row.chargeId.slice(0, 48))}</code>`
+              )
+              .join('\n')
+          : 'Платежей пока нет.';
+      await tgApi(botToken, 'sendMessage', {
+        chat_id: chatId,
+        text:
+          `💬 <b>Поддержка по платежам</b>\n\n` +
+          `Всего поддержано: <b>${summary.stars}</b> ⭐ (${summary.count} платежей)\n${list}\n\n` +
+          `Если платёж прошёл, а благодарность не пришла — пришлите строку чека из ` +
+          `«Настройки → Мои звёзды → Транзакции».\n` +
+          `Возврат делается через Telegram: Stars → возврат в полном размере (refundStarPayment).\n\n` +
+          `<i>Донат добровольный и не даёт игровых преимуществ.</i>`,
+        parse_mode: 'HTML',
+      });
+      return sendJson(res, 200, { ok: true, paysupport: true });
+    }
+
+    if (text.startsWith('/terms')) {
+      await tgApi(botToken, 'sendMessage', {
+        chat_id: chatId,
+        text:
+          '📄 <b>Условия донатов</b>\n\n' +
+          '1. Донат добровольный и не является покупкой: он не даёт Data, чипов, ' +
+          'ускорений или иных игровых преимуществ.\n' +
+          '2. Оплата проходит в Telegram Stars. Возврат возможен по запросу через /paysupport.\n' +
+          '3. Игра вымышленная (12+), не обучает реальному взлому.\n' +
+          '4. Персональные данные не собираются: нам виден только ваш Telegram ID и номер чека.',
+        parse_mode: 'HTML',
+      });
+      return sendJson(res, 200, { ok: true, terms: true });
+    }
+
+    if (text.startsWith('/refund')) {
+      const adminIds = (process.env.ADMIN_TG_IDS || '')
+        .split(',')
+        .map((v) => v.trim())
+        .filter(Boolean);
+      const fromId = String(update.message?.from?.id ?? '');
+      if (!fromId || !adminIds.includes(fromId)) {
+        await tgApi(botToken, 'sendMessage', {
+          chat_id: chatId,
+          text: 'Возврат оформляется через поддержку: /paysupport',
+        });
+        return sendJson(res, 200, { ok: true });
+      }
+      const chargeId = text.replace('/refund', '').trim();
+      const donation = chargeId ? await findDonationByChargeId(chargeId) : null;
+      if (!donation) {
+        await tgApi(botToken, 'sendMessage', { chat_id: chatId, text: 'Платёж не найден.' });
+        return sendJson(res, 200, { ok: true });
+      }
+      const refund = await tgApi(botToken, 'refundStarPayment', {
+        user_id: donation.tgId,
+        telegram_payment_charge_id: donation.chargeId,
+      });
+      if (refund.ok) await markDonationRefunded(donation.chargeId);
+      await tgApi(botToken, 'sendMessage', {
+        chat_id: chatId,
+        text: refund.ok
+          ? `↩️ Возврат ${formatStars(donation.stars)} оформлен.`
+          : `❌ Возврат не удался: ${refund.description ?? 'неизвестная ошибка'}`,
+      });
+      return sendJson(res, 200, { ok: true, refunded: refund.ok });
     }
 
     let messageText =
@@ -236,6 +503,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
                 web_app: { url: webAppUrl },
               },
             ],
+            // Донат добровольный: игра полностью играбельна бесплатно.
+            [{ text: '⭐ Поддержать проект', callback_data: 'donate:menu' }],
           ],
         },
       }),

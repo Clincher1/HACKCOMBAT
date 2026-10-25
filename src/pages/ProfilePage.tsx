@@ -5,6 +5,7 @@ import {
   PUBLIC_ACHIEVEMENTS_COUNT,
 } from '../../shared/achievements.config';
 import { AchievementsPanel } from '../components/AchievementsPanel';
+import { DonateCard } from '../components/DonateCard';
 import { getPrestigeRequiredLevel } from '../../shared/mechanics';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -328,6 +329,10 @@ export const ProfilePage: React.FC = () => {
       ) : (
         <AchievementsPanel />
       )}
+
+      {/* Донат (Telegram Stars): карточка внизу профиля, чтобы не дублировать
+          навигацию на рабочем столе и не мешать тапать. */}
+      <DonateCard />
 
       {/* Обязательное уведомление юридической безопасности (раздел 9 ТЗ) */}
       <div className="rounded-xl bg-[#0b1020] border border-slate-800/80 p-3 text-[10px] text-slate-400 leading-relaxed flex items-start gap-2">

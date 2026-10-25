@@ -70,4 +70,23 @@ export const gameApi = {
     apiRequest<ApiSyncResponse>('/api/track', 'POST', { event, value }),
   leaderboard: () =>
     apiRequest<{ ok: true; entries: LeaderboardEntry[] }>('/api/leaderboard', 'GET'),
+  // v3.4: донат. Сервер сам сверяет сумму со своим конфигом — клиент может
+  // попросить только одну из фиксированных сумм.
+  donateInfo: () =>
+    apiRequest<{
+      ok: true;
+      enabled: boolean;
+      currency: string;
+      minStars: number;
+      maxStars: number;
+      tiers: number[];
+      botUsername: string | null;
+    }>('/api/donate', 'GET'),
+  donateLink: (stars: number) =>
+    apiRequest<{
+      ok: true;
+      invoiceLink: string;
+      stars: number;
+      summary: { count: number; stars: number };
+    }>('/api/donate', 'POST', { stars }),
 };
