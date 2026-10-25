@@ -61,6 +61,7 @@ async function main() {
   await tgCall('setMyCommands', {
     commands: [
       { command: 'start', description: 'Запустить HACKER KOMBAT' },
+      { command: 'invite', description: 'Пригласи друга и получи бонус' },
       { command: 'help', description: 'Как играть и механики' },
       { command: 'legal', description: 'Правовая информация (12+)' },
       { command: 'donate', description: 'Поддержать проект (Telegram Stars)' },

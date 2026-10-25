@@ -5,6 +5,8 @@ export interface VerifiedTelegramUser {
   username: string;
   firstName?: string;
   isVerifiedTelegram: boolean;
+  /** start_param из подписанного initData (например, "ref_ab12cd34"). */
+  startParam?: string;
 }
 
 
@@ -118,11 +120,18 @@ export function verifyTelegramInitData(
       throw new Error('Invalid Telegram user ID');
     }
 
+    // start_param подписан вместе с остальными полями initData, поэтому код
+    // приглашения доверенный: подставить чужой код из DevTools нельзя.
+    const rawStartParam = params.get('start_param') ?? params.get('startapp') ?? '';
+    const startParam =
+      rawStartParam && /^[a-z0-9_:-]{1,64}$/i.test(rawStartParam) ? rawStartParam : undefined;
+
     return {
       tgId,
       username: sanitizeUsername(parsed.username || parsed.first_name, tgId),
       firstName: parsed.first_name ? sanitizeUsername(parsed.first_name, tgId) : undefined,
       isVerifiedTelegram: true,
+      startParam,
     };
   }
 

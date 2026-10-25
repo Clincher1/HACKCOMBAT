@@ -19,6 +19,12 @@ import {
   tgApi,
   validatePreCheckoutQuery,
 } from '../_lib/donations';
+import {
+  buildReferralLink,
+  getOrCreateReferralCode,
+  getReferralStats,
+} from '../_lib/referrals';
+import { REFERRAL_QUALIFY_ACTIVE_SECONDS, REFERRAL_RULES_SHORT } from '../../shared/referral.config';
 import { readJsonBody, sendJson, type ApiRequest, type ApiResponse } from '../_lib/http';
 import { isRealBotToken } from '../_lib/telegramAuth';
 
@@ -69,6 +75,37 @@ function escapeHtml(text: string): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+/**
+ * Экран «Пригласи друга» (v3.5). Один и тот же текст для /invite и кнопки.
+ * Ссылка ведёт на мини-апп с startapp=ref_<код>: код приезжает в подписанном
+ * initData, поэтому подделать «кто меня позвал» нельзя.
+ */
+async function sendReferralScreen(
+  token: string,
+  chatId: number,
+  tgId: number,
+  webAppUrl: string
+): Promise<void> {
+  if (!token) return;
+  const code = await getOrCreateReferralCode(tgId);
+  const me = await tgApi<{ username?: string }>(token, 'getMe');
+  const link = buildReferralLink(me.ok ? me.result?.username ?? null : null, code);
+  const stats = await getReferralStats(tgId, code);
+
+  await tgApi(token, 'sendMessage', {
+    chat_id: chatId,
+    text:
+      `🔗 <b>Пригласи друга в HACKER KOMBAT</b>\n\n` +
+      `Твоя ссылка:\n<code>${escapeHtml(link ?? 'недоступна')}</code>\n\n` +
+      `${escapeHtml(REFERRAL_RULES_SHORT)}\n\n` +
+      `Уже засчитано: <b>${stats.qualified}</b> из ${stats.invited} приглашённых.`,
+    parse_mode: 'HTML',
+    reply_markup: webAppUrl
+      ? { inline_keyboard: [[{ text: '🚀 Открыть игру', web_app: { url: webAppUrl } }]] }
+      : undefined,
+  });
 }
 
 /**
@@ -177,6 +214,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       }),
     }).then((r) => r.json());
 
+    // Команды в меню ☰: раньше они жили только в локальном bot/setup-bot.mjs,
+    // поэтому /donate, /paysupport, /terms и /invite не появлялись у игроков.
+    const commandsRes = await fetch(`https://api.telegram.org/bot${botToken}/setMyCommands`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        commands: [
+          { command: 'start', description: 'Запустить HACKER KOMBAT' },
+          { command: 'invite', description: 'Пригласи друга и получи бонус' },
+          { command: 'donate', description: 'Поддержать проект (Telegram Stars)' },
+          { command: 'paysupport', description: 'Помощь по платежам и возврат' },
+          { command: 'terms', description: 'Условия донатов' },
+          { command: 'help', description: 'Как играть и механики' },
+          { command: 'legal', description: 'Правовая информация (12+)' },
+        ],
+      }),
+    }).then((r) => r.json()).catch(() => null);
+
     const menuRes = await fetch(`https://api.telegram.org/bot${botToken}/setChatMenuButton`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -199,7 +254,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       ? infoRes.result.allowed_updates
       : [];
     return sendJson(res, 200, {
-      ok: Boolean(whRes.ok && menuRes.ok),
+      ok: Boolean(whRes.ok && menuRes.ok && (commandsRes?.ok ?? false)),
+      commandsRegistered: Boolean(commandsRes?.ok),
       botUsername: meRes?.result?.username || null,
       webhookUrl,
       webAppUrl,
@@ -376,6 +432,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       const data = String(cq.data ?? '');
       await tgApi(botToken ?? '', 'answerCallbackQuery', { callback_query_id: cq.id });
 
+      if (cqChatId && data === 'invite:menu') {
+        // Переиспользуем тот же экран, что и команда /invite.
+        await sendReferralScreen(botToken ?? '', cqChatId, cq.from?.id ?? cqChatId, webAppUrl);
+        return sendJson(res, 200, { ok: true });
+      }
+
       if (cqChatId && data.startsWith('donate:')) {
         const raw = data.slice('donate:'.length);
         const stars = raw === 'menu' ? null : Number(raw);
@@ -391,6 +453,34 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
     if (!chatId || !Number.isSafeInteger(chatId) || !botToken) {
       return sendJson(res, 200, { ok: true, note: 'Webhook acknowledged' });
+    }
+
+    // --- Рефералка ------------------------------------------------------------
+    // Переход по «бот-ссылке» t.me/<bot>?start=ref_<код>: превращаем её в
+    // кнопку на мини-апп с startapp — только так Telegram передаст start_param
+    // внутрь приложения (и код попадёт в подписанный initData).
+    if (text.startsWith('/start ref_')) {
+      const incomingCode = text.slice('/start '.length).trim().toLowerCase().slice(4);
+      const me = await tgApi<{ username?: string }>(botToken, 'getMe');
+      const botName = me.ok ? me.result?.username : null;
+      if (botName && /^[a-z0-9]{8}$/.test(incomingCode)) {
+        const appLink = `https://t.me/${botName}?startapp=ref_${incomingCode}`;
+        await tgApi(botToken, 'sendMessage', {
+          chat_id: chatId,
+          text:
+            '🔗 <b>Тебя пригласили в HACKER KOMBAT</b>\n\n' +
+            'Жми кнопку ниже — и получишь стартовый бонус.\n' +
+            '<i>Донат и покупки не нужны: игра бесплатная.</i>',
+          parse_mode: 'HTML',
+          reply_markup: { inline_keyboard: [[{ text: '🚀 Принять приглашение', url: appLink }]] },
+        });
+        return sendJson(res, 200, { ok: true, inviteAccepted: true });
+      }
+    }
+
+    if (text.startsWith('/invite')) {
+      await sendReferralScreen(botToken, chatId, update.message?.from?.id ?? chatId, webAppUrl);
+      return sendJson(res, 200, { ok: true, invite: true });
     }
 
     // --- Команды донат-контура ------------------------------------------------
@@ -517,6 +607,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
             ],
             // Донат добровольный: игра полностью играбельна бесплатно.
             [{ text: '⭐ Поддержать проект', callback_data: 'donate:menu' }],
+            [{ text: '🔗 Пригласи друга', callback_data: 'invite:menu' }],
           ],
         },
       }),

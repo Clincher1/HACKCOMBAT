@@ -91,6 +91,8 @@ export const BaseUpgradeList: React.FC = () => {
                 >
                   {isMax ? (
                     'МАКСИМУМ'
+                  ) : isBusy ? (
+                    '⏳ Покупаю…'
                   ) : levelLocked ? (
                     <span className="inline-flex items-center justify-center gap-1">
                       <Lock className="w-3 h-3" /> Ур. {cfg.requiredLevel}
