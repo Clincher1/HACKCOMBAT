@@ -1040,7 +1040,8 @@ function buildResponse(
   mode: 'supabase' | 'memory-fallback',
   alerts: GameAlert[] = [],
   offlineEarned = 0,
-  offlineTaps = 0
+  offlineTaps = 0,
+  appliedClicks?: number
 ): ApiSyncResponse {
   const derived = deriveStats(record);
 
@@ -1096,6 +1097,7 @@ function buildResponse(
     offlineEarned: offlineEarned > 0 ? offlineEarned : undefined,
     offlineTaps: offlineTaps > 0 ? offlineTaps : undefined,
     alerts: alerts.length > 0 ? alerts : undefined,
+    appliedClicks,
     storageMode: mode,
   };
 }
@@ -1114,78 +1116,110 @@ export async function handleInitPlayer(user: VerifiedTelegramUser): Promise<ApiS
   });
 }
 
+/**
+ * Применяет к записи пачку кликов с серверным анти-читом (v3.3).
+ * Используется и самим /api/click, и «хвостом» кликов внутри покупок:
+ * так между тапом и покупкой нет второго сетевого круга, а сервер видит
+ * актуальный баланс и не отвечает «Недостаточно Data» на устаревшие данные.
+ *
+ * Возвращает, сколько кликов реально зачтено (клиент досылает остаток).
+ */
+async function applyPendingClicks(
+  record: StoredPlayerRecord,
+  mode: 'supabase' | 'memory-fallback',
+  requestedClicks: number,
+  /**
+   * Минимальный «человеческий» всплеск. Клиент прикладывает к покупке пачку
+   * не больше 20 кликов (CLICK_MAX_BATCH), поэтому для покупок разрешаем их
+   * целиком — иначе игрок, тапнувший 20 раз и сразу купивший, получал бы
+   * ложное «Недостаточно Data». Доход всё равно ограничен энергией.
+   */
+  minBurst = 1
+): Promise<number> {
+  const count = Math.floor(Number(requestedClicks) || 0);
+  if (count <= 0) return 0;
+
+  const nowMs = Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  if (record.clickBlockedUntil && new Date(record.clickBlockedUntil).getTime() > nowMs) {
+    return 0;
+  }
+
+  // Серверный Anti-Cheat кликов (v3.1 — дружелюбнее к живому пальцу):
+  // 1) не более 60 кликов в одной пачке (клиент отправляет по 20);
+  // 2) не более 30 кликов/сек — это вдвое быстрее, чем реально тапает человек,
+  //    но всё ещё не даёт скрипту «бесконечный» поток;
+  // 3) главный ограничитель — энергия: каждый клик её сжигает, запас не бесконечен.
+  const rawCount = Math.max(0, Math.min(60, count));
+  let allowedByRate = rawCount;
+  if (record.lastClickBatchAt > 0) {
+    const elapsedSec = Math.max(0.15, (nowMs - record.lastClickBatchAt) / 1000);
+    const maxHumanBurst = Math.max(minBurst, Math.ceil(elapsedSec * 30));
+    allowedByRate = Math.min(rawCount, maxHumanBurst);
+  } else {
+    allowedByRate = Math.min(rawCount, Math.max(minBurst, 30));
+  }
+
+  const validClicks = Math.min(allowedByRate, record.energy);
+  if (validClicks <= 0) return 0;
+
+  const prevTotalClicks = record.totalClicks;
+  const derived = deriveStats(record);
+
+  // Атомарная кросс-Lambda проверка на уровне PostgreSQL (защита от параллельного флуда с 10 инстансов)
+  if (mode === 'supabase') {
+    const sb = getSupabaseAdmin();
+    if (sb) {
+      const { data: lockedRow } = await sb
+        .from('players')
+        .update({
+          total_clicks: prevTotalClicks + validClicks,
+          energy_updated: nowIso,
+        })
+        .eq('id', record.id)
+        .eq('total_clicks', prevTotalClicks)
+        .select('id');
+      if (!lockedRow || lockedRow.length === 0) {
+        return 0;
+      }
+    }
+  }
+
+  record.energy = Math.max(0, record.energy - validClicks);
+  record.energyUpdated = nowIso;
+  record.data += validClicks * derived.clickPower;
+  record.totalClicks = prevTotalClicks + validClicks;
+  record.lastClickBatchAt = nowMs;
+  return validClicks;
+}
+
 export async function handleClickBatch(
   user: VerifiedTelegramUser,
   requestedClicks: number
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
-    const prevTotalClicks = record.totalClicks;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
 
     const nowMs = Date.now();
-    const nowIso = new Date(nowMs).toISOString();
-
     if (record.clickBlockedUntil && new Date(record.clickBlockedUntil).getTime() > nowMs) {
       await savePlayerCore(record, mode);
-      return buildResponse(record, mode, alerts);
+      return buildResponse(record, mode, alerts, 0, 0, 0);
     }
 
-    // Серверный Anti-Cheat кликов (v3.1 — дружелюбнее к живому пальцу):
-    // 1) не более 60 кликов в одной пачке (клиент отправляет по 20);
-    // 2) не более 30 кликов/сек — это вдвое быстрее, чем реально тапает человек,
-    //    но всё ещё не даёт скрипту «бесконечный» поток;
-    // 3) главный ограничитель — энергия: каждый клик её сжигает, запас не бесконечен.
-    const rawCount = Math.max(0, Math.min(60, Math.floor(Number(requestedClicks) || 0)));
-    let allowedByRate = rawCount;
-    if (record.lastClickBatchAt > 0) {
-      const elapsedSec = Math.max(0.15, (nowMs - record.lastClickBatchAt) / 1000);
-      const maxHumanBurst = Math.max(1, Math.ceil(elapsedSec * 30));
-      allowedByRate = Math.min(rawCount, maxHumanBurst);
-    } else {
-      allowedByRate = Math.min(rawCount, 30);
-    }
-
-    const validClicks = Math.min(allowedByRate, record.energy);
-    if (validClicks > 0) {
-      const derived = deriveStats(record);
-
-      // Атомарная кросс-Lambda проверка на уровне PostgreSQL (защита от параллельного флуда с 10 инстансов)
-      if (mode === 'supabase') {
-        const sb = getSupabaseAdmin();
-        if (sb) {
-          const { data: lockedRow } = await sb
-            .from('players')
-            .update({
-              total_clicks: prevTotalClicks + validClicks,
-              energy_updated: nowIso,
-            })
-            .eq('id', record.id)
-            .eq('total_clicks', prevTotalClicks)
-            .select('id');
-          if (!lockedRow || lockedRow.length === 0) {
-            return buildResponse(record, mode, alerts);
-          }
-        }
-      }
-
-      record.energy = Math.max(0, record.energy - validClicks);
-      record.energyUpdated = nowIso;
-      record.data += validClicks * derived.clickPower;
-      record.totalClicks = prevTotalClicks + validClicks;
-      record.lastClickBatchAt = nowMs;
-    }
+    const applied = await applyPendingClicks(record, mode, requestedClicks);
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, applied);
   });
 }
 
 export async function handleBuyCard(
   user: VerifiedTelegramUser,
-  cardKey: string
+  cardKey: string,
+  pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const card = CARDS_CONFIG.find((c) => c.key === cardKey);
@@ -1196,6 +1230,10 @@ export async function handleBuyCard(
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const prevDerived = deriveStats(record);
 
@@ -1276,16 +1314,22 @@ export async function handleBuyCard(
     }
 
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
 /** Открытие следующего Тира карточек за Чипы + Data. */
-export async function handleUnlockTier(user: VerifiedTelegramUser): Promise<ApiSyncResponse> {
+export async function handleUnlockTier(user: VerifiedTelegramUser,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const nextTier = record.cardTier + 1;
     if (nextTier > CARD_TIERS.length) {
@@ -1321,14 +1365,15 @@ export async function handleUnlockTier(user: VerifiedTelegramUser): Promise<ApiS
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
 /** Покупка уровня пассивного улучшения «База» (переживает престиж). */
 export async function handleBuyBaseUpgrade(
   user: VerifiedTelegramUser,
-  upgradeKey: string
+  upgradeKey: string,
+  pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const cfg = getBaseUpgradeConfig(upgradeKey);
@@ -1339,6 +1384,10 @@ export async function handleBuyBaseUpgrade(
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const currentLevel = record.baseUpgrades[cfg.key] ?? 0;
     if (currentLevel >= cfg.maxLevel) {
@@ -1376,13 +1425,14 @@ export async function handleBuyBaseUpgrade(
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
 export async function handleHireNpc(
   user: VerifiedTelegramUser,
-  npcKey: string
+  npcKey: string,
+  pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const npc = TEAM_CONFIG.find((n) => n.key === npcKey);
@@ -1393,6 +1443,10 @@ export async function handleHireNpc(
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     if (record.team.includes(npc.key)) {
       throw new Error('Специалист уже в вашей команде');
@@ -1452,19 +1506,24 @@ export async function handleHireNpc(
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
 export async function handleMissionAction(
   user: VerifiedTelegramUser,
   action: 'start' | 'claim' | 'skip' | 'refresh',
-  payload: { missionKey?: string; missionId?: string }
+  payload: { missionKey?: string; missionId?: string },
+  pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const derived = deriveStats(record);
 
@@ -1474,7 +1533,7 @@ export async function handleMissionAction(
       record.availableMissionKeys = nextOffer.keys;
       record.missionsRefreshedAt = new Date().toISOString();
       await savePlayerCore(record, mode);
-      return buildResponse(record, mode, alerts);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
     if (action === 'start') {
@@ -1593,7 +1652,7 @@ export async function handleMissionAction(
       });
 
       await savePlayerCore(record, mode);
-      return buildResponse(record, mode, alerts);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
     // Атомарное завершение миссии (claim / skip) — 100% защита от двойного забора награды параллельными запросами!
@@ -1746,16 +1805,22 @@ export async function handleMissionAction(
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
-export async function handleDailyBonus(user: VerifiedTelegramUser): Promise<ApiSyncResponse> {
+export async function handleDailyBonus(user: VerifiedTelegramUser,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const prevDailyClaim = record.lastDailyClaim;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const nowMs = Date.now();
     const nowIso = new Date(nowMs).toISOString();
@@ -1815,23 +1880,28 @@ export async function handleDailyBonus(user: VerifiedTelegramUser): Promise<ApiS
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
   action: 'buy_or_equip' | 'clear_lockdown',
-  skinKey?: string
+  skinKey?: string,
+  pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     if (action === 'clear_lockdown') {
       if (!record.clickBlockedUntil) {
-        return buildResponse(record, mode, alerts);
+        return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
       }
       if (record.crypto < 2) {
         throw new Error('Нужно 2 💎 Crypto для мгновенного сброса блокировки терминала');
@@ -1845,7 +1915,7 @@ export async function handleSkinAction(
         message: 'Новый прокси-туннель активирован — терминал снова в строю!',
       });
       await savePlayerCore(record, mode);
-      return buildResponse(record, mode, alerts);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
     const skin = SKINS_CONFIG.find((s) => s.key === skinKey);
@@ -1880,18 +1950,23 @@ export async function handleSkinAction(
     }
 
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
 export async function handleGlobalHackPrestige(
-  user: VerifiedTelegramUser
+  user: VerifiedTelegramUser,
+  pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const expectedPrestige = record.prestigeCount;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const derived = deriveStats(record);
 
@@ -1947,7 +2022,7 @@ export async function handleGlobalHackPrestige(
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 
@@ -1955,7 +2030,8 @@ export async function handleGlobalHackPrestige(
 export async function handlePetAction(
   user: VerifiedTelegramUser,
   action: 'buy' | 'feed',
-  petKey: string
+  petKey: string,
+  pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const cfg = PETS_CONFIG.find((p) => p.key === petKey);
@@ -1966,6 +2042,10 @@ export async function handlePetAction(
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
+    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
+    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const owned = record.pets.find((p) => p.key === cfg.key);
     const nowMs = Date.now();
@@ -2031,7 +2111,7 @@ export async function handlePetAction(
 
       await syncTimeAndRules(record, mode, alerts);
       await savePlayerCore(record, mode);
-      return buildResponse(record, mode, alerts);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
     // ---- feed ----
@@ -2086,7 +2166,7 @@ export async function handlePetAction(
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
-    return buildResponse(record, mode, alerts);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
 

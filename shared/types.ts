@@ -304,6 +304,8 @@ export interface ApiSyncResponse {
   offlineEarned?: number;
   /** Сколько «фоновых тапов» накопилось за отсутствие (для окна «пока вас не было»). */
   offlineTaps?: number;
+  /** v3.3: сколько кликов из присланного «хвоста» сервер реально зачёл (остаток клиент досылает). */
+  appliedClicks?: number;
   alerts?: GameAlert[];
   storageMode: 'supabase' | 'memory-fallback';
 }

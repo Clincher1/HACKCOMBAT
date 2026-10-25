@@ -3,6 +3,7 @@ import {
   authenticateRequest,
   enforceHttpSecurity,
   readJsonBody,
+  sanitizeClicks,
   sendJson,
   type ApiRequest,
   type ApiResponse,
@@ -14,9 +15,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }
   try {
-    const body = await readJsonBody<{ initData?: string }>(req);
+    const body = await readJsonBody<{ clicks?: number; initData?: string }>(req);
     const user = authenticateRequest(req, body);
-    const result = await handleGlobalHackPrestige(user);
+    const result = await handleGlobalHackPrestige(user, sanitizeClicks(body.clicks));
     return sendJson(res, 200, result);
   } catch (err) {
     return sendJson(res, 400, {

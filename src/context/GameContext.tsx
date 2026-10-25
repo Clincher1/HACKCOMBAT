@@ -91,6 +91,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [player, setPlayer] = useState<PlayerState | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const busyKeyRef = useRef<string | null>(null);
   const [storageMode, setStorageMode] = useState<'supabase' | 'memory-fallback'>('memory-fallback');
   const [alerts, setAlerts] = useState<GameAlert[]>([]);
   const [offlineModalEarned, setOfflineModalEarned] = useState<number | null>(null);
@@ -125,6 +126,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const pendingClicksRef = useRef<number>(0);
   const flushingRef = useRef<boolean>(false);
+  /** Промис текущей отправки кликов: покупка не должна обгонять её (иначе сервер видит старый баланс). */
+  const inflightClickRef = useRef<Promise<unknown> | null>(null);
   const flushTimerRef = useRef<number | null>(null);
   const lastFlushAtRef = useRef<number>(0);
   const backoffUntilRef = useRef<number>(0);
@@ -216,8 +219,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       flushingRef.current = true;
       lastFlushAtRef.current = now;
 
+      const request = gameApi.clickBatch(countToSend);
+      inflightClickRef.current = request;
       try {
-        const res = await gameApi.clickBatch(countToSend);
+        const res = await request;
         applyServerSync(res);
       } catch (err) {
         const status = err instanceof ApiError ? err.status : 0;
@@ -238,6 +243,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       } finally {
         flushingRef.current = false;
+        inflightClickRef.current = null;
         if (pendingClicksRef.current > 0) {
           scheduleFlush(CLICK_MIN_GAP_MS);
         }
@@ -382,15 +388,44 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   }, [flushClicks, scheduleFlush, lockdownRemainingSec, player]);
 
+  /**
+   * v3.3 — быстрые покупки без гонки.
+   *
+   * Раньше «досылание» кликов и сама покупка были двумя отдельными запросами,
+   * и если пачка кликов уже летела, покупка обгоняла её — сервер видел старый
+   * баланс и отвечал «Недостаточно Data», хотя на экране деньги были.
+   *
+   * Теперь: (1) ждём уже отправленную пачку (не дольше 1.5 с), (2) остаток
+   * неотправленных кликов прикладываем к самой покупке (`clicks` в теле запроса).
+   * Итог — один сетевой круг и никаких ложных отказов.
+   */
   const runAction = useCallback(
-    async (key: string, fn: () => Promise<ApiSyncResponse>, playUpgradeTone = false) => {
+    async (
+      key: string,
+      fn: (clicks: number) => Promise<ApiSyncResponse>,
+      playUpgradeTone = false,
+      vibrate: 'none' | 'light' = 'none'
+    ) => {
+      if (vibrate === 'light') triggerHapticImpact('light');
+      if (busyKeyRef.current === key) return;
+      busyKeyRef.current = key;
       setBusyKey(key);
+
+      const inflight = inflightClickRef.current;
+      if (inflight) {
+        // Ждём отправку, чтобы сервер не увидел устаревший баланс. Если сеть тормозит —
+        // не блокируем покупку дольше 1.5 с, сервер всё равно авторитетен.
+        await Promise.race([
+          inflight.catch(() => undefined),
+          new Promise((resolve) => window.setTimeout(resolve, 1_500)),
+        ]);
+      }
+
+      const clicksToSend = Math.max(0, pendingClicksRef.current);
+      if (clicksToSend > 0) pendingClicksRef.current -= clicksToSend;
+
       try {
-        if (pendingClicksRef.current > 0) {
-          // Перед покупкой важно «дослать» клики прямо сейчас, иначе сервер увидит старое Data.
-          await flushClicks(true);
-        }
-        const res = await fn();
+        const res = await fn(clicksToSend);
         if (playUpgradeTone) {
           cyberSound.playUpgrade();
           triggerHapticImpact('medium');
@@ -399,75 +434,100 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lastBuyAtRef.current = Date.now();
           freezeReportedRef.current = false;
         }
+        // Сервер мог зачесть не все клики (античит/энергия) — остаток вернём в очередь.
+        const applied = res.appliedClicks ?? clicksToSend;
+        const leftover = clicksToSend - applied;
+        if (leftover > 0) {
+          pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
+          scheduleFlush(CLICK_MIN_GAP_MS);
+        }
         applyServerSync(res);
       } catch (err) {
+        if (clicksToSend > 0) {
+          // Сервер отвечает ошибкой уже ПОСЛЕ того, как зафиксировал хвост кликов,
+          // поэтому повторять их нельзя — иначе начислим дважды. Возвращаем в очередь
+          // только при сетевом сбое, когда запрос мог вообще не дойти.
+          if (!(err instanceof ApiError)) {
+            pendingClicksRef.current = Math.min(pendingClicksRef.current + clicksToSend, CLICK_QUEUE_LIMIT);
+            scheduleFlush(900);
+          }
+        }
+        // В любом случае подтягиваем правду с сервера: баланс не должен «врать».
+        void gameApi
+          .init()
+          .then((res) => applyServerSync(res))
+          .catch(() => {});
         pushClientAlert({
           type: 'warning',
           title: 'Операция отклонена',
           message: err instanceof Error ? err.message : 'Ошибка запроса',
         });
       } finally {
+        busyKeyRef.current = null;
         setBusyKey(null);
       }
     },
-    [applyServerSync, flushClicks, pushClientAlert]
+    [applyServerSync, pushClientAlert, scheduleFlush]
   );
 
   const buyCard = useCallback(
-    (cardKey: string) => runAction(`card:${cardKey}`, () => gameApi.buyCard(cardKey), true),
+    (cardKey: string) =>
+      runAction(`card:${cardKey}`, (clicks) => gameApi.buyCard(cardKey, clicks), true, 'light'),
     [runAction]
   );
 
   const startMission = useCallback(
     (missionKey: string) =>
-      runAction(`mission:start:${missionKey}`, () =>
-        gameApi.missionAction('start', { missionKey }),
-        true
+      runAction(`mission:start:${missionKey}`, (clicks) =>
+        gameApi.missionAction('start', { missionKey }, clicks),
+        true,
+        'light'
       ),
     [runAction]
   );
 
   const claimMission = useCallback(
     (missionId: string) =>
-      runAction(`mission:claim:${missionId}`, () =>
-        gameApi.missionAction('claim', { missionId })
+      runAction(`mission:claim:${missionId}`, (clicks) =>
+        gameApi.missionAction('claim', { missionId }, clicks)
       ),
     [runAction]
   );
 
   const skipMission = useCallback(
     (missionId: string) =>
-      runAction(`mission:skip:${missionId}`, () =>
-        gameApi.missionAction('skip', { missionId }),
-        true
+      runAction(`mission:skip:${missionId}`, (clicks) =>
+        gameApi.missionAction('skip', { missionId }, clicks),
+        true,
+        'light'
       ),
     [runAction]
   );
 
   const refreshMissions = useCallback(
-    () => runAction('mission:refresh', () => gameApi.missionAction('refresh'), true),
+    () => runAction('mission:refresh', (clicks) => gameApi.missionAction('refresh', undefined, clicks), true, 'light'),
     [runAction]
   );
 
   const hireNpc = useCallback(
-    (npcKey: string) => runAction(`hire:${npcKey}`, () => gameApi.hireNpc(npcKey), true),
+    (npcKey: string) => runAction(`hire:${npcKey}`, (clicks) => gameApi.hireNpc(npcKey, clicks), true, 'light'),
     [runAction]
   );
 
   const unlockTier = useCallback(
-    () => runAction('tier', () => gameApi.unlockTier(), true),
+    () => runAction('tier', (clicks) => gameApi.unlockTier(clicks), true, 'light'),
     [runAction]
   );
 
   const buyBaseUpgrade = useCallback(
     (upgradeKey: string) =>
-      runAction(`base:${upgradeKey}`, () => gameApi.buyBaseUpgrade(upgradeKey), true),
+      runAction(`base:${upgradeKey}`, (clicks) => gameApi.buyBaseUpgrade(upgradeKey, clicks), true, 'light'),
     [runAction]
   );
 
   const petAction = useCallback(
     (action: 'buy' | 'feed', petKey: string) =>
-      runAction(`pet:${action}:${petKey}`, () => gameApi.petAction(action, petKey), true),
+      runAction(`pet:${action}:${petKey}`, (clicks) => gameApi.petAction(action, petKey, clicks), true, 'light'),
     [runAction]
   );
 
@@ -486,23 +546,23 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const claimDailyBonus = useCallback(
-    () => runAction('daily', () => gameApi.claimDaily(), true),
+    () => runAction('daily', (clicks) => gameApi.claimDaily(clicks), true, 'light'),
     [runAction]
   );
 
   const buyOrEquipSkin = useCallback(
     (skinKey: string) =>
-      runAction(`skin:${skinKey}`, () => gameApi.skinAction('buy_or_equip', skinKey), true),
+      runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('buy_or_equip', skinKey, clicks), true, 'light'),
     [runAction]
   );
 
   const clearHeatLockdown = useCallback(
-    () => runAction('clear_lockdown', () => gameApi.skinAction('clear_lockdown'), true),
+    () => runAction('clear_lockdown', (clicks) => gameApi.skinAction('clear_lockdown', undefined, clicks), true, 'light'),
     [runAction]
   );
 
   const triggerPrestige = useCallback(
-    () => runAction('prestige', () => gameApi.prestige(), true),
+    () => runAction('prestige', (clicks) => gameApi.prestige(clicks), true, 'light'),
     [runAction]
   );
 

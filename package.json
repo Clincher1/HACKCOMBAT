@@ -13,7 +13,8 @@
     "qa:api": "node scripts/qa/api.mjs",
     "qa:clicks": "node scripts/qa/clicks.mjs",
     "qa:offline": "node scripts/qa/offline-v32.mjs",
-    "qa:all": "npm run build && npm run qa:offline"
+    "qa:all": "npm run build && npm run qa:offline && npm run qa:buy",
+    "qa:buy": "node scripts/qa/buy-fast.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
