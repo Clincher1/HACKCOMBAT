@@ -42,24 +42,30 @@ async function apiRequest<T>(path: string, method: 'GET' | 'POST' = 'POST', body
   return json;
 }
 
+// v3.3: «хвост» кликов — если игрок только что тапал, остаток неотправленных
+// тапов уезжает вместе с покупкой. Один сетевой круг вместо двух: покупка
+// ощущается мгновенной, и сервер уже видит свежий баланс.
 export const gameApi = {
   init: () => apiRequest<ApiSyncResponse>('/api/init', 'POST'),
   clickBatch: (clicks: number) => apiRequest<ApiSyncResponse>('/api/click', 'POST', { clicks }),
-  buyCard: (cardKey: string) => apiRequest<ApiSyncResponse>('/api/buy-card', 'POST', { cardKey }),
+  buyCard: (cardKey: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/buy-card', 'POST', { cardKey, clicks }),
   missionAction: (
     action: 'start' | 'claim' | 'skip' | 'refresh',
-    payload?: { missionKey?: string; missionId?: string }
-  ) => apiRequest<ApiSyncResponse>('/api/missions', 'POST', { action, ...payload }),
-  hireNpc: (npcKey: string) => apiRequest<ApiSyncResponse>('/api/hire', 'POST', { npcKey }),
-  claimDaily: () => apiRequest<ApiSyncResponse>('/api/daily', 'POST'),
-  skinAction: (action: 'buy_or_equip' | 'clear_lockdown', skinKey?: string) =>
-    apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey }),
-  prestige: () => apiRequest<ApiSyncResponse>('/api/prestige', 'POST'),
-  unlockTier: () => apiRequest<ApiSyncResponse>('/api/tier', 'POST'),
-  buyBaseUpgrade: (upgradeKey: string) =>
-    apiRequest<ApiSyncResponse>('/api/base', 'POST', { upgradeKey }),
-  petAction: (action: 'buy' | 'feed', petKey: string) =>
-    apiRequest<ApiSyncResponse>('/api/pets', 'POST', { action, petKey }),
+    payload?: { missionKey?: string; missionId?: string },
+    clicks = 0
+  ) => apiRequest<ApiSyncResponse>('/api/missions', 'POST', { action, clicks, ...payload }),
+  hireNpc: (npcKey: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/hire', 'POST', { npcKey, clicks }),
+  claimDaily: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/daily', 'POST', { clicks }),
+  skinAction: (action: 'buy_or_equip' | 'clear_lockdown', skinKey?: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
+  prestige: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/prestige', 'POST', { clicks }),
+  unlockTier: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/tier', 'POST', { clicks }),
+  buyBaseUpgrade: (upgradeKey: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/base', 'POST', { upgradeKey, clicks }),
+  petAction: (action: 'buy' | 'feed', petKey: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/pets', 'POST', { action, petKey, clicks }),
   track: (event: string, value?: number) =>
     apiRequest<ApiSyncResponse>('/api/track', 'POST', { event, value }),
   leaderboard: () =>

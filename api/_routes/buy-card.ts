@@ -3,6 +3,7 @@ import {
   authenticateRequest,
   enforceHttpSecurity,
   readJsonBody,
+  sanitizeClicks,
   sendJson,
   type ApiRequest,
   type ApiResponse,
@@ -14,12 +15,12 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }
   try {
-    const body = await readJsonBody<{ cardKey?: string; initData?: string }>(req);
+    const body = await readJsonBody<{ cardKey?: string; clicks?: number; initData?: string }>(req);
     const user = authenticateRequest(req, body);
     if (!body.cardKey || typeof body.cardKey !== 'string') {
       return sendJson(res, 400, { ok: false, error: 'cardKey is required' });
     }
-    const result = await handleBuyCard(user, body.cardKey.slice(0, 64));
+    const result = await handleBuyCard(user, body.cardKey.slice(0, 64), sanitizeClicks(body.clicks));
     return sendJson(res, 200, result);
   } catch (err) {
     return sendJson(res, 400, {

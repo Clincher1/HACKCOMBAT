@@ -3,6 +3,7 @@ import {
   authenticateRequest,
   enforceHttpSecurity,
   readJsonBody,
+  sanitizeClicks,
   sendJson,
   type ApiRequest,
   type ApiResponse,
@@ -20,6 +21,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       action?: 'start' | 'claim' | 'skip' | 'refresh';
       missionKey?: string;
       missionId?: string;
+      clicks?: number;
       initData?: string;
     }>(req);
     const user = authenticateRequest(req, body);
@@ -29,7 +31,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const result = await handleMissionAction(user, body.action, {
       missionKey: typeof body.missionKey === 'string' ? body.missionKey.slice(0, 64) : undefined,
       missionId: typeof body.missionId === 'string' ? body.missionId.slice(0, 64) : undefined,
-    });
+    }, sanitizeClicks(body.clicks));
     return sendJson(res, 200, result);
   } catch (err) {
     return sendJson(res, 400, {

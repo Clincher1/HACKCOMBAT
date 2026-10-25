@@ -3,6 +3,7 @@ import {
   authenticateRequest,
   enforceHttpSecurity,
   readJsonBody,
+  sanitizeClicks,
   sendJson,
   type ApiRequest,
   type ApiResponse,
@@ -19,6 +20,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const body = await readJsonBody<{
       action?: 'buy_or_equip' | 'clear_lockdown';
       skinKey?: string;
+      clicks?: number;
       initData?: string;
     }>(req);
     const user = authenticateRequest(req, body);
@@ -29,7 +31,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const result = await handleSkinAction(
       user,
       action,
-      typeof body.skinKey === 'string' ? body.skinKey.slice(0, 64) : undefined
+      typeof body.skinKey === 'string' ? body.skinKey.slice(0, 64) : undefined,
+      sanitizeClicks(body.clicks)
     );
     return sendJson(res, 200, result);
   } catch (err) {

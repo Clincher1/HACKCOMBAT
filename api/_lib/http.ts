@@ -197,3 +197,14 @@ export function authenticateRequest(req: ApiRequest, body?: Record<string, unkno
     decodedDemoName
   );
 }
+
+/**
+ * Клики, присланные «хвостом» вместе с покупкой (v3.3).
+ * Клиент шлёт остаток ещё не отправленных тапов, чтобы сервер видел свежий
+ * баланс за один сетевой круг. Значение всегда зажимается в безопасный диапазон.
+ */
+export function sanitizeClicks(raw: unknown): number {
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(60, n);
+}
