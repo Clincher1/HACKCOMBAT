@@ -193,6 +193,10 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
+    chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
+    chipsToday: num(src.chipsToday, 100_000),
+    chipsCapNotifiedDay:
+      typeof src.chipsCapNotifiedDay === 'string' ? src.chipsCapNotifiedDay.slice(0, 10) : null,
     lastQualifiedDayKey:
       typeof src.lastQualifiedDayKey === 'string' ? src.lastQualifiedDayKey.slice(0, 10) : null,
     lastActiveAt:
@@ -201,6 +205,41 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     offlineGraceUsed: src.offlineGraceUsed === true,
   };
+}
+
+/**
+ * v3.5 — ВЫДАЧА ЧИПОВ С СУТОЧНЫМ ЛИМИТОМ.
+ *
+ * Зачем лимит: Чипы открывают Тиры карточек (60/150/320) и всю Базу (705),
+ * то есть это единственная «долгая» валюта. Без потолка человек с тремя слотами
+ * миссий выбивал весь контент за вечер, и прогрессия теряла смысл.
+ *
+ * CHIP_DAILY_CAP был объявлен в конфиге и даже импортирован, но нигде не
+ * применялся — то есть лимит существовал только на бумаге (в README).
+ * Здесь он наконец работает: считается по игровым суткам (Москва, UTC+3),
+ * тем же ключом, что и активность.
+ *
+ * Достижения награду за Чипы выдают В ОБХОД лимита: они одноразовые и редкие,
+ * поэтому не превращаются в бесконечный фарм.
+ */
+function grantChips(
+  record: StoredPlayerRecord,
+  amount: number,
+  dayKey: string
+): { granted: number; capped: boolean } {
+  if (record.stats.chipsDayKey !== dayKey) {
+    record.stats.chipsDayKey = dayKey;
+    record.stats.chipsToday = 0;
+  }
+  const used = Math.max(0, Math.floor(record.stats.chipsToday ?? 0));
+  const left = Math.max(0, CHIP_DAILY_CAP - used);
+  const requested = Math.max(0, Math.floor(Number(amount) || 0));
+  const granted = Math.min(requested, left);
+  if (granted > 0) {
+    record.chips += granted;
+    record.stats.chipsToday = used + granted;
+  }
+  return { granted, capped: granted < requested };
 }
 
 /** Единая точка расчёта производных характеристик — чтобы сервер и UI считали одинаково. */
@@ -807,6 +846,11 @@ async function syncTimeAndRules(
   if (prevDayKey !== nowDayKey) {
     record.stats.activeDayKey = nowDayKey;
     record.stats.activeSecondsToday = 0;
+  }
+  // Тот же игровой день, что и у активности: лимит Чипов обнуляется.
+  if (record.stats.chipsDayKey !== nowDayKey) {
+    record.stats.chipsDayKey = nowDayKey;
+    record.stats.chipsToday = 0;
   }
   if (prevActiveMs > 0 && nowMs > prevActiveMs && nowMs - prevActiveMs <= ACTIVITY_HEARTBEAT_MAX_GAP_SEC * 1000) {
     const gainedSec = (nowMs - prevActiveMs) / 1000;
@@ -1758,15 +1802,31 @@ export async function handleMissionAction(
     record.totalMissions += 1;
     record.stats.totalXpEarned += xpGain;
 
-    // Чипы начисляются только за ЧИСТЫЙ успех.
-    const chipsGained =
+    // Чипы начисляются только за ЧИСТЫЙ успех (частичный результат и пропуск
+    // за Crypto — без Чипов) и только в пределах суточного лимита.
+    const chipsRequested =
       outcome === 'success'
         ? mission.targetType === 'grey'
           ? CHIP_REWARD_PER_GREY_MISSION
           : CHIP_REWARD_PER_MISSION
         : 0;
-    if (chipsGained > 0) {
-      record.chips += chipsGained;
+    const chipsDayKey = getGameDayKey(Date.now());
+    const chipsGrant =
+      chipsRequested > 0
+        ? grantChips(record, chipsRequested, chipsDayKey)
+        : { granted: 0, capped: false };
+    const chipsGained = chipsGrant.granted;
+    // Предупреждаем ОДИН раз за сутки, иначе каждый следующий контракт
+    // присылал бы одинаковый тост — это раздражает сильнее самого лимита.
+    if (chipsGrant.capped && record.stats.chipsCapNotifiedDay !== chipsDayKey) {
+      record.stats.chipsCapNotifiedDay = chipsDayKey;
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: `⚙️ Дневной лимит Чипов достигнут (${CHIP_DAILY_CAP})`,
+        message:
+          'Чипы снова начнут падать после полуночи по Москве. Data, XP и Crypto продолжают капать как обычно.',
+      });
     }
 
     // Опыт по классу целей: успехи немного помогают, настоящие провалы штрафуют сильнее.
@@ -1907,10 +1967,9 @@ export async function handleDailyBonus(user: VerifiedTelegramUser,
       record.dailyStreak *
       Math.max(1, Math.pow(2, record.prestigeCount)) *
       Math.max(1, Math.ceil(deriveStats(record).level / 3));
-    const chipsBonus = CHIP_REWARD_PER_DAILY;
+    const chipsBonus = grantChips(record, CHIP_REWARD_PER_DAILY, getGameDayKey(Date.now())).granted;
     record.crypto += cryptoBonus;
     record.data += dataBonus;
-    record.chips += chipsBonus;
 
     alerts.push({
       id: crypto.randomUUID(),
