@@ -190,12 +190,24 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     }).then((r) => r.json());
 
     const meRes = await fetch(`https://api.telegram.org/bot${botToken}/getMe`).then((r) => r.json());
+    // Диагностика оплаты: если в allowed_updates нет pre_checkout_query,
+    // Telegram не пришлёт подтверждение и Stars-платёж отвалится по таймауту.
+    const infoRes = await fetch(`https://api.telegram.org/bot${botToken}/getWebhookInfo`)
+      .then((r) => r.json())
+      .catch(() => null);
+    const allowedUpdates: string[] = Array.isArray(infoRes?.result?.allowed_updates)
+      ? infoRes.result.allowed_updates
+      : [];
     return sendJson(res, 200, {
       ok: Boolean(whRes.ok && menuRes.ok),
       botUsername: meRes?.result?.username || null,
       webhookUrl,
       webAppUrl,
       webhookSecretProtected: Boolean(derivedSecret),
+      allowedUpdates,
+      preCheckoutEnabled: allowedUpdates.length === 0 || allowedUpdates.includes('pre_checkout_query'),
+      pendingUpdates: Number(infoRes?.result?.pending_update_count ?? 0),
+      lastError: infoRes?.result?.last_error_message ?? null,
     });
   }
 
