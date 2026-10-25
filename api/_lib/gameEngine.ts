@@ -57,6 +57,7 @@ import {
   PETS_CONFIG,
 } from '../../shared/pets.config';
 import { SKINS_CONFIG } from '../../shared/skins.config';
+import { BASE_THEMES } from '../../shared/themes.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import type {
   ActiveMissionInstance,
@@ -201,6 +202,8 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     chipsToday: num(src.chipsToday, 100_000),
     chipsCapNotifiedDay:
       typeof src.chipsCapNotifiedDay === 'string' ? src.chipsCapNotifiedDay.slice(0, 10) : null,
+    baseTheme:
+      src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
     lastQualifiedDayKey:
       typeof src.lastQualifiedDayKey === 'string' ? src.lastQualifiedDayKey.slice(0, 10) : null,
     lastActiveAt:
@@ -1994,7 +1997,7 @@ export async function handleDailyBonus(user: VerifiedTelegramUser,
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'clear_lockdown',
+  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme',
   skinKey?: string,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
@@ -2021,6 +2024,27 @@ export async function handleSkinAction(
         type: 'success',
         title: '⚡ Блокировка снята!',
         message: 'Новый прокси-туннель активирован — терминал снова в строю!',
+      });
+      await savePlayerCore(record, mode);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    // v3.6.1: выбор бесплатной базовой темы. Это косметика, поэтому ни Data,
+    // ни Crypto не списываются — но и бонусов к тапу тема не даёт.
+    if (action === 'set_theme') {
+      const theme = BASE_THEMES.find((t) => t.key === skinKey);
+      if (!theme) {
+        throw new Error('Тема не найдена');
+      }
+      if (!theme.free) {
+        throw new Error('Эта тема пока недоступна');
+      }
+      record.stats.baseTheme = theme.key;
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `${theme.glyph} Тема «${theme.name}» включена`,
+        message: 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
       });
       await savePlayerCore(record, mode);
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);

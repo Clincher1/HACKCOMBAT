@@ -6,6 +6,10 @@
   --cyber-cyan: #00f0ff;
   --cyber-magenta: #ff00a0;
   --cyber-green: #7dff00;
+  --cyber-purple: #c084fc;
+  /* Панель по умолчанию (совпадает с классической темой). */
+  --cyber-panel-deep: #0a0e1a;
+  --theme-vignette: rgba(0, 240, 255, 0.1);
 }
 
 * {
@@ -17,7 +21,8 @@ html,
 body,
 #root {
   min-height: 100%;
-  background-color: #0a0e1a;
+  /* v3.6.1: фон подхватывает выбранную базовую тему (переменная из GameContext). */
+  background-color: var(--cyber-bg, #0a0e1a);
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   overscroll-behavior-y: none;
 }
@@ -28,7 +33,7 @@ body,
 
 /* Киберпанк фоновая сетка */
 .cyber-grid-bg {
-  background-color: #0a0e1a;
+  background-color: var(--cyber-bg, #0a0e1a);
   background-image:
     radial-gradient(circle at 18% 0%, rgba(0, 240, 255, 0.11), transparent 42%),
     radial-gradient(circle at 85% 12%, rgba(255, 0, 160, 0.09), transparent 40%),
@@ -74,4 +79,41 @@ body,
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* ============================================================================
+   v3.6.1: базовая тема «Neon Muse» (femme).
+   Переменные ставит GameContext, здесь только штрихи, которые нельзя выразить
+   одной палитрой: мягче сетка, теплее свечение.
+   ============================================================================ */
+body[data-theme='femme'] .cyber-grid-bg {
+  background-image:
+    linear-gradient(rgba(255, 111, 181, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(176, 107, 255, 0.05) 1px, transparent 1px),
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 111, 181, 0.12) 0%, transparent 70%);
+  background-size: 38px 38px, 38px 38px, 100% 100%;
+}
+
+body[data-theme='femme'] {
+  color-scheme: dark;
+}
+
+/* Маскот в простое слегка «дышит» — карточка рабочего стола живее. */
+@keyframes museBreath {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-3px) rotate(-0.6deg);
+  }
+}
+
+.muse-idle {
+  animation: museBreath 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .muse-idle {
+    animation: none;
+  }
 }

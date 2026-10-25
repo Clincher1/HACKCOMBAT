@@ -58,7 +58,7 @@ export const gameApi = {
   hireNpc: (npcKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/hire', 'POST', { npcKey, clicks }),
   claimDaily: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/daily', 'POST', { clicks }),
-  skinAction: (action: 'buy_or_equip' | 'clear_lockdown', skinKey?: string, clicks = 0) =>
+  skinAction: (action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme', skinKey?: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
   prestige: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/prestige', 'POST', { clicks }),
   unlockTier: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/tier', 'POST', { clicks }),

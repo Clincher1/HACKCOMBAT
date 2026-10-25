@@ -11,6 +11,7 @@ import {
   OFFLINE_TAP_RATE_PER_SEC,
 } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
+import { composeSceneFilter } from '../../shared/themes.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -34,6 +35,7 @@ export const DeskScene: React.FC = () => {
     lockdownRemainingSec,
     clearHeatLockdown,
     busyKey,
+    baseTheme,
   } = useGame();
 
   const [particles, setParticles] = useState<ByteParticle[]>([]);
@@ -76,6 +78,10 @@ export const DeskScene: React.FC = () => {
   const activeStage = previewStage ?? derived.deskStage;
   const stageInfo = getDeskStageInfo(activeStage);
   const activeSkin = SKINS_CONFIG.find((s) => s.key === player.equippedSkin) ?? SKINS_CONFIG[0];
+  // v3.6.1: у базовой темы может быть собственный арт сцены (женская тема).
+  // Скин при этом не пропадает: он накладывает фильтр и красит рамку/кнопку.
+  const sceneUrl = baseTheme.sceneUrl ?? stageInfo.sceneUrl;
+  const sceneFilter = composeSceneFilter(activeSkin.cssFilter, baseTheme);
 
   const handleTap = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -116,6 +122,11 @@ export const DeskScene: React.FC = () => {
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#00f0ff]">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{stageInfo.title}</span>
+            {baseTheme.mascotUrl && (
+              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#ff6fb5]/20 border border-[#ff6fb5]/45 text-[#ffb3d9] shrink-0">
+                {baseTheme.mascotName}
+              </span>
+            )}
             {previewStage && previewStage !== derived.deskStage && (
               <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px]">
                 Превью
@@ -194,16 +205,51 @@ export const DeskScene: React.FC = () => {
       >
         {/* WebP слой эволюционирующего стола */}
         <motion.img
-          key={stageInfo.sceneUrl}
-          src={stageInfo.sceneUrl}
+          key={sceneUrl}
+          src={sceneUrl}
           alt={stageInfo.title}
           loading="lazy"
           initial={{ opacity: 0.4, scale: 1.03 }}
           animate={{ opacity: 1, scale: pulseActive ? 1.015 : 1 }}
           transition={{ duration: 0.25 }}
-          style={{ filter: activeSkin.cssFilter }}
+          style={{ filter: sceneFilter }}
           className="w-full h-full object-cover pointer-events-none"
         />
+
+        {/* Вуаль темы: мягко подкрашивает сцену под палитру базы */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(120% 90% at 50% 100%, ${baseTheme.sceneVignette} 0%, transparent 62%)`,
+          }}
+        />
+
+        {/* Маскот базовой темы (только у «Neon Muse»). Лёгкое покачивание в покое
+            и мягкий «вдох» на тап — живо, но не отвлекает от кнопки HACK. */}
+        {baseTheme.mascotUrl && (
+          <motion.img
+            src={baseTheme.mascotUrl}
+            alt={baseTheme.mascotName ?? 'Компаньон'}
+            loading="lazy"
+            initial={{ opacity: 0, x: 14 }}
+            animate={{
+              opacity: 1,
+              x: 0,
+              y: pulseActive ? -5 : 0,
+              scale: pulseActive ? 1.04 : 1,
+            }}
+            transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+            className="muse-idle absolute pointer-events-none select-none
+                       w-[30%] max-w-[132px] right-1.5 bottom-1.5
+                       sm:w-[26%] drop-shadow-[0_6px_18px_rgba(0,0,0,0.55)]"
+            style={{
+              maskImage:
+                'radial-gradient(ellipse 78% 82% at 50% 42%, #000 58%, transparent 100%)',
+              WebkitMaskImage:
+                'radial-gradient(ellipse 78% 82% at 50% 42%, #000 58%, transparent 100%)',
+            }}
+          />
+        )}
 
         {/* Живой анимированный цифровой дождь Матрицы на 30+ уровне (п. 5.3 ТЗ) */}
         {activeStage >= 30 && (
