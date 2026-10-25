@@ -8,6 +8,7 @@ import React, {
   useState,
 } from 'react';
 import { useLocation } from 'react-router-dom';
+import { CARDS_CONFIG, getCardPrice, getMaxCardLevel } from '../../shared/cards.config';
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import type {
@@ -395,9 +396,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * и если пачка кликов уже летела, покупка обгоняла её — сервер видел старый
    * баланс и отвечал «Недостаточно Data», хотя на экране деньги были.
    *
-   * Теперь: (1) ждём уже отправленную пачку (не дольше 1.5 с), (2) остаток
-   * неотправленных кликов прикладываем к самой покупке (`clicks` в теле запроса).
-   * Итог — один сетевой круг и никаких ложных отказов.
+   * Теперь остаток неотправленных кликов прикладывается к самой покупке
+   * (`clicks` в теле запроса), а сервер обрабатывает запросы игрока строго по
+   * очереди (withPlayerLock) и применяет этот хвост ДО проверки цены.
+   *
+   * v3.5: убрано ожидание летящей пачки (было «до 1.5 секунды» тишины после
+   * вибрации — именно из-за него покупка ощущалась как «нажал и ничего не
+   * происходит»). Ждать не нужно: порядок обеспечивает серверная блокировка,
+   * а хвост кликов едет в том же запросе.
    */
   const runAction = useCallback(
     async (
@@ -410,16 +416,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (busyKeyRef.current === key) return;
       busyKeyRef.current = key;
       setBusyKey(key);
-
-      const inflight = inflightClickRef.current;
-      if (inflight) {
-        // Ждём отправку, чтобы сервер не увидел устаревший баланс. Если сеть тормозит —
-        // не блокируем покупку дольше 1.5 с, сервер всё равно авторитетен.
-        await Promise.race([
-          inflight.catch(() => undefined),
-          new Promise((resolve) => window.setTimeout(resolve, 1_500)),
-        ]);
-      }
 
       const clicksToSend = Math.max(0, pendingClicksRef.current);
       if (clicksToSend > 0) pendingClicksRef.current -= clicksToSend;
@@ -470,10 +466,52 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [applyServerSync, pushClientAlert, scheduleFlush]
   );
 
+  /**
+   * v3.5 — мгновенный отклик на покупку карточки.
+   *
+   * Раньше экран менялся только после ответа сервера: игрок жал кнопку, получал
+   * вибрацию и... тишину. Теперь цену считаем тем же shared-кодом, что и сервер
+   * (getCardPrice), и сразу показываем результат локально, а ответ сервера его
+   * подтверждает или откатывает (если сервер откажет — catch в runAction
+   * перезапрашивает правду через /api/init).
+   *
+   * Это ТОЛЬКО визуальный слой: баланс, цены и лимиты по-прежнему считает сервер,
+   * поэтому накрутить данные через DevTools нельзя.
+   */
+  const applyOptimisticCard = useCallback((cardKey: string) => {
+    setPlayer((prev) => {
+      if (!prev) return prev;
+      const card = CARDS_CONFIG.find((c) => c.key === cardKey);
+      if (!card) return prev;
+      const level = prev.cards[cardKey] ?? 0;
+      if (level >= getMaxCardLevel(prev.cardTier)) return prev;
+      const price = getCardPrice(
+        card,
+        level,
+        prev.derived.totalCardLevels,
+        prev.derived.cardPriceDiscountPct
+      );
+      // Не хватает — не рисуем фантазию, сервер всё равно откажет.
+      if (prev.data < price) return prev;
+      return {
+        ...prev,
+        data: prev.data - price,
+        cards: { ...prev.cards, [cardKey]: level + 1 },
+      };
+    });
+  }, []);
+
   const buyCard = useCallback(
-    (cardKey: string) =>
-      runAction(`card:${cardKey}`, (clicks) => gameApi.buyCard(cardKey, clicks), true, 'light'),
-    [runAction]
+    (cardKey: string) => {
+      applyOptimisticCard(cardKey);
+      return runAction(
+        `card:${cardKey}`,
+        (clicks) => gameApi.buyCard(cardKey, clicks),
+        true,
+        'light'
+      );
+    },
+    [applyOptimisticCard, runAction]
   );
 
   const startMission = useCallback(
@@ -610,23 +648,49 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const freezeReportedRef = useRef<boolean>(false);
   const sessionStartRef = useRef<number>(Date.now());
 
+  // ==========================================================================
+  // v3.5 — ВАЖНО ПРО ЛАГИ ТАПА
+  // --------------------------------------------------------------------------
+  // Раньше обе телеметрии висели на `player`, а он меняется на КАЖДЫЙ тап:
+  // десять тапов в секунду = двадцать лишних POST /api/track в секунду. Мобильная
+  // сеть забивалась, пачки кликов и покупки вставали в очередь, а игрок видел
+  // «тапнул — тормозит». Теперь вкладка шлётся только при реальной смене
+  // маршрута, а час — только при смене часа (плюс один раз при входе).
+  // ==========================================================================
+  const playerReadyRef = useRef<boolean>(false);
+  if (player && !playerReadyRef.current) playerReadyRef.current = true;
+  const lastTrackedTabRef = useRef<string>('');
+  const lastTrackedHourRef = useRef<number>(-1);
+
   // Заход на вкладку
   useEffect(() => {
-    if (!player) return;
+    if (!playerReadyRef.current) return;
+    if (lastTrackedTabRef.current === location.pathname) return;
+    lastTrackedTabRef.current = location.pathname;
     trackEvent(`tab:${location.pathname}`);
-  }, [location.pathname, player, trackEvent]);
+  }, [location.pathname, trackEvent]);
 
   // Локальный час (для «Ночной Смены» и «Ранней Пташки»)
   useEffect(() => {
-    if (!player) return;
-    trackEvent('local_hour', new Date().getHours());
-  }, [player, trackEvent]);
+    if (!playerReadyRef.current) return;
+    const hour = new Date().getHours();
+    if (lastTrackedHourRef.current === hour) return;
+    lastTrackedHourRef.current = hour;
+    trackEvent('local_hour', hour);
+  }, [trackEvent]);
 
   // Каждую минуту: сессия, «кофе-брейк» и «дзен-режим»
   useEffect(() => {
     const interval = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
       const now = Date.now();
+      // Смена часа прямо в открытой игре — чтобы «Ночная смена» ловилась,
+      // даже если игрок не перезапускал мини-апп.
+      const hour = new Date(now).getHours();
+      if (lastTrackedHourRef.current !== -1 && lastTrackedHourRef.current !== hour) {
+        lastTrackedHourRef.current = hour;
+        trackEvent('local_hour', hour);
+      }
       const sessionMinutes = Math.floor((now - sessionStartRef.current) / 60_000);
       if (sessionMinutes > 0 && sessionMinutes % 5 === 0) {
         trackEvent('session', sessionMinutes);

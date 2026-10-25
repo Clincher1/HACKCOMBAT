@@ -11,6 +11,7 @@ import missions from './_routes/missions';
 import pets from './_routes/pets';
 import ping from './_routes/ping';
 import prestige from './_routes/prestige';
+import referral from './_routes/referral';
 import skin from './_routes/skin';
 import telegram from './_routes/telegram';
 import tier from './_routes/tier';
@@ -42,6 +43,7 @@ const routes: Record<string, Handler> = {
   pets,
   ping,
   prestige,
+  referral,
   skin,
   telegram,
   tier,

@@ -67,6 +67,7 @@ import type {
   PlayerState,
 } from '../../shared/types';
 import { getSupabaseAdmin } from './supabaseAdmin';
+import { attributeReferral, payoutReferrals, qualifyInvitee } from './referrals';
 import type { VerifiedTelegramUser } from './telegramAuth';
 
 interface StoredPet {
@@ -816,6 +817,26 @@ async function syncTimeAndRules(
   }
   record.stats.lastActiveAt = nowIso;
 
+  // ==========================================================================
+  // 3b. РЕФЕРАЛЬНАЯ ПРОГРАММА (v3.5)
+  // --------------------------------------------------------------------------
+  // Правим ТОЛЬКО свою запись: приглашённый получает свой маленький бонус,
+  // пригласивший — свои награды на своём же синке (см. api/_lib/referrals.ts).
+  // Так нет записи в чужую строку под чужим мьютексом.
+  // ==========================================================================
+  await qualifyInvitee(record, derived.level);
+  const refPayout = await payoutReferrals(record, derived.level, derived.dataPerHour);
+  if (refPayout.count > 0) {
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `🔗 Друг засчитан: +${Math.round(refPayout.xp)} XP`,
+      message:
+        `Тебе начислено ${Math.round(refPayout.data).toLocaleString('ru-RU')} Data за ` +
+        `${refPayout.count} приглашённ${refPayout.count === 1 ? 'ого' : 'ых'}. Спасибо, что зовёшь людей!`,
+    });
+  }
+
   // 4. Авто-обновление витрины миссий каждые 15 минут
   const refreshedMs = new Date(record.missionsRefreshedAt).getTime();
   if (Number.isNaN(refreshedMs) || nowMs - refreshedMs >= 15 * 60 * 1000) {
@@ -1120,10 +1141,16 @@ function buildResponse(
 // ЗАЩИЩЁННЫЕ ПУБЛИЧНЫЕ МЕТОДЫ ИГРОВОГО ДВИЖКА ДЛЯ /api/*
 // ============================================================================
 
-export async function handleInitPlayer(user: VerifiedTelegramUser): Promise<ApiSyncResponse> {
+export async function handleInitPlayer(
+  user: VerifiedTelegramUser,
+  clientIp?: string
+): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
+    // Привязка «кто позвал» — до синка, пока аккаунт ещё нулевой.
+    // Код берётся из подписанного initData, повторный вызов безопасен.
+    await attributeReferral(record, user.startParam, clientIp);
     const { offlineEarned, offlineTaps } = await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
     return buildResponse(record, mode, alerts, offlineEarned, offlineTaps);

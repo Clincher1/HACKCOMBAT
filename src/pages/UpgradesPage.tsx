@@ -336,7 +336,9 @@ export const UpgradesPage: React.FC = () => {
                         ? `МАКС. УР. ${maxLevel}`
                         : lockedByLevel
                           ? `🔒 Нужен Ур. ${card.minLevel}`
-                          : `Купить • ${formatCompact(price)}`}
+                          : isBusy
+                            ? '⏳ Покупаю…'
+                            : `Купить • ${formatCompact(price)}`}
                     </button>
                   </div>
                 </motion.div>

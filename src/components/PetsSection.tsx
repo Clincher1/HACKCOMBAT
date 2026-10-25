@@ -154,7 +154,9 @@ export const PetsSection: React.FC = () => {
                     }`}
                   >
                     <Utensils className="w-3.5 h-3.5" />
-                    {cooldownLeftSec > 0
+                    {isBusy
+                      ? 'Кормлю…'
+                      : cooldownLeftSec > 0
                       ? `Корм через ${formatCountdown(cooldownLeftSec)}`
                       : hunger >= 99
                         ? 'Сыт под завязку'
@@ -174,7 +176,9 @@ export const PetsSection: React.FC = () => {
                         : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
                   }`}
                 >
-                  {levelLocked ? (
+                  {isBusy ? (
+                    '⏳ Завожу…'
+                  ) : levelLocked ? (
                     <span className="inline-flex items-center gap-1">
                       <Lock className="w-3.5 h-3.5" /> Ур. {cfg.requiredLevel}
                     </span>

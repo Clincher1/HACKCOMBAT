@@ -82,6 +82,19 @@ export const gameApi = {
       tiers: number[];
       botUsername: string | null;
     }>('/api/donate', 'GET'),
+  // v3.5: рефералка — только чтение своей ссылки и статистики.
+  referralInfo: () =>
+    apiRequest<{
+      ok: true;
+      code: string;
+      link: string | null;
+      botUsername: string | null;
+      stats: { invited: number; qualified: number; xpEarned: number; dataEarned: number };
+      rules: string;
+      qualifySeconds: number;
+      dailyLimit: number;
+      weeklyLimit: number;
+    }>('/api/referral', 'GET'),
   donateLink: (stars: number) =>
     apiRequest<{
       ok: true;

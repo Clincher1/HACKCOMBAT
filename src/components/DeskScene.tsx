@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, Lock, Sparkles, Terminal, Zap } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ENERGY_REGEN_SECONDS,
   getDeskStageInfo,
@@ -41,9 +41,17 @@ export const DeskScene: React.FC = () => {
   const [previewStage, setPreviewStage] = useState<1 | 5 | 10 | 15 | 20 | 25 | 30 | null>(null);
   const [showStageBar, setShowStageBar] = useState(false);
 
-  // Автономная визуальная вспышка Botmaster (автоклик 1/сек)
+  // Автономная визуальная вспышка Botmaster (автоклик 1/сек).
+  // v3.5: зависимость сузили до autoClickPerSec. Раньше в deps лежал весь
+  // `player`, который меняется на КАЖДЫЙ тап — интервал пересоздавался десятки
+  // раз в секунду, и тап на телефоне начинал подтормаживать. Сила клика читается
+  // через ref, поэтому счётчик всегда свежий без перезапуска таймера.
+  const clickPowerRef = useRef<number>(1);
+  clickPowerRef.current = player?.derived.clickPower ?? 1;
+  const autoClickPerSec = player?.derived.autoClickPerSec ?? 0;
+
   useEffect(() => {
-    if (!player || player.derived.autoClickPerSec <= 0) return;
+    if (autoClickPerSec <= 0) return;
     const timer = window.setInterval(() => {
       const id = particleSeq++;
       setParticles((prev) => [
@@ -52,7 +60,7 @@ export const DeskScene: React.FC = () => {
           id,
           x: 42 + Math.random() * 16,
           y: 52 + Math.random() * 10,
-          text: `🤖 +${formatCompact(player.derived.clickPower)}`,
+          text: `🤖 +${formatCompact(clickPowerRef.current)}`,
         },
       ]);
       window.setTimeout(() => {
@@ -60,7 +68,7 @@ export const DeskScene: React.FC = () => {
       }, 850);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [player]);
+  }, [autoClickPerSec]);
 
   if (!player) return null;
 

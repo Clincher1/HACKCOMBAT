@@ -6,6 +6,7 @@ import {
 } from '../../shared/achievements.config';
 import { AchievementsPanel } from '../components/AchievementsPanel';
 import { DonateCard } from '../components/DonateCard';
+import { ReferralCard } from '../components/ReferralCard';
 import { getPrestigeRequiredLevel } from '../../shared/mechanics';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -329,6 +330,9 @@ export const ProfilePage: React.FC = () => {
       ) : (
         <AchievementsPanel />
       )}
+
+      {/* Рефералка: своя ссылка, статистика и правила (v3.5) */}
+      <ReferralCard />
 
       {/* Донат (Telegram Stars): карточка внизу профиля, чтобы не дублировать
           навигацию на рабочем столе и не мешать тапать. */}

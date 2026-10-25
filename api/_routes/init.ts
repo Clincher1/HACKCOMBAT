@@ -2,6 +2,7 @@ import { handleInitPlayer } from '../_lib/gameEngine';
 import {
   authenticateRequest,
   enforceHttpSecurity,
+  getClientIp,
   readJsonBody,
   sendJson,
   type ApiRequest,
@@ -13,7 +14,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   try {
     const body = req.method === 'POST' ? await readJsonBody(req) : {};
     const user = authenticateRequest(req, body);
-    const result = await handleInitPlayer(user);
+    const result = await handleInitPlayer(user, getClientIp(req));
     return sendJson(res, 200, result);
   } catch (err) {
     return sendJson(res, 400, {

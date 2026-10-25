@@ -32,7 +32,7 @@ const MAX_RATE_BUCKETS = 20_000;
 
 const rateBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function getClientIp(req: ApiRequest): string {
+export function getClientIp(req: ApiRequest): string {
   const xff = req.headers['x-forwarded-for'];
   const raw = Array.isArray(xff) ? xff[0] : xff;
   return (raw ? raw.split(',')[0].trim() : req.socket?.remoteAddress || 'local').slice(0, 64);
