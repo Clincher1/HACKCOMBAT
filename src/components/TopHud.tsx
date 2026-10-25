@@ -1,8 +1,99 @@
-import { BookOpen, Cog, Flame, Gem, Gift, Palette, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
+import { BookOpen, Flame, Gift, Palette, Sparkles, Volume2, VolumeX, Zap } from 'lucide-react';
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getSkinByKey } from '../../shared/skins.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+
+/**
+ * Цвета валют — те же, что в обучении (вкладка «Валюты») и в остальных экранах:
+ * Data — циан, Crypto — фиолетовый, Чипы — лайм (⚙️), Rep — изумруд, Heat — роза.
+ * Один и тот же цвет везде = игрок узнаёт валюту, не читая подпись.
+ */
+const CURRENCY_COLORS = {
+  data: '#00f0ff',
+  crypto: '#c084fc',
+  chips: '#7dff00',
+  rep: '#34d399',
+  heat: '#fb7185',
+} as const;
+
+interface CurrencyTileProps {
+  glyph: string;
+  label: string;
+  value: string;
+  accent: string;
+  hint: string;
+  onClick?: () => void;
+  muted?: boolean;
+}
+
+/**
+ * Одна валюта = иконка + подпись + число. Раньше в одной клетке жили Чипы, Rep
+ * и Heat без подписей — по шестерёнке невозможно было понять, что это и сколько.
+ */
+const CurrencyTile: React.FC<CurrencyTileProps> = ({
+  glyph,
+  label,
+  value,
+  accent,
+  hint,
+  onClick,
+  muted,
+}) => {
+  const body = (
+    <>
+      {/* Число — первым: значок + количество читаются сразу, подпись уточняет. */}
+      <div className="flex items-center gap-1 min-w-0">
+        <span className="text-[13px] leading-none shrink-0" aria-hidden="true">
+          {glyph}
+        </span>
+        <span
+          className={`font-display text-[15px] font-extrabold leading-none tabular-nums truncate ${
+            muted ? 'text-slate-400' : 'text-white'
+          }`}
+        >
+          {value}
+        </span>
+      </div>
+      <div
+        className="text-[9px] font-bold uppercase tracking-[0.08em] leading-none mt-1 truncate"
+        style={{ color: accent }}
+      >
+        {label}
+      </div>
+    </>
+  );
+
+  const className = `rounded-xl bg-gradient-to-b from-[#141d3a] to-[#0d1428] border px-2 py-1.5 text-left min-w-0 transition ${
+    onClick ? 'hover:from-[#1a2548] hover:to-[#101a33] active:scale-[0.98] cursor-pointer' : ''
+  }`;
+  const style = {
+    borderColor: `${accent}55`,
+    boxShadow: `inset 0 0 18px ${accent}14`,
+  };
+
+  if (!onClick) {
+    return (
+      <div className={className} style={style} title={hint}>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={hint}
+      aria-label={`${label}: ${value}. ${hint}`}
+      className={className}
+      style={style}
+    >
+      {body}
+    </button>
+  );
+};
 
 export const TopHud: React.FC = () => {
   const {
@@ -15,6 +106,7 @@ export const TopHud: React.FC = () => {
     tutorialUnseen,
     nowMs,
   } = useGame();
+  const navigate = useNavigate();
 
   if (!player) return null;
 
@@ -29,6 +121,9 @@ export const TopHud: React.FC = () => {
   const dailyAvailable =
     !player.lastDailyClaim ||
     (nowMs - new Date(player.lastDailyClaim).getTime()) / (1000 * 3600) >= 20;
+
+  const heatPct = Math.min(100, Math.max(0, player.heat));
+  const heatRisk = player.heat >= 75;
 
   return (
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#0a0e1a]/92 border-b border-[#00f0ff]/18 px-3 pt-2.5 pb-2">
@@ -126,65 +221,108 @@ export const TopHud: React.FC = () => {
           </div>
         </div>
 
-        {/* Средняя строка: 4 основные валюты (Data, Data/ч, Crypto, Rep / Heat) */}
+        {/* Валюты: у каждой своя иконка и подпись. Чипы (⚙️) — отдельная
+            клетка, как в обучении: сразу видно и значок, и количество. */}
         <div className="grid grid-cols-4 gap-1.5">
-          <div className="col-span-2 rounded-xl bg-[#10172e] border border-[#00f0ff]/25 px-3 py-1.5 flex items-center justify-between">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">
-                Data Баланс
-              </div>
-              <div className="font-display text-lg font-extrabold text-white leading-tight tracking-tight">
+          <div
+            className="col-span-2 rounded-xl bg-gradient-to-b from-[#141d3a] to-[#0d1428] border px-2 py-1.5 min-w-0"
+            style={{
+              borderColor: `${CURRENCY_COLORS.data}55`,
+              boxShadow: `inset 0 0 18px ${CURRENCY_COLORS.data}14`,
+            }}
+            title="Data — главная валюта: покупки, апгрейды, команда"
+          >
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="font-display text-[15px] font-extrabold text-white leading-none tabular-nums truncate">
                 {formatCompact(Math.floor(player.data))}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[10px] uppercase tracking-wider text-slate-400">В час</div>
-              <div className="text-xs font-bold text-[#7dff00]">
+              </span>
+              <span className="text-[9px] font-bold text-[#7dff00] shrink-0 whitespace-nowrap">
                 +{formatCompact(derived.dataPerHour)}/ч
-              </div>
+              </span>
+            </div>
+            <div
+              className="text-[9px] font-bold uppercase tracking-[0.08em] leading-none mt-1 flex items-center gap-1"
+              style={{ color: CURRENCY_COLORS.data }}
+            >
+              <Sparkles className="w-2.5 h-2.5 shrink-0" />
+              Data
             </div>
           </div>
 
-          <button
-            type="button"
+          <CurrencyTile
+            glyph="💎"
+            label="Crypto"
+            value={String(player.crypto)}
+            accent={CURRENCY_COLORS.crypto}
+            hint="Crypto — премиум-валюта: скины стола и косметика. Нажми, чтобы открыть магазин"
             onClick={() => setSkinModalOpen(true)}
-            className="rounded-xl bg-[#10172e] hover:bg-[#151e3b] border border-purple-400/25 px-2.5 py-1.5 text-left transition cursor-pointer"
-          >
-            <div className="text-[10px] uppercase tracking-wider text-slate-400 flex items-center gap-1">
-              <Gem className="w-3 h-3 text-purple-400" /> Crypto
-            </div>
-            <div className="font-display text-sm font-bold text-purple-300 mt-0.5">
-              {player.crypto}
-            </div>
-          </button>
+            muted={player.crypto === 0}
+          />
 
-          <div className="rounded-xl bg-[#10172e] border border-slate-700/60 px-2.5 py-1.5 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-[11px] font-bold">
-              <span className="text-[#7dff00] flex items-center gap-0.5" title="Чипы — нужны для Тиров карточек и Базы">
-                <Cog className="w-3 h-3" /> {player.chips}
-              </span>
-              <span className="text-[#00f0ff] flex items-center gap-0.5" title="Репутация (Rep)">
-                <Shield className="w-3 h-3" /> {player.rep}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-[10px] font-bold mt-0.5">
-              <span
-                className={player.heat >= 75 ? 'text-rose-400 animate-pulse' : 'text-[#ff00a0]'}
-                title="Розыск (Heat > 100 = штраф!)"
-              >
-                <Flame className="w-3 h-3 inline" /> Heat {player.heat}/100
-              </span>
-              <span className="text-slate-500">⚙️ / 🛡️</span>
-            </div>
-            <div className="w-full h-1 rounded-full bg-slate-800 overflow-hidden mt-0.5">
+          <CurrencyTile
+            glyph="⚙️"
+            label="Чипы"
+            value={String(player.chips)}
+            accent={CURRENCY_COLORS.chips}
+            hint="Чипы — открывают Тиры карточек и улучшения Базы. Нажми, чтобы перейти в «Улучшения»"
+            onClick={() => navigate('/upgrades')}
+            muted={player.chips === 0}
+          />
+        </div>
+
+        {/* Rep (репутация) — валюта, ей нужна своя клетка. Heat — не валюта,
+            а шкала риска: она полосой рядом, чтобы не путать с балансом.
+            Оба в одну строку — панель не должна съедать экран. */}
+        <div className="grid grid-cols-4 gap-1.5">
+          <div
+            className="rounded-xl bg-[#10172e] border px-2 py-1 flex items-center justify-between gap-1 min-w-0"
+            style={{ borderColor: `${CURRENCY_COLORS.rep}55` }}
+            title="Rep — репутация: найм элитной команды и мирная ветка White Hat"
+          >
+            <span
+              className="text-[9px] font-bold uppercase tracking-[0.06em] leading-none truncate"
+              style={{ color: CURRENCY_COLORS.rep }}
+            >
+              🛡️ Rep
+            </span>
+            <span className="font-display text-[13px] font-extrabold text-white leading-none tabular-nums shrink-0">
+              {formatCompact(player.rep)}
+            </span>
+          </div>
+
+          <div
+            className="col-span-3 rounded-xl bg-[#10172e] border px-2 py-1 flex items-center gap-2 min-w-0"
+            style={{
+              borderColor: heatRisk ? 'rgba(251, 113, 133, 0.55)' : 'rgba(255, 0, 160, 0.32)',
+            }}
+            title="Heat (розыск): чем выше, тем ближе блокировка кликов. Штраф при 100"
+          >
+            <span
+              className={`text-[10px] font-bold leading-none flex items-center gap-1 shrink-0 ${
+                heatRisk ? 'text-rose-400' : 'text-[#ff00a0]'
+              }`}
+            >
+              <Flame className={`w-3 h-3 ${heatRisk ? 'animate-pulse' : ''}`} />
+              Heat {player.heat}/100
+            </span>
+            <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden min-w-6">
               <div
-                className="h-full transition-all duration-300"
+                className="h-full rounded-full transition-all duration-300"
                 style={{
-                  width: `${Math.min(100, player.heat)}%`,
-                  background: player.heat >= 75 ? '#fb7185' : '#ff00a0',
+                  width: `${heatPct}%`,
+                  background: heatRisk
+                    ? 'linear-gradient(90deg, #fb7185, #ef4444)'
+                    : 'linear-gradient(90deg, #ff00a0, #fb7185)',
                 }}
               />
             </div>
+            <span
+              className={`text-[9px] font-bold uppercase leading-none shrink-0 ${
+                heatRisk ? 'text-rose-300' : 'text-slate-500'
+              }`}
+            >
+              {heatRisk ? 'риск' : 'норма'}
+            </span>
           </div>
         </div>
 
