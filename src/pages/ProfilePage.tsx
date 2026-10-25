@@ -1,4 +1,4 @@
-import { Award, BookOpen, Crown, Edit3, Globe, Scale, Trophy } from 'lucide-react';
+import { Award, BookOpen, Cog, Crown, Edit3, Globe, Scale, Trophy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import {
   ACHIEVEMENTS_CONFIG,
@@ -7,7 +7,13 @@ import {
 import { AchievementsPanel } from '../components/AchievementsPanel';
 import { DonateCard } from '../components/DonateCard';
 import { ReferralCard } from '../components/ReferralCard';
-import { getPrestigeRequiredLevel } from '../../shared/mechanics';
+import {
+  CHIP_DAILY_CAP,
+  CHIP_REWARD_PER_DAILY,
+  CHIP_REWARD_PER_GREY_MISSION,
+  CHIP_REWARD_PER_MISSION,
+} from '../../shared/base.config';
+import { getGameDayKey, getPrestigeRequiredLevel } from '../../shared/mechanics';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -41,6 +47,13 @@ export const ProfilePage: React.FC = () => {
   const alignmentMarkerPct = Math.min(95, Math.max(5, 50 + alignmentDiff * 0.45));
 
   const requiredPrestigeLevel = getPrestigeRequiredLevel(player.prestigeCount);
+  // Дневной счётчик Чипов считаем по тому же игровому дню (Москва), что и сервер:
+  // после полуночи показываем 0, даже если сервер ещё не успел обнулить.
+  const chipsDayIsToday = player.stats.chipsDayKey === getGameDayKey();
+  const chipsToday = chipsDayIsToday
+    ? Math.min(CHIP_DAILY_CAP, Math.floor(player.stats.chipsToday ?? 0))
+    : 0;
+  const chipsLeftToday = Math.max(0, CHIP_DAILY_CAP - chipsToday);
   const canPrestige = derived.level >= requiredPrestigeLevel;
   const publicUnlockedCount = ACHIEVEMENTS_CONFIG.filter(
     (a) => !a.secret && player.achievements.includes(a.key)
@@ -149,6 +162,50 @@ export const ProfilePage: React.FC = () => {
             <div className="text-[10px] text-slate-400">Множитель</div>
             <div className="text-xs font-bold text-[#7dff00]">×{derived.prestigeMultiplier}</div>
           </div>
+        </div>
+
+        {/* ⚙️ Чипы (v3.5): раньше их вообще не было видно в профиле — только
+            мелкая цифра в верхней панели. Здесь и баланс, и остаток дневного
+            лимита, и честное объяснение, откуда они берутся. */}
+        <div className="rounded-xl bg-[#0a0e1a] border border-[#7dff00]/30 p-2.5 space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-[#7dff00] flex items-center gap-1">
+              <Cog className="w-3.5 h-3.5" /> Чипы — валюта апгрейда
+            </span>
+            <span className="font-display text-sm font-extrabold text-white">{player.chips}</span>
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-400">
+            <span>выбито сегодня</span>
+            <span className={chipsLeftToday === 0 ? 'text-amber-300' : 'text-slate-300'}>
+              {chipsToday} / {CHIP_DAILY_CAP}
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-300"
+              style={{
+                width: `${Math.min(100, (chipsToday / CHIP_DAILY_CAP) * 100)}%`,
+                background:
+                  chipsLeftToday === 0
+                    ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                    : 'linear-gradient(90deg, #7dff00, #00f0ff)',
+              }}
+            />
+          </div>
+
+          <p className="text-[10px] text-slate-400 leading-relaxed">
+            Падают только за <strong className="text-slate-300">чистый успех взлома</strong>: +
+            {CHIP_REWARD_PER_MISSION} за контракт, +{CHIP_REWARD_PER_GREY_MISSION} за серый, плюс{' '}
+            {CHIP_REWARD_PER_DAILY} за ежедневный вход и за часть достижений. Тратятся на открытие
+            Тиров карточек (60 / 150 / 320) и на улучшения Базы.
+          </p>
+          {chipsLeftToday === 0 && (
+            <p className="text-[10px] text-amber-300/90">
+              Лимит на сегодня выбран — обнулится после полуночи по Москве. Data, XP и Crypto капают
+              как обычно.
+            </p>
+          )}
         </div>
 
         {/* Опыт и подготовка к взломам */}

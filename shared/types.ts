@@ -209,6 +209,12 @@ export interface PlayerProgressStats {
   activeDayKey?: string | null;
   /** v3.2: сколько секунд активной игры набрано в текущем игровом дне. */
   activeSecondsToday?: number;
+  /** v3.5: игровой день, за который считаем суточный лимит Чипов. */
+  chipsDayKey?: string | null;
+  /** v3.5: сколько Чипов уже выбито за этот день (для лимита и для UI). */
+  chipsToday?: number;
+  /** v3.5: день, за который уже показали предупреждение о лимите (без спама). */
+  chipsCapNotifiedDay?: string | null;
   /** v3.2: последний день, в котором набрано 8+ минут активности (даёт право на оффлайн). */
   lastQualifiedDayKey?: string | null;
   /** v3.2: время последнего запроса к серверу — «пульс» активной сессии. */
