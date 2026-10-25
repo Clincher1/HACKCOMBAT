@@ -215,6 +215,8 @@ export interface PlayerProgressStats {
   chipsToday?: number;
   /** v3.5: день, за который уже показали предупреждение о лимите (без спама). */
   chipsCapNotifiedDay?: string | null;
+  /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
+  baseTheme?: string;
   /** v3.2: последний день, в котором набрано 8+ минут активности (даёт право на оффлайн). */
   lastQualifiedDayKey?: string | null;
   /** v3.2: время последнего запроса к серверу — «пульс» активной сессии. */

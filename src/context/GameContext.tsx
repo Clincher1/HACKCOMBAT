@@ -10,7 +10,6 @@ import React, {
 import { useLocation } from 'react-router-dom';
 import { CARDS_CONFIG, getCardPrice, getMaxCardLevel } from '../../shared/cards.config';
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
-import { SKINS_CONFIG } from '../../shared/skins.config';
 import type {
   ApiSyncResponse,
   GameAlert,
@@ -20,6 +19,7 @@ import type {
   PlayerState,
 } from '../../shared/types';
 import { ApiError, gameApi } from '../lib/api';
+import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
 import { cyberSound } from '../lib/sound';
 import {
   initTelegramMiniApp,
@@ -66,6 +66,9 @@ interface GameContextValue {
   trackEvent: (event: string, value?: number) => void;
   claimDailyBonus: () => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
+  /** Выбранная бесплатная базовая тема (v3.6.1). */
+  baseTheme: BaseThemeConfig;
+  setBaseTheme: (key: BaseThemeKey) => Promise<void>;
   clearHeatLockdown: () => Promise<void>;
   triggerPrestige: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
@@ -97,6 +100,11 @@ const CLICK_QUEUE_LIMIT = 600;
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
   const [player, setPlayer] = useState<PlayerState | null>(null);
+  // Базовая тема — производная от player.stats.baseTheme (сервер — источник истины).
+  const baseTheme = useMemo<BaseThemeConfig>(
+    () => getBaseTheme(player?.stats.baseTheme),
+    [player?.stats.baseTheme]
+  );
   const [loading, setLoading] = useState(true);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const busyKeyRef = useRef<string | null>(null);
@@ -603,6 +611,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const setBaseTheme = useCallback(
+    (key: BaseThemeKey) =>
+      runAction(`theme:${key}`, (clicks) => gameApi.skinAction('set_theme', key, clicks), true, 'light'),
+    [runAction]
+  );
+
   const clearHeatLockdown = useCallback(
     () => runAction('clear_lockdown', (clicks) => gameApi.skinAction('clear_lockdown', undefined, clicks), true, 'light'),
     [runAction]
@@ -643,14 +657,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSoundMuted(muted);
   }, []);
 
-  // Обновляем CSS-переменные активного скина стола
+  // v3.6.1: палитра берётся из БАЗОВОЙ ТЕМЫ, а скин стола накладывается в сцене.
+  // Раньше переменные прибивались к скину: надел аватар — перекрасился весь UI.
   useEffect(() => {
-    const activeSkin =
-      SKINS_CONFIG.find((s) => s.key === player?.equippedSkin) ?? SKINS_CONFIG[0];
-    document.documentElement.style.setProperty('--cyber-cyan', activeSkin.primaryHex);
-    document.documentElement.style.setProperty('--cyber-magenta', activeSkin.secondaryHex);
-    document.documentElement.style.setProperty('--cyber-green', activeSkin.accentHex);
-  }, [player?.equippedSkin]);
+    const theme = getBaseTheme(player?.stats.baseTheme);
+    const root = document.documentElement.style;
+    root.setProperty('--cyber-cyan', theme.palette.cyan);
+    root.setProperty('--cyber-magenta', theme.palette.magenta);
+    root.setProperty('--cyber-green', theme.palette.green);
+    root.setProperty('--cyber-purple', theme.palette.purple);
+    root.setProperty('--cyber-bg', theme.palette.bg);
+    root.setProperty('--cyber-panel', theme.palette.panel);
+    root.setProperty('--cyber-panel-deep', theme.palette.panelDeep);
+    root.setProperty('--theme-vignette', theme.sceneVignette);
+    document.body.dataset.theme = theme.key;
+  }, [player?.stats.baseTheme]);
 
   // ==========================================================================
   // АВТО-ТЕЛЕМЕТРИЯ ДЛЯ «НЕОЧЕВИДНЫХ» ДОСТИЖЕНИЙ
@@ -768,6 +789,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         trackEvent,
         claimDailyBonus,
         buyOrEquipSkin,
+        baseTheme,
+        setBaseTheme,
         clearHeatLockdown,
         triggerPrestige,
         leaderboard,

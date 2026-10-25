@@ -2,6 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Gem, Gift, Lock, Sparkles, X } from 'lucide-react';
 import React, { useState } from 'react';
 import { SKIN_CATEGORIES, SKINS_CONFIG } from '../../shared/skins.config';
+import { BASE_THEMES } from '../../shared/themes.config';
 import type { SkinCategory } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -19,6 +20,8 @@ export const ModalsAndOverlays: React.FC = () => {
     dismissOfflineModal,
     claimDailyBonus,
     buyOrEquipSkin,
+    baseTheme,
+    setBaseTheme,
     busyKey,
     nowMs,
   } = useGame();
@@ -187,6 +190,65 @@ export const ModalsAndOverlays: React.FC = () => {
                 >
                   <X className="w-5 h-5" />
                 </button>
+              </div>
+
+              {/* v3.6.1: ДВЕ БЕСПЛАТНЫЕ БАЗОВЫЕ ТЕМЫ. Это фундамент оформления:
+                  выбираешь базу, а платные скины ложатся сверху. Обе темы
+                  бесплатны и не дают бонусов к тапу — только внешний вид. */}
+              <div className="space-y-1.5">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Базовая тема · бесплатно
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  {BASE_THEMES.map((theme) => {
+                    const active = baseTheme.key === theme.key;
+                    const pending = busyKey === `theme:${theme.key}`;
+                    return (
+                      <button
+                        key={theme.key}
+                        type="button"
+                        disabled={pending}
+                        onClick={() => void setBaseTheme(theme.key)}
+                        className={`relative overflow-hidden rounded-xl border p-2.5 text-left transition cursor-pointer disabled:opacity-60 ${
+                          active
+                            ? 'border-white/70 ring-1 ring-white/30'
+                            : 'border-slate-700/70 hover:border-slate-500'
+                        }`}
+                        style={{
+                          background: `linear-gradient(135deg, ${theme.previewFrom}22 0%, ${theme.previewTo}22 100%)`,
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-base leading-none">{theme.glyph}</span>
+                          {active ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[#0a0e1a] flex items-center gap-0.5">
+                              <Check className="w-2.5 h-2.5" /> ВКЛ
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/30 text-white/80">
+                              бесплатно
+                            </span>
+                          )}
+                        </div>
+                        <div className="font-display font-bold text-xs text-white mt-1.5 leading-tight">
+                          {theme.name}
+                        </div>
+                        <div className="text-[9px] text-slate-300/90 mt-0.5 leading-snug">
+                          {theme.tagline}
+                        </div>
+                        <div
+                          className="h-1.5 w-full rounded-full mt-1.5"
+                          style={{
+                            background: `linear-gradient(90deg, ${theme.previewFrom}, ${theme.previewTo})`,
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[9px] text-slate-500 leading-snug">
+                  Тема — это основа оформления. Скины ниже накладываются на неё сверху.
+                </p>
               </div>
 
               {/* Категории косметики: рабочий стол / интерфейс / аватар */}
