@@ -15,6 +15,8 @@ import type {
   ApiSyncResponse,
   GameAlert,
   LeaderboardEntry,
+  LeaderboardSelf,
+  LeaderboardSort,
   PlayerState,
 } from '../../shared/types';
 import { ApiError, gameApi } from '../lib/api';
@@ -67,7 +69,12 @@ interface GameContextValue {
   clearHeatLockdown: () => Promise<void>;
   triggerPrestige: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
-  refreshLeaderboard: () => Promise<void>;
+  /** По какой метрике построена таблица (data / xp / level). */
+  leaderboardSort: LeaderboardSort;
+  /** Своё место в рейтинге (null — гость или рейтинг недоступен). */
+  leaderboardSelf: LeaderboardSelf | null;
+  setLeaderboardSort: (sort: LeaderboardSort) => void;
+  refreshLeaderboard: (sort?: LeaderboardSort) => Promise<void>;
   updateDemoName: (newName: string) => Promise<void>;
 }
 
@@ -110,6 +117,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   });
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardSort, setLeaderboardSort] = useState<LeaderboardSort>('data');
+  const [leaderboardSelf, setLeaderboardSelf] = useState<LeaderboardSelf | null>(null);
 
   const openTutorial = useCallback(() => {
     setTutorialModalOpen(true);
@@ -604,14 +613,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
-  const refreshLeaderboard = useCallback(async () => {
-    try {
-      const res = await gameApi.leaderboard();
-      setLeaderboard(res.entries);
-    } catch {
-      // ignore background error
-    }
-  }, []);
+  const refreshLeaderboard = useCallback(
+    async (sort?: LeaderboardSort) => {
+      const metric: LeaderboardSort = sort ?? leaderboardSort;
+      try {
+        const res = await gameApi.leaderboard(metric);
+        setLeaderboard(res.entries);
+        setLeaderboardSelf(res.me ?? null);
+        if (res.sort !== leaderboardSort) setLeaderboardSort(res.sort);
+      } catch {
+        // ignore background error
+      }
+    },
+    [leaderboardSort]
+  );
 
   const updateDemoName = useCallback(
     async (newName: string) => {
@@ -756,6 +771,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearHeatLockdown,
         triggerPrestige,
         leaderboard,
+        leaderboardSort,
+        leaderboardSelf,
+        setLeaderboardSort,
         refreshLeaderboard,
         updateDemoName,
       }}

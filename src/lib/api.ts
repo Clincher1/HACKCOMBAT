@@ -1,4 +1,4 @@
-import type { ApiSyncResponse, LeaderboardEntry } from '../../shared/types';
+import type { ApiSyncResponse, LeaderboardResponse, LeaderboardSort } from '../../shared/types';
 import { initTelegramMiniApp } from './telegram';
 
 /** Ошибка API со статусом ответа: нужна, чтобы мягко обрабатывать 429 (rate limit) без пугающих тостов. */
@@ -68,8 +68,8 @@ export const gameApi = {
     apiRequest<ApiSyncResponse>('/api/pets', 'POST', { action, petKey, clicks }),
   track: (event: string, value?: number) =>
     apiRequest<ApiSyncResponse>('/api/track', 'POST', { event, value }),
-  leaderboard: () =>
-    apiRequest<{ ok: true; entries: LeaderboardEntry[] }>('/api/leaderboard', 'GET'),
+  leaderboard: (sort: LeaderboardSort = 'data') =>
+    apiRequest<LeaderboardResponse>(`/api/leaderboard?sort=${sort}`, 'GET'),
   // v3.4: донат. Сервер сам сверяет сумму со своим конфигом — клиент может
   // попросить только одну из фиксированных сумм.
   donateInfo: () =>
