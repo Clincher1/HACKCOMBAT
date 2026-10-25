@@ -117,7 +117,7 @@ npm run dev
    - `SUPABASE_URL`
    - `SUPABASE_SERVICE_ROLE_KEY`
 3. Нажмите **Deploy** (или выполните `npx vercel --prod`).
-4. **Донаты (опционально, 0 ₽)**: включите в [@BotFather](https://t.me/BotFather) → `/mybots` → *Payments* → **Telegram Stars** и примените миграцию `supabase/migrations/005_donations.sql`. Больше ничего не нужно — `provider_token` для Stars не используется. Без `BOT_TOKEN` карточка доната просто показывает «недоступно».
+4. **Донаты (опционально, 0 ₽)**: примените миграцию `supabase/migrations/005_donations.sql`. Подключать платёжного провайдера в BotFather **не нужно**: для Stars `provider_token` не используется вообще, счёт создаётся с `currency: 'XTR'`. Звёзды копятся на балансе бота и выводятся через [Fragment](https://fragment.com) (минимум 1 000 ⭐, холд 21 день). Без `BOT_TOKEN` карточка доната просто показывает «недоступно», игра работает как раньше.
 5. Привяжите Webhook, кнопку запуска WebApp и описание `12+` одной командой локально:
 ```bash
 TELEGRAM_BOT_TOKEN="ваш_токен" PUBLIC_WEBAPP_URL="https://ваш-домен.vercel.app" npm run bot:setup
