@@ -63,6 +63,9 @@ async function main() {
       { command: 'start', description: 'Запустить HACKER KOMBAT' },
       { command: 'help', description: 'Как играть и механики' },
       { command: 'legal', description: 'Правовая информация (12+)' },
+      { command: 'donate', description: 'Поддержать проект (Telegram Stars)' },
+      { command: 'paysupport', description: 'Помощь по платежам и возврат' },
+      { command: 'terms', description: 'Условия донатов' },
     ],
   });
 
@@ -78,7 +81,9 @@ async function main() {
   // 4. Привязка Webhook на Vercel (/api/telegram)
   const webhookPayload = {
     url: `${webAppUrl}/api/telegram`,
-    allowed_updates: ['message', 'callback_query'],
+    // pre_checkout_query обязателен: без него Telegram не пришлёт запрос
+    // подтверждения и оплата Stars отвалится по таймауту (10 секунд).
+    allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
   };
   if (webhookSecret) {
     webhookPayload.secret_token = webhookSecret;
