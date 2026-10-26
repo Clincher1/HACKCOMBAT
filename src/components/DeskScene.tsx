@@ -73,6 +73,15 @@ export const DeskScene: React.FC = () => {
     return () => window.clearInterval(timer);
   }, [autoClickPerSec]);
 
+  // Превью можно включить только для уже открытого этапа. Это также закрывает
+  // «старый» локальный выбор после Престижа, когда уровень игрока снова стал 1.
+  useEffect(() => {
+    if (previewStage !== null && (player?.derived.level ?? 0) < previewStage) {
+      setPreviewStage(null);
+      setShowStageBar(false);
+    }
+  }, [player?.derived.level, previewStage]);
+
   if (!player) return null;
 
   const { derived } = player;
@@ -159,7 +168,8 @@ export const DeskScene: React.FC = () => {
         </button>
       </div>
 
-      {/* Панель переключения предпросмотра этапов эволюции стола (каждые 5 уровней) */}
+      {/* Панель переключения уже открытых этапов. Закрытые уровни видны как
+          ориентир прогрессии, но не являются интерактивными и не показывают арт. */}
       <AnimatePresence>
         {showStageBar && (
           <motion.div
@@ -176,13 +186,18 @@ export const DeskScene: React.FC = () => {
                   <button
                     key={st}
                     type="button"
-                    onClick={() => setPreviewStage(st === derived.deskStage ? null : st)}
-                    className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                    disabled={!unlocked}
+                    aria-label={unlocked ? `Посмотреть этап рабочего стола: уровень ${st}` : `Этап уровня ${st} закрыт`}
+                    onClick={() => {
+                      if (!unlocked) return;
+                      setPreviewStage(st === derived.deskStage ? null : st);
+                    }}
+                    className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition ${
                       isSelected
-                        ? 'bg-[rgba(var(--ui-primary-rgb),0.20)] border-[var(--ui-primary)] text-[var(--ui-primary)]'
+                        ? 'bg-[rgba(var(--ui-primary-rgb),0.20)] border-[var(--ui-primary)] text-[var(--ui-primary)] cursor-pointer'
                         : unlocked
-                          ? 'bg-[#10172e] border-[#7dff00]/35 text-[#7dff00]'
-                          : 'bg-[#0d1224] border-slate-800 text-slate-400'
+                          ? 'bg-[#10172e] border-[#7dff00]/35 text-[#7dff00] cursor-pointer'
+                          : 'bg-[#0d1224] border-slate-800 text-slate-500 cursor-not-allowed opacity-70'
                     }`}
                   >
                     {unlocked ? '✓ ' : '🔒 '}Ур.{st}
