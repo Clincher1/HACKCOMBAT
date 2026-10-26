@@ -5,6 +5,7 @@ import {
   PUBLIC_ACHIEVEMENTS_COUNT,
 } from '../../shared/achievements.config';
 import { AchievementsPanel } from '../components/AchievementsPanel';
+import { CollectionPanel } from '../components/CollectionPanel';
 import { DonateCard } from '../components/DonateCard';
 import { ReferralCard } from '../components/ReferralCard';
 import {
@@ -34,7 +35,7 @@ export const ProfilePage: React.FC = () => {
     busyKey,
   } = useGame();
 
-  const [tab, setTab] = useState<'leaderboard' | 'achievements'>('leaderboard');
+  const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection'>('leaderboard');
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
 
@@ -335,34 +336,45 @@ export const ProfilePage: React.FC = () => {
         </button>
       </div>
 
-      {/* Вкладки Лидерборд Топ-100 / Достижения */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Вкладки лидерборда, достижений и коллекции оператора */}
+      <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
           onClick={() => setTab('leaderboard')}
-          className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
+          className={`py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition cursor-pointer ${
             tab === 'leaderboard'
               ? 'bg-[#00f0ff]/18 border-[#00f0ff] text-[#00f0ff]'
               : 'bg-[#10172e] border-slate-800 text-slate-400'
           }`}
         >
-          <Trophy className="w-4 h-4" />
-          <span>Топ-100 Игроков</span>
+          <Trophy className="w-3.5 h-3.5" />
+          <span>Топ-100</span>
         </button>
 
         <button
           type="button"
           onClick={() => setTab('achievements')}
-          className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
+          className={`py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition cursor-pointer ${
             tab === 'achievements'
               ? 'bg-[#7dff00]/18 border-[#7dff00] text-[#7dff00]'
               : 'bg-[#10172e] border-slate-800 text-slate-400'
           }`}
         >
-          <Award className="w-4 h-4" />
-          <span>
-            Ачивки ({publicUnlockedCount}/{PUBLIC_ACHIEVEMENTS_COUNT})
-          </span>
+          <Award className="w-3.5 h-3.5" />
+          <span>Ачивки {publicUnlockedCount}/{PUBLIC_ACHIEVEMENTS_COUNT}</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setTab('collection')}
+          className={`py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition cursor-pointer ${
+            tab === 'collection'
+              ? 'bg-purple-500/18 border-purple-400 text-purple-300'
+              : 'bg-[#10172e] border-slate-800 text-slate-400'
+          }`}
+        >
+          <span aria-hidden>🏆</span>
+          <span>Коллекция</span>
         </button>
       </div>
 
@@ -489,8 +501,10 @@ export const ProfilePage: React.FC = () => {
             ))}
           </div>
         </div>
-      ) : (
+      ) : tab === 'achievements' ? (
         <AchievementsPanel />
+      ) : (
+        <CollectionPanel />
       )}
 
       {/* Рефералка: своя ссылка, статистика и правила (v3.5) */}
