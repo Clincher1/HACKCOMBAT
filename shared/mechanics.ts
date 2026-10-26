@@ -8,7 +8,7 @@ import {
   getPetFeedCost,
   PETS_CONFIG,
 } from './pets.config';
-import { SKINS_CONFIG } from './skins.config';
+import { SKIN_CLICK_BONUS_CAP, SKINS_CONFIG } from './skins.config';
 import { TEAM_CONFIG } from './team.config';
 import type {
   AlignmentBranch,
@@ -362,7 +362,12 @@ export function computeDerivedStats(params: {
   data: number;
   xp?: number;
   prestigeCount: number;
+  /** v3.6.5: слот рабочего стола (историческое поле, сюда же попадают старые сейвы). */
   equippedSkin: string;
+  /** v3.6.5: отдельный слот скина интерфейса. */
+  equippedUi?: string;
+  /** v3.6.5: отдельный слот аватара. */
+  equippedAvatar?: string;
   pets?: PetState[];
   baseUpgrades?: Record<string, number>;
   cardTier?: number;
@@ -377,6 +382,8 @@ export function computeDerivedStats(params: {
     xp = 0,
     prestigeCount,
     equippedSkin,
+    equippedUi,
+    equippedAvatar,
     pets,
     baseUpgrades,
     cardTier = 1,
@@ -442,7 +449,19 @@ export function computeDerivedStats(params: {
   const whiteHatPassiveBonus = alignment === 'white_hat' ? 0.2 : 0;
   const blackHatClickBonus = alignment === 'black_hat' ? 0.5 : 0;
 
-  const skin = SKINS_CONFIG.find((s) => s.key === equippedSkin) ?? SKINS_CONFIG[0];
+  // v3.6.5: три независимых слота (стол / интерфейс / аватар).
+  // Бонус к тапу суммируется, но упирается в потолок одного скина — иначе
+  // три косметики давали бы до +49% и ломали баланс, который считается
+  // вокруг прежней планки 22% (Omega Singularity).
+  const equippedKeys = [equippedSkin, equippedUi, equippedAvatar].filter(
+    (k): k is string => typeof k === 'string' && k.length > 0
+  );
+  const equippedSkinConfigs = equippedKeys
+    .map((k) => SKINS_CONFIG.find((s) => s.key === k))
+    .filter((s): s is (typeof SKINS_CONFIG)[number] => Boolean(s));
+  const skin = equippedSkinConfigs.find((s) => s.category === 'desk') ?? SKINS_CONFIG[0];
+  const summedSkinBonus = equippedSkinConfigs.reduce((sum, s) => sum + (s.clickBonusPct || 0), 0);
+  const skinClickBonusPct = Math.min(SKIN_CLICK_BONUS_CAP, summedSkinBonus);
 
   const safePrestige = Math.max(0, Math.min(20, Math.floor(Number(prestigeCount) || 0)));
   const prestigeMultiplier = Math.pow(2, safePrestige);
@@ -452,7 +471,7 @@ export function computeDerivedStats(params: {
     (1 +
       teamClickBonusPct +
       blackHatClickBonus +
-      skin.clickBonusPct +
+      skinClickBonusPct +
       baseTotals.clickBonusPct +
       petBuffs.clickBonusPct) *
     prestigeMultiplier;

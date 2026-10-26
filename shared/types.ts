@@ -155,6 +155,21 @@ export interface SkinConfig {
   clickBonusPct: number; // DEFAULT: небольшой косметический бонус к стилю/клику
   /** Эмодзи-аватар для категории 'avatar' (0 = не аватар). */
   avatarGlyph?: string;
+  /**
+   * v3.6.5: цвета интерфейса для категории 'ui'.
+   * До этого UI-скин не перекрашивал ничего — палитра бралась из базовой темы.
+   * Здесь задаётся только хром (панели, рамки, акценты), арт сцены не трогается.
+   */
+  uiTokens?: {
+    /** Основной акцент интерфейса: подписи, активные вкладки, рамки. */
+    accent: string;
+    /** Второй акцент: градиенты кнопок, бейджи. */
+    accent2: string;
+    /** Подложка панелей и шапки. */
+    panel: string;
+    /** Текст на подложке панели. */
+    text: string;
+  };
 }
 
 export type AlignmentBranch = 'neutral' | 'white_hat' | 'black_hat';
@@ -217,6 +232,14 @@ export interface PlayerProgressStats {
   chipsCapNotifiedDay?: string | null;
   /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
   baseTheme?: string;
+  /**
+   * v3.6.5: отдельные слоты косметики.
+   * Раньше все три категории писались в players.equipped_skin, поэтому
+   * надевание интерфейса сбрасывало стол и аватар. Теперь стол остаётся
+   * в players.equipped_skin, а эти два поля живут в stats (jsonb) — миграция не нужна.
+   */
+  equippedUi?: string;
+  equippedAvatar?: string;
   /** v3.2: последний день, в котором набрано 8+ минут активности (даёт право на оффлайн). */
   lastQualifiedDayKey?: string | null;
   /** v3.2: время последнего запроса к серверу — «пульс» активной сессии. */

@@ -70,6 +70,7 @@ import type {
   LeaderboardSort,
   PlayerProgressStats,
   PlayerState,
+  SkinCategory,
 } from '../../shared/types';
 import { getSupabaseAdmin } from './supabaseAdmin';
 import { attributeReferral, payoutReferrals, qualifyInvitee } from './referrals';
@@ -147,6 +148,16 @@ const EMPTY_STATS: PlayerProgressStats = {
   offlineGraceUsed: false,
 };
 
+/**
+ * v3.6.5: валидация ключа слота. Возвращает ключ только если он существует
+ * и относится к нужной категории, иначе undefined (слот пуст).
+ */
+function pickSkinKey(raw: unknown, category: SkinCategory): string | undefined {
+  if (typeof raw !== 'string' || !raw) return undefined;
+  const skin = SKINS_CONFIG.find((s) => s.key === raw);
+  return skin && skin.category === category ? skin.key : undefined;
+}
+
 function normalizeStats(raw: unknown): PlayerProgressStats {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const num = (v: unknown, max = 1_000_000_000) => {
@@ -204,6 +215,10 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       typeof src.chipsCapNotifiedDay === 'string' ? src.chipsCapNotifiedDay.slice(0, 10) : null,
     baseTheme:
       src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
+    // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
+    // категории — мусор из jsonb не должен попадать в экипировку.
+    equippedUi: pickSkinKey(src.equippedUi, 'ui'),
+    equippedAvatar: pickSkinKey(src.equippedAvatar, 'avatar'),
     lastQualifiedDayKey:
       typeof src.lastQualifiedDayKey === 'string' ? src.lastQualifiedDayKey.slice(0, 10) : null,
     lastActiveAt:
@@ -260,6 +275,8 @@ function deriveStats(record: StoredPlayerRecord, nowMs: number = Date.now()): De
     xp: record.xp,
     prestigeCount: record.prestigeCount,
     equippedSkin: record.equippedSkin,
+    equippedUi: record.stats.equippedUi,
+    equippedAvatar: record.stats.equippedAvatar,
     baseUpgrades: record.baseUpgrades,
     cardTier: record.cardTier,
     pets: record.pets.map((p) => {
@@ -484,6 +501,28 @@ function safeNonNeg(val: unknown, fallback = 0): number {
   return Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
+/**
+ * v3.6.5: разовая раскладка старых сейвов по слотам.
+ *
+ * До этой версии все три категории писались в players.equipped_skin. Если
+ * игрок когда-то надел скин интерфейса или аватар, в поле лежит НЕ скин стола.
+ * Переносим его в свой слот, а стол откатываем на дефолтный — иначе игрок
+ * после обновления остался бы без нормального стола.
+ *
+ * Идемпотентно: после переноса условие больше не выполняется.
+ */
+function migrateLegacyEquippedSkins(record: StoredPlayerRecord): void {
+  const equipped = SKINS_CONFIG.find((s) => s.key === record.equippedSkin);
+  if (!equipped || equipped.category === 'desk') return;
+  record.stats = normalizeStats(record.stats);
+  if (equipped.category === 'ui' && !record.stats.equippedUi) {
+    record.stats.equippedUi = equipped.key;
+  } else if (equipped.category === 'avatar' && !record.stats.equippedAvatar) {
+    record.stats.equippedAvatar = equipped.key;
+  }
+  record.equippedSkin = 'default';
+}
+
 async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   record: StoredPlayerRecord;
   mode: 'supabase' | 'memory-fallback';
@@ -508,6 +547,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       rec.baseUpgrades = rec.baseUpgrades && typeof rec.baseUpgrades === 'object' ? rec.baseUpgrades : {};
       rec.stats = normalizeStats(rec.stats);
     }
+    migrateLegacyEquippedSkins(db.playersByTgId[key]);
     return { record: db.playersByTgId[key], mode: 'memory-fallback' };
   }
 
@@ -631,6 +671,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     achievements: Array.from(new Set((achRes.data ?? []).map((a) => String(a.key)))),
   };
 
+  migrateLegacyEquippedSkins(record);
   return { record, mode: 'supabase' };
 }
 
@@ -2055,8 +2096,21 @@ export async function handleSkinAction(
       throw new Error('Скин не найден');
     }
 
+    // v3.6.5: у каждой категории свой слот. Раньше все три писались в
+    // record.equippedSkin, из-за чего надевание интерфейса сбрасывало стол
+    // и аватар (а надевание стола — аватар). Теперь слоты независимы.
+    const equipIntoSlot = () => {
+      if (skin.category === 'ui') {
+        record.stats.equippedUi = skin.key;
+      } else if (skin.category === 'avatar') {
+        record.stats.equippedAvatar = skin.key;
+      } else {
+        record.equippedSkin = skin.key;
+      }
+    };
+
     if (record.unlockedSkins.includes(skin.key)) {
-      record.equippedSkin = skin.key;
+      equipIntoSlot();
     } else {
       if (skin.prestigeRequired && record.prestigeCount < 1) {
         throw new Error('Этот скин открывается только через Global Hack Престиж!');
@@ -2072,12 +2126,17 @@ export async function handleSkinAction(
       }
       record.crypto -= skin.cryptoCost;
       record.unlockedSkins.push(skin.key);
-      record.equippedSkin = skin.key;
+      equipIntoSlot();
       alerts.push({
         id: crypto.randomUUID(),
         type: 'success',
         title: `🎨 Скин «${skin.name}» активирован!`,
-        message: 'Тема рабочего стола и неоновые акценты обновлены.',
+        message:
+          skin.category === 'ui'
+            ? 'Интерфейс перекрашен. Скин стола и аватар остались на месте.'
+            : skin.category === 'avatar'
+              ? 'Аватар обновлён. Стол и интерфейс остались на месте.'
+              : 'Тема рабочего стола обновлена. Интерфейс и аватар остались на месте.',
       });
     }
 

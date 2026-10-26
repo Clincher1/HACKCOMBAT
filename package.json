@@ -13,13 +13,14 @@
     "qa:api": "node scripts/qa/api.mjs",
     "qa:clicks": "node scripts/qa/clicks.mjs",
     "qa:offline": "node scripts/qa/offline-v32.mjs",
-    "qa:all": "npm run build && npm run qa:offline && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:leaderboard && npm run qa:themes",
+    "qa:all": "npm run build && npm run qa:offline && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:leaderboard && npm run qa:themes && npm run qa:cosmetics",
     "qa:buy": "node scripts/qa/buy-fast.mjs",
     "qa:donate": "node scripts/qa/donates.mjs",
     "qa:referral": "node scripts/qa/referral.mjs",
     "qa:chips": "node scripts/qa/chips.mjs",
     "qa:leaderboard": "node scripts/qa/leaderboard.mjs",
-    "qa:themes": "node scripts/qa/themes.mjs"
+    "qa:themes": "node scripts/qa/themes.mjs",
+    "qa:cosmetics": "node scripts/qa/cosmetics.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
