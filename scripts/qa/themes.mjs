@@ -176,13 +176,33 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
       'hue-rotate(85deg) saturate(1.25)'
   );
   check('у женской темы есть своя сцена', Boolean(femme.sceneUrl), femme.sceneUrl ?? '');
-  check('у женской темы есть маскот', Boolean(femme.mascotUrl), femme.mascotUrl ?? '');
+  check('у женской темы есть превью для карточки', Boolean(femme.previewImage), femme.previewImage ?? '');
+  check('маскот больше не наклейка поверх сцены', !('mascotUrl' in femme));
+
+  // v3.6.2: форма интерфейса — часть темы, а не только палитра
+  check('у темы есть UI-токены формы', Boolean(femme.ui) && Boolean(classic.ui));
+  check(
+    'женская тема смягчает радиусы',
+    femme.ui.radiusBoost > classic.ui.radiusBoost,
+    `${classic.ui.radiusBoost} → ${femme.ui.radiusBoost}`
+  );
+  check('ушки на кнопке HACK только у женской', femme.ui.catEars === true && classic.ui.catEars === false);
+  check(
+    'градиент кнопки берётся из темы и различается',
+    femme.ui.buttonGradient.join() !== classic.ui.buttonGradient.join(),
+    femme.ui.buttonGradient.join(' → ')
+  );
+  check(
+    'у женской темы мягкий «успех» вместо кислотного лайма',
+    femme.ui.successHex !== classic.ui.successHex,
+    `${classic.ui.successHex} → ${femme.ui.successHex}`
+  );
   check('неизвестный ключ откатывается к классике', themes.getBaseTheme('nope').key === 'classic');
 
   // Ассеты существуют и не раздуты
   for (const [label, url] of [
     ['сцена', femme.sceneUrl],
-    ['маскот', femme.mascotUrl],
+    ['превью', femme.previewImage],
   ]) {
     const file = path.join(REPO, 'public', url.replace(/^\//, ''));
     const exists = fs.existsSync(file);
