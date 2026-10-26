@@ -431,8 +431,6 @@ export const DeskScene: React.FC = () => {
         </div>
       </div>
 
-      {/* v3.2: оффлайн-копилка работает только после 8 минут игры за текущий день */}
-      <OfflineBankNote derived={derived} stats={player.stats} />
     </div>
   );
 };
@@ -442,7 +440,7 @@ export const DeskScene: React.FC = () => {
  * Показывает, сколько капает в час и сколько ещё нужно поиграть сегодня,
  * чтобы копилка «открылась». Считаем тот же день, что и сервер (Москва, UTC+3).
  */
-const OfflineBankNote: React.FC<{
+export const OfflineBankNote: React.FC<{
   derived: DerivedStats;
   stats: PlayerProgressStats;
 }> = ({ derived, stats }) => {
