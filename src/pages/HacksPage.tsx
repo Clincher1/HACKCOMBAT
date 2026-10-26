@@ -18,6 +18,7 @@ import {
   getMissionRewardScale,
   getMissionXpAward,
 } from '../../shared/hack.config';
+import { getFirstChapterState } from '../../shared/chapter.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { MissionTargetType } from '../../shared/types';
 import { useGame } from '../context/GameContext';
@@ -136,6 +137,8 @@ export const HacksPage: React.FC = () => {
   });
 
   const rewardScale = getMissionRewardScale(derived.level);
+  const chapter = getFirstChapterState(player);
+  const storyMissionKeys = new Set(chapter.activeStep?.missionKeys ?? []);
 
   return (
     <div className="space-y-3.5 pb-4">
@@ -203,6 +206,58 @@ export const HacksPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {!chapter.complete && chapter.activeStep && (
+        <section
+          aria-label="Сюжетная глава"
+          className="rounded-2xl bg-gradient-to-br from-purple-950/35 to-[#10172e] border border-purple-400/30 p-3"
+        >
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-purple-400/10 text-purple-300">
+              <span aria-hidden="true">📖</span>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-300">
+                  Глава 1 · Первый выход
+                </div>
+                <span className="shrink-0 text-[10px] text-slate-500">
+                  {chapter.completedCount}/{chapter.steps.length}
+                </span>
+              </div>
+              <div className="mt-0.5 text-sm font-display font-extrabold text-white">
+                {chapter.activeStep.title}
+              </div>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
+                {chapter.activeStep.missionBrief}
+              </p>
+            </div>
+          </div>
+          <div className="mt-2.5 grid grid-cols-3 gap-1.5" aria-label="Прогресс главы">
+            {chapter.steps.map((step, index) => (
+              <div
+                key={step.id}
+                className={`h-1.5 rounded-full ${
+                  step.complete
+                    ? 'bg-[#7dff00]'
+                    : step.active
+                      ? 'bg-purple-300'
+                      : 'bg-slate-800'
+                }`}
+                title={`${index + 1}. ${step.title}`}
+              />
+            ))}
+          </div>
+          {chapter.activeStep.href !== '/hacks' && (
+            <Link
+              to={chapter.activeStep.href}
+              className="mt-2.5 inline-flex items-center rounded-lg border border-purple-300/35 bg-purple-300/10 px-2.5 py-1.5 text-[10px] font-bold text-purple-200 hover:bg-purple-300/20 transition"
+            >
+              Сначала: {chapter.activeStep.actionLabel}
+            </Link>
+          )}
+        </section>
+      )}
 
       {/* Секция текущих запущенных миссий с живыми прогресс-барами */}
       {player.activeMissions.length > 0 && (
@@ -389,6 +444,7 @@ export const HacksPage: React.FC = () => {
       <div className="space-y-2.5">
         {visibleMissions.map((m) => {
           const meta = TYPE_META[m.targetType];
+          const storyMission = storyMissionKeys.has(m.key);
           const whiteHatMult =
             derived.alignment === 'white_hat' && m.targetType === 'bad' ? 2 : 1;
           const estReward = Math.round(
@@ -436,6 +492,11 @@ export const HacksPage: React.FC = () => {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${meta.bg}`}>
                     {meta.badge}
                   </span>
+                  {storyMission && (
+                    <span className="rounded-md border border-purple-300/35 bg-purple-300/10 px-2 py-0.5 text-[10px] font-bold text-purple-200">
+                      📖 Глава 1
+                    </span>
+                  )}
                   <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
                     <Clock className="w-3 h-3" /> {formatDuration(m.durationSec)}
                   </span>

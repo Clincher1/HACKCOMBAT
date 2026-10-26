@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  BookOpen,
   CheckCircle2,
   Cpu,
   Crosshair,
@@ -17,6 +18,7 @@ import {
   getCardPrice,
   getMaxCardLevel,
 } from '../../shared/cards.config';
+import { getFirstChapterState, type FirstChapterState } from '../../shared/chapter.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { PlayerState } from '../../shared/types';
 import { DeskScene } from '../components/DeskScene';
@@ -79,6 +81,7 @@ export const DeskPage: React.FC = () => {
 
   const nextAction = getNextAction(player, nowMs, setDailyModalOpen);
   const tone = ACTION_TONE[nextAction.tone];
+  const chapter = getFirstChapterState(player);
 
   return (
     <div className="space-y-3.5 pb-4">
@@ -124,6 +127,8 @@ export const DeskPage: React.FC = () => {
         )}
       </section>
 
+      <ChapterBrief chapter={chapter} />
+
       {/* Индикатор риска при высоком Heat */}
       {player.heat >= 70 && (
         <Link
@@ -139,6 +144,73 @@ export const DeskPage: React.FC = () => {
         </Link>
       )}
     </div>
+  );
+};
+
+const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => {
+  const activeStep = chapter.activeStep;
+
+  return (
+    <section
+      aria-label="Сюжетная глава"
+      className="rounded-2xl bg-gradient-to-br from-purple-950/35 to-[#10172e] border border-purple-400/30 p-3.5"
+    >
+      <div className="flex items-start gap-2.5">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-400/10 text-purple-300">
+          <BookOpen className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-300">
+              Глава 1 · Первый выход
+            </div>
+            <span className="shrink-0 text-[10px] text-slate-500">
+              {chapter.completedCount}/{chapter.steps.length}
+            </span>
+          </div>
+          <h2 className="mt-0.5 font-display text-sm font-extrabold text-white">
+            {activeStep ? activeStep.title : 'Глава завершена'}
+          </h2>
+          <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
+            {activeStep
+              ? activeStep.deskBrief
+              : 'Ты прошёл первый маршрут оператора. Дальше сеть будет открываться через обычные контракты, сборку и собственные решения.'}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-1.5" aria-label="Прогресс главы">
+        {chapter.steps.map((step, index) => (
+          <div
+            key={step.id}
+            className={`rounded-lg border px-2 py-1.5 ${
+              step.complete
+                ? 'border-[#7dff00]/35 bg-[#7dff00]/10'
+                : step.active
+                  ? 'border-purple-300/50 bg-purple-400/10'
+                  : 'border-slate-800 bg-[#0a0e1a]/45'
+            }`}
+          >
+            <div className={`text-[10px] font-bold ${step.complete ? 'text-[#7dff00]' : step.active ? 'text-purple-200' : 'text-slate-600'}`}>
+              {step.complete ? '✓' : `${index + 1}`}
+            </div>
+            <div className={`mt-0.5 text-[10px] leading-tight ${step.complete ? 'text-slate-300' : step.active ? 'text-white' : 'text-slate-600'}`}>
+              {step.title}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {activeStep && (
+        <Link
+          to={activeStep.href}
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-purple-300 px-3 py-2.5 text-xs font-extrabold text-[#13091d] transition hover:bg-purple-200"
+        >
+          <span>{activeStep.actionLabel}</span>
+          <ArrowRight className="h-4 w-4" />
+        </Link>
+      )}
+    </section>
   );
 };
 
