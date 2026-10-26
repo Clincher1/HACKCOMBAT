@@ -6,6 +6,7 @@ import { BASE_THEMES } from '../../shared/themes.config';
 import type { SkinCategory } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+import { ThemeOnboardingModal } from './ThemeOnboardingModal';
 import { TutorialModal } from './TutorialModal';
 
 export const ModalsAndOverlays: React.FC = () => {
@@ -36,6 +37,7 @@ export const ModalsAndOverlays: React.FC = () => {
 
   return (
     <>
+      <ThemeOnboardingModal />
       <TutorialModal />
       {/* Модалка накопленного оффлайн пассивного дохода */}
       <AnimatePresence>
