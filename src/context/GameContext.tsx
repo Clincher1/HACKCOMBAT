@@ -168,9 +168,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const backoffUntilRef = useRef<number>(0);
   const hiddenAtRef = useRef<number>(0);
 
+  // Toasts are a single non-blocking queue item, not a stack. Several alerts
+  // from one server action used to pile up and force the player to close each
+  // one by hand. The next alert is shown only after the current one disappears.
   const pushAlerts = useCallback((incoming?: GameAlert[]) => {
     if (!incoming || incoming.length === 0) return;
-    setAlerts((prev) => [...incoming, ...prev].slice(0, 5));
+    const visibleAlert =
+      incoming.find((a) => a.type === 'penalty' || a.type === 'warning') ?? incoming[incoming.length - 1];
+    setAlerts([visibleAlert]);
     const hasPenalty = incoming.some((a) => a.type === 'penalty');
     if (hasPenalty) {
       cyberSound.playAlarm();
@@ -183,11 +188,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const pushClientAlert = useCallback((alert: Omit<GameAlert, 'id'>) => {
     const item: GameAlert = { ...alert, id: `${Date.now()}-${Math.random()}` };
-    setAlerts((prev) => [item, ...prev].slice(0, 5));
+    setAlerts([item]);
     if (alert.type === 'warning' || alert.type === 'penalty') {
       cyberSound.playAlarm();
       triggerHapticNotification('warning');
     }
+  }, []);
+
+  // Stable reference is important: AlertStack uses it in its timer effect.
+  // An inline callback here changed every second with the HUD tick and reset
+  // the auto-dismiss timer indefinitely.
+  const dismissAlert = useCallback((id: string) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
   }, []);
 
   const applyServerSync = useCallback(
@@ -577,7 +589,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   const refreshMissions = useCallback(
-    () => runAction('mission:refresh', (clicks) => gameApi.missionAction('refresh', undefined, clicks), true, 'light'),
+    // Скан — фоновое обновление списка, не «покупка»: без лишнего звука и вибрации.
+    () => runAction('mission:refresh', (clicks) => gameApi.missionAction('refresh', undefined, clicks), false, 'none'),
     [runAction]
   );
 
@@ -609,7 +622,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .track(event, value)
       .then((res) => {
         if (res.alerts && res.alerts.length > 0) {
-          setAlerts((prev) => [...res.alerts!, ...prev].slice(0, 5));
+          setAlerts([res.alerts[0]]);
         }
       })
       .catch(() => {
@@ -811,7 +824,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setOfflineModalEarned(null);
           setOfflineModalTaps(0);
         },
-        dismissAlert: (id) => setAlerts((prev) => prev.filter((a) => a.id !== id)),
+        dismissAlert,
         pushClientAlert,
         lockdownRemainingSec,
         nowMs,

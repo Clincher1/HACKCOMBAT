@@ -290,7 +290,7 @@ export const TopHud: React.FC = () => {
           <div
             className="rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center justify-between gap-1 min-w-0"
             style={{ borderColor: `${CURRENCY_COLORS.rep}55` }}
-            title="Rep — репутация: найм элитной команды и мирная ветка White Hat"
+            title="Rep — репутация: найм элитной команды и ветка Белого хакинга"
           >
             <span
               className="text-[9px] font-bold uppercase tracking-[0.06em] leading-none truncate"

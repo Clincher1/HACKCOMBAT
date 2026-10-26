@@ -143,6 +143,7 @@ const EMPTY_STATS: PlayerProgressStats = {
   lastTapClaimAt: null,
   activeDayKey: null,
   activeSecondsToday: 0,
+  missionRefreshSalt: 0,
   lastQualifiedDayKey: null,
   lastActiveAt: null,
   offlineGraceUsed: false,
@@ -213,6 +214,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     chipsToday: num(src.chipsToday, 100_000),
     chipsCapNotifiedDay:
       typeof src.chipsCapNotifiedDay === 'string' ? src.chipsCapNotifiedDay.slice(0, 10) : null,
+    missionRefreshSalt: num(src.missionRefreshSalt, 1_000_000_000),
     baseTheme:
       src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
@@ -393,8 +395,6 @@ export function persistLocalDatabase(): void {
  * чтобы на всех Serverless-инстансах Vercel витрина игрока была идентичной и никто не мог
  * запускать миссии вне своей витрины!
  */
-const manualRefreshSalt = new Map<number, number>();
-
 export function pickMissionOffer(unlockedGrey: boolean, seed = 0, playerLevel = 99): string[] {
   let state = (Math.abs(seed) || 1337) % 2147483647;
   const nextRand = () => {
@@ -434,11 +434,14 @@ export function pickMissionOffer(unlockedGrey: boolean, seed = 0, playerLevel = 
 function computeOfferWindow(
   tgId: number,
   unlockedGrey: boolean,
-  playerLevel = 99
+  playerLevel = 99,
+  refreshSalt = 0
 ): { keys: string[]; refreshedAt: string } {
   const windowMs = 15 * 60 * 1000;
   const windowIndex = Math.floor(Date.now() / windowMs);
-  const salt = manualRefreshSalt.get(tgId) ?? 0;
+  // Salt хранится в players.stats, а не в памяти Lambda: после холодного старта
+  // и на другом Vercel-инстансе игрок получает тот же самый скан целей.
+  const salt = Math.max(0, Math.floor(Number(refreshSalt) || 0));
   const seed = Math.abs(tgId * 31 + windowIndex * 7919 + salt * 104729);
   return {
     keys: pickMissionOffer(unlockedGrey, seed, playerLevel),
@@ -494,7 +497,6 @@ function describeOdds(chance: number): string {
 }
 
 const recentClickTimestamps = new Map<number, number>();
-const missionOfferCache = new Map<number, { keys: string[]; refreshedAt: string }>();
 
 function safeNonNeg(val: unknown, fallback = 0): number {
   const n = Number(val);
@@ -586,14 +588,18 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   const teamList = Array.from(new Set((teamRes.data ?? []).map((r) => String(r.npc_key))));
   const hasAnalyst = teamList.includes('analyst');
 
-  // Уровень для витрины миссий считается по опыту (v3), а не по уровням карточек.
+  // Уровень для скана миссий считается по опыту (v3), а не по уровням карточек.
   const previewLevel = getLevelProgress(Math.floor(safeNonNeg(playerRow.xp, 0))).level;
-
-  let offer = missionOfferCache.get(user.tgId);
-  if (!offer) {
-    offer = computeOfferWindow(user.tgId, hasAnalyst, previewLevel);
-    missionOfferCache.set(user.tgId, offer);
-  }
+  // Считываем stats один раз: в нём лежит версия ручного скана, общая для всех
+  // serverless-инстансов. Раньше salt жил в памяти Lambda — из-за этого список
+  // на экране и серверная проверка иногда расходились.
+  const persistedStats = normalizeStats(playerRow.stats);
+  const offer = computeOfferWindow(
+    user.tgId,
+    hasAnalyst,
+    previewLevel,
+    persistedStats.missionRefreshSalt
+  );
 
   const petsList: StoredPet[] = (petsRes.data ?? [])
     .map((row) => {
@@ -650,7 +656,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     team: teamList,
     pets: petsList,
     baseUpgrades: baseUpgradesMap,
-    stats: normalizeStats(playerRow.stats),
+    stats: persistedStats,
     activeMissions: (missionsRes.data ?? []).map((m) => ({
       id: String(m.id),
       missionKey: String(m.mission_key),
@@ -680,11 +686,6 @@ async function savePlayerCore(
   mode: 'supabase' | 'memory-fallback'
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
-  missionOfferCache.set(record.tgId, {
-    keys: record.availableMissionKeys,
-    refreshedAt: record.missionsRefreshedAt,
-  });
-
   // Защита от переполнения и отрицательных значений перед записью в БД
   record.data = Math.max(0, Math.floor(safeNonNeg(record.data, 0) * 100) / 100);
   record.crypto = Math.max(0, Math.floor(safeNonNeg(record.crypto, 0)));
@@ -936,7 +937,12 @@ async function syncTimeAndRules(
   // 4. Авто-обновление витрины миссий каждые 15 минут
   const refreshedMs = new Date(record.missionsRefreshedAt).getTime();
   if (Number.isNaN(refreshedMs) || nowMs - refreshedMs >= 15 * 60 * 1000) {
-    const nextOffer = computeOfferWindow(record.tgId, derived.unlockedGreyMissions, derived.level);
+    const nextOffer = computeOfferWindow(
+      record.tgId,
+      derived.unlockedGreyMissions,
+      derived.level,
+      record.stats.missionRefreshSalt
+    );
     record.availableMissionKeys = nextOffer.keys;
     record.missionsRefreshedAt = nowIso;
   }
@@ -1629,8 +1635,13 @@ export async function handleHireNpc(
     record.team.push(npc.key);
 
     if (npc.unlocksGreyMissions) {
-      manualRefreshSalt.set(user.tgId, (manualRefreshSalt.get(user.tgId) ?? 0) + 1);
-      const nextOffer = computeOfferWindow(user.tgId, true, deriveStats(record).level);
+      record.stats.missionRefreshSalt = (record.stats.missionRefreshSalt ?? 0) + 1;
+      const nextOffer = computeOfferWindow(
+        user.tgId,
+        true,
+        deriveStats(record).level,
+        record.stats.missionRefreshSalt
+      );
       record.availableMissionKeys = nextOffer.keys;
       record.missionsRefreshedAt = new Date().toISOString();
       alerts.push({
@@ -1665,8 +1676,13 @@ export async function handleMissionAction(
     const derived = deriveStats(record);
 
     if (action === 'refresh') {
-      manualRefreshSalt.set(user.tgId, (manualRefreshSalt.get(user.tgId) ?? 0) + 1);
-      const nextOffer = computeOfferWindow(user.tgId, derived.unlockedGreyMissions, derived.level);
+      record.stats.missionRefreshSalt = (record.stats.missionRefreshSalt ?? 0) + 1;
+      const nextOffer = computeOfferWindow(
+        user.tgId,
+        derived.unlockedGreyMissions,
+        derived.level,
+        record.stats.missionRefreshSalt
+      );
       record.availableMissionKeys = nextOffer.keys;
       record.missionsRefreshedAt = new Date().toISOString();
       await savePlayerCore(record, mode);

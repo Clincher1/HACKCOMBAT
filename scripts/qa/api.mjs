@@ -85,8 +85,16 @@ check('витрина миссий не пустая', (p.availableMissionKeys ?
 
 // ───────────────────────────────────────────── 2. Витрина и гейты миссий
 const refresh = await post('missions', { action: 'refresh' });
-const offers = refresh.json.player?.availableMissionKeys ?? [];
-check('refresh витрины работает', refresh.json.ok === true && offers.length >= 3, offers.length);
+const firstRefreshSalt = refresh.json.player?.stats?.missionRefreshSalt;
+const refreshAgain = await post('missions', { action: 'refresh' });
+const secondRefreshSalt = refreshAgain.json.player?.stats?.missionRefreshSalt;
+const offers = refreshAgain.json.player?.availableMissionKeys ?? [];
+check('refresh скана работает', refresh.json.ok === true && offers.length >= 3, offers.length);
+check(
+  'версия скана сохраняется между запросами',
+  Number.isInteger(firstRefreshSalt) && secondRefreshSalt === firstRefreshSalt + 1,
+  `${firstRefreshSalt} → ${secondRefreshSalt}`
+);
 
 const notOffered = ['void_casino', 'quantum_vault', 'hydra_core', 'orbital_bank', 'black_ice'].find((k) => !offers.includes(k));
 if (notOffered) {

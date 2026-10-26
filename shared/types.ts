@@ -230,6 +230,8 @@ export interface PlayerProgressStats {
   chipsToday?: number;
   /** v3.5: день, за который уже показали предупреждение о лимите (без спама). */
   chipsCapNotifiedDay?: string | null;
+  /** v3.7: версия ручного скана целей — хранится в stats, чтобы Vercel-инстансы видели один оффер. */
+  missionRefreshSalt?: number;
   /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
   baseTheme?: string;
   /**

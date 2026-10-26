@@ -258,17 +258,17 @@ export const DeskScene: React.FC = () => {
         <div className="scanline-overlay absolute inset-0" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-transparent to-[#0a0e1a]/45 pointer-events-none" />
 
-        {/* Верхние бейджи ветки White Hat / Black Hat и автоклика Botmaster */}
+        {/* Верхние бейджи трёх направлений и автоклика Botmaster */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 pointer-events-none">
           <div className="flex flex-wrap items-center gap-1.5">
             {derived.alignment === 'white_hat' && (
               <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a]/85 border border-[rgba(var(--ui-primary-rgb),0.60)] text-[var(--ui-primary)] text-[10px] font-bold">
-                🛡️ WHITE HAT (+20% Data/ч • ×2 Bad-миссии)
+                🛡️ БЕЛЫЙ ХАКИНГ (+20% Data/ч • ×2 белые миссии)
               </span>
             )}
             {derived.alignment === 'black_hat' && (
               <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a]/85 border border-[rgba(var(--ui-secondary-rgb),0.70)] text-[var(--ui-secondary)] text-[10px] font-bold">
-                🕶️ BLACK HAT (+50% к тапу • риск Heat)
+                🕶️ ЧЁРНЫЙ ХАКИНГ (+50% к тапу • риск Heat)
               </span>
             )}
             {derived.alignment === 'neutral' && (
