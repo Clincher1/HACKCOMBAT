@@ -89,6 +89,7 @@ export const HacksPage: React.FC = () => {
     skipMission,
     refreshMissions,
     busyKey,
+    missionHistory,
   } = useGame();
   const [filter, setFilter] = useState<FilterType>('all');
   const autoRefreshRequestedRef = useRef(false);
@@ -290,6 +291,51 @@ export const HacksPage: React.FC = () => {
             );
           })}
         </div>
+      )}
+
+      {/* Локальный журнал результата не зависит от таймера toast и не меняет серверную экономику. */}
+      {missionHistory.length > 0 && (
+        <section
+          className="rounded-2xl bg-[#0d152b]/90 border border-[#00f0ff]/20 p-3"
+          aria-label="Последние операции"
+        >
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="text-xs font-extrabold text-white">📜 Последние операции</div>
+            <span className="text-[10px] text-slate-500">текущая сессия · {missionHistory.length}/5</span>
+          </div>
+          <div className="space-y-1.5">
+            {missionHistory.map((entry) => {
+              const isPenalty = entry.type === 'penalty';
+              const isPartial = entry.type === 'info';
+              const tone = isPenalty
+                ? 'border-rose-400/25 bg-rose-950/20'
+                : isPartial
+                  ? 'border-amber-300/25 bg-amber-950/15'
+                  : 'border-emerald-400/25 bg-emerald-950/15';
+              const marker = isPenalty ? '×' : isPartial ? '·' : '✓';
+              const markerTone = isPenalty
+                ? 'text-rose-300 bg-rose-400/10'
+                : isPartial
+                  ? 'text-amber-300 bg-amber-400/10'
+                  : 'text-[#7dff00] bg-[#7dff00]/10';
+
+              return (
+                <div key={entry.id} className={`flex items-start gap-2 rounded-xl border px-2.5 py-2 ${tone}`}>
+                  <span className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[11px] font-black ${markerTone}`}>
+                    {marker}
+                  </span>
+                  <div className="min-w-0">
+                    <div className="text-[11px] font-bold text-slate-100">{entry.title}</div>
+                    <div className="text-[10px] leading-snug text-slate-400">{entry.message}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-2 text-[10px] text-slate-500">
+            Архив виден до перезапуска игры; награды и статусы всегда подтверждает сервер.
+          </div>
+        </section>
       )}
 
       {/* Три понятных направления хакинга. Отдельной кнопки «Витрина» больше нет. */}
