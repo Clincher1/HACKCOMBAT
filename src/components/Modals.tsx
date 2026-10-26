@@ -215,10 +215,24 @@ export const ModalsAndOverlays: React.FC = () => {
                             : 'border-slate-700/70 hover:border-slate-500'
                         }`}
                         style={{
-                          background: `linear-gradient(135deg, ${theme.previewFrom}22 0%, ${theme.previewTo}22 100%)`,
+                          background: theme.previewImage
+                            ? undefined
+                            : `linear-gradient(135deg, ${theme.previewFrom}22 0%, ${theme.previewTo}22 100%)`,
                         }}
                       >
-                        <div className="flex items-center justify-between gap-1">
+                        {/* Если у темы есть арт — показываем его, иначе градиент */}
+                        {theme.previewImage && (
+                          <>
+                            <img
+                              src={theme.previewImage}
+                              alt={theme.name}
+                              loading="lazy"
+                              className="absolute inset-0 w-full h-full object-cover opacity-60"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-[#0a0e1a]/45 to-transparent" />
+                          </>
+                        )}
+                        <div className="relative flex items-center justify-between gap-1">
                           <span className="text-base leading-none">{theme.glyph}</span>
                           {active ? (
                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[#0a0e1a] flex items-center gap-0.5">
@@ -230,14 +244,14 @@ export const ModalsAndOverlays: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        <div className="font-display font-bold text-xs text-white mt-1.5 leading-tight">
+                        <div className="relative font-display font-bold text-xs text-white mt-1.5 leading-tight">
                           {theme.name}
                         </div>
-                        <div className="text-[9px] text-slate-300/90 mt-0.5 leading-snug">
+                        <div className="relative text-[9px] text-slate-300/90 mt-0.5 leading-snug">
                           {theme.tagline}
                         </div>
                         <div
-                          className="h-1.5 w-full rounded-full mt-1.5"
+                          className="relative h-1.5 w-full rounded-full mt-1.5"
                           style={{
                             background: `linear-gradient(90deg, ${theme.previewFrom}, ${theme.previewTo})`,
                           }}

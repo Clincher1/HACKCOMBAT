@@ -210,24 +210,62 @@ async function runMission(tgId, state) {
   }
   check('повторно про лимит не спамим', repeats === 0, `повторов=${repeats}`);
 
-  // ── 2. Сверх лимита: Чипов нет, но контракт засчитывается ────────────────
+  // ── 2. Сверх лимита: счётчик за сутки стоит, но контракт засчитывается ───
+  // ВАЖНО: общий баланс Чипов всё-таки может вырасти — награды за достижения
+  // идут В ОБХОД лимита (одноразовые, не фарм). Инвариант капа — «chipsToday»,
+  // он обязан стоять на 45, а не общий баланс.
+  // Секции выше прокрутили игровое время — день мог смениться и счётчик
+  // обнулиться. Догоняем кап заново, чтобы проверять именно состояние «на лимите».
+  let catchUp = 0;
+  while ((state.player.stats.chipsToday ?? 0) < 45 && catchUp < 300) {
+    const res = await runMission(TG, state);
+    catchUp += 1;
+    if (!res.ok) break;
+  }
+
   const chipsAtCap = state.player.chips;
+  const chipsTodayAtCap = state.player.stats.chipsToday;
+  const dayAtCap = state.player.stats.chipsDayKey;
   const xpAtCap = state.player.xp;
   const dataAtCap = state.player.data;
 
-  let extraOk = 0;
+  let missionsBeyondCap = 0;
+  let counterGrew = 0;
+  let dayRolled = false;
+  let overCap = 0;
   for (let i = 0; i < 5; i++) {
     const res = await runMission(TG, state);
     if (!res.ok) break;
-    if (res.chipsGained === 0) extraOk += 1;
+    missionsBeyondCap += 1;
+    const today = state.player.stats.chipsToday ?? 0;
+    if (today > 45) overCap += 1;
+    // Каждые ~15 миссий игровое время уходит за полночь и счётчик легально
+    // обнуляется — это штатный сброс, а не «рост сверх капа».
+    if (state.player.stats.chipsDayKey !== dayAtCap) {
+      dayRolled = true;
+      break;
+    }
+    if (today > chipsTodayAtCap) counterGrew += 1;
   }
-  check('сверх лимита Чипы не начисляются', state.player.chips === chipsAtCap, `${chipsAtCap}→${state.player.chips}`);
+  check('перед проверкой снова стоим на капе', chipsTodayAtCap === 45, `chipsToday=${chipsTodayAtCap}`);
+  check(
+    'счётчик за сутки не растёт сверх капа',
+    counterGrew === 0 && overCap === 0,
+    `chipsToday=${state.player.stats.chipsToday}${dayRolled ? ' (перешли в новые сутки — сброс штатный)' : ''}`
+  );
   check(
     'но контракт всё равно засчитан (XP/Data идут)',
     state.player.xp > xpAtCap || state.player.data > dataAtCap + 100,
     `xp ${xpAtCap}→${state.player.xp}`
   );
-  check('после капа сработало хотя бы одно завершение', extraOk > 0, `контрактов=${extraOk}`);
+  check('после капа миссии всё равно закрываются', missionsBeyondCap > 0, `контрактов=${missionsBeyondCap}`);
+
+  // Общий баланс мог вырасти только за счёт достижений (они вне лимита).
+  if (state.player.chips > chipsAtCap) {
+    console.log(
+      `  (справка: общий баланс ${chipsAtCap}→${state.player.chips} вырос за счёт достижений — это штатно)`
+    );
+  }
 
   // ── 3. Смена суток обнуляет счётчик ──────────────────────────────────────
   fakeNow += 24 * 3600 * 1000;

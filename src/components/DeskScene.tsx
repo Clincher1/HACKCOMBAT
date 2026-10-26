@@ -122,11 +122,6 @@ export const DeskScene: React.FC = () => {
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#00f0ff]">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{stageInfo.title}</span>
-            {baseTheme.mascotUrl && (
-              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-[#ff6fb5]/20 border border-[#ff6fb5]/45 text-[#ffb3d9] shrink-0">
-                {baseTheme.mascotName}
-              </span>
-            )}
             {previewStage && previewStage !== derived.deskStage && (
               <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px]">
                 Превью
@@ -224,32 +219,7 @@ export const DeskScene: React.FC = () => {
           }}
         />
 
-        {/* Маскот базовой темы (только у «Neon Muse»). Лёгкое покачивание в покое
-            и мягкий «вдох» на тап — живо, но не отвлекает от кнопки HACK. */}
-        {baseTheme.mascotUrl && (
-          <motion.img
-            src={baseTheme.mascotUrl}
-            alt={baseTheme.mascotName ?? 'Компаньон'}
-            loading="lazy"
-            initial={{ opacity: 0, x: 14 }}
-            animate={{
-              opacity: 1,
-              x: 0,
-              y: pulseActive ? -5 : 0,
-              scale: pulseActive ? 1.04 : 1,
-            }}
-            transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-            className="muse-idle absolute pointer-events-none select-none
-                       w-[30%] max-w-[132px] right-1.5 bottom-1.5
-                       sm:w-[26%] drop-shadow-[0_6px_18px_rgba(0,0,0,0.55)]"
-            style={{
-              maskImage:
-                'radial-gradient(ellipse 78% 82% at 50% 42%, #000 58%, transparent 100%)',
-              WebkitMaskImage:
-                'radial-gradient(ellipse 78% 82% at 50% 42%, #000 58%, transparent 100%)',
-            }}
-          />
-        )}
+
 
         {/* Живой анимированный цифровой дождь Матрицы на 30+ уровне (п. 5.3 ТЗ) */}
         {activeStage >= 30 && (
@@ -364,14 +334,43 @@ export const DeskScene: React.FC = () => {
         disabled={lockdownRemainingSec > 0}
         className="relative w-full py-4 px-6 rounded-2xl font-display font-black tracking-widest uppercase text-lg sm:text-xl text-[#061018] transition overflow-hidden cursor-pointer disabled:opacity-45"
         style={{
-          background: `linear-gradient(135deg, ${activeSkin.primaryHex} 0%, ${activeSkin.accentHex} 100%)`,
-          boxShadow: `0 0 28px ${activeSkin.primaryHex}55`,
+          // v3.6.2: градиент берём из темы — у женской он розово-лавандовый,
+          // у классики прежний кибер-циан. Скин по-прежнему влияет на сцену.
+          background: `linear-gradient(135deg, ${baseTheme.ui.buttonGradient[0]} 0%, ${baseTheme.ui.buttonGradient[1]} 100%)`,
+          boxShadow: `0 0 28px ${baseTheme.ui.buttonGradient[0]}55`,
+          marginTop: baseTheme.ui.catEars ? 10 : 0,
         }}
       >
+        {/* Кошачьи ушки — аккуратная «форма» женской темы, без потери киберпанка */}
+        {baseTheme.ui.catEars && (
+          <span aria-hidden className="pointer-events-none absolute -top-[9px] inset-x-0 flex justify-center gap-1">
+            <span
+              className="w-0 h-0"
+              style={{
+                borderLeft: '11px solid transparent',
+                borderRight: '11px solid transparent',
+                borderBottom: `14px solid ${baseTheme.ui.buttonGradient[0]}`,
+                transform: 'skewX(-12deg)',
+              }}
+            />
+            <span
+              className="w-0 h-0"
+              style={{
+                borderLeft: '11px solid transparent',
+                borderRight: '11px solid transparent',
+                borderBottom: `14px solid ${baseTheme.ui.buttonGradient[0]}`,
+                transform: 'skewX(12deg)',
+              }}
+            />
+          </span>
+        )}
         <span className="relative z-10 flex items-center justify-center gap-2.5">
           <Terminal className="w-6 h-6 stroke-[2.5]" />
           <span>HACK</span>
-          <span className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-[#0a0e1a]/85 text-[#00f0ff]">
+          <span
+            className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-[#0a0e1a]/85"
+            style={{ color: baseTheme.palette.cyan }}
+          >
             +{formatCompact(derived.clickPower)} DATA
           </span>
         </span>

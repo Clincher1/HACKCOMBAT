@@ -105,6 +105,7 @@ export const TopHud: React.FC = () => {
     openTutorial,
     tutorialUnseen,
     nowMs,
+    baseTheme,
   } = useGame();
   const navigate = useNavigate();
 
@@ -236,7 +237,11 @@ export const TopHud: React.FC = () => {
               <span className="font-display text-[15px] font-extrabold text-white leading-none tabular-nums truncate">
                 {formatCompact(Math.floor(player.data))}
               </span>
-              <span className="text-[9px] font-bold text-[#7dff00] shrink-0 whitespace-nowrap">
+              {/* Цвет прироста — из темы: у женской мягкая мята вместо кислотного лайма */}
+              <span
+                className="text-[9px] font-bold shrink-0 whitespace-nowrap"
+                style={{ color: baseTheme.ui.successHex }}
+              >
                 +{formatCompact(derived.dataPerHour)}/ч
               </span>
             </div>
