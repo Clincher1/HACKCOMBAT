@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Neon Muse — эволюция стола · 7 этапов</title>
+    <style>
+      :root {
+        --pink: #ff6fb5;
+        --lav: #b06bff;
+        --mint: #7cf5c8;
+        --bg: #0d0918;
+        --panel: #171029;
+        --text: #f3ebff;
+        --muted: #a08fbd;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: radial-gradient(120% 60% at 50% 0%, #1d1235 0%, var(--bg) 55%);
+        color: var(--text);
+        font: 16px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding: 0 0 64px;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        padding: 18px 16px 14px;
+        background: rgba(13, 9, 24, 0.92);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 111, 181, 0.22);
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: 0.04em;
+        background: linear-gradient(90deg, var(--pink), var(--lav));
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+      header p { margin: 6px 0 0; font-size: 12px; color: var(--muted); }
+      main { max-width: 900px; margin: 0 auto; padding: 20px 14px 0; }
+      .row {
+        margin: 0 0 26px;
+        background: var(--panel);
+        border: 1px solid rgba(176, 107, 255, 0.25);
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .meta { padding: 14px 16px 12px; }
+      .lvl {
+        display: inline-block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        color: var(--bg);
+        background: linear-gradient(90deg, var(--pink), var(--lav));
+        border-radius: 999px;
+        padding: 3px 12px;
+        margin-bottom: 8px;
+      }
+      .name { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+      .desc { margin: 0; font-size: 13px; color: var(--muted); }
+      img { display: block; width: 100%; height: auto; }
+      .note {
+        margin: 0 auto 22px;
+        padding: 14px 16px;
+        border-radius: 16px;
+        border: 1px dashed rgba(255, 111, 181, 0.4);
+        background: rgba(255, 111, 181, 0.06);
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .note b { color: var(--pink); }
+      a { color: var(--mint); }
+      footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 28px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>NEON MUSE — ЭВОЛЮЦИЯ СТОЛА</h1>
+      <p>7 этапов · арт меняется на каждом · скины не сбрасываются</p>
+    </header>
+
+    <main>
+      <p class="note">
+        Это проверочная страница: тут видно, как рабочий стол растёт вместе с уровнем.
+        В самой игре картинка подставляется автоматически.
+        Все семь кадров одной картинкой — <a href="/levels-all.jpg">levels-all.jpg</a>.
+      </p>
+
+      <div class="row">
+        <div class="meta">
+          <span class="lvl">УРОВЕНЬ 1</span>
+          <p class="name">Подпольный Старт</p>
+          <p class="desc">Один монитор, офисный стул, коробка с проводами на полу</p>
+        </div>
+        <img src="/assets/themes/femme/stage-01.webp" alt="Уровень 1" loading="lazy" />
+      </div>
+
+      <div class="row">
+        <div class="meta">
+          <span class="lvl">УРОВЕНЬ 5</span>
+          <p class="name">Двойной Неон</p>
+          <p class="desc">Второй монитор, LED-лента по краю стола, полка с мангой</p>
+        </div>
+        <img src="/assets/themes/femme/stage-05.webp" alt="Уровень 5" loading="lazy" />
+      </div>
+
+      <div class="row">
+        <div class="meta">
+          <span class="lvl">УРОВЕНЬ 10</span>
+          <p class="name">Локальный Кластер</p>
+          <p class="desc">Серверная стойка с неоновыми кабелями, третий монитор, котики</p>
+        </div>
+        <img src="/assets/themes/femme/stage-10.webp" alt="Уровень 10" loading="lazy" />
+      </div>
+
+      <div class="row">
+        <div class="meta">
+          <span class="lvl">УРОВЕНЬ 15</span>
+          <p class="name">Воздушный Перехват</p>
+          <p class="desc">Дрон со сканером, голо-панели с ушками, геймерское кресло</p>
+        </div>
+        <img src="/assets/themes/femme/stage-15.webp" alt="Уровень 15" loading="lazy" />
+      </div>
+
+      <div class="row">
+        <div class="meta">
+          <span class="lvl">УРОВЕНЬ 20</span>
+          <p class="name">Кибер-Станция</p>
+          <p class="desc">Витрина с фигурками, стена постеров, три монитора</p>
+        </div>
+        <img src="/assets/themes/femme/stage-20.webp" alt="Уровень 20" loading="lazy" />
+      </div>
+
+      <div class="row">
+        <div class="meta">
+          <span class="lvl">УРОВЕНЬ 25</span>
+          <p class="name">Серверный Бункер</p>
+          <p class="desc">Четыре экрана, серверная стена, неоновое сердце</p>
+        </div>
+        <img src="/assets/themes/femme/stage-25.webp" alt="Уровень 25" loading="lazy" />
+      </div>
+
+      <div class="row">
+        <div class="meta">
+          <span class="lvl">УРОВЕНЬ 30</span>
+          <p class="name">Ядро Матрицы</p>
+          <p class="desc">Голо-роза, аэростаты за окном, полная витрина фигурок</p>
+        </div>
+        <img src="/assets/themes/femme/stage-30.webp" alt="Уровень 30" loading="lazy" />
+      </div>
+
+      <footer>HACKER COMBAT · тема Neon Muse · страница только для проверки</footer>
+    </main>
+  </body>
+</html>
