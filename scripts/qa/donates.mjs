@@ -12,6 +12,7 @@
  * Запуск (нужна собранная функция: npm run build):
  *   node scripts/qa/donates.mjs
  */
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -113,6 +114,24 @@ const webhook = (update, ip = '10.55.0.9') =>
   api('wh', 'telegram', update, 'POST', { 'x-forwarded-for': ip });
 
 const donatePayload = (tgId, stars, nonce = 'abc12345') => `d1:${tgId}:${stars}:${nonce}`;
+
+/**
+ * Подписанный initData настоящего «телеграмного» игрока.
+ * Витрина донатов читает итог по tgId из initData, а x-demo-user-id даёт
+ * отрицательного гостя — поэтому для проверки summary нужна подпись.
+ */
+function signInitData(tgId) {
+  const params = new URLSearchParams();
+  params.set('auth_date', String(Math.floor(Date.now() / 1000)));
+  params.set('query_id', `QA_${tgId}_${Date.now()}`);
+  params.set('user', JSON.stringify({ id: tgId, first_name: 'Dono', username: `dono${tgId}` }));
+  const pairs = [];
+  params.forEach((v, k) => pairs.push(`${k}=${v}`));
+  pairs.sort((a, b) => a.localeCompare(b));
+  const secret = crypto.createHmac('sha256', 'WebAppData').update(process.env.BOT_TOKEN).digest();
+  params.set('hash', crypto.createHmac('sha256', secret).update(pairs.join('\n')).digest('hex'));
+  return params.toString();
+}
 
 function ledger() {
   const file = path.join(process.cwd(), '.local-db.json');
@@ -275,7 +294,26 @@ function ledger() {
   check('платёж с чужим tgId не зачислен', r.donationRecorded === false);
   check('в леджере по-прежнему одна запись', Object.keys(ledger()).length === 1);
 
-  // ── 7. /paysupport и /terms не падают ──────────────────────────────────────
+  // ── 7. Витрина отдаёт ПОСТОЯННЫЙ итог поддержки ────────────────────────────
+  // Регресс на реальную жалобу: после перезапуска профиль показывал «Telegram
+  // Stars», хотя платёж был записан — итог брался только из состояния сессии.
+  const shop = await api(String(tgId), 'donate', {}, 'GET', {
+    'x-telegram-init-data': signInitData(tgId),
+  });
+  check('витрина отдаёт summary', Boolean(shop.summary), JSON.stringify(shop.summary));
+  check('в summary видно оплаченные 25 ⭐', shop.summary?.stars === 25, JSON.stringify(shop.summary));
+  check('в summary видно один платёж', shop.summary?.count === 1, JSON.stringify(shop.summary));
+
+  const otherShop = await api('777888999', 'donate', {}, 'GET', {
+    'x-telegram-init-data': signInitData(777888999),
+  });
+  check(
+    'чужой игрок не видит мой донат',
+    otherShop.summary && otherShop.summary.stars === 0,
+    JSON.stringify(otherShop.summary)
+  );
+
+  // ── 8. /paysupport и /terms не падают ──────────────────────────────────────
   r = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/paysupport' } });
   check('/paysupport отвечает', r.ok === true && r.paysupport === true);
   r = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/terms' } });

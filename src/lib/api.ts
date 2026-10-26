@@ -76,6 +76,8 @@ export const gameApi = {
     apiRequest<{
       ok: true;
       enabled: boolean;
+      /** v3.6.6: постоянный итог поддержки (не только текущая сессия). */
+      summary?: { count: number; stars: number };
       currency: string;
       minStars: number;
       maxStars: number;

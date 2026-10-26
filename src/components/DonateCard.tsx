@@ -1,5 +1,5 @@
 import { Heart, Loader2, ShieldCheck, Star } from 'lucide-react';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DONATE_TIER_STARS } from '../../shared/donate.config';
 import { useGame } from '../context/GameContext';
 import { gameApi } from '../lib/api';
@@ -18,10 +18,47 @@ export const DonateCard: React.FC = () => {
 
   const [open, setOpen] = useState(false);
   const [busyStars, setBusyStars] = useState<number | null>(null);
-  // Сколько звёзд поддержано в этой сессии (полный список — /paysupport в боте).
+  // v3.6.6: постоянный итог поддержки с сервера.
+  // Раньше показывались только звёзды, оплаченные в ТЕКУЩЕЙ сессии, поэтому
+  // после перезапуска в профиле снова красовалось «Telegram Stars» и
+  // казалось, что платёж не учли. Теперь читаем итог из базы.
   const [supported, setSupported] = useState(0);
+  const [payments, setPayments] = useState(0);
+  const mountedRef = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const [justPaid, setJustPaid] = useState(false);
+
+  const refreshSummary = useCallback(async () => {
+    try {
+      const info = await gameApi.donateInfo();
+      if (!mountedRef.current) return;
+      if (info.summary) {
+        setSupported(info.summary.stars);
+        setPayments(info.summary.count);
+      }
+    } catch {
+      // Профиль не должен ломаться из-за недоступной витрины.
+    }
+  }, []);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    void refreshSummary();
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [refreshSummary]);
+
+  /**
+   * Вебхук Telegram приходит отдельным запросом и может задержаться на пару
+   * секунд. Поэтому после «оплачено» обновляем итог несколько раз, а не один.
+   */
+  const refreshSummaryAfterPayment = useCallback(async () => {
+    for (const delay of [800, 2000, 4000]) {
+      await new Promise((resolve) => window.setTimeout(resolve, delay));
+      await refreshSummary();
+    }
+  }, [refreshSummary]);
 
   const donate = useCallback(
     async (stars: number) => {
@@ -50,7 +87,10 @@ export const DonateCard: React.FC = () => {
         const status = await openInvoice(res.invoiceLink, 'url');
         if (status === 'paid') {
           setJustPaid(true);
+          // Оптимистично прибавляем сразу, затем сверяемся с сервером.
           setSupported((prev) => prev + stars);
+          setPayments((prev) => prev + 1);
+          void refreshSummaryAfterPayment();
           pushClientAlert({
             type: 'success',
             title: '❤️ Спасибо за поддержку!',
@@ -68,7 +108,7 @@ export const DonateCard: React.FC = () => {
         setBusyStars(null);
       }
     },
-    [busyStars, pushClientAlert, tgProfile.isInsideTelegram]
+    [busyStars, pushClientAlert, refreshSummaryAfterPayment, tgProfile.isInsideTelegram]
   );
 
   return (
@@ -83,7 +123,7 @@ export const DonateCard: React.FC = () => {
           Поддержать проект
         </span>
         <span className="text-[10px] font-bold text-[#ff8ac0] bg-[#ff00a0]/12 border border-[#ff00a0]/35 px-2 py-0.5 rounded">
-          {supported > 0 ? `${supported} ⭐` : 'Telegram Stars'}
+          {supported > 0 ? `Поддержано ${supported} ⭐` : 'Telegram Stars'}
         </span>
       </button>
 
@@ -91,8 +131,24 @@ export const DonateCard: React.FC = () => {
         Игра бесплатная и без платных преимуществ. Если хочется угостить разработчика
         звёздами — сумма уходит на серверы и обновления.{' '}
         <strong className="text-white">Бонусов за донат нет</strong>: ни Data, ни чипов, ни
-        скинов со статами.
+        скинов со статами. Звёзды не превращаются в игровую валюту.
       </p>
+
+      {supported > 0 && (
+        <div className="rounded-xl bg-[#0a0e1a] border border-[#ff00a0]/25 px-2.5 py-2 space-y-0.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-300">Поддержано всего</span>
+            <span className="font-extrabold text-[#ffd75e]">{supported} ⭐</span>
+          </div>
+          <div className="flex items-center justify-between text-[10px] text-slate-500">
+            <span>Платежей</span>
+            <span>{payments}</span>
+          </div>
+          <p className="text-[10px] text-slate-500 leading-relaxed pt-0.5">
+            Чек и возврат — команда <code>/paysupport</code> в чате с ботом.
+          </p>
+        </div>
+      )}
 
       {open && (
         <>

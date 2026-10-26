@@ -55,6 +55,17 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   if (req.method === 'GET') {
     const botUsername = await getBotUsername();
+    // v3.6.6: витрина отдаёт ещё и ПОСТОЯННЫЙ итог поддержки игрока.
+    // Раньше профиль показывал только звёзды, оплаченные в текущей сессии,
+    // поэтому после перезапуска казалось, что донат «не начислился».
+    let summary: { count: number; stars: number } | undefined;
+    try {
+      const user = authenticateRequest(req);
+      summary = await getDonationSummary(user.tgId);
+    } catch {
+      // Без initData это просто публичная витрина — не ошибка.
+      summary = undefined;
+    }
     return sendJson(res, 200, {
       ok: true,
       enabled: Boolean(getBotToken()),
@@ -63,6 +74,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       maxStars: DONATE_MAX_STARS,
       tiers: [...DONATE_TIER_STARS],
       botUsername,
+      summary,
       note: 'Донат добровольный и не даёт игровых преимуществ.',
     });
   }
