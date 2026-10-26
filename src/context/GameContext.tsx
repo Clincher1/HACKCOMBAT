@@ -34,6 +34,8 @@ interface GameContextValue {
   player: PlayerState | null;
   tgProfile: TelegramProfileInfo;
   loading: boolean;
+  initError: string | null;
+  retryInit: () => Promise<void>;
   busyKey: string | null;
   storageMode: 'supabase' | 'memory-fallback';
   alerts: GameAlert[];
@@ -123,8 +125,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [player?.stats.baseTheme]
   );
   const [loading, setLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const busyKeyRef = useRef<string | null>(null);
+  // Все изменяющие состояние действия идут через одну клиентскую очередь.
+  // Иначе быстрый тап по двум разным карточкам мог отправить два POST
+  // параллельно: ответы приходили в другом порядке и визуально откатывали
+  // баланс назад, хотя сервер всё сохранил правильно.
+  const actionQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const queuedActionKeysRef = useRef<Set<string>>(new Set());
+  const initInFlightRef = useRef<Promise<void> | null>(null);
   const [storageMode, setStorageMode] = useState<'supabase' | 'memory-fallback'>('memory-fallback');
   const [alerts, setAlerts] = useState<GameAlert[]>([]);
   const [offlineModalEarned, setOfflineModalEarned] = useState<number | null>(null);
@@ -303,31 +313,49 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     flushClicksRef.current = flushClicks;
   }, [flushClicks]);
 
-  // Первичная загрузка профиля игрока
-  useEffect(() => {
-    let mounted = true;
-    gameApi
-      .init()
-      .then((res) => {
-        if (!mounted) return;
+  // Первичная загрузка профиля игрока. Ошибка не должна оставлять пустой экран:
+  // пользователь получает понятный экран повтора, а не бесконечное ощущение
+  // «игра зависла».
+  const retryInit = useCallback((): Promise<void> => {
+    // React StrictMode и двойной tap по кнопке retry не должны запускать два
+    // параллельных /api/init для одного и того же игрока.
+    if (initInFlightRef.current) return initInFlightRef.current;
+
+    const request = (async () => {
+      setLoading(true);
+      setInitError(null);
+      try {
+        const res = await gameApi.init();
+        setAlerts([]);
         applyServerSync(res, true);
-      })
-      .catch((err) => {
-        if (!mounted) return;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Не удалось загрузить профиль';
+        setInitError(message);
         pushClientAlert({
           type: 'warning',
-          title: 'Ошибка инициализации',
-          message: err instanceof Error ? err.message : 'Не удалось загрузить профиль',
+          title: 'Ошибка подключения',
+          message,
         });
-      })
-      .finally(() => {
-        if (mounted) setLoading(false);
-      });
+      } finally {
+        setLoading(false);
+      }
+    })();
 
-    return () => {
-      mounted = false;
-    };
+    initInFlightRef.current = request;
+    request.then(
+      () => {
+        if (initInFlightRef.current === request) initInFlightRef.current = null;
+      },
+      () => {
+        if (initInFlightRef.current === request) initInFlightRef.current = null;
+      }
+    );
+    return request;
   }, [applyServerSync, pushClientAlert]);
+
+  useEffect(() => {
+    void retryInit();
+  }, [retryInit]);
 
   // Живой секундный тик на клиенте: плавный прирост Data/hour, реген 1 Energy / 3 сек и обновление таймеров
   const energyTickCounter = useRef(0);
@@ -452,62 +480,88 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
    * а хвост кликов едет в том же запросе.
    */
   const runAction = useCallback(
-    async (
+    (
       key: string,
       fn: (clicks: number) => Promise<ApiSyncResponse>,
       playUpgradeTone = false,
       vibrate: 'none' | 'light' = 'none'
-    ) => {
-      if (vibrate === 'light') triggerHapticImpact('light');
-      if (busyKeyRef.current === key) return;
-      busyKeyRef.current = key;
-      setBusyKey(key);
+    ): Promise<void> => {
+      // Один и тот же action не должен дважды попасть в очередь (double tap,
+      // повторный клик по кнопке или быстрый ререндер не создают дубль).
+      if (queuedActionKeysRef.current.has(key)) return Promise.resolve();
+      queuedActionKeysRef.current.add(key);
 
-      const clicksToSend = Math.max(0, pendingClicksRef.current);
-      if (clicksToSend > 0) pendingClicksRef.current -= clicksToSend;
-
-      try {
-        const res = await fn(clicksToSend);
-        if (playUpgradeTone) {
-          cyberSound.playUpgrade();
-          triggerHapticImpact('medium');
-        }
-        if (key.startsWith('card:') || key.startsWith('base:') || key.startsWith('pet:buy:')) {
-          lastBuyAtRef.current = Date.now();
-          freezeReportedRef.current = false;
-        }
-        // Сервер мог зачесть не все клики (античит/энергия) — остаток вернём в очередь.
-        const applied = res.appliedClicks ?? clicksToSend;
-        const leftover = clicksToSend - applied;
-        if (leftover > 0) {
-          pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
-          scheduleFlush(CLICK_MIN_GAP_MS);
-        }
-        applyServerSync(res);
-      } catch (err) {
-        if (clicksToSend > 0) {
-          // Сервер отвечает ошибкой уже ПОСЛЕ того, как зафиксировал хвост кликов,
-          // поэтому повторять их нельзя — иначе начислим дважды. Возвращаем в очередь
-          // только при сетевом сбое, когда запрос мог вообще не дойти.
-          if (!(err instanceof ApiError)) {
-            pendingClicksRef.current = Math.min(pendingClicksRef.current + clicksToSend, CLICK_QUEUE_LIMIT);
-            scheduleFlush(900);
+      const execute = async (): Promise<void> => {
+        // Если прямо сейчас летит пачка кликов, сначала дождёмся её ответа.
+        // Иначе более быстрый action мог получить старый серверный snapshot.
+        if (inflightClickRef.current) {
+          try {
+            await inflightClickRef.current;
+          } catch {
+            // flushClicks уже вернул клики в очередь при сетевой ошибке.
           }
         }
-        // В любом случае подтягиваем правду с сервера: баланс не должен «врать».
-        void gameApi
-          .init()
-          .then((res) => applyServerSync(res))
-          .catch(() => {});
-        pushClientAlert({
-          type: 'warning',
-          title: 'Операция отклонена',
-          message: err instanceof Error ? err.message : 'Ошибка запроса',
-        });
-      } finally {
-        busyKeyRef.current = null;
-        setBusyKey(null);
-      }
+
+        if (vibrate === 'light') triggerHapticImpact('light');
+        busyKeyRef.current = key;
+        setBusyKey(key);
+
+        const clicksToSend = Math.max(0, pendingClicksRef.current);
+        if (clicksToSend > 0) pendingClicksRef.current -= clicksToSend;
+
+        try {
+          const res = await fn(clicksToSend);
+          if (playUpgradeTone) {
+            cyberSound.playUpgrade();
+            triggerHapticImpact('medium');
+          }
+          if (key.startsWith('card:') || key.startsWith('base:') || key.startsWith('pet:buy:')) {
+            lastBuyAtRef.current = Date.now();
+            freezeReportedRef.current = false;
+          }
+          // Сервер мог зачесть не все клики (античит/энергия) — остаток вернём в очередь.
+          const applied = res.appliedClicks ?? clicksToSend;
+          const leftover = clicksToSend - applied;
+          if (leftover > 0) {
+            pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
+            scheduleFlush(CLICK_MIN_GAP_MS);
+          }
+          applyServerSync(res);
+        } catch (err) {
+          if (clicksToSend > 0) {
+            // Сервер отвечает ошибкой уже ПОСЛЕ того, как зафиксировал хвост кликов,
+            // поэтому повторять их нельзя — иначе начислим дважды. Возвращаем в очередь
+            // только при сетевом сбое, когда запрос мог вообще не дойти.
+            if (!(err instanceof ApiError)) {
+              pendingClicksRef.current = Math.min(pendingClicksRef.current + clicksToSend, CLICK_QUEUE_LIMIT);
+              scheduleFlush(900);
+            }
+          }
+          // В любом случае подтягиваем правду с сервера: баланс не должен «врать».
+          void gameApi
+            .init()
+            .then((res) => applyServerSync(res))
+            .catch(() => {});
+          pushClientAlert({
+            type: 'warning',
+            title: 'Операция отклонена',
+            message: err instanceof Error ? err.message : 'Ошибка запроса',
+          });
+        } finally {
+          busyKeyRef.current = null;
+          setBusyKey(null);
+        }
+      };
+
+      // Очередь восстанавливается даже если неожиданный runtime-ошибочный action
+      // случится вне обычного API catch — один сбой не блокирует все следующие.
+      const task = actionQueueRef.current.then(execute, execute);
+      actionQueueRef.current = task.catch(() => undefined);
+      task.then(
+        () => queuedActionKeysRef.current.delete(key),
+        () => queuedActionKeysRef.current.delete(key)
+      );
+      return task;
     },
     [applyServerSync, pushClientAlert, scheduleFlush]
   );
@@ -815,6 +869,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         player,
         tgProfile,
         loading,
+        initError,
+        retryInit,
         busyKey,
         storageMode,
         alerts,
