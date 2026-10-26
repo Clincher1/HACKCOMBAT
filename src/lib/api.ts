@@ -83,6 +83,8 @@ export const gameApi = {
       maxStars: number;
       tiers: number[];
       botUsername: string | null;
+      /** v3.6.8: внешняя страница доната (карта/СБП). null — фича выключена. */
+      external?: { url: string; label: string } | null;
     }>('/api/donate', 'GET'),
   // v3.5: рефералка — только чтение своей ссылки и статистики.
   referralInfo: () =>

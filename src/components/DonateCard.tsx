@@ -1,6 +1,10 @@
-import { Heart, Loader2, ShieldCheck, Star } from 'lucide-react';
+import { CreditCard, Heart, Loader2, ShieldCheck, Star } from 'lucide-react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DONATE_TIER_STARS } from '../../shared/donate.config';
+import {
+  DONATE_CARD_NOTE,
+  DONATE_TIER_STARS,
+  isTelegramLink,
+} from '../../shared/donate.config';
 import { useGame } from '../context/GameContext';
 import { gameApi } from '../lib/api';
 
@@ -24,6 +28,10 @@ export const DonateCard: React.FC = () => {
   // казалось, что платёж не учли. Теперь читаем итог из базы.
   const [supported, setSupported] = useState(0);
   const [payments, setPayments] = useState(0);
+  // v3.6.8: внешний донат «настоящими деньгами» (карта/СБП/ЮMoney).
+  // Сервер отдаёт null, пока владелец не задал DONATE_CARD_URL, — тогда
+  // карточка выглядит и ведёт себя ровно как раньше.
+  const [external, setExternal] = useState<{ url: string; label: string } | null>(null);
   const mountedRef = useRef(true);
   const [error, setError] = useState<string | null>(null);
   const [justPaid, setJustPaid] = useState(false);
@@ -36,6 +44,7 @@ export const DonateCard: React.FC = () => {
         setSupported(info.summary.stars);
         setPayments(info.summary.count);
       }
+      setExternal(info.external ?? null);
     } catch {
       // Профиль не должен ломаться из-за недоступной витрины.
     }
@@ -59,6 +68,33 @@ export const DonateCard: React.FC = () => {
       await refreshSummary();
     }
   }, [refreshSummary]);
+
+  /**
+   * Внешняя страница доната открывается в браузере: внутри мини-аппа
+   * по правилам Telegram платить можно только Stars.
+   */
+  const openExternalDonate = useCallback(async (url: string) => {
+    const openInBrowser = () => window.open(url, '_blank', 'noopener,noreferrer');
+    try {
+      if (isTelegramLink(url)) {
+        const { openTelegramLink } = await import('@telegram-apps/sdk-react');
+        if (openTelegramLink.isAvailable()) {
+          openTelegramLink(url);
+          return;
+        }
+        openInBrowser();
+        return;
+      }
+      const { openLink } = await import('@telegram-apps/sdk-react');
+      if (openLink.isAvailable()) {
+        openLink(url, { tryInstantView: false });
+        return;
+      }
+      openInBrowser();
+    } catch {
+      openInBrowser();
+    }
+  }, []);
 
   const donate = useCallback(
     async (stars: number) => {
@@ -170,6 +206,20 @@ export const DonateCard: React.FC = () => {
               </button>
             ))}
           </div>
+
+          {external && (
+            <div className="space-y-1">
+              <button
+                type="button"
+                onClick={() => void openExternalDonate(external.url)}
+                className="w-full py-2 rounded-xl bg-[#ff00a0]/12 border border-[#ff00a0]/40 text-[11px] font-bold text-white hover:bg-[#ff00a0]/20 cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <CreditCard className="w-3.5 h-3.5 text-[#ff8ac0]" />
+                {external.label}
+              </button>
+              <p className="text-[10px] text-slate-500 leading-relaxed">{DONATE_CARD_NOTE}</p>
+            </div>
+          )}
 
           <div className="flex items-start gap-1.5 text-[10px] text-slate-400">
             <ShieldCheck className="w-3.5 h-3.5 text-[#7dff00] mt-0.5 shrink-0" />

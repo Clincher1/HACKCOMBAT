@@ -5,8 +5,12 @@
 //  • Донат — добровольный. Он НЕ даёт игровых преимуществ, Data, чипов и т.п.
 //    Поэтому это не pay-to-win и не «продажа цифрового товара» в терминах
 //    App Store/Google Play — просто поддержка проекта.
-//  • Цифровые платежи внутри Telegram идут ТОЛЬКО через Stars (валюта XTR).
-//    Никаких сторонних провайдеров, карт и внешних ссылок на оплату.
+//  • Цифровые платежи внутри Telegram идут ТОЛЬКО через Stars (валюта XTR):
+//    сторонний провайдер (ЮKassa и т.п.) внутри мини-аппа — прямое нарушение
+//    Bot ToS §6.2 («digital goods and services — exclusive Stars»).
+//    Исключение — донат без товара: там ничего не продаётся, поэтому реальные
+//    рубли подключаются ОТДЕЛЬНОЙ внешней страницей (см. блок v3.6.8 ниже).
+//    Внутри Telegram всё равно остаётся Stars.
 //  • Суммы фиксированы конфигом. Клиент не может попросить произвольную цену:
 //    сервер сверяет присланное число со списком и сам собирает payload.
 //  • Каждый платёж проверяется по telegram_payment_charge_id (уникальный),
@@ -82,3 +86,76 @@ export function parseDonatePayload(payload: unknown): { tgId: number; stars: num
 export function formatStars(stars: number): string {
   return `${stars} ⭐`;
 }
+
+// ============================================================================
+// ВНЕШНИЙ ДОНАТ «настоящими деньгами» (v3.6.8)
+// ----------------------------------------------------------------------------
+// Зачем отдельный рельс:
+//  • Stars — единственный разрешённый способ платить ВНУТРИ Telegram (§6.2);
+//  • карта/СБП через ЮKassa живёт по Bot ToS §6.1 и только для физических
+//    товаров и услуг. Донат ничего не продаёт, поэтому его место — обычная
+//    веб-страница сбора средств ВНЕ мини-аппа;
+//  • поэтому кнопка ведёт в браузер, а не рисует форму оплаты в игре.
+//
+// Фича выключена по умолчанию: пока владелец не задал DONATE_CARD_URL,
+// витрина выглядит и работает точно как раньше (только Stars).
+// ============================================================================
+
+/** Максимальная длина ссылки: защита от мусора в env. */
+export const DONATE_CARD_URL_MAX = 300;
+/** Максимальная длина подписи кнопки. */
+export const DONATE_CARD_LABEL_MAX = 32;
+export const DONATE_CARD_DEFAULT_LABEL = 'Донат картой / СБП';
+export const DONATE_CARD_NOTE =
+  'Откроется внешняя страница доната в браузере. Telegram Stars остаются основным способом поддержки.';
+
+export interface ExternalDonateLink {
+  url: string;
+  label: string;
+}
+
+/**
+ * Приводит значение env к безопасной https-ссылке.
+ * Возвращает null на всё подозрительное: http, javascript:, data:, мусор.
+ */
+export function normalizeExternalDonateUrl(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const value = raw.trim();
+  if (value.length === 0 || value.length > DONATE_CARD_URL_MAX) return null;
+  // Пробелы/управляющие символы в URL — почти всегда ошибка копипаста.
+  if (/\s/.test(value)) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== 'https:') return null;
+  if (!parsed.hostname.includes('.')) return null;
+  return parsed.toString();
+}
+
+/** Готовая ссылка на внешний донат или null, если фича не настроена. */
+export function resolveExternalDonate(
+  urlRaw: unknown,
+  labelRaw: unknown = null
+): ExternalDonateLink | null {
+  const url = normalizeExternalDonateUrl(urlRaw);
+  if (!url) return null;
+  const label =
+    typeof labelRaw === 'string' && labelRaw.trim().length > 0
+      ? labelRaw.trim().slice(0, DONATE_CARD_LABEL_MAX)
+      : DONATE_CARD_DEFAULT_LABEL;
+  return { url, label };
+}
+
+/** t.me-ссылки в мини-аппе открываются не в браузере, а внутри Telegram. */
+export function isTelegramLink(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host === 't.me' || host === 'telegram.me' || host === 'telegram.dog';
+  } catch {
+    return false;
+  }
+}
+
