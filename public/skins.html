@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Скины стола — все 9 вариантов</title>
+    <style>
+      :root {
+        --cyan: #00f0ff;
+        --bg: #0a0e1a;
+        --panel: #10172e;
+        --text: #e8f4ff;
+        --muted: #8fa3c4;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        padding-bottom: 56px;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 9;
+        padding: 14px 14px 12px;
+        background: rgba(10, 14, 26, 0.94);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 18px;
+        letter-spacing: 0.05em;
+        color: var(--cyan);
+        text-shadow: 0 0 18px rgba(0, 240, 255, 0.45);
+      }
+      header p { margin: 5px 0 0; font-size: 12px; color: var(--muted); }
+      .stagebar {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 10px 14px;
+        justify-content: flex-start;
+        background: rgba(16, 23, 46, 0.7);
+        border-bottom: 1px solid rgba(0, 240, 255, 0.12);
+        scrollbar-width: none;
+      }
+      .stagebar::-webkit-scrollbar { display: none; }
+      .stagebar button {
+        flex: 0 0 auto;
+        font: inherit;
+        font-size: 13px;
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .stagebar button.on {
+        background: var(--cyan);
+        border-color: var(--cyan);
+        color: #04202a;
+        font-weight: 700;
+      }
+      main { max-width: 980px; margin: 0 auto; padding: 16px 12px 0; }
+      .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+      @media (min-width: 760px) { .grid { grid-template-columns: 1fr 1fr; } }
+      .card {
+        background: var(--panel);
+        border: 1px solid rgba(0, 240, 255, 0.18);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+      .shot { position: relative; background: #05070d; }
+      .shot img { display: block; width: 100%; height: auto; }
+      .meta { padding: 12px 14px 14px; }
+      .name {
+        margin: 0 0 3px;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .key { font-size: 11px; color: #4d6b93; font-family: ui-monospace, monospace; }
+      .desc { margin: 8px 0 10px; font-size: 13px; color: var(--muted); min-height: 38px; }
+      .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+      .tag {
+        font-size: 11px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: rgba(0, 240, 255, 0.1);
+        border: 1px solid rgba(0, 240, 255, 0.28);
+        color: var(--cyan);
+      }
+      .tag.bonus { background: rgba(125, 255, 0, 0.1); border-color: rgba(125, 255, 0, 0.3); color: #7dff00; }
+      .tag.free { background: rgba(255, 0, 160, 0.1); border-color: rgba(255, 0, 160, 0.3); color: #ff6fb5; }
+      .note {
+        margin: 0 0 18px;
+        padding: 13px 15px;
+        border-radius: 12px;
+        border: 1px dashed rgba(255, 176, 0, 0.45);
+        background: rgba(255, 176, 0, 0.06);
+        font-size: 13px;
+        color: #d8c39a;
+      }
+      .note b { color: #ffb800; }
+      footer { text-align: center; font-size: 12px; color: var(--muted); margin-top: 26px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>СКИНЫ СТОЛА — 9 ВАРИАНТОВ</h1>
+      <p>Как они выглядят в игре сейчас · переключай этап, чтобы сравнить</p>
+    </header>
+
+    <div class="stagebar" id="stagebar">
+      <button data-stage="1">Ур. 1</button>
+      <button data-stage="5">Ур. 5</button>
+      <button data-stage="10" class="on">Ур. 10</button>
+      <button data-stage="15">Ур. 15</button>
+      <button data-stage="20">Ур. 20</button>
+      <button data-stage="25">Ур. 25</button>
+      <button data-stage="30">Ур. 30</button>
+    </div>
+
+    <main>
+      <p class="note">
+        <b>Важно:</b> у скинов стола нет собственного арта. Все девять — это один и тот же
+        тёмный кадр с наложенным фильтром (оттенок + насыщенность). Средняя яркость
+        исходной сцены — <b>13–28 из 255</b>. Отсюда и ощущение «мрачно».
+      </p>
+
+      <div class="grid" id="grid"></div>
+
+      <footer>HACKER COMBAT · служебная страница для сравнения скинов</footer>
+    </main>
+
+    <script>
+      const SKINS = [
+        { key: 'default', name: 'Cyber Cyan OS', desc: 'Классический неоновый терминал ночного мегаполиса.', filter: 'none', price: 'бесплатно', bonus: 0 },
+        { key: 'sakura', name: 'Shibuya Overdrive', desc: 'Пурпурно-малиновый неон с постоянным +5% к мощности тапа.', filter: 'hue-rotate(85deg) saturate(1.25)', price: '12 💎', bonus: 5 },
+        { key: 'matrix', name: 'Zion Phosphor', desc: 'Изумрудный терминал Матрицы с постоянным +8% к мощности тапа.', filter: 'hue-rotate(255deg) saturate(1.3)', price: '22 💎', bonus: 8 },
+        { key: 'solar', name: 'Gold Mainframe', desc: 'Кибер-золото элиты даркнета с +12% к мощности тапа.', filter: 'hue-rotate(165deg) saturate(1.35) contrast(1.05)', price: '35 💎', bonus: 12 },
+        { key: 'void_phantom', name: 'Void Phantom Ultra', desc: 'Редкий коллекционный скин эндгейма за Crypto.', filter: 'hue-rotate(310deg) saturate(1.4) contrast(1.08)', price: '65 💎', bonus: 18 },
+        { key: 'prestige_omega', name: 'Omega Singularity', desc: 'Награда за Global Hack Престиж.', filter: 'hue-rotate(48deg) saturate(1.45) contrast(1.08)', price: 'престиж', bonus: 22 },
+        { key: 'neon_tokyo', name: 'Neon Tokyo Rain', desc: 'Мокрая неоновая улица: розовые вывески и отражения в лужах.', filter: 'hue-rotate(300deg) saturate(1.3)', price: '18 💎 · ур. 6', bonus: 6 },
+        { key: 'ice_archive', name: 'Ice Vault', desc: 'Холодный ледяной дата-центр: сине-белые блики на стекле.', filter: 'hue-rotate(180deg) saturate(0.85) brightness(1.08)', price: '28 💎 · ур. 10', bonus: 9 },
+        { key: 'blood_lan', name: 'Blood LAN', desc: 'Красная тревога в серверной: багровый неон и аварийные лампы.', filter: 'hue-rotate(140deg) saturate(1.5) contrast(1.1)', price: '48 💎 · ур. 16', bonus: 15 },
+      ];
+
+      const grid = document.getElementById('grid');
+      let stage = 10;
+
+      function render() {
+        grid.innerHTML = SKINS.map((s) => `
+          <article class="card">
+            <div class="shot">
+              <img src="/assets/scenes/stage-${String(stage).padStart(2, '0')}.webp"
+                   alt="${s.name}" style="filter:${s.filter}" loading="lazy" />
+            </div>
+            <div class="meta">
+              <p class="name">${s.name}</p>
+              <span class="key">${s.key}</span>
+              <p class="desc">${s.desc}</p>
+              <div class="tags">
+                <span class="tag ${s.price === 'бесплатно' || s.price === 'престиж' ? 'free' : ''}">${s.price}</span>
+                ${s.bonus ? `<span class="tag bonus">+${s.bonus}% к тапу</span>` : ''}
+              </div>
+            </div>
+          </article>
+        `).join('');
+      }
+
+      document.getElementById('stagebar').addEventListener('click', (e) => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        stage = Number(btn.dataset.stage);
+        document.querySelectorAll('#stagebar button').forEach((b) => b.classList.toggle('on', b === btn));
+        render();
+      });
+
+      render();
+    </script>
+  </body>
+</html>
