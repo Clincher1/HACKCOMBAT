@@ -1,4 +1,15 @@
-import { CheckCircle2, Clock, Flame, Gem, Lock, RefreshCw, Shield, Zap } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  Flame,
+  Gem,
+  Info,
+  Lock,
+  RefreshCw,
+  Shield,
+  ShieldCheck,
+  Zap,
+} from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -170,6 +181,28 @@ export const HacksPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Короткая легенда риска: помогает новичку читать шанс без отдельного туториала. */}
+      <div className="rounded-xl bg-[#0a0e1a]/65 border border-slate-800/90 px-3 py-2.5 space-y-2">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+          <Info className="w-3.5 h-3.5 text-[var(--ui-primary)]" />
+          Как читать шанс операции
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 text-[10px] leading-snug">
+          <div className="rounded-lg bg-emerald-950/35 border border-emerald-400/25 px-2 py-1.5">
+            <div className="font-bold text-[#7dff00]">80%+ · надёжно</div>
+            <div className="text-slate-400 mt-0.5">лучший выбор для стабильного XP и Чипов</div>
+          </div>
+          <div className="rounded-lg bg-amber-950/35 border border-amber-400/25 px-2 py-1.5">
+            <div className="font-bold text-amber-300">55–79% · баланс</div>
+            <div className="text-slate-400 mt-0.5">выше награда, но возможен частичный доступ</div>
+          </div>
+          <div className="rounded-lg bg-rose-950/35 border border-rose-400/25 px-2 py-1.5">
+            <div className="font-bold text-rose-300">меньше 55% · риск</div>
+            <div className="text-slate-400 mt-0.5">бери только ради цели или большой награды</div>
+          </div>
+        </div>
+      </div>
+
       {/* Секция текущих запущенных миссий с живыми прогресс-барами */}
       {player.activeMissions.length > 0 && (
         <div className="space-y-2">
@@ -217,7 +250,7 @@ export const HacksPage: React.FC = () => {
                       className="px-3.5 py-2 rounded-xl bg-[#7dff00] text-[#071005] font-display font-extrabold text-xs flex items-center gap-1.5 animate-pulse cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Взломать!</span>
+                      <span>Забрать</span>
                     </button>
                   ) : (
                     <button
@@ -335,6 +368,15 @@ export const HacksPage: React.FC = () => {
           const chancePct = Math.round(odds.chance * 100);
           const readiness = describeReadiness(odds);
           const xpAward = getMissionXpAward(m.xpReward ?? 10, m.tier ?? 1, derived.level);
+          const durationMinutes = Math.max(1, m.durationSec / 60);
+          const successDataPerMinute = Math.round(estReward / durationMinutes);
+          const successXpPerMinute = Math.round(xpAward / durationMinutes);
+          const riskMeta =
+            chancePct >= 80
+              ? { label: 'Надёжно', className: 'text-[#7dff00]', icon: <ShieldCheck className="w-3 h-3" /> }
+              : chancePct >= 55
+                ? { label: 'Компромисс', className: 'text-amber-300', icon: <Shield className="w-3 h-3" /> }
+                : { label: 'Риск', className: 'text-rose-300', icon: <Flame className="w-3 h-3" /> };
 
           return (
             <div
@@ -380,6 +422,12 @@ export const HacksPage: React.FC = () => {
                   )}
                 </div>
 
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-500">
+                  <span>При успехе: ~{formatCompact(successDataPerMinute)} Data/мин</span>
+                  <span>· ~{formatCompact(successXpPerMinute)} XP/мин</span>
+                  <span className={riskMeta.className}>{riskMeta.label}</span>
+                </div>
+
                 {/* Шанс успеха: главный элемент выбора цели */}
                 <div className="flex items-center gap-2 pt-0.5">
                   <div className="h-1.5 w-20 rounded-full bg-[#090d1a] border border-slate-800 overflow-hidden">
@@ -401,7 +449,10 @@ export const HacksPage: React.FC = () => {
                           : 'text-rose-400'
                     }`}
                   >
-                    {chancePct}% · {readiness.label}
+                    <span className="inline-flex items-center gap-1">
+                      {riskMeta.icon}
+                      {chancePct}% · {readiness.label}
+                    </span>
                   </span>
                   <span className="text-[10px] text-slate-500">
                     (нужно {m.requiredPower}⚡ железа)
@@ -440,7 +491,7 @@ export const HacksPage: React.FC = () => {
                 ) : scanRefreshing ? (
                   'Скан...'
                 ) : (
-                  'HACK'
+                  chancePct < 55 ? 'Рискнуть' : 'HACK'
                 )}
               </button>
             </div>
