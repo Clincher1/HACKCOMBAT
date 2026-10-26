@@ -82,6 +82,16 @@ interface GameContextValue {
   setLeaderboardSort: (sort: LeaderboardSort) => void;
   refreshLeaderboard: (sort?: LeaderboardSort) => Promise<void>;
   updateDemoName: (newName: string) => Promise<void>;
+  /** Последние результаты операций в текущей сессии (локальный UX-архив, без БД). */
+  missionHistory: GameAlert[];
+}
+
+function isMissionOutcomeAlert(alert: GameAlert): boolean {
+  return (
+    (alert.type === 'success' && alert.title.includes('взломана')) ||
+    (alert.type === 'info' && alert.title.includes('частичный доступ')) ||
+    (alert.type === 'penalty' && alert.title.includes('взлом сорвался'))
+  );
 }
 
 
@@ -137,6 +147,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const initInFlightRef = useRef<Promise<void> | null>(null);
   const [storageMode, setStorageMode] = useState<'supabase' | 'memory-fallback'>('memory-fallback');
   const [alerts, setAlerts] = useState<GameAlert[]>([]);
+  // Короткий локальный журнал помогает понять результат после исчезновения toast.
+  // Это намеренно не PlayerState: экономика и постоянные данные остаются на сервере.
+  const [missionHistory, setMissionHistory] = useState<GameAlert[]>([]);
   const [offlineModalEarned, setOfflineModalEarned] = useState<number | null>(null);
   const [offlineModalTaps, setOfflineModalTaps] = useState<number>(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -231,6 +244,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (showOfflineModal && res.offlineEarned && res.offlineEarned >= 10) {
         setOfflineModalEarned(res.offlineEarned);
         setOfflineModalTaps(res.offlineTaps ?? 0);
+      }
+      const missionResults = (res.alerts ?? []).filter(isMissionOutcomeAlert);
+      if (missionResults.length > 0) {
+        setMissionHistory((prev) => {
+          const seen = new Set<string>();
+          return [...missionResults].reverse().concat(prev).filter((alert) => {
+            if (seen.has(alert.id)) return false;
+            seen.add(alert.id);
+            return true;
+          }).slice(0, 5);
+        });
       }
       pushAlerts(res.alerts);
     },
@@ -917,6 +941,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setLeaderboardSort,
         refreshLeaderboard,
         updateDemoName,
+        missionHistory,
       }}
     >
       {children}
