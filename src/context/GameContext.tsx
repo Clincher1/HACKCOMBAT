@@ -20,6 +20,7 @@ import type {
 } from '../../shared/types';
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
+import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
 import {
@@ -68,6 +69,7 @@ interface GameContextValue {
   petAction: (action: 'buy' | 'feed', petKey: string) => Promise<void>;
   trackEvent: (event: string, value?: number) => void;
   claimDailyBonus: () => Promise<void>;
+  claimDailyTask: (taskKey: string) => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
   /** Выбранная бесплатная базовая тема (v3.6.1). */
   baseTheme: BaseThemeConfig;
@@ -237,6 +239,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               data: res.player.data + unsent * res.player.derived.clickPower,
               energy: Math.max(0, res.player.energy - unsent),
               totalClicks: res.player.totalClicks + unsent,
+              // Показатель тап-поручения тоже двигается сразу, пока хвост
+              // находится в очереди. Сервер всё равно повторно проверяет его
+              // при фактическом claim.
+              stats: res.player.stats.dailyTasks
+                ? {
+                    ...res.player.stats,
+                    dailyTasks: {
+                      ...res.player.stats.dailyTasks,
+                      progress: Object.fromEntries(
+                        Object.entries(res.player.stats.dailyTasks.progress).map(([key, value]) => {
+                          const task = getDailyTaskDefinition(key);
+                          return [
+                            key,
+                            task?.kind === 'tap'
+                              ? Math.min(task.target, value + unsent)
+                              : value,
+                          ];
+                        })
+                      ),
+                    },
+                  }
+                : res.player.stats,
             }
           : res.player;
 
@@ -713,6 +737,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const claimDailyTask = useCallback(
+    (taskKey: string) =>
+      runAction(`daily-task:claim:${taskKey}`, (clicks) => gameApi.claimDailyTask(taskKey, clicks), true, 'light'),
+    [runAction]
+  );
+
   const buyOrEquipSkin = useCallback(
     (skinKey: string) =>
       runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('buy_or_equip', skinKey, clicks), true, 'light'),
@@ -930,6 +960,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         petAction,
         trackEvent,
         claimDailyBonus,
+        claimDailyTask,
         buyOrEquipSkin,
         baseTheme,
         setBaseTheme,

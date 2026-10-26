@@ -58,10 +58,17 @@ import {
 } from '../../shared/pets.config';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { BASE_THEMES } from '../../shared/themes.config';
+import {
+  DAILY_TASKS_PER_DAY,
+  getDailyTaskDefinition,
+  getDailyTaskDefinitions,
+} from '../../shared/dailyTasks.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import type {
   ActiveMissionInstance,
   ApiSyncResponse,
+  DailyTaskKind,
+  DailyTaskState,
   DerivedStats,
   GameAlert,
   LeaderboardEntry,
@@ -159,6 +166,49 @@ function pickSkinKey(raw: unknown, category: SkinCategory): string | undefined {
   return skin && skin.category === category ? skin.key : undefined;
 }
 
+function normalizeDailyTaskState(raw: unknown): DailyTaskState | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const src = raw as Record<string, unknown>;
+  const dayKey = typeof src.dayKey === 'string' ? src.dayKey.slice(0, 10) : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) return undefined;
+
+  const taskKeys = Array.isArray(src.taskKeys)
+    ? Array.from(
+        new Set(
+          src.taskKeys
+            .map((key) => String(key))
+            .filter((key) => Boolean(getDailyTaskDefinition(key)))
+        )
+      ).slice(0, DAILY_TASKS_PER_DAY)
+    : [];
+  if (taskKeys.length !== DAILY_TASKS_PER_DAY) return undefined;
+
+  const progress: Record<string, number> = {};
+  const rawProgress =
+    src.progress && typeof src.progress === 'object'
+      ? (src.progress as Record<string, unknown>)
+      : {};
+  for (const key of taskKeys) {
+    const target = getDailyTaskDefinition(key)?.target ?? 0;
+    const value = Number(rawProgress[key]);
+    progress[key] = Number.isFinite(value)
+      ? Math.max(0, Math.min(target, Math.floor(value)))
+      : 0;
+  }
+
+  const claimed = Array.isArray(src.claimed)
+    ? Array.from(
+        new Set(
+          src.claimed
+            .map((key) => String(key))
+            .filter((key) => taskKeys.includes(key))
+        )
+      )
+    : [];
+
+  return { dayKey, taskKeys, progress, claimed };
+}
+
 function normalizeStats(raw: unknown): PlayerProgressStats {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const num = (v: unknown, max = 1_000_000_000) => {
@@ -209,6 +259,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         ? src.lastTapClaimAt
         : null,
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
+    dailyTasks: normalizeDailyTaskState(src.dailyTasks),
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
     chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
     chipsToday: num(src.chipsToday, 100_000),
@@ -229,6 +280,52 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     offlineGraceUsed: src.offlineGraceUsed === true,
   };
+}
+
+function ensureDailyTasks(record: StoredPlayerRecord, dayKey: string): DailyTaskState {
+  const current = record.stats.dailyTasks;
+  const currentIsValid =
+    current?.dayKey === dayKey &&
+    current.taskKeys.length === DAILY_TASKS_PER_DAY &&
+    current.taskKeys.every((key) => Boolean(getDailyTaskDefinition(key)));
+
+  if (!currentIsValid) {
+    const taskKeys = getDailyTaskDefinitions(record.tgId, dayKey).map((task) => task.key);
+    record.stats.dailyTasks = {
+      dayKey,
+      taskKeys,
+      progress: Object.fromEntries(taskKeys.map((key) => [key, 0])),
+      claimed: [],
+    };
+  }
+
+  const state = record.stats.dailyTasks;
+  // The generator always creates a valid state; this fallback only protects
+  // against a malformed legacy jsonb value arriving between normalization and
+  // the first save.
+  if (!state) {
+    throw new Error('Не удалось подготовить ежедневные поручения');
+  }
+  for (const key of state.taskKeys) {
+    const target = getDailyTaskDefinition(key)?.target ?? 0;
+    state.progress[key] = Math.max(0, Math.min(target, Math.floor(Number(state.progress[key]) || 0)));
+  }
+  state.claimed = state.claimed.filter((key) => state.taskKeys.includes(key));
+  return state;
+}
+
+function incrementDailyTaskProgress(
+  record: StoredPlayerRecord,
+  kind: DailyTaskKind,
+  amount: number
+): void {
+  const state = record.stats.dailyTasks;
+  if (!state || amount <= 0) return;
+  for (const key of state.taskKeys) {
+    const task = getDailyTaskDefinition(key);
+    if (!task || task.kind !== kind) continue;
+    state.progress[key] = Math.min(task.target, (state.progress[key] ?? 0) + Math.floor(amount));
+  }
 }
 
 /**
@@ -683,7 +780,8 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
 
 async function savePlayerCore(
   record: StoredPlayerRecord,
-  mode: 'supabase' | 'memory-fallback'
+  mode: 'supabase' | 'memory-fallback',
+  expectedXp?: number
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
@@ -712,7 +810,7 @@ async function savePlayerCore(
   const sb = getSupabaseAdmin();
   if (!sb) return;
 
-  const { error } = await sb
+  let updateQuery = sb
     .from('players')
     .update({
       username: record.username,
@@ -741,8 +839,18 @@ async function savePlayerCore(
     })
     .eq('id', record.id);
 
+  // Daily-task claim uses the XP value as a compare-and-swap guard. Two
+  // serverless instances cannot both award the same task from one snapshot.
+  if (expectedXp !== undefined) {
+    updateQuery = updateQuery.eq('xp', expectedXp);
+  }
+  const { data: updatedRows, error } = await updateQuery.select('id');
+
   if (error) {
     throw new Error(`Supabase update player error: ${error.message}`);
+  }
+  if (expectedXp !== undefined && (!updatedRows || updatedRows.length === 0)) {
+    throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
   }
 
   // Питомцы и «База» живут в отдельных таблицах: сохраняем только при изменениях,
@@ -905,6 +1013,9 @@ async function syncTimeAndRules(
     record.stats.chipsDayKey = nowDayKey;
     record.stats.chipsToday = 0;
   }
+  // Ежедневные поручения используют те же московские сутки, что и активность
+  // и лимит Чипов. Создание/сброс происходит только на сервере.
+  ensureDailyTasks(record, nowDayKey);
   if (prevActiveMs > 0 && nowMs > prevActiveMs && nowMs - prevActiveMs <= ACTIVITY_HEARTBEAT_MAX_GAP_SEC * 1000) {
     const gainedSec = (nowMs - prevActiveMs) / 1000;
     record.stats.activeSecondsToday = Math.min(86_400, (record.stats.activeSecondsToday ?? 0) + gainedSec);
@@ -1333,6 +1444,7 @@ async function applyPendingClicks(
   record.data += validClicks * derived.clickPower;
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
+  incrementDailyTaskProgress(record, 'tap', validClicks);
   return validClicks;
 }
 
@@ -1792,6 +1904,7 @@ export async function handleMissionAction(
         successChance,
         outcome: 'partial',
       });
+      incrementDailyTaskProgress(record, 'mission_start', 1);
 
       alerts.push({
         id: crypto.randomUUID(),
@@ -1869,6 +1982,7 @@ export async function handleMissionAction(
     record.xp += xpGain;
     record.totalMissions += 1;
     record.stats.totalXpEarned += xpGain;
+    incrementDailyTaskProgress(record, 'mission_complete', 1);
 
     // Чипы начисляются только за ЧИСТЫЙ успех (частичный результат и пропуск
     // за Crypto — без Чипов) и только в пределах суточного лимита.
@@ -2048,6 +2162,55 @@ export async function handleDailyBonus(user: VerifiedTelegramUser,
 
     await syncTimeAndRules(record, mode, alerts);
     await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+export async function handleDailyTaskAction(
+  user: VerifiedTelegramUser,
+  action: 'claim',
+  taskKey: string,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    // Пачка тапов может сама закрыть ежедневное поручение. Сохраняем её до
+    // проверки кнопки, чтобы ошибка/повтор не теряли уже принятые клики.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    const state = ensureDailyTasks(record, getGameDayKey(Date.now()));
+    const task = getDailyTaskDefinition(taskKey);
+    if (!task || !state.taskKeys.includes(task.key)) {
+      throw new Error('Это поручение не входит в сегодняшнюю тройку');
+    }
+    if (state.claimed.includes(task.key)) {
+      throw new Error('Награда за это поручение уже получена');
+    }
+    const progress = state.progress[task.key] ?? 0;
+    if (progress < task.target) {
+      throw new Error(`Поручение ещё не готово: ${progress}/${task.target}`);
+    }
+
+    // XP — единственная награда ежедневных поручений. expectedXp становится
+    // CAS-сторожем для Supabase: параллельный второй claim не сможет повторить
+    // начисление, даже если запросы попадут на разные serverless-инстансы.
+    const expectedXp = record.xp;
+    record.xp += task.rewardXp;
+    record.stats.totalXpEarned += task.rewardXp;
+    state.claimed.push(task.key);
+
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `${task.icon} Поручение выполнено`,
+      message: `«${task.title}» закрыто. +${task.rewardXp} XP к прогрессу.`,
+    });
+
+    await savePlayerCore(record, mode, expectedXp);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }

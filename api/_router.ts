@@ -3,6 +3,7 @@ import base from './_routes/base';
 import buyCard from './_routes/buy-card';
 import click from './_routes/click';
 import daily from './_routes/daily';
+import dailyTasks from './_routes/daily-tasks';
 import donate from './_routes/donate';
 import hire from './_routes/hire';
 import init from './_routes/init';
@@ -35,6 +36,7 @@ const routes: Record<string, Handler> = {
   'buy-card': buyCard,
   click,
   daily,
+  'daily-tasks': dailyTasks,
   donate,
   hire,
   init,
