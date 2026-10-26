@@ -899,6 +899,65 @@ async function savePlayerCore(
   const sb = getSupabaseAdmin();
   if (!sb) return;
 
+  // Сначала фиксируем состояние питомцев и только потом списываем Data/Rep/
+  // Crypto в players. Раньше ошибка upsert в pets проглатывалась, а players
+  // уже сохранялся: корм стоил валюту, но после следующего init голод
+  // возвращался к старому значению. Теперь запись питомца — обязательная часть
+  // операции для всех питомцев.
+  //
+  // Снимок нужен для компенсации: если UPDATE players не прошёл после upsert
+  // pets, возвращаем предыдущие строки, чтобы не получить «бесплатное» кормление
+  // или покупку питомца.
+  let previousPetRows: Array<Record<string, unknown>> | null = null;
+  const restorePetRows = async (): Promise<void> => {
+    if (previousPetRows === null) return;
+    const previousPetKeys = new Set(previousPetRows.map((row) => String(row.pet_key)));
+    const newlyAddedPetKeys = record.pets
+      .map((pet) => pet.key)
+      .filter((key) => !previousPetKeys.has(key));
+    if (newlyAddedPetKeys.length > 0) {
+      const { error: deleteError } = await sb
+        .from('pets')
+        .delete()
+        .eq('player_id', record.id)
+        .in('pet_key', newlyAddedPetKeys);
+      if (deleteError) throw new Error(`Не удалось откатить состояние питомца: ${deleteError.message}`);
+    }
+    if (previousPetRows.length === 0) return;
+    const { error } = await sb.from('pets').upsert(previousPetRows, { onConflict: 'player_id,pet_key' });
+    if (error) throw new Error(`Не удалось откатить состояние питомца: ${error.message}`);
+  };
+
+  if (record.pets.length > 0) {
+    const { data: petRows, error: petsReadError } = await sb
+      .from('pets')
+      .select('player_id, pet_key, hunger, last_fed_at, feed_count')
+      .eq('player_id', record.id);
+    if (petsReadError) {
+      throw new Error(`Не удалось прочитать состояние питомца: ${petsReadError.message}`);
+    }
+    previousPetRows = (petRows ?? []) as Array<Record<string, unknown>>;
+
+    const { error: petsError } = await sb.from('pets').upsert(
+      record.pets.map((p) => ({
+        player_id: record.id,
+        pet_key: p.key,
+        hunger: Math.max(0, Math.min(100, p.hunger)),
+        last_fed_at: p.lastFedAt,
+        feed_count: Math.max(0, Math.floor(p.feedCount)),
+      })),
+      { onConflict: 'player_id,pet_key' }
+    );
+    if (petsError) {
+      try {
+        await restorePetRows();
+      } catch {
+        // Возвращаем исходную ошибку upsert: главное — не обновлять players.
+      }
+      throw new Error(`Не удалось сохранить состояние питомца: ${petsError.message}`);
+    }
+  }
+
   let updateQuery = sb
     .from('players')
     .update({
@@ -936,27 +995,30 @@ async function savePlayerCore(
   const { data: updatedRows, error } = await updateQuery.select('id');
 
   if (error) {
+    try {
+      await restorePetRows();
+    } catch (rollbackError) {
+      throw new Error(`Supabase update player error: ${error.message}; ${rollbackError instanceof Error ? rollbackError.message : 'rollback failed'}`);
+    }
     throw new Error(`Supabase update player error: ${error.message}`);
   }
-  if (expectedXp !== undefined && (!updatedRows || updatedRows.length === 0)) {
-    throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
-  }
-
-  // Питомцы и «База» живут в отдельных таблицах: сохраняем только при изменениях,
-  // ошибки из-за ещё не применённой миграции 003 не должны ломать игровую сессию.
-  try {
-    if (record.pets.length > 0) {
-      await sb.from('pets').upsert(
-        record.pets.map((p) => ({
-          player_id: record.id,
-          pet_key: p.key,
-          hunger: Math.max(0, Math.min(100, p.hunger)),
-          last_fed_at: p.lastFedAt,
-          feed_count: Math.max(0, Math.floor(p.feedCount)),
-        })),
-        { onConflict: 'player_id,pet_key' }
+  if (!updatedRows || updatedRows.length === 0) {
+    try {
+      await restorePetRows();
+    } catch (rollbackError) {
+      throw new Error(
+        `${expectedXp !== undefined ? 'Ежедневное поручение уже обрабатывается в другой сессии — обнови экран' : 'Supabase update player affected no rows'}; ${rollbackError instanceof Error ? rollbackError.message : 'rollback failed'}`
       );
     }
+    if (expectedXp !== undefined) {
+      throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
+    }
+    throw new Error('Supabase update player affected no rows');
+  }
+
+  // «База» живёт в отдельной таблице. Ошибка из-за ещё не применённой
+  // миграции 003 не должна ломать остальную игру.
+  try {
     const baseRows = Object.entries(record.baseUpgrades)
       .filter(([, lvl]) => Number.isFinite(lvl) && lvl > 0)
       .map(([key, lvl]) => ({
@@ -2607,23 +2669,6 @@ export async function handlePetAction(
         lastFedAt: nowIso,
         feedCount: 0,
       });
-
-      if (mode === 'supabase') {
-        const sb = getSupabaseAdmin();
-        if (sb) {
-          const { error } = await sb.from('pets').upsert(
-            {
-              player_id: record.id,
-              pet_key: cfg.key,
-              hunger: 100,
-              last_fed_at: nowIso,
-              feed_count: 0,
-            },
-            { onConflict: 'player_id,pet_key', ignoreDuplicates: true }
-          );
-          if (error) throw new Error(`Не удалось заселить питомца: ${error.message}`);
-        }
-      }
 
       alerts.push({
         id: crypto.randomUUID(),
