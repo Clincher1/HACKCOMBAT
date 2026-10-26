@@ -1,7 +1,7 @@
 import { BookOpen, Flame, Gift, Palette, Sparkles, Volume2, VolumeX, Zap } from 'lucide-react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getSkinByKey } from '../../shared/skins.config';
+import { resolveEquippedSkins } from '../../shared/skins.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -11,7 +11,7 @@ import { formatCompact } from '../lib/format';
  * Один и тот же цвет везде = игрок узнаёт валюту, не читая подпись.
  */
 const CURRENCY_COLORS = {
-  data: '#00f0ff',
+  data: 'var(--ui-primary)',
   crypto: '#c084fc',
   chips: '#7dff00',
   rep: '#34d399',
@@ -117,7 +117,13 @@ export const TopHud: React.FC = () => {
     derived.xpToNext > 0
       ? Math.min(100, Math.max(0, (derived.xpIntoLevel / derived.xpToNext) * 100))
       : 100;
-  const equippedSkin = getSkinByKey(player.equippedSkin);
+  // v3.6.5: аватар берётся из СВОЕГО слота, а не из общего equippedSkin.
+  // Раньше глиф и рамка читались из поля стола — поэтому «аватарка слетала»,
+  // как только игрок надевал скин рабочего стола.
+  const equippedAvatarSkin = resolveEquippedSkins({
+    equippedSkin: player.equippedSkin,
+    stats: player.stats,
+  }).avatar;
 
   const dailyAvailable =
     !player.lastDailyClaim ||
@@ -127,26 +133,28 @@ export const TopHud: React.FC = () => {
   const heatRisk = player.heat >= 75;
 
   return (
-    <header className="sticky top-0 z-30 backdrop-blur-xl bg-[#0a0e1a]/92 border-b border-[#00f0ff]/18 px-3 pt-2.5 pb-2">
+    <header className="sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.92)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2.5 pb-2">
       <div className="max-w-xl mx-auto space-y-2">
         {/* Верхняя строка: Уровень/Ранг + быстрые кнопки Бонуса, Скинов и Звука */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <div
-              className="w-6 h-6 shrink-0 rounded-lg bg-[#0a0e1a] border border-[#00f0ff]/40 flex items-center justify-center text-sm leading-none"
-              style={{ boxShadow: `0 0 10px ${equippedSkin?.primaryHex ?? '#00f0ff'}44` }}
-              title={equippedSkin?.name ?? 'Аватар'}
+              className="w-6 h-6 shrink-0 rounded-lg bg-[var(--ui-panel-deep)] border border-[rgba(var(--ui-primary-rgb),0.40)] flex items-center justify-center text-sm leading-none"
+              style={{
+                boxShadow: `0 0 10px ${equippedAvatarSkin?.primaryHex ?? 'var(--ui-primary)'}`,
+              }}
+              title={equippedAvatarSkin?.name ?? 'Аватар'}
             >
-              {equippedSkin?.avatarGlyph ?? '🕶️'}
+              {equippedAvatarSkin?.avatarGlyph ?? '🕶️'}
             </div>
-            <div className="px-2 py-0.5 rounded-md bg-[#00f0ff]/15 border border-[#00f0ff]/40 text-[#00f0ff] font-display text-xs font-bold shrink-0">
+            <div className="px-2 py-0.5 rounded-md bg-[rgba(var(--ui-primary-rgb),0.15)] border border-[rgba(var(--ui-primary-rgb),0.40)] text-[var(--ui-primary)] font-display text-xs font-bold shrink-0">
               УР. {derived.level}
             </div>
             <span className="text-xs text-slate-300 truncate font-semibold">
               {derived.rankTitle}
             </span>
             {player.prestigeCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-[#ff00a0]/20 border border-[#ff00a0]/45 text-[#ff00a0] text-[10px] font-bold">
+              <span className="px-1.5 py-0.5 rounded bg-[rgba(var(--ui-secondary-rgb),0.20)] border border-[rgba(var(--ui-secondary-rgb),0.45)] text-[var(--ui-secondary)] text-[10px] font-bold">
                 ×{derived.prestigeMultiplier} PRESTIGE
               </span>
             )}
@@ -156,13 +164,13 @@ export const TopHud: React.FC = () => {
             <button
               type="button"
               onClick={openTutorial}
-              className="relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[#00f0ff]/45 text-[#00f0ff] text-xs font-semibold transition cursor-pointer"
+              className="relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-primary-rgb),0.45)] text-[var(--ui-primary)] text-xs font-semibold transition cursor-pointer"
               title="Обучение: что качать и как играть"
             >
               <BookOpen className="w-3.5 h-3.5" />
               <span>Обучение</span>
               {tutorialUnseen && (
-                <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-ping absolute -top-0.5 -right-0.5" />
+                <span className="w-2 h-2 rounded-full bg-[var(--ui-primary)] animate-ping absolute -top-0.5 -right-0.5" />
               )}
             </button>
 
@@ -182,7 +190,7 @@ export const TopHud: React.FC = () => {
             <button
               type="button"
               onClick={() => setSkinModalOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[#ff00a0]/35 text-[#ff00a0] text-xs font-semibold transition cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-secondary-rgb),0.35)] text-[var(--ui-secondary)] text-xs font-semibold transition cursor-pointer"
               title="Эксклюзивные скины за Crypto"
             >
               <Palette className="w-3.5 h-3.5" />
@@ -195,7 +203,7 @@ export const TopHud: React.FC = () => {
               aria-label="Переключить звук"
               className="p-1.5 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-slate-700/70 text-slate-300 transition cursor-pointer"
             >
-              {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-500" /> : <Volume2 className="w-3.5 h-3.5 text-[#00f0ff]" />}
+              {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-500" /> : <Volume2 className="w-3.5 h-3.5 text-[var(--ui-primary)]" />}
             </button>
           </div>
         </div>
@@ -215,7 +223,7 @@ export const TopHud: React.FC = () => {
               className="h-full rounded-full transition-all duration-300"
               style={{
                 width: `${xpPct}%`,
-                background: 'linear-gradient(90deg, #a855f7 0%, #00f0ff 100%)',
+                background: 'linear-gradient(90deg, #a855f7 0%, var(--ui-primary) 100%)',
                 boxShadow: '0 0 8px rgba(168, 85, 247, 0.5)',
               }}
             />
@@ -280,7 +288,7 @@ export const TopHud: React.FC = () => {
             Оба в одну строку — панель не должна съедать экран. */}
         <div className="grid grid-cols-4 gap-1.5">
           <div
-            className="rounded-xl bg-[#10172e] border px-2 py-1 flex items-center justify-between gap-1 min-w-0"
+            className="rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center justify-between gap-1 min-w-0"
             style={{ borderColor: `${CURRENCY_COLORS.rep}55` }}
             title="Rep — репутация: найм элитной команды и мирная ветка White Hat"
           >
@@ -296,15 +304,15 @@ export const TopHud: React.FC = () => {
           </div>
 
           <div
-            className="col-span-3 rounded-xl bg-[#10172e] border px-2 py-1 flex items-center gap-2 min-w-0"
+            className="col-span-3 rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center gap-2 min-w-0"
             style={{
-              borderColor: heatRisk ? 'rgba(251, 113, 133, 0.55)' : 'rgba(255, 0, 160, 0.32)',
+              borderColor: heatRisk ? 'rgba(251, 113, 133, 0.55)' : 'rgba(var(--ui-secondary-rgb),0.32)',
             }}
             title="Heat (розыск): чем выше, тем ближе блокировка кликов. Штраф при 100"
           >
             <span
               className={`text-[10px] font-bold leading-none flex items-center gap-1 shrink-0 ${
-                heatRisk ? 'text-rose-400' : 'text-[#ff00a0]'
+                heatRisk ? 'text-rose-400' : 'text-[var(--ui-secondary)]'
               }`}
             >
               <Flame className={`w-3 h-3 ${heatRisk ? 'animate-pulse' : ''}`} />
@@ -317,7 +325,7 @@ export const TopHud: React.FC = () => {
                   width: `${heatPct}%`,
                   background: heatRisk
                     ? 'linear-gradient(90deg, #fb7185, #ef4444)'
-                    : 'linear-gradient(90deg, #ff00a0, #fb7185)',
+                    : 'linear-gradient(90deg, var(--ui-secondary), #fb7185)',
                 }}
               />
             </div>
@@ -334,8 +342,8 @@ export const TopHud: React.FC = () => {
         {/* Шкала CPU Energy (восстановление 1 Energy / 3 сек) */}
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[11px]">
-            <span className="flex items-center gap-1 font-semibold text-[#00f0ff]">
-              <Zap className="w-3.5 h-3.5 fill-[#00f0ff]/30" />
+            <span className="flex items-center gap-1 font-semibold text-[var(--ui-primary)]">
+              <Zap className="w-3.5 h-3.5 fill-[rgba(var(--ui-primary-rgb),0.30)]" />
               CPU Charge: {player.energy} / {derived.maxEnergy}
             </span>
             <span className="text-slate-400 text-[10px]">
@@ -347,8 +355,8 @@ export const TopHud: React.FC = () => {
               className="h-full rounded-full transition-all duration-200"
               style={{
                 width: `${energyPct}%`,
-                background: 'linear-gradient(90deg, #00f0ff 0%, #7dff00 100%)',
-                boxShadow: '0 0 10px rgba(0, 240, 255, 0.55)',
+                background: 'linear-gradient(90deg, var(--ui-primary) 0%, #7dff00 100%)',
+                boxShadow: '0 0 10px rgba(var(--ui-primary-rgb),0.55)',
               }}
             />
           </div>

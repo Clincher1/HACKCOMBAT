@@ -50,7 +50,7 @@ export const ModalsAndOverlays: React.FC = () => {
               initial={{ scale: 0.9, y: 12 }}
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 12 }}
-              className="w-full max-w-sm rounded-2xl bg-[#10172e] border border-[#00f0ff]/45 p-5 text-center shadow-[0_0_40px_rgba(0,240,255,0.2)]"
+              className="w-full max-w-sm rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.45)] p-5 text-center shadow-[0_0_40px_rgba(var(--ui-primary-rgb),0.2)]"
             >
               <Sparkles className="w-10 h-10 text-[#7dff00] mx-auto mb-2" />
               <h3 className="font-display text-lg font-extrabold text-white">
@@ -61,7 +61,7 @@ export const ModalsAndOverlays: React.FC = () => {
                 и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те
                 сутки, где вы наиграли 8 минут.
               </p>
-              <div className="my-4 py-3 rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 font-display text-2xl font-black text-[#7dff00]">
+              <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[#7dff00]/35 font-display text-2xl font-black text-[#7dff00]">
                 +{formatCompact(offlineModalEarned)} DATA
               </div>
               {offlineModalTaps > 0 && (
@@ -75,7 +75,7 @@ export const ModalsAndOverlays: React.FC = () => {
               <button
                 type="button"
                 onClick={dismissOfflineModal}
-                className="w-full py-2.5 rounded-xl bg-[#00f0ff] text-[#061018] font-display font-bold text-sm cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[#061018] font-display font-bold text-sm cursor-pointer"
               >
                 Забрать и продолжить
               </button>
@@ -99,7 +99,7 @@ export const ModalsAndOverlays: React.FC = () => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 16 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl bg-[#10172e] border border-[#7dff00]/40 p-5 space-y-4"
+              className="w-full max-w-md rounded-2xl bg-[var(--ui-panel)] border border-[#7dff00]/40 p-5 space-y-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -133,8 +133,8 @@ export const ModalsAndOverlays: React.FC = () => {
                         nextTarget
                           ? 'bg-[#7dff00]/20 border-[#7dff00] text-white'
                           : claimed
-                            ? 'bg-[#00f0ff]/15 border-[#00f0ff]/40 text-[#00f0ff]'
-                            : 'bg-[#0a0e1a] border-slate-800 text-slate-400'
+                            ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] border-[rgba(var(--ui-primary-rgb),0.40)] text-[var(--ui-primary)]'
+                            : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400'
                       }`}
                     >
                       <div className="text-[10px]">Д{day}</div>
@@ -174,7 +174,7 @@ export const ModalsAndOverlays: React.FC = () => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 16 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-[#10172e] border border-[#ff00a0]/40 p-5 space-y-3"
+              className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-secondary-rgb),0.40)] p-5 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -229,13 +229,13 @@ export const ModalsAndOverlays: React.FC = () => {
                               loading="lazy"
                               className="absolute inset-0 w-full h-full object-cover opacity-60"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-[#0a0e1a]/45 to-transparent" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--ui-panel-deep)] via-[rgba(var(--ui-panel-deep-rgb),0.45)] to-transparent" />
                           </>
                         )}
                         <div className="relative flex items-center justify-between gap-1">
                           <span className="text-base leading-none">{theme.glyph}</span>
                           {active ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[#0a0e1a] flex items-center gap-0.5">
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[var(--ui-panel-deep)] flex items-center gap-0.5">
                               <Check className="w-2.5 h-2.5" /> ВКЛ
                             </span>
                           ) : (
@@ -274,8 +274,8 @@ export const ModalsAndOverlays: React.FC = () => {
                     onClick={() => setSkinFilter(cat.id)}
                     className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
                       skinFilter === cat.id
-                        ? 'bg-[#ff00a0]/18 border-[#ff00a0] text-[#ff00a0]'
-                        : 'bg-[#0a0e1a] border-slate-800 text-slate-400 hover:text-slate-200'
+                        ? 'bg-[rgba(var(--ui-secondary-rgb),0.18)] border-[var(--ui-secondary)] text-[var(--ui-secondary)]'
+                        : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
                     {cat.label}
@@ -288,12 +288,20 @@ export const ModalsAndOverlays: React.FC = () => {
                   (skin) => skinFilter === 'all' || skin.category === skinFilter
                 ).map((skin) => {
                   const unlocked = player.unlockedSkins.includes(skin.key);
-                  const equipped = player.equippedSkin === skin.key;
+                  // v3.6.5: «активен» считается ПО СВОЕМУ СЛОТУ категории.
+                  // Раньше сравнивалось одно общее поле, поэтому надеть можно
+                  // было только что-то одно, а остальные «слетали».
+                  const equipped =
+                    skin.category === 'ui'
+                      ? player.stats?.equippedUi === skin.key
+                      : skin.category === 'avatar'
+                        ? player.stats?.equippedAvatar === skin.key
+                        : player.equippedSkin === skin.key;
                   const levelLocked = (skin.requiredLevel ?? 1) > player.derived.level;
                   return (
                     <div
                       key={skin.key}
-                      className="rounded-xl bg-[#0a0e1a] border border-slate-800 p-3 flex items-center justify-between gap-3"
+                      className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 p-3 flex items-center justify-between gap-3"
                     >
                       <div className="space-y-1 min-w-0">
                         <div className="flex items-center gap-2">
@@ -322,14 +330,14 @@ export const ModalsAndOverlays: React.FC = () => {
                         onClick={() => void buyOrEquipSkin(skin.key)}
                         className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                           equipped
-                            ? 'bg-[#00f0ff]/15 text-[#00f0ff] border border-[#00f0ff]/40'
+                            ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)]'
                             : levelLocked
-                              ? 'bg-[#0a0e1a] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
+                              ? 'bg-[var(--ui-panel-deep)] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
                               : unlocked
                                 ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
                                 : skin.prestigeRequired
                                   ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
-                                  : 'bg-[#ff00a0] hover:bg-[#ff00a0]/85 text-white'
+                                  : 'bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white'
                         }`}
                       >
                         {equipped ? (

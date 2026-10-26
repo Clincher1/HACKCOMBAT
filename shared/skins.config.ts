@@ -137,6 +137,12 @@ export const SKINS_CONFIG: SkinConfig[] = [
     accentHex: '#fde68a',
     cssFilter: 'sepia(0.35) hue-rotate(5deg) saturate(1.2)',
     clickBonusPct: 0.02,
+    uiTokens: {
+      accent: '#fbbf24',
+      accent2: '#f97316',
+      panel: '#1a1206',
+      text: '#fde9c2',
+    },
   },
   {
     key: 'ui_mint',
@@ -150,6 +156,12 @@ export const SKINS_CONFIG: SkinConfig[] = [
     accentHex: '#a7f3d0',
     cssFilter: 'hue-rotate(60deg) saturate(1.1)',
     clickBonusPct: 0.03,
+    uiTokens: {
+      accent: '#34d399',
+      accent2: '#06b6d4',
+      panel: '#08201c',
+      text: '#c8f8e6',
+    },
   },
   {
     key: 'ui_grape',
@@ -163,6 +175,12 @@ export const SKINS_CONFIG: SkinConfig[] = [
     accentHex: '#f0abfc',
     cssFilter: 'hue-rotate(250deg) saturate(1.25)',
     clickBonusPct: 0.05,
+    uiTokens: {
+      accent: '#a78bfa',
+      accent2: '#6d28d9',
+      panel: '#150f2b',
+      text: '#e4d9ff',
+    },
   },
   {
     key: 'ui_steel',
@@ -176,6 +194,12 @@ export const SKINS_CONFIG: SkinConfig[] = [
     accentHex: '#e2e8f0',
     cssFilter: 'saturate(0.25) brightness(1.05)',
     clickBonusPct: 0.08,
+    uiTokens: {
+      accent: '#94a3b8',
+      accent2: '#475569',
+      panel: '#12161d',
+      text: '#dbe3ee',
+    },
   },
   {
     key: 'ui_crimson',
@@ -189,6 +213,12 @@ export const SKINS_CONFIG: SkinConfig[] = [
     accentHex: '#fecdd3',
     cssFilter: 'hue-rotate(155deg) saturate(1.45)',
     clickBonusPct: 0.12,
+    uiTokens: {
+      accent: '#f43f5e',
+      accent2: '#881337',
+      panel: '#1c0710',
+      text: '#ffd7dd',
+    },
   },
 
   // --------------------------- AVATAR ---------------------------
@@ -270,6 +300,56 @@ export const SKIN_CATEGORIES: { id: 'desk' | 'ui' | 'avatar'; label: string }[] 
   { id: 'avatar', label: '🧑‍💻 Аватары' },
 ];
 
+/**
+ * v3.6.5: потолок суммарного бонуса к тапу от косметики.
+ *
+ * До v3.6.5 у игрока мог быть надет только один скин, и максимум был
+ * +22% (Omega Singularity). Теперь слотов три, и без потолка сумма
+ * дошла бы до +49% — это уже вмешательство в баланс, который считается
+ * вокруг прежней планки. Сумма режется до 22%: три скина позволяют
+ * добрать максимум дешевле, но выше прежнего потолка не поднимают.
+ */
+export const SKIN_CLICK_BONUS_CAP = 0.22;
+
+/** Ключи слотов косметики: стол, интерфейс, аватар. */
+export interface EquippedSkinSlots {
+  desk: string;
+  ui: string;
+  avatar: string;
+}
+
+/** Слот по умолчанию для каждой категории (значение = «ничего не надето»). */
+export const DEFAULT_SKIN_SLOTS: EquippedSkinSlots = {
+  desk: 'default',
+  ui: '',
+  avatar: '',
+};
+
 export function getSkinByKey(key: string): SkinConfig | undefined {
   return SKINS_CONFIG.find((s) => s.key === key);
+}
+
+/** Собирает три слота из полей игрока, подставляя значения по умолчанию. */
+export function resolveSkinSlots(input: {
+  equippedSkin?: string;
+  stats?: { equippedUi?: string; equippedAvatar?: string };
+}): EquippedSkinSlots {
+  return {
+    desk: input.equippedSkin || DEFAULT_SKIN_SLOTS.desk,
+    ui: input.stats?.equippedUi || DEFAULT_SKIN_SLOTS.ui,
+    avatar: input.stats?.equippedAvatar || DEFAULT_SKIN_SLOTS.avatar,
+  };
+}
+
+/** Готовые конфиги для всех трёх слотов (undefined — слот пуст). */
+export function resolveEquippedSkins(input: {
+  equippedSkin?: string;
+  stats?: { equippedUi?: string; equippedAvatar?: string };
+}): { desk: SkinConfig; ui?: SkinConfig; avatar?: SkinConfig } {
+  const slots = resolveSkinSlots(input);
+  return {
+    desk: getSkinByKey(slots.desk) ?? SKINS_CONFIG[0],
+    ui: slots.ui ? getSkinByKey(slots.ui) : undefined,
+    avatar: slots.avatar ? getSkinByKey(slots.avatar) : undefined,
+  };
 }

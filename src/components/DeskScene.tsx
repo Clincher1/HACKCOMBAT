@@ -12,6 +12,7 @@ import {
 } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
+import { resolveEquippedSkins } from '../../shared/skins.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -77,7 +78,20 @@ export const DeskScene: React.FC = () => {
   const { derived } = player;
   const activeStage = previewStage ?? derived.deskStage;
   const stageInfo = getDeskStageInfo(activeStage);
-  const activeSkin = SKINS_CONFIG.find((s) => s.key === player.equippedSkin) ?? SKINS_CONFIG[0];
+  // v3.6.5: арт стола реагирует ТОЛЬКО на скин категории «рабочий стол».
+  // Раньше сюда попадал любой надетый скин, и сепия от Amber Panels
+  // (категория «интерфейс») перекрашивала сцену вместо панелей.
+  const equippedSkins = resolveEquippedSkins({
+    equippedSkin: player.equippedSkin,
+    stats: player.stats,
+  });
+  const activeSkin = equippedSkins.desk;
+  const uiSkin = equippedSkins.ui;
+  // v3.6.5: скин интерфейса задаёт градиент главной кнопки. Если его нет —
+  // работает градиент базовой темы (у классики циан, у Neon Muse роза).
+  const buttonGradient: [string, string] = uiSkin?.uiTokens
+    ? [uiSkin.uiTokens.accent, uiSkin.uiTokens.accent2]
+    : baseTheme.ui.buttonGradient;
   // v3.6.3: у базовой темы свой арт на КАЖДЫЙ этап (1/5/10/15/20/25/30) —
   // рабочий стол растёт вместе с уровнем, как в классике. Если у темы набора
   // нет, падаем на единственную сцену, а дальше — на сцену классики.
@@ -120,7 +134,7 @@ export const DeskScene: React.FC = () => {
       {/* Инфо-строка эволюции стола + кнопка предпросмотра всех 7 этапов */}
       <div className="flex items-center justify-between gap-2 bg-[#10172e]/90 border border-slate-800 rounded-xl px-3 py-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-[#00f0ff]">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--ui-primary)]">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate">{stageInfo.title}</span>
             {previewStage && previewStage !== derived.deskStage && (
@@ -138,9 +152,9 @@ export const DeskScene: React.FC = () => {
             setShowStageBar((s) => !s);
             if (showStageBar) setPreviewStage(null);
           }}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#162040] hover:bg-[#1e2c56] border border-[#00f0ff]/30 text-[11px] font-semibold text-slate-200 transition cursor-pointer"
+          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#162040] hover:bg-[#1e2c56] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-slate-200 transition cursor-pointer"
         >
-          <Eye className="w-3.5 h-3.5 text-[#00f0ff]" />
+          <Eye className="w-3.5 h-3.5 text-[var(--ui-primary)]" />
           <span>Этапы ({ALL_STAGES.indexOf(derived.deskStage) + 1}/7)</span>
         </button>
       </div>
@@ -165,7 +179,7 @@ export const DeskScene: React.FC = () => {
                     onClick={() => setPreviewStage(st === derived.deskStage ? null : st)}
                     className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
                       isSelected
-                        ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-[#00f0ff]'
+                        ? 'bg-[rgba(var(--ui-primary-rgb),0.20)] border-[var(--ui-primary)] text-[var(--ui-primary)]'
                         : unlocked
                           ? 'bg-[#10172e] border-[#7dff00]/35 text-[#7dff00]'
                           : 'bg-[#0d1224] border-slate-800 text-slate-400'
@@ -196,7 +210,7 @@ export const DeskScene: React.FC = () => {
           borderColor: `${activeSkin.primaryHex}55`,
           boxShadow: pulseActive
             ? `0 0 36px ${activeSkin.primaryHex}55, inset 0 0 28px ${activeSkin.secondaryHex}44`
-            : `0 0 24px rgba(0, 240, 255, 0.12)`,
+            : `0 0 24px rgba(var(--ui-primary-rgb),0.12)`,
         }}
       >
         {/* WebP слой эволюционирующего стола */}
@@ -248,12 +262,12 @@ export const DeskScene: React.FC = () => {
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 pointer-events-none">
           <div className="flex flex-wrap items-center gap-1.5">
             {derived.alignment === 'white_hat' && (
-              <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a]/85 border border-[#00f0ff]/60 text-[#00f0ff] text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a]/85 border border-[rgba(var(--ui-primary-rgb),0.60)] text-[var(--ui-primary)] text-[10px] font-bold">
                 🛡️ WHITE HAT (+20% Data/ч • ×2 Bad-миссии)
               </span>
             )}
             {derived.alignment === 'black_hat' && (
-              <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a]/85 border border-[#ff00a0]/70 text-[#ff00a0] text-[10px] font-bold">
+              <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a]/85 border border-[rgba(var(--ui-secondary-rgb),0.70)] text-[var(--ui-secondary)] text-[10px] font-bold">
                 🕶️ BLACK HAT (+50% к тапу • риск Heat)
               </span>
             )}
@@ -275,7 +289,7 @@ export const DeskScene: React.FC = () => {
         <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-slate-300 pointer-events-none">
           <span className="bg-[#0a0e1a]/80 px-2 py-0.5 rounded border border-slate-800">
             До Ур. {derived.level + 1}:{' '}
-            <strong className="text-[#00f0ff]">
+            <strong className="text-[var(--ui-primary)]">
               {Math.round(derived.xpIntoLevel).toLocaleString('ru-RU')}/
               {derived.xpToNext > 0 ? Math.round(derived.xpToNext).toLocaleString('ru-RU') : '∞'} XP
             </strong>
@@ -295,7 +309,7 @@ export const DeskScene: React.FC = () => {
             animate={{ opacity: 0, y: -76, scale: 1.12 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
             style={{ left: `${p.x}%`, top: `${p.y}%` }}
-            className="pointer-events-none absolute -translate-x-1/2 font-display text-xs sm:text-sm font-extrabold text-[#00f0ff] drop-shadow-[0_0_10px_rgba(0,240,255,0.95)] whitespace-nowrap"
+            className="pointer-events-none absolute -translate-x-1/2 font-display text-xs sm:text-sm font-extrabold text-[var(--ui-primary)] drop-shadow-[0_0_10px_rgba(var(--ui-primary-rgb),0.95)] whitespace-nowrap"
           >
             {p.text}
           </motion.div>
@@ -319,7 +333,7 @@ export const DeskScene: React.FC = () => {
               type="button"
               disabled={busyKey === 'clear_lockdown'}
               onClick={() => void clearHeatLockdown()}
-              className="mt-3 px-3.5 py-1.5 rounded-xl bg-[#ff00a0] hover:bg-[#ff00a0]/85 text-white text-xs font-bold shadow-[0_0_18px_rgba(255,0,160,0.5)] transition cursor-pointer"
+              className="mt-3 px-3.5 py-1.5 rounded-xl bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white text-xs font-bold shadow-[0_0_18px_rgba(var(--ui-secondary-rgb),0.5)] transition cursor-pointer"
             >
               ⚡ Сбросить прокси за 2 💎 Crypto
             </button>
@@ -337,8 +351,8 @@ export const DeskScene: React.FC = () => {
         style={{
           // v3.6.2: градиент берём из темы — у женской он розово-лавандовый,
           // у классики прежний кибер-циан. Скин по-прежнему влияет на сцену.
-          background: `linear-gradient(135deg, ${baseTheme.ui.buttonGradient[0]} 0%, ${baseTheme.ui.buttonGradient[1]} 100%)`,
-          boxShadow: `0 0 28px ${baseTheme.ui.buttonGradient[0]}55`,
+          background: `linear-gradient(135deg, ${buttonGradient[0]} 0%, ${buttonGradient[1]} 100%)`,
+          boxShadow: `0 0 28px ${buttonGradient[0]}55`,
           marginTop: baseTheme.ui.catEars ? 10 : 0,
         }}
       >
@@ -350,7 +364,7 @@ export const DeskScene: React.FC = () => {
               style={{
                 borderLeft: '11px solid transparent',
                 borderRight: '11px solid transparent',
-                borderBottom: `14px solid ${baseTheme.ui.buttonGradient[0]}`,
+                borderBottom: `14px solid ${buttonGradient[0]}`,
                 transform: 'skewX(-12deg)',
               }}
             />
@@ -359,7 +373,7 @@ export const DeskScene: React.FC = () => {
               style={{
                 borderLeft: '11px solid transparent',
                 borderRight: '11px solid transparent',
-                borderBottom: `14px solid ${baseTheme.ui.buttonGradient[0]}`,
+                borderBottom: `14px solid ${buttonGradient[0]}`,
                 transform: 'skewX(12deg)',
               }}
             />
@@ -386,7 +400,7 @@ export const DeskScene: React.FC = () => {
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-[#10172e]/85 border border-slate-800/90 p-2">
           <div className="text-[10px] text-slate-400">Сила тапа</div>
-          <div className="text-xs font-bold text-[#00f0ff] flex items-center justify-center gap-1 mt-0.5">
+          <div className="text-xs font-bold text-[var(--ui-primary)] flex items-center justify-center gap-1 mt-0.5">
             <Zap className="w-3 h-3" /> +{formatCompact(derived.clickPower)}
           </div>
         </div>
@@ -396,7 +410,7 @@ export const DeskScene: React.FC = () => {
         </div>
         <div className="rounded-xl bg-[#10172e]/85 border border-slate-800/90 p-2">
           <div className="text-[10px] text-slate-400">Слоты взломов</div>
-          <div className="text-xs font-bold text-[#ff00a0] mt-0.5">
+          <div className="text-xs font-bold text-[var(--ui-secondary)] mt-0.5">
             {player.activeMissions.length} / {derived.missionSlots}
           </div>
         </div>

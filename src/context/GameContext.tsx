@@ -20,6 +20,7 @@ import type {
 } from '../../shared/types';
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
+import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
 import {
   initTelegramMiniApp,
@@ -79,6 +80,22 @@ interface GameContextValue {
   setLeaderboardSort: (sort: LeaderboardSort) => void;
   refreshLeaderboard: (sort?: LeaderboardSort) => Promise<void>;
   updateDemoName: (newName: string) => Promise<void>;
+}
+
+
+/** '#00f0ff' -> '0, 240, 255' — нужен для rgba(var(--ui-primary-rgb), 0.2). */
+function hexToRgbTriplet(hex: string): string {
+  const clean = hex.replace('#', '');
+  const full =
+    clean.length === 3
+      ? clean
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : clean;
+  const num = Number.parseInt(full.slice(0, 6), 16);
+  if (!Number.isFinite(num)) return '0, 240, 255';
+  return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -672,6 +689,38 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--theme-vignette', theme.sceneVignette);
     document.body.dataset.theme = theme.key;
   }, [player?.stats.baseTheme]);
+
+  // v3.6.5: скин интерфейса наконец красит интерфейс.
+  // До этого палитра бралась только из базовой темы, и Amber Panels с друзьями
+  // не делали НИЧЕГО: их фильтр применялся к арту стола в DeskScene.
+  // Теперь UI-скин выставляет свои токены хрома, а сцена остаётся нетронутой.
+  useEffect(() => {
+    const theme = getBaseTheme(player?.stats.baseTheme);
+    const equipped = resolveEquippedSkins({
+      equippedSkin: player?.equippedSkin,
+      stats: player?.stats,
+    });
+    const uiSkin = equipped.ui;
+    const root = document.documentElement.style;
+    const accent = uiSkin?.uiTokens?.accent ?? theme.palette.cyan;
+    const accent2 = uiSkin?.uiTokens?.accent2 ?? theme.palette.magenta;
+    const panel = uiSkin?.uiTokens?.panel ?? theme.palette.panel;
+    const panelDeep = uiSkin?.uiTokens?.panel ?? theme.palette.panelDeep;
+    root.setProperty('--ui-primary', accent);
+    root.setProperty('--ui-primary-rgb', hexToRgbTriplet(accent));
+    root.setProperty('--ui-secondary', accent2);
+    root.setProperty('--ui-secondary-rgb', hexToRgbTriplet(accent2));
+    root.setProperty('--ui-panel', panel);
+    root.setProperty('--ui-panel-rgb', hexToRgbTriplet(panel));
+    root.setProperty('--ui-panel-deep', panelDeep);
+    root.setProperty('--ui-panel-deep-rgb', hexToRgbTriplet(panelDeep));
+    root.setProperty('--ui-text', uiSkin?.uiTokens?.text ?? theme.palette.text);
+    if (uiSkin) {
+      document.body.dataset.uiSkin = uiSkin.key;
+    } else {
+      delete document.body.dataset.uiSkin;
+    }
+  }, [player?.stats.baseTheme, player?.stats.equippedUi, player?.equippedSkin]);
 
   // ==========================================================================
   // АВТО-ТЕЛЕМЕТРИЯ ДЛЯ «НЕОЧЕВИДНЫХ» ДОСТИЖЕНИЙ

@@ -9,6 +9,18 @@
   --cyber-purple: #c084fc;
   /* Панель по умолчанию (совпадает с классической темой). */
   --cyber-panel-deep: #0a0e1a;
+  /* v3.6.5: палитра ХРОМА интерфейса. По умолчанию совпадает с темой,
+     а скин интерфейса переопределяет её через GameContext. Арт сцены
+     этих переменных не использует — он остаётся нетронутым. */
+  --ui-primary: #00f0ff;
+  --ui-primary-rgb: 0, 240, 255;
+  --ui-secondary: #ff00a0;
+  --ui-secondary-rgb: 255, 0, 160;
+  --ui-panel: #10172e;
+  --ui-panel-rgb: 16, 23, 46;
+  --ui-panel-deep: #0a0e1a;
+  --ui-panel-deep-rgb: 10, 14, 26;
+  --ui-text: #e8f4ff;
   --theme-vignette: rgba(0, 240, 255, 0.1);
 }
 
