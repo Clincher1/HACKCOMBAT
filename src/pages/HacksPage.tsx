@@ -1,5 +1,5 @@
 import { CheckCircle2, Clock, Flame, Gem, Lock, RefreshCw, Shield, Zap } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   describeReadiness,
@@ -12,32 +12,40 @@ import type { MissionTargetType } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact, formatCountdown } from '../lib/format';
 
-type FilterType = 'all' | MissionTargetType;
+type FilterType = 'all' | 'white' | 'black' | 'neutral';
+
+function hackCategory(targetType: MissionTargetType): Exclude<FilterType, 'all'> {
+  if (targetType === 'bad') return 'white';
+  if (targetType === 'good') return 'black';
+  // Grey Ops остаются отдельным внутренним типом ради Crypto и достижений,
+  // но для игрока это нейтральная ветка, а не четвёртая категория.
+  return 'neutral';
+}
 
 const TYPE_META: Record<
   MissionTargetType,
   { badge: string; dot: string; border: string; bg: string }
 > = {
   bad: {
-    badge: '🔴 Bad site (+Rep, 0 Heat)',
+    badge: '⚪ Белый хакинг · +Rep, 0 Heat',
     dot: 'text-emerald-300',
     border: 'border-[#00f0ff]/35',
     bg: 'bg-[#00f0ff]/10 text-[#00f0ff]',
   },
   good: {
-    badge: '🟢 Good site (+++Data, +Heat)',
+    badge: '⚫ Чёрный хакинг · +Data, +Heat',
     dot: 'text-rose-300',
     border: 'border-[#ff00a0]/35',
     bg: 'bg-[#ff00a0]/12 text-[#ff00a0]',
   },
   neutral: {
-    badge: '⚪ Neutral (+Data)',
+    badge: '🔵 Нейтральный хакинг · +Data',
     dot: 'text-slate-300',
     border: 'border-slate-700',
     bg: 'bg-slate-800 text-slate-300',
   },
   grey: {
-    badge: '🟣 Grey Ops (+Data, +Rep, 💎)',
+    badge: '🟣 Нейтральный спецконтракт · +Data, +Rep, 💎',
     dot: 'text-purple-300',
     border: 'border-purple-500/45',
     bg: 'bg-purple-500/15 text-purple-300',
@@ -72,23 +80,47 @@ export const HacksPage: React.FC = () => {
     busyKey,
   } = useGame();
   const [filter, setFilter] = useState<FilterType>('all');
+  const autoRefreshRequestedRef = useRef(false);
+  const refreshLeftSec = player
+    ? Math.max(
+        0,
+        15 * 60 - Math.floor((nowMs - new Date(player.missionsRefreshedAt).getTime()) / 1000)
+      )
+    : 0;
+  const missionRefreshBusy = busyKey === 'mission:refresh';
+  const scanRefreshing = missionRefreshBusy || refreshLeftSec <= 0;
+
+  // Не оставляем игрока со старым списком после истечения 15 минут. Раньше
+  // сервер уже пересоздавал скан при следующем HACK, а экран ещё показывал
+  // старую цель — отсюда «цель не представлена в текущем скане».
+  useEffect(() => {
+    if (!player) return;
+    if (refreshLeftSec > 0) {
+      autoRefreshRequestedRef.current = false;
+      return;
+    }
+    if (autoRefreshRequestedRef.current || missionRefreshBusy) return;
+    autoRefreshRequestedRef.current = true;
+    void refreshMissions().finally(() => {
+      // При сетевой ошибке повторим попытку через 5 секунд, но не устроим
+      // бесконечный поток запросов.
+      window.setTimeout(() => {
+        autoRefreshRequestedRef.current = false;
+      }, 5_000);
+    });
+  }, [missionRefreshBusy, player, refreshLeftSec, refreshMissions]);
 
   if (!player) return null;
 
   const { derived } = player;
-  const refreshLeftSec = Math.max(
-    0,
-    15 * 60 - Math.floor((nowMs - new Date(player.missionsRefreshedAt).getTime()) / 1000)
-  );
 
-  // Показываем миссии из текущей 15-минутной выборки (или все открытые при переключении фильтра)
+  // В любой категории показываем только цели из текущего серверного скана.
+  // Раньше фильтр раскрывал ВСЕ открытые цели, хотя сервер разрешал запускать
+  // только текущий оффер — пользователь видел кнопку и получал отказ.
   const visibleMissions = MISSIONS_CONFIG.filter((m) => {
+    if (!player.availableMissionKeys.includes(m.key)) return false;
     if (m.targetType === 'grey' && !derived.unlockedGreyMissions) return false;
-    if (filter !== 'all' && m.targetType !== filter) return false;
-    if (filter === 'all') {
-      return player.availableMissionKeys.includes(m.key);
-    }
-    return true;
+    return filter === 'all' || hackCategory(m.targetType) === filter;
   });
 
   const rewardScale = getMissionRewardScale(derived.level);
@@ -227,28 +259,32 @@ export const HacksPage: React.FC = () => {
         </div>
       )}
 
-      {/* Фильтры типов сайтов */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-        {[
-          { id: 'all', label: 'Витрина (15м)' },
-          { id: 'bad', label: '🔴 Bad (+Rep)' },
-          { id: 'good', label: '🟢 Good (+++Data)' },
-          { id: 'neutral', label: '⚪ Neutral' },
-          ...(derived.unlockedGreyMissions ? [{ id: 'grey', label: '🟣 Серые' }] : []),
-        ].map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => setFilter(tab.id as FilterType)}
-            className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
-              filter === tab.id
-                ? 'bg-[#00f0ff]/18 border-[#00f0ff] text-[#00f0ff]'
-                : 'bg-[#10172e] border-slate-800 text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Три понятных направления хакинга. Отдельной кнопки «Витрина» больше нет. */}
+      <div className="rounded-xl bg-[#0a0e1a]/70 border border-slate-800/80 px-2.5 py-2">
+        <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 px-0.5">
+          Направление хакинга · можно выбрать одно
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'white', label: '⚪ Белый хакинг' },
+            { id: 'black', label: '⚫ Чёрный хакинг' },
+            { id: 'neutral', label: '🔵 Нейтральный' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              aria-pressed={filter === tab.id}
+              onClick={() => setFilter(filter === tab.id ? 'all' : (tab.id as FilterType))}
+              className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+                filter === tab.id
+                  ? 'bg-[#00f0ff]/18 border-[#00f0ff] text-[#00f0ff]'
+                  : 'bg-[#10172e] border-slate-800 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Подсказка о секретных «серых» миссиях, если Analyst ещё не нанят */}
@@ -258,7 +294,7 @@ export const HacksPage: React.FC = () => {
           className="block rounded-xl bg-purple-950/30 border border-purple-500/35 px-3 py-2 text-[11px] text-purple-200 hover:bg-purple-950/45 transition"
         >
           <span className="font-bold inline-flex items-center gap-1">
-            <Lock className="w-3 h-3 text-purple-400" /> Секретные «серые» миссии закрыты:
+            <Lock className="w-3 h-3 text-purple-400" /> Секретные нейтральные миссии закрыты:
           </span>{' '}
           наймите <strong>Analyst</strong> во вкладке «Команда», чтобы получать контракты с шансом
           дропа 💎 Crypto!
@@ -266,6 +302,11 @@ export const HacksPage: React.FC = () => {
       )}
 
       {/* Список доступных целей */}
+      {visibleMissions.length === 0 ? (
+        <div className="rounded-2xl bg-[#10172e]/90 border border-slate-800 px-3.5 py-4 text-center text-[11px] text-slate-400">
+          В текущем скане нет целей этого направления. Выбери другую категорию или нажми «Обновить».
+        </div>
+      ) : null}
       <div className="space-y-2.5">
         {visibleMissions.map((m) => {
           const meta = TYPE_META[m.targetType];
@@ -374,6 +415,7 @@ export const HacksPage: React.FC = () => {
                   levelLocked ||
                   alreadyRunning ||
                   slotsFull ||
+                  scanRefreshing ||
                   busyKey === `mission:start:${m.key}`
                 }
                 onClick={() => void startMission(m.key)}
@@ -395,6 +437,8 @@ export const HacksPage: React.FC = () => {
                   'Активна'
                 ) : slotsFull ? (
                   'Занято'
+                ) : scanRefreshing ? (
+                  'Скан...'
                 ) : (
                   'HACK'
                 )}

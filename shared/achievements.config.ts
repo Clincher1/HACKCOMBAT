@@ -349,7 +349,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'missions_all_types',
     title: 'Полный Спектр',
-    description: 'Завершить контракты всех четырёх типов: Bad, Good, Neutral и Grey.',
+    description: 'Завершить контракты трёх направлений: Белый, Чёрный и Нейтральный (включая секретные).',
     cryptoReward: 35,
     icon: '🎡',
     rarity: 'epic',

@@ -48,7 +48,7 @@ export const ProfilePage: React.FC = () => {
 
   const { derived } = player;
 
-  // Визуальное положение ползунка на шкале «White Hat (0%) <---> Neutral (50%) <---> Black Hat (100%)»
+  // Визуальное положение ползунка на шкале «Белый хакинг (0%) ←→ Нейтральный (50%) ←→ Чёрный хакинг (100%)»
   const alignmentDiff = player.heat - player.rep;
   const alignmentMarkerPct = Math.min(95, Math.max(5, 50 + alignmentDiff * 0.45));
 
@@ -266,11 +266,11 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Визуальная шкала «White Hat <---> Black Hat» (п. 4.5 и 5.4 ТЗ) */}
+      {/* Визуальная шкала «Белый хакинг ←→ Чёрный хакинг» */}
       <div className="rounded-2xl bg-[#10172e] border border-slate-800 p-4 space-y-2.5">
         <div className="flex items-center justify-between text-xs font-bold">
-          <span className="text-[#00f0ff]">🛡️ White Hat ({player.rep} Rep)</span>
-          <span className="text-[#ff00a0]">🕶️ Black Hat ({player.heat}/100 Heat)</span>
+          <span className="text-[#00f0ff]">🛡️ Белый хакинг ({player.rep} Rep)</span>
+          <span className="text-[#ff00a0]">🕶️ Чёрный хакинг ({player.heat}/100 Heat)</span>
         </div>
 
         <div className="relative h-3 rounded-full bg-gradient-to-r from-[#00f0ff]/40 via-slate-700 to-[#ff00a0]/50 border border-slate-700">
@@ -283,18 +283,18 @@ export const ProfilePage: React.FC = () => {
         <div className="text-[11px] text-slate-300 bg-[#0a0e1a] rounded-xl p-2.5 border border-slate-800/80">
           {derived.alignment === 'white_hat' ? (
             <span className="text-[#00f0ff] font-semibold">
-              Активна ветка <strong>White Hat</strong>: +20% к пассивному Data/час и ×2 награда за
-              ликвидацию 🔴 Bad-сайтов!
+              Активна ветка <strong>Белого хакинга</strong>: +20% к пассивному Data/час и ×2 награда за
+              ликвидацию белых целей!
             </span>
           ) : derived.alignment === 'black_hat' ? (
             <span className="text-[#ff00a0] font-semibold">
-              Активна ветка <strong>Black Hat</strong>: +50% Data за каждый клик, но розыск Heat
+              Активна ветка <strong>Чёрного хакинга</strong>: +50% Data за каждый клик, но розыск Heat
               растёт быстрее. Не превышайте 100 Heat!
             </span>
           ) : (
             <span className="text-slate-400">
-              Для <strong>White Hat</strong> наберите <code>Rep &gt; Heat × 2</code> (мин. 10). Для{' '}
-              <strong>Black Hat</strong> — <code>Heat &gt; Rep × 2</code> (мин. 10).
+              Для <strong>Белого хакинга</strong> наберите <code>Rep &gt; Heat × 2</code> (мин. 10). Для{' '}
+              <strong>Чёрного хакинга</strong> — <code>Heat &gt; Rep × 2</code> (мин. 10).
             </span>
           )}
         </div>

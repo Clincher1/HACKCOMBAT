@@ -24,7 +24,7 @@ export const DeskPage: React.FC = () => {
           <ShieldAlert className="w-5 h-5 text-rose-400 shrink-0" />
           <div>
             <strong>Внимание: Розыск {player.heat}/100!</strong> При превышении 100 сработает штраф
-            (-10% Data и блок кликов на 60 сек). Выполняйте 🔴 Bad-миссии или наймите Fence!
+            (-10% Data и блок кликов на 60 сек). Выполняйте белые миссии или наймите Fence!
           </div>
         </div>
       )}

@@ -154,9 +154,9 @@ export const TutorialModal: React.FC = () => {
                       <Shield className="w-4 h-4" /> 3. REP (🛡️ Репутация) — Валюта элиты
                     </div>
                     <p>
-                      Растёт при ликвидации мошеннических <strong>🔴 Bad</strong>-целей. Нужна для
+                      Растёт при ликвидации мошеннических <strong>⚪ белых</strong> целей. Нужна для
                       найма лучших специалистов команды (<em>Fence, Analyst, AI Architect, Спектр</em>)
-                      и активации мирной ветки <strong>White Hat (+20% Data/час)</strong>.
+                      и активации ветки <strong>Белый хакинг (+20% Data/час)</strong>.
                     </p>
                   </div>
 
@@ -165,9 +165,9 @@ export const TutorialModal: React.FC = () => {
                       <Flame className="w-4 h-4" /> 4. HEAT (🔥 Розыск) — Опасный перегрев!
                     </div>
                     <p>
-                      Растёт от взлома крупных корпораций (<strong>🟢 Good</strong>) и покупки
+                      Растёт от взлома крупных корпораций (<strong>⚫ чёрного хакинга</strong>) и покупки
                       карточек <strong>Darknet</strong>. Даёт доступ к ветке{' '}
-                      <strong>Black Hat (+50% к клику)</strong>, но будь осторожен:{' '}
+                      <strong>Чёрный хакинг (+50% к клику)</strong>, но будь осторожен:{' '}
                       <strong className="text-rose-200">
                         если Heat превысит 100 — сработает Киберпатруль (-10% от текущей Data и
                         блокировка кликов на 60 сек)!
@@ -288,38 +288,33 @@ export const TutorialModal: React.FC = () => {
 
                   <div className="grid grid-cols-1 gap-2">
                     <div className="rounded-xl bg-[#0a0e1a] border border-emerald-500/35 p-2.5">
-                      <span className="font-bold text-emerald-300">🔴 Bad-цели (Скам и Фишинг):</span>{' '}
-                      дают <strong>+Data, много +Rep и 0 Heat</strong>. Лучший выбор для набора
-                      Репутации на команду и безопасного фарма!
+                      <span className="font-bold text-emerald-300">⚪ Белый хакинг (Скам и фишинг):</span>{' '}
+                      защищает пользователей: даёт <strong>+Data, много +Rep и 0 Heat</strong>.
+                      Лучший выбор для репутации и безопасного фарма.
                     </div>
                     <div className="rounded-xl bg-[#0a0e1a] border border-rose-500/35 p-2.5">
-                      <span className="font-bold text-rose-300">🟢 Good-цели (Мегакорпорации):</span>{' '}
-                      огромный куш <strong>+++Data</strong>, но <strong>-Rep и высокий +Heat</strong>.
-                      Не запускай, если твой Heat уже около 80–90!
+                      <span className="font-bold text-rose-300">⚫ Чёрный хакинг (Мегакорпорации):</span>{' '}
+                      даёт огромный куш <strong>+++Data</strong>, но забирает <strong>Rep и добавляет Heat</strong>.
+                      Не запускай, если Heat уже около 80–90.
                     </div>
                     <div className="rounded-xl bg-[#0a0e1a] border border-slate-700 p-2.5">
-                      <span className="font-bold text-slate-200">⚪ Neutral-цели (Блоги и Хабы):</span>{' '}
-                      быстрые вылазки на 40–60 сек со средним доходом и минимальным Heat.
-                    </div>
-                    <div className="rounded-xl bg-purple-950/35 border border-purple-400/40 p-2.5">
-                      <span className="font-bold text-purple-300">
-                        🟣 Grey-цели (Секретные контракты):
-                      </span>{' '}
-                      открываются только после найма <strong>Analyst (320 Rep, 18 ур.)</strong> — дают сразу
-                      много Data, +Rep и <strong>45–75% шанс выбить 1 💎 Crypto</strong>!
+                      <span className="font-bold text-slate-200">🔵 Нейтральный хакинг (Блоги, хабы и секретные контракты):</span>{' '}
+                      спокойные вылазки со средним доходом и небольшим Heat. После найма{' '}
+                      <strong>Analyst</strong> в эту же категорию добавятся секретные контракты с{' '}
+                      <strong>45–75% шансом на 💎 Crypto</strong>.
                     </div>
                   </div>
 
                   <div className="rounded-xl bg-[#101935] border border-slate-700 p-3 space-y-1.5">
                     <div className="font-bold text-white">⚖️ Как работают пути Хакера:</div>
                     <div>
-                      • <strong className="text-[#00f0ff]">🛡️ White Hat</strong> (когда{' '}
+                      • <strong className="text-[#00f0ff]">🛡️ Белый хакинг</strong> (когда{' '}
                       <code>Rep &gt; Heat × 2</code> и <code>Rep ≥ 10</code>):{' '}
                       <strong>+20% к пассивному Data/час</strong> и <strong>×2 награда</strong> за
-                      все 🔴 Bad-миссии!
+                      все белые миссии!
                     </div>
                     <div>
-                      • <strong className="text-[#ff00a0]">🕶️ Black Hat</strong> (когда{' '}
+                      • <strong className="text-[#ff00a0]">🕶️ Чёрный хакинг</strong> (когда{' '}
                       <code>Heat &gt; Rep × 2</code> и <code>Heat ≥ 10</code>):{' '}
                       <strong>+50% Data за каждый тап</strong>, но розыск Heat растёт на 30% быстрее.
                     </div>
