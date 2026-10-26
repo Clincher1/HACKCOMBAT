@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { execFileSync } from 'node:child_process';
 
 const require = createRequire(import.meta.url);
 
@@ -242,6 +243,29 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
     STAGES.every((st, i) => i === 0 || themes.getThemeScene(femme, st) !== null),
     'последовательность полная'
   );
+
+  // v3.6.4: классические сцены не должны снова уехать в темноту.
+  // Раньше средняя яркость была 13-28 из 255 — на телефоне это читалось
+  // как «мрачное пятно». Нижняя граница держит результат осветления.
+  const BRIGHT_FLOOR = { 'stage-01': 30, 'stage-05': 33, 'stage-10': 35, 'stage-15': 28, 'stage-20': 40, 'stage-25': 52, 'stage-30': 54 };
+  for (const [f, floor] of Object.entries(BRIGHT_FLOOR)) {
+    const file = path.join(REPO, 'public/assets/scenes', `${f}.webp`);
+    const exists = fs.existsSync(file);
+    let mean = 0;
+    if (exists) {
+      try {
+        const out = execFileSync('convert', [file, '-colorspace', 'Gray', '-format', '%[fx:int(mean*255)]', 'info:'], { encoding: 'utf8' });
+        mean = Number(out.trim()) || 0;
+      } catch {
+        mean = -1;
+      }
+    }
+    if (mean < 0) {
+      check(`${f}: яркость не измерена`, true, 'imagemagick недоступен, пропуск');
+    } else {
+      check(`${f}: сцена не мрачная (яркость >= ${floor})`, mean >= floor, `яркость ${mean}`);
+    }
+  }
 
   for (const [label, url] of [
     ['превью', femme.previewImage],
