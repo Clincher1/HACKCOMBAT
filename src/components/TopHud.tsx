@@ -160,15 +160,16 @@ export const TopHud: React.FC = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="hud-actions flex items-center gap-1.5 shrink-0">
             <button
               type="button"
               onClick={openTutorial}
-              className="relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-primary-rgb),0.45)] text-[var(--ui-primary)] text-xs font-semibold transition cursor-pointer"
+              aria-label="Открыть обучение"
+              className="hud-action relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-primary-rgb),0.45)] text-[var(--ui-primary)] text-xs font-semibold transition cursor-pointer"
               title="Обучение: что качать и как играть"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Обучение</span>
+              <span className="hud-action-label">Обучение</span>
               {tutorialUnseen && (
                 <span className="w-2 h-2 rounded-full bg-[var(--ui-primary)] animate-ping absolute -top-0.5 -right-0.5" />
               )}
@@ -177,11 +178,12 @@ export const TopHud: React.FC = () => {
             <button
               type="button"
               onClick={() => setDailyModalOpen(true)}
-              className="relative flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[#7dff00]/35 text-[#7dff00] text-xs font-semibold transition cursor-pointer"
+              aria-label="Открыть ежедневный бонус Crypto"
+              className="hud-action relative flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[#7dff00]/35 text-[#7dff00] text-xs font-semibold transition cursor-pointer"
               title="Ежедневный бонус Crypto"
             >
               <Gift className="w-3.5 h-3.5" />
-              <span>Бонус</span>
+              <span className="hud-action-label">Бонус</span>
               {dailyAvailable && (
                 <span className="w-2 h-2 rounded-full bg-[#7dff00] animate-ping absolute -top-0.5 -right-0.5" />
               )}
@@ -190,18 +192,20 @@ export const TopHud: React.FC = () => {
             <button
               type="button"
               onClick={() => setSkinModalOpen(true)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-secondary-rgb),0.35)] text-[var(--ui-secondary)] text-xs font-semibold transition cursor-pointer"
+              aria-label="Открыть магазин скинов"
+              className="hud-action flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-secondary-rgb),0.35)] text-[var(--ui-secondary)] text-xs font-semibold transition cursor-pointer"
               title="Эксклюзивные скины за Crypto"
             >
               <Palette className="w-3.5 h-3.5" />
-              <span>Скины</span>
+              <span className="hud-action-label">Скины</span>
             </button>
 
             <button
               type="button"
               onClick={toggleSound}
-              aria-label="Переключить звук"
-              className="p-1.5 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-slate-700/70 text-slate-300 transition cursor-pointer"
+              aria-label={soundMuted ? 'Включить звук' : 'Выключить звук'}
+              className="hud-action p-1.5 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-slate-700/70 text-slate-300 transition cursor-pointer"
+              title={soundMuted ? 'Включить звук' : 'Выключить звук'}
             >
               {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-500" /> : <Volume2 className="w-3.5 h-3.5 text-[var(--ui-primary)]" />}
             </button>

@@ -93,6 +93,26 @@ body,
   scrollbar-width: none;
 }
 
+/* На узких Telegram-экранах верхняя панель не должна выталкивать ранг за
+   пределы viewport. Текстовые подписи остаются на планшетах и десктопе, а на
+   телефоне превращаются в понятные иконки с aria-label/title. */
+@media (max-width: 420px) {
+  .hud-actions {
+    gap: 0.25rem;
+  }
+
+  .hud-action {
+    min-width: 2rem;
+    min-height: 2rem;
+    justify-content: center;
+    padding-inline: 0.45rem;
+  }
+
+  .hud-action-label {
+    display: none;
+  }
+}
+
 /* ============================================================================
    v3.6.1: базовая тема «Neon Muse» (femme).
    Переменные ставит GameContext, здесь только штрихи, которые нельзя выразить
