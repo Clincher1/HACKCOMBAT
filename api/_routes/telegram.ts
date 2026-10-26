@@ -8,6 +8,7 @@ import {
   DONATE_TITLE,
   formatStars,
   parseDonatePayload,
+  resolveExternalDonate,
 } from '../../shared/donate.config';
 import {
   createDonateInvoiceLink,
@@ -122,6 +123,18 @@ async function sendDonateInvoice(
   if (!token) return;
 
   if (stars === null) {
+    // v3.6.8: если владелец задал DONATE_CARD_URL — добавляем вторую строку
+    // кнопок со ссылкой на внешнюю страницу доната (карта/СБП/ЮMoney).
+    // Внутри Telegram по-прежнему только Stars: это правило Bot ToS §6.2.
+    const external = resolveExternalDonate(process.env.DONATE_CARD_URL, process.env.DONATE_CARD_LABEL);
+    const keyboard: Array<Array<{ text: string; callback_data?: string; url?: string }>> = [
+      DONATE_TIER_STARS.map((amount) => ({
+        text: `${amount} ⭐`,
+        callback_data: `donate:${amount}`,
+      })),
+    ];
+    if (external) keyboard.push([{ text: external.label, url: external.url }]);
+
     await tgApi(token, 'sendMessage', {
       chat_id: chatId,
       text:
@@ -129,17 +142,13 @@ async function sendDonateInvoice(
         'Игра бесплатная, без рекламы и без платных преимуществ. Если хочется угостить ' +
         'разработчика звёздами — вот кнопки. Донат <b>не даёт</b> Data, чипов, скинов ' +
         'со статами или ускорений: только «спасибо» и содержание серверов.\n\n' +
-        'Оплата — Telegram Stars ⭐ (встроенная валюта Telegram).\n' +
-        '<i>Возврат: /paysupport • Условия: /terms</i>',
+        'Оплата — Telegram Stars ⭐ (встроенная валюта Telegram).' +
+        (external
+          ? '\n💳 Картой или через СБП — на внешней странице кнопкой ниже (откроется в браузере).'
+          : '') +
+        '\n<i>Возврат: /paysupport • Условия: /terms</i>',
       parse_mode: 'HTML',
-      reply_markup: {
-        inline_keyboard: [
-          DONATE_TIER_STARS.map((amount) => ({
-            text: `${amount} ⭐`,
-            callback_data: `donate:${amount}`,
-          })),
-        ],
-      },
+      reply_markup: { inline_keyboard: keyboard },
     });
     return;
   }

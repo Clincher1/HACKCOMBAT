@@ -4,6 +4,7 @@ import {
   DONATE_MIN_STARS,
   DONATE_TIER_STARS,
   isAllowedDonateAmount,
+  resolveExternalDonate,
 } from '../../shared/donate.config';
 import {
   createDonateInvoiceLink,
@@ -75,6 +76,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       tiers: [...DONATE_TIER_STARS],
       botUsername,
       summary,
+      // v3.6.8: «настоящие деньги» — только внешней страницей (см. donate.config).
+      // null, если владелец не задал DONATE_CARD_URL: витрина остаётся Star-only.
+      external: resolveExternalDonate(process.env.DONATE_CARD_URL, process.env.DONATE_CARD_LABEL),
       note: 'Донат добровольный и не даёт игровых преимуществ.',
     });
   }

@@ -154,6 +154,7 @@ function ledger() {
   check('валюта — XTR', r.currency === 'XTR', r.currency);
   check('суммы фиксированы', JSON.stringify(r.tiers) === JSON.stringify([10, 25, 50, 100]), r.tiers);
   check('без BOT_TOKEN донат помечен выключенным', r.enabled === false);
+  check('внешний донат по умолчанию выключен', r.external === null, JSON.stringify(r.external));
 
   // ── 2. Произвольную сумму подставить нельзя ────────────────────────────────
   for (const bad of [37, 0, -10, 10.5, 1000, '10abc', null, undefined, '25']) {
@@ -340,6 +341,52 @@ function ledger() {
   check('/terms отвечает', r.ok === true && r.terms === true);
   r = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/donate' } });
   check('/donate отвечает', r.ok === true && r.donate === true);
+
+  // ── 10. Внешний донат «настоящими деньгами» (v3.6.8) ───────────────────────
+  // Внутри Telegram платить можно только Stars, поэтому карта/СБП живут на
+  // внешней странице. Проверяем, что включается ТОЛЬКО своим env и что мусор
+  // в env не превращается в кнопку с произвольной ссылкой.
+  delete process.env.DONATE_CARD_URL;
+  delete process.env.DONATE_CARD_LABEL;
+  let ext = await api('ext0', 'donate', {}, 'GET');
+  check('без DONATE_CARD_URL внешней ссылки нет', ext.external === null, JSON.stringify(ext.external));
+
+  process.env.DONATE_CARD_URL = 'https://yoomoney.ru/quickpay/confirm?receiver=4100111111111111';
+  ext = await api('ext1', 'donate', {}, 'GET');
+  check(
+    'DONATE_CARD_URL отдаётся витрине',
+    ext.external && ext.external.url === process.env.DONATE_CARD_URL,
+    JSON.stringify(ext.external)
+  );
+  check(
+    'подпись кнопки по умолчанию',
+    ext.external && ext.external.label === 'Донат картой / СБП',
+    ext.external && ext.external.label
+  );
+
+  process.env.DONATE_CARD_LABEL = 'СБП';
+  ext = await api('ext2', 'donate', {}, 'GET');
+  check('подпись кнопки берётся из env', ext.external && ext.external.label === 'СБП', ext.external && ext.external.label);
+
+  for (const bad of [
+    'http://yoomoney.ru/pay',
+    'javascript:alert(1)',
+    'data:text/html,<b>x</b>',
+    'yoomoney.ru/pay',
+    '   ',
+  ]) {
+    process.env.DONATE_CARD_URL = bad;
+    ext = await api('ext-bad', 'donate', {}, 'GET');
+    check(`небезопасная ссылка «${bad}» отклонена`, ext.external === null, JSON.stringify(ext.external));
+  }
+
+  process.env.DONATE_CARD_URL = 'https://boosty.to/hacker-kombat';
+  delete process.env.DONATE_CARD_LABEL;
+  const donateMsg = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/donate' } });
+  check('/donate по-прежнему отвечает', donateMsg.ok === true && donateMsg.donate === true);
+  const markup = JSON.stringify(lastCall('sendMessage')?.body?.reply_markup ?? {});
+  check('в /donate появилась кнопка внешнего доната', markup.includes('boosty.to'), markup);
+  delete process.env.DONATE_CARD_URL;
 
   console.log(`\nИТОГО: ${pass} pass / ${fail} fail`);
   if (fail > 0) {
