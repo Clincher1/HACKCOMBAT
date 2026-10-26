@@ -43,6 +43,12 @@ export interface BaseThemeConfig {
   sceneVignette: string;
   /** Своя фоновая сцена (если нет — используется обычный эволюционирующий стол). */
   sceneUrl?: string;
+  /**
+   * Свои сцены по этапам эволюции (1/5/10/15/20/25/30).
+   * v3.6.3: у женской темы рабочий стол растёт вместе с уровнем, как в классике,
+   * а не показывает один и тот же арт на всех этапах.
+   */
+  stageScenes?: Record<string, string>;
   /** Превью-картинка для карточки темы в магазине (если нет — градиент). */
   previewImage?: string;
   /**
@@ -115,8 +121,17 @@ export const BASE_THEMES: BaseThemeConfig[] = [
       textMuted: '#b8a8cc',
     },
     sceneVignette: 'rgba(255, 111, 181, 0.14)',
-    sceneUrl: '/assets/themes/femme/stage-base.webp',
-    previewImage: '/assets/themes/femme/stage-base.webp',
+    sceneUrl: '/assets/themes/femme/stage-01.webp',
+    previewImage: '/assets/themes/femme/stage-01.webp',
+    stageScenes: {
+      '1': '/assets/themes/femme/stage-01.webp',
+      '5': '/assets/themes/femme/stage-05.webp',
+      '10': '/assets/themes/femme/stage-10.webp',
+      '15': '/assets/themes/femme/stage-15.webp',
+      '20': '/assets/themes/femme/stage-20.webp',
+      '25': '/assets/themes/femme/stage-25.webp',
+      '30': '/assets/themes/femme/stage-30.webp',
+    },
     ui: {
       radiusBoost: 6,
       catEars: true,
@@ -130,6 +145,15 @@ export const BASE_THEMES: BaseThemeConfig[] = [
 ];
 
 export const DEFAULT_BASE_THEME: BaseThemeKey = 'classic';
+
+/**
+ * Сцена темы для конкретного этапа эволюции стола.
+ * Если у темы нет набора по этапам — берём единственную sceneUrl (поведение как раньше).
+ */
+export function getThemeScene(theme: BaseThemeConfig, stage: number): string | undefined {
+  if (theme.stageScenes) return theme.stageScenes[String(stage)] ?? theme.sceneUrl;
+  return theme.sceneUrl;
+}
 
 export function getBaseTheme(key: string | undefined | null): BaseThemeConfig {
   return BASE_THEMES.find((t) => t.key === key) ?? BASE_THEMES[0];
