@@ -21,7 +21,7 @@ import {
 import { getFirstChapterState, type FirstChapterState } from '../../shared/chapter.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { PlayerState } from '../../shared/types';
-import { DeskScene } from '../components/DeskScene';
+import { DeskScene, OfflineBankNote } from '../components/DeskScene';
 import { useGame } from '../context/GameContext';
 import { formatCompact, formatCountdown } from '../lib/format';
 
@@ -87,7 +87,12 @@ export const DeskPage: React.FC = () => {
     <div className="space-y-3.5 pb-4">
       <DeskScene />
 
-      <section
+      {/* Задания — выше оффлайн-копилки: сначала решение, потом объяснение пассива. */}
+      <ChapterBrief chapter={chapter} />
+      <OfflineBankNote derived={player.derived} stats={player.stats} />
+
+      {nextAction.eyebrow !== 'Свободный слот' && (
+        <section
         aria-label="Следующее действие"
         className={`rounded-2xl border bg-gradient-to-br ${tone.panel} ${tone.border} p-3.5 shadow-[0_0_22px_rgba(var(--ui-primary-rgb),0.08)]`}
       >
@@ -125,9 +130,8 @@ export const DeskPage: React.FC = () => {
             <ArrowRight className="w-4 h-4" />
           </button>
         )}
-      </section>
-
-      <ChapterBrief chapter={chapter} />
+        </section>
+      )}
 
       {/* Индикатор риска при высоком Heat */}
       {player.heat >= 70 && (
@@ -152,20 +156,20 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
 
   return (
     <section
-      aria-label="Сюжетная глава"
-      className="rounded-2xl bg-gradient-to-br from-purple-950/35 to-[#10172e] border border-purple-400/30 p-3.5"
+      aria-label="Задания оператора"
+      className="rounded-2xl bg-gradient-to-br from-purple-950/55 via-[#141634] to-[#10172e] border border-[rgba(var(--ui-secondary-rgb),0.68)] p-3.5 shadow-[0_0_28px_rgba(var(--ui-secondary-rgb),0.16)]"
     >
       <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-purple-400/10 text-purple-300">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[rgba(var(--ui-secondary-rgb),0.16)] text-[var(--ui-secondary)]">
           <BookOpen className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-300">
-              Глава 1 · Первый выход
+            <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--ui-secondary)]">
+              🎯 Задания оператора · Глава 1
             </div>
-            <span className="shrink-0 text-[10px] text-slate-500">
-              {chapter.completedCount}/{chapter.steps.length}
+            <span className="shrink-0 rounded-md bg-[rgba(var(--ui-secondary-rgb),0.14)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--ui-secondary)]">
+              {chapter.completedCount}/{chapter.steps.length} готово
             </span>
           </div>
           <h2 className="mt-0.5 font-display text-sm font-extrabold text-white">
@@ -185,13 +189,13 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
             key={step.id}
             className={`rounded-lg border px-2 py-1.5 ${
               step.complete
-                ? 'border-[#7dff00]/35 bg-[#7dff00]/10'
+                ? 'border-[#7dff00]/50 bg-[#7dff00]/12'
                 : step.active
-                  ? 'border-purple-300/50 bg-purple-400/10'
+                  ? 'border-[rgba(var(--ui-secondary-rgb),0.75)] bg-[rgba(var(--ui-secondary-rgb),0.18)] shadow-[0_0_12px_rgba(var(--ui-secondary-rgb),0.12)]'
                   : 'border-slate-800 bg-[#0a0e1a]/45'
             }`}
           >
-            <div className={`text-[10px] font-bold ${step.complete ? 'text-[#7dff00]' : step.active ? 'text-purple-200' : 'text-slate-600'}`}>
+            <div className={`text-[10px] font-bold ${step.complete ? 'text-[#7dff00]' : step.active ? 'text-[var(--ui-secondary)]' : 'text-slate-600'}`}>
               {step.complete ? '✓' : `${index + 1}`}
             </div>
             <div className={`mt-0.5 text-[10px] leading-tight ${step.complete ? 'text-slate-300' : step.active ? 'text-white' : 'text-slate-600'}`}>
@@ -204,7 +208,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
       {activeStep && (
         <Link
           to={activeStep.href}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-purple-300 px-3 py-2.5 text-xs font-extrabold text-[#13091d] transition hover:bg-purple-200"
+          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[var(--ui-secondary)] px-3 py-2.5 text-xs font-extrabold text-[#0b0710] shadow-[0_0_16px_rgba(var(--ui-secondary-rgb),0.28)] transition hover:brightness-110"
         >
           <span>{activeStep.actionLabel}</span>
           <ArrowRight className="h-4 w-4" />
