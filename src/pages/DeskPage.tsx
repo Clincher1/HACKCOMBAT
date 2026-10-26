@@ -91,10 +91,10 @@ export const DeskPage: React.FC = () => {
     <div className="space-y-3.5 pb-4">
       <DeskScene />
 
-      {/* Сюжет, затем ежедневная активность, и только потом объяснение пассива. */}
-      <ChapterBrief chapter={chapter} />
-      <DailyTasksPanel state={player.stats.dailyTasks} />
+      {/* Главные активности Desk: ивент и задания оператора видны сразу после сцены. */}
       <SeasonEventPanel state={player.stats.seasonEvent} />
+      <DailyTasksPanel state={player.stats.dailyTasks} />
+      <ChapterBrief chapter={chapter} />
       <OfflineBankNote derived={player.derived} stats={player.stats} />
 
       {nextAction.eyebrow !== 'Свободный слот' && (
