@@ -14,6 +14,8 @@ import {
   CHIP_REWARD_PER_GREY_MISSION,
   CHIP_REWARD_PER_MISSION,
 } from '../../shared/base.config';
+import { getProfileFrame } from '../../shared/profileFrames.config';
+import { getSkinByKey } from '../../shared/skins.config';
 import { getGameDayKey, getPrestigeRequiredLevel } from '../../shared/mechanics';
 import type { LeaderboardSort } from '../../shared/types';
 import { useGame } from '../context/GameContext';
@@ -363,7 +365,10 @@ export const ProfilePage: React.FC = () => {
           )}
 
           <div className="rounded-2xl bg-[#10172e] border border-slate-800 divide-y divide-slate-800/80 overflow-hidden">
-            {leaderboard.map((entry, idx) => (
+            {leaderboard.map((entry, idx) => {
+              const avatarSkin = getSkinByKey(entry.avatarKey ?? '');
+              const frame = getProfileFrame(entry.profileFrameKey);
+              return (
               <div
                 key={`${entry.username}-${idx}`}
                 className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs ${
@@ -384,6 +389,18 @@ export const ProfilePage: React.FC = () => {
                   >
                     #{idx + 1}
                   </span>
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 text-lg"
+                    style={{
+                      borderColor: frame.accent,
+                      background: frame.background,
+                      boxShadow: frame.glow,
+                    }}
+                    title={frame.name}
+                    aria-label={`Аватар ${entry.username}, рамка ${frame.name}`}
+                  >
+                    {avatarSkin?.category === 'avatar' ? avatarSkin.avatarGlyph ?? '🕶️' : '🕶️'}
+                  </div>
                   <div className="min-w-0">
                     <div className="font-bold text-white truncate flex items-center gap-1.5">
                       <span>{entry.username}</span>
@@ -429,7 +446,8 @@ export const ProfilePage: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : tab === 'achievements' ? (
