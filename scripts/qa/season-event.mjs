@@ -2,7 +2,7 @@
  * HACKER KOMBAT — QA v3.9: 7-дневная сезонная операция.
  *
  * Проверяет серверный прогресс, две косметические награды, отсутствие игровых
- * ресурсов в claim и сброс недельного прогресса без удаления коллекции рамок.
+ * ресурсов в claim, строгое 7-дневное окно и закрытие после окончания без удаления коллекции рамок.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -24,7 +24,7 @@ process.env.SEASON_EVENT_TEST_MODE = 'true';
 
 const { dispatchApiRequest } = require(CORE);
 const realNow = Date.now;
-let fakeNow = Date.parse('2026-10-26T09:00:00Z');
+let fakeNow = Date.parse('2026-10-27T06:00:00Z');
 Date.now = () => fakeNow;
 
 let pass = 0;
@@ -87,7 +87,7 @@ function sameEconomy(a, b) {
   let event = player?.stats?.seasonEvent;
   check('init выдаёт сезонную операцию', result.ok === true && event?.eventKey === 'neon-relay');
   check('операция начинается с нулевого прогресса', Object.values(event?.progress ?? {}).every((value) => value === 0));
-  check('у операции ровно 7 дней', event?.weekKey === '2026-10-26');
+  check('у операции ровно 7 дней', event?.weekKey === '2026-10-27');
 
   // Ускоряем восстановление Energy временем, но каждую пачку всё равно
   // проводим через реальный click endpoint с серверным античитом.
@@ -149,22 +149,24 @@ function sameEconomy(a, b) {
   const duplicateMastery = await api('season-event', { action: 'claim_mastery' });
   check('редкую рамку нельзя получить повторно', duplicateMastery.ok === false, duplicateMastery.error);
 
-  fakeNow += 7 * 86_400_000;
-  const nextWeek = await api('init');
-  const nextEvent = nextWeek.player.stats.seasonEvent;
-  check('после 7 дней начинается новая операция', nextEvent.weekKey !== event.weekKey);
-  check('недельный прогресс сбрасывается', Object.values(nextEvent.progress).every((value) => value === 0));
-  check('полученные рамки остаются в коллекции',
-    nextWeek.player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
-      nextWeek.player.stats.unlockedProfileFrames.includes('frame_neon_relay_master'));
-
-  // Production guard: без согласованной даты/переменной теста новый игрок не
-  // получает сезонный state, а claim закрыт сервером.
+  // Ровно через 7 суток окно закрывается: прогресс и коллекция сохраняются,
+  // но новые claim-запросы сервер больше не принимает.
+  fakeNow = Date.parse('2026-11-03T06:00:01Z');
   delete process.env.SEASON_EVENT_TEST_MODE;
+  const ended = await api('init');
+  const blockedAfterEnd = await api('season-event', { action: 'claim_participation' });
+  check('после 7 дней окно ивента закрывается', blockedAfterEnd.ok === false, blockedAfterEnd.error);
+  check('прогресс после окончания не удаляется', ended.player.stats.seasonEvent.weekKey === '2026-10-27');
+  check('полученные рамки остаются после окончания',
+    ended.player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
+      ended.player.stats.unlockedProfileFrames.includes('frame_neon_relay_master'));
+
+  // Production guard до старта: новый игрок не получает state и claim закрыт.
+  fakeNow = Date.parse('2026-10-27T05:59:59Z');
   const inactive = await api('init', {}, 'season-off-qa');
   const blocked = await api('season-event', { action: 'claim_participation' }, 'season-off-qa');
-  check('до согласования дата запуска не активирует event автоматически', !inactive.player.stats.seasonEvent);
-  check('до активации сервер блокирует claim', blocked.ok === false, blocked.error);
+  check('до 09:00 MSK event не активируется', !inactive.player.stats.seasonEvent);
+  check('до старта сервер блокирует claim', blocked.ok === false, blocked.error);
 
   Date.now = realNow;
   console.log(`\nИтог: ${pass} pass / ${fail} fail`);

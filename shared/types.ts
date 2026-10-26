@@ -215,6 +215,13 @@ export interface SeasonEventGoalDefinition {
   icon: string;
 }
 
+export interface SeasonEventScenario {
+  day: number;
+  title: string;
+  description: string;
+  system: string;
+}
+
 export interface SeasonEventState {
   eventKey: string;
   weekKey: string;

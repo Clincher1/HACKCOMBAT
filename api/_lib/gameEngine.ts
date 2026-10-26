@@ -66,7 +66,7 @@ import {
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
   ACTIVE_SEASON_EVENT,
-  getSeasonWeekWindow,
+  getSeasonEventWindow,
   isSeasonEventLive,
 } from '../../shared/seasonalEvent.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
@@ -360,7 +360,7 @@ function ensureDailyTasks(record: StoredPlayerRecord, dayKey: string): DailyTask
 }
 
 function ensureSeasonEvent(record: StoredPlayerRecord, nowMs: number = Date.now()): SeasonEventState {
-  const window = getSeasonWeekWindow(nowMs);
+  const window = getSeasonEventWindow(nowMs);
   const current = record.stats.seasonEvent;
   if (
     !current ||
@@ -1105,8 +1105,8 @@ async function syncTimeAndRules(
   // Ежедневные поручения используют те же московские сутки, что и активность
   // и лимит Чипов. Создание/сброс происходит только на сервере.
   ensureDailyTasks(record, nowDayKey);
-  // Сезонная операция обновляется по понедельникам по Москве. До согласования
-  // окна запуска production намеренно не создаёт этот state.
+  // Сезонная операция живёт ровно в согласованном окне 27.10 09:00 →
+  // 03.11 09:00 по Москве; после окончания новый state не создаётся.
   if (isSeasonEventLive(nowMs)) ensureSeasonEvent(record, nowMs);
   if (prevActiveMs > 0 && nowMs > prevActiveMs && nowMs - prevActiveMs <= ACTIVITY_HEARTBEAT_MAX_GAP_SEC * 1000) {
     const gainedSec = (nowMs - prevActiveMs) / 1000;
