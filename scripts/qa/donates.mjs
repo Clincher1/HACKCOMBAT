@@ -50,7 +50,9 @@ globalThis.fetch = async (url, init) => {
       ? { username: 'hk_test_bot' }
       : method === 'createInvoiceLink'
         ? 'https://t.me/$hk_test_invoice'
-        : true;
+        : method === 'getMyStarBalance'
+          ? { amount: 10, nanostar_amount: 0 }
+          : true;
   return {
     ok: true,
     json: async () => ({ ok: true, result }),
@@ -313,7 +315,25 @@ function ledger() {
     JSON.stringify(otherShop.summary)
   );
 
-  // ── 8. /paysupport и /terms не падают ──────────────────────────────────────
+  // ── 8. Служебные команды: /stars и /refund только для админа ───────────────
+  // Регресс на реальную ситуацию: владелец не находил баланс звёзд в BotFather
+  // (пункт «Telegram Stars» там — справка), поэтому баланс отдаёт сам бот.
+  delete process.env.ADMIN_TG_IDS;
+  let stars = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/stars' } });
+  check('/stars без админа не падает', stars.ok === true, JSON.stringify(stars));
+  check('/stars без админа не раскрывает баланс', stars.stars === undefined, String(stars.stars));
+
+  process.env.ADMIN_TG_IDS = String(tgId);
+  stars = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/stars' } });
+  check('/stars отдаёт баланс бота админу', stars.ok === true && stars.stars === 10, JSON.stringify(stars));
+  check('бот спросил баланс у Telegram', Boolean(lastCall('getMyStarBalance')));
+
+  const rf = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/refund charge-test-001' } });
+  check('/refund работает при заданном ADMIN_TG_IDS', rf.ok === true && rf.refunded === true, JSON.stringify(rf));
+  check('возврат вызвал refundStarPayment', Boolean(lastCall('refundStarPayment')));
+  delete process.env.ADMIN_TG_IDS;
+
+  // ── 9. /paysupport и /terms не падают ──────────────────────────────────────
   r = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/paysupport' } });
   check('/paysupport отвечает', r.ok === true && r.paysupport === true);
   r = await webhook({ message: { chat: { id: tgId }, from: { id: tgId }, text: '/terms' } });

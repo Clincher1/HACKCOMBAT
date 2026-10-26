@@ -166,6 +166,41 @@ async function sendDonateInvoice(
 /**
  * POST / GET /api/telegram — Serverless Webhook для Telegram-бота + Мастер подключения в 1 клик
  */
+/**
+ * v3.6.7: список админов бота из ADMIN_TG_IDS.
+ * Нужен для служебных команд (/refund, /stars) — раньше проверка была
+ * зашита прямо в /refund и /stars просто не существовало.
+ */
+function getAdminIds(): string[] {
+  return (process.env.ADMIN_TG_IDS || '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
+}
+
+function isBotAdmin(tgId: unknown): boolean {
+  const id = String(tgId ?? '');
+  return id !== '' && getAdminIds().includes(id);
+}
+
+/** Баланс звёзд бота (Telegram хранит его на своей стороне, не у нас). */
+async function fetchBotStarBalance(
+  botToken: string
+): Promise<{ amount: number; nanostar: number } | null> {
+  const res = await fetch(`https://api.telegram.org/bot${botToken}/getMyStarBalance`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  })
+    .then((r) => r.json())
+    .catch(() => null);
+  if (!res?.ok || !res.result) return null;
+  return {
+    amount: Number(res.result.amount ?? 0) || 0,
+    nanostar: Number(res.result.nanostar_amount ?? 0) || 0,
+  };
+}
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
   const webAppUrl = (
@@ -532,13 +567,58 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return sendJson(res, 200, { ok: true, terms: true });
     }
 
-    if (text.startsWith('/refund')) {
-      const adminIds = (process.env.ADMIN_TG_IDS || '')
-        .split(',')
-        .map((v) => v.trim())
-        .filter(Boolean);
+    // ---------------------------------------------------------------
+    // /stars — служебная проверка баланса для владельца бота.
+    //
+    // Зачем: Telegram отдаёт заработанные звёзды в интерфейсе, но у многих
+    // владельцев пункт Balance в BotFather не появляется (пункт Telegram Stars
+    // в меню — это справка, а не баланс). Bot API умеет отдавать баланс
+    // напрямую, поэтому показываем его здесь, в чате с ботом.
+    // ---------------------------------------------------------------
+    if (text.startsWith('/stars')) {
       const fromId = String(update.message?.from?.id ?? '');
-      if (!fromId || !adminIds.includes(fromId)) {
+      if (!isBotAdmin(fromId)) {
+        await tgApi(botToken, 'sendMessage', {
+          chat_id: chatId,
+          text: 'Служебная команда. Баланс своих звёзд смотрите: Настройки → Мои звёзды.',
+        });
+        return sendJson(res, 200, { ok: true });
+      }
+
+      const balance = await fetchBotStarBalance(botToken);
+      const summary = await getDonationSummary(update.message?.from?.id ?? chatId);
+      const rows = await listDonations(update.message?.from?.id ?? chatId, 5);
+
+      const recent =
+        rows.length > 0
+          ? rows
+              .map(
+                (row) =>
+                  `• ${formatStars(row.stars)} — ${row.createdAt.slice(0, 10)}${
+                    row.refundedAt ? ' (возвращено)' : ''
+                  }`
+              )
+              .join('\n')
+          : 'платежей пока нет';
+
+      await tgApi(botToken, 'sendMessage', {
+        chat_id: chatId,
+        text:
+          `⭐ <b>Звёзды бота</b>\n` +
+          (balance
+            ? `Баланс на стороне Telegram: <b>${balance.amount}</b> ⭐\n` +
+              `<i>Заработанные звёзды доступны к выводу через 21 день, минимум 1000 ⭐.</i>\n\n`
+            : `Баланс недоступен: Telegram вернул ошибку.\n\n`) +
+          `❤️ <b>Твоя поддержка</b>\nВсего: <b>${summary.stars}</b> ⭐ (${summary.count} платежей)\n${recent}\n\n` +
+          `<i>Донат не даёт игровой валюты — это поддержка проекта.</i>`,
+        parse_mode: 'HTML',
+      });
+      return sendJson(res, 200, { ok: true, stars: balance?.amount ?? null });
+    }
+
+    if (text.startsWith('/refund')) {
+      const fromId = String(update.message?.from?.id ?? '');
+      if (!isBotAdmin(fromId)) {
         await tgApi(botToken, 'sendMessage', {
           chat_id: chatId,
           text: 'Возврат оформляется через поддержку: /paysupport',
