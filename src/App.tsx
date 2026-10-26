@@ -1,3 +1,4 @@
+import { RefreshCw, WifiOff } from 'lucide-react';
 import React from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
@@ -12,7 +13,7 @@ import { TeamPage } from './pages/TeamPage';
 import { UpgradesPage } from './pages/UpgradesPage';
 
 const AppShell: React.FC = () => {
-  const { loading } = useGame();
+  const { loading, player, initError, retryInit } = useGame();
 
   if (loading) {
     return (
@@ -22,6 +23,36 @@ const AppShell: React.FC = () => {
           HACKER KOMBAT
         </div>
         <p className="text-xs text-slate-400 mt-1">Загрузка кибер-терминала...</p>
+      </div>
+    );
+  }
+
+  if (!player) {
+    return (
+      <div className="min-h-screen cyber-grid-bg flex items-center justify-center p-6 text-center">
+        <div className="w-full max-w-sm rounded-2xl bg-[var(--ui-panel)] border border-rose-400/40 p-5 shadow-[0_0_32px_rgba(244,63,94,0.12)]">
+          <WifiOff className="w-10 h-10 mx-auto text-rose-300 mb-3" />
+          <h1 className="font-display text-base font-extrabold text-white">Терминал не подключился</h1>
+          <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+            Игра не получила профиль с сервера. Прогресс не изменён — попробуй подключиться ещё раз.
+          </p>
+          {initError && (
+            <p className="mt-2 rounded-lg bg-black/20 px-2.5 py-2 text-[10px] text-rose-200 break-words">
+              {initError}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={() => void retryInit()}
+            disabled={loading}
+            className="mt-4 w-full rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-sm font-extrabold text-[#061018] transition hover:brightness-110 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
+          >
+            <span className="inline-flex items-center justify-center gap-2">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Повторить подключение
+            </span>
+          </button>
+        </div>
       </div>
     );
   }
