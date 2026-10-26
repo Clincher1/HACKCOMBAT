@@ -98,6 +98,37 @@ function isMissionOutcomeAlert(alert: GameAlert): boolean {
   );
 }
 
+/**
+ * Локально двигаем только счётчики, которые напрямую зависят от тапа.
+ * Сервер всё равно подтвердит их при ближайшем batch-ответе, поэтому это
+ * лишь быстрый UX-слой: кнопка «Забрать» становится готовой сразу после
+ * последнего нужного тапа, а не через задержку отправки batch.
+ */
+function incrementOptimisticTapProgress(stats: PlayerState['stats']): PlayerState['stats'] {
+  const nextStats = { ...stats };
+
+  if (stats.dailyTasks) {
+    const progress = { ...stats.dailyTasks.progress };
+    for (const taskKey of stats.dailyTasks.taskKeys) {
+      const task = getDailyTaskDefinition(taskKey);
+      if (task?.kind !== 'tap') continue;
+      progress[taskKey] = Math.min(task.target, (progress[taskKey] ?? 0) + 1);
+    }
+    nextStats.dailyTasks = { ...stats.dailyTasks, progress };
+  }
+
+  if (stats.seasonEvent) {
+    const progress = { ...stats.seasonEvent.progress };
+    for (const goal of ACTIVE_SEASON_EVENT.goals) {
+      if (goal.kind !== 'tap') continue;
+      progress[goal.key] = Math.min(goal.target, (progress[goal.key] ?? 0) + 1);
+    }
+    nextStats.seasonEvent = { ...stats.seasonEvent, progress };
+  }
+
+  return nextStats;
+}
+
 
 /** '#00f0ff' -> '0, 240, 255' — нужен для rgba(var(--ui-primary-rgb), 0.2). */
 function hexToRgbTriplet(hex: string): string {
@@ -125,8 +156,10 @@ const GameContext = createContext<GameContextValue | null>(null);
 //  • CLICK_QUEUE_LIMIT — предохранитель, чтобы очередь не росла бесконечно.
 // ============================================================================
 const CLICK_MAX_BATCH = 20;
-const CLICK_MIN_GAP_MS = 900;
-const CLICK_FLUSH_DELAY_MS = 2_500;
+// Быстрый хвост кликов: игрок видит серверную синхронизацию почти сразу,
+// но мы всё ещё оставляем паузу, чтобы не превращать живой тап в HTTP-флуд.
+const CLICK_MIN_GAP_MS = 300;
+const CLICK_FLUSH_DELAY_MS = 250;
 const CLICK_QUEUE_LIMIT = 600;
 
 
@@ -312,7 +345,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // --------------------------------------------------------------------------
   // Было: пачка каждые 10 кликов или 5 секунд, а при ошибке счётчик обнулялся —
   // быстрый тап упирался в rate-limit и клики терялись с тостом «Слишком много
-  // запросов». Стало: пачка до 20 кликов, не чаще раза в 900 мс, а при 429/сети
+  // запросов». Стало: пачка до 20 кликов, не чаще раза в 300 мс, а при 429/сети
   // клики возвращаются в очередь и досылаются молча, с экспоненциальным откатом.
   // ==========================================================================
   const flushClicksRef = useRef<(force?: boolean) => Promise<void>>(async () => {});
@@ -350,6 +383,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       inflightClickRef.current = request;
       try {
         const res = await request;
+        // Anti-cheat может принять только часть пачки. Возвращаем остаток,
+        // иначе быстрый тап теряется и серверный прогресс отстаёт от экрана.
+        const applied = Math.max(0, Math.min(countToSend, res.appliedClicks ?? countToSend));
+        const leftover = countToSend - applied;
+        if (leftover > 0) {
+          pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
+        }
         applyServerSync(res);
       } catch (err) {
         const status = err instanceof ApiError ? err.status : 0;
@@ -358,6 +398,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (status === 400 || status === 403) {
           // Некорректный запрос — повторять бессмысленно, но и клики не выкидываем.
           pendingClicksRef.current = 0;
+          // Откатываем локальный прогресс к серверному, если пачка была
+          // отвергнута окончательно (например, из-за lockdown/авторизации).
+          void gameApi
+            .init()
+            .then((res) => applyServerSync(res))
+            .catch(() => {});
           pushClientAlert({
             type: 'warning',
             title: 'Синхронизация',
@@ -521,6 +567,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         data: Math.round((prev.data + prev.derived.clickPower) * 10) / 10,
         energy: Math.max(0, prev.energy - 1),
         totalClicks: prev.totalClicks + 1,
+        stats: incrementOptimisticTapProgress(prev.stats),
       };
     });
 
