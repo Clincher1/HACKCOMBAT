@@ -267,75 +267,6 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Визуальная шкала «Белый хакинг ←→ Чёрный хакинг» */}
-      <div className="rounded-2xl bg-[#10172e] border border-slate-800 p-4 space-y-2.5">
-        <div className="flex items-center justify-between text-xs font-bold">
-          <span className="text-[#00f0ff]">🛡️ Белый хакинг ({player.rep} Rep)</span>
-          <span className="text-[#ff00a0]">🕶️ Чёрный хакинг ({player.heat}/100 Heat)</span>
-        </div>
-
-        <div className="relative h-3 rounded-full bg-gradient-to-r from-[#00f0ff]/40 via-slate-700 to-[#ff00a0]/50 border border-slate-700">
-          <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#0a0e1a] shadow-[0_0_12px_#fff] transition-all duration-300"
-            style={{ left: `${alignmentMarkerPct}%` }}
-          />
-        </div>
-
-        <div className="text-[11px] text-slate-300 bg-[#0a0e1a] rounded-xl p-2.5 border border-slate-800/80">
-          {derived.alignment === 'white_hat' ? (
-            <span className="text-[#00f0ff] font-semibold">
-              Активна ветка <strong>Белого хакинга</strong>: +20% к пассивному Data/час и ×2 награда за
-              ликвидацию белых целей!
-            </span>
-          ) : derived.alignment === 'black_hat' ? (
-            <span className="text-[#ff00a0] font-semibold">
-              Активна ветка <strong>Чёрного хакинга</strong>: +50% Data за каждый клик, но розыск Heat
-              растёт быстрее. Не превышайте 100 Heat!
-            </span>
-          ) : (
-            <span className="text-slate-400">
-              Для <strong>Белого хакинга</strong> наберите <code>Rep &gt; Heat × 2</code> (мин. 10). Для{' '}
-              <strong>Чёрного хакинга</strong> — <code>Heat &gt; Rep × 2</code> (мин. 10).
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Панель Престижа — Global Hack на 50 уровне (п. 3 и 5.5 ТЗ) */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#161233] to-[#0f172e] border border-purple-500/40 p-4 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-display text-sm font-extrabold text-white">
-            <Globe className="w-4 h-4 text-[#ff00a0]" />
-            <span>GLOBAL HACK — ПРЕСТИЖ</span>
-          </div>
-          <span className="text-xs font-bold text-purple-300">
-            Ур. {derived.level} / {requiredPrestigeLevel}
-          </span>
-        </div>
-
-        <p className="text-[11px] text-slate-300 leading-relaxed">
-          На {requiredPrestigeLevel} уровне вы можете перезапустить матрицу: карточки, команда и Data
-          обнулятся, но вы навсегда получите{' '}
-          <strong>множитель ×{derived.prestigeMultiplier * 2} к доходу</strong>, сохраните все{' '}
-          <strong>💎 Crypto, достижения, скины и Rep</strong>!
-        </p>
-
-        <button
-          type="button"
-          disabled={!canPrestige || busyKey === 'prestige'}
-          onClick={() => void triggerPrestige()}
-          className={`w-full py-2.5 rounded-xl font-display font-extrabold text-xs uppercase tracking-wider transition cursor-pointer ${
-            canPrestige
-              ? 'bg-gradient-to-r from-[#ff00a0] to-purple-500 text-white shadow-[0_0_24px_rgba(255,0,160,0.45)]'
-              : 'bg-[#0a0e1a]/90 text-slate-500 border border-slate-800 cursor-not-allowed'
-          }`}
-        >
-          {canPrestige
-            ? `🌐 ЗАПУСТИТЬ GLOBAL HACK (×${derived.prestigeMultiplier * 2} НАВСЕГДА)`
-            : `Требуется ${requiredPrestigeLevel} уровень (ещё ${requiredPrestigeLevel - derived.level} ур.)`}
-        </button>
-      </div>
-
       {/* Вкладки лидерборда, достижений и коллекции оператора */}
       <div className="grid grid-cols-3 gap-1.5">
         <button
@@ -506,6 +437,75 @@ export const ProfilePage: React.FC = () => {
       ) : (
         <CollectionPanel />
       )}
+
+      {/* Визуальная шкала «Белый хакинг ←→ Чёрный хакинг» */}
+      <div className="rounded-2xl bg-[#10172e] border border-slate-800 p-4 space-y-2.5">
+        <div className="flex items-center justify-between text-xs font-bold">
+          <span className="text-[#00f0ff]">🛡️ Белый хакинг ({player.rep} Rep)</span>
+          <span className="text-[#ff00a0]">🕶️ Чёрный хакинг ({player.heat}/100 Heat)</span>
+        </div>
+
+        <div className="relative h-3 rounded-full bg-gradient-to-r from-[#00f0ff]/40 via-slate-700 to-[#ff00a0]/50 border border-slate-700">
+          <div
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-[#0a0e1a] shadow-[0_0_12px_#fff] transition-all duration-300"
+            style={{ left: `${alignmentMarkerPct}%` }}
+          />
+        </div>
+
+        <div className="text-[11px] text-slate-300 bg-[#0a0e1a] rounded-xl p-2.5 border border-slate-800/80">
+          {derived.alignment === 'white_hat' ? (
+            <span className="text-[#00f0ff] font-semibold">
+              Активна ветка <strong>Белого хакинга</strong>: +20% к пассивному Data/час и ×2 награда за
+              ликвидацию белых целей!
+            </span>
+          ) : derived.alignment === 'black_hat' ? (
+            <span className="text-[#ff00a0] font-semibold">
+              Активна ветка <strong>Чёрного хакинга</strong>: +50% Data за каждый клик, но розыск Heat
+              растёт быстрее. Не превышайте 100 Heat!
+            </span>
+          ) : (
+            <span className="text-slate-400">
+              Для <strong>Белого хакинга</strong> наберите <code>Rep &gt; Heat × 2</code> (мин. 10). Для{' '}
+              <strong>Чёрного хакинга</strong> — <code>Heat &gt; Rep × 2</code> (мин. 10).
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Панель Престижа — Global Hack на 50 уровне (п. 3 и 5.5 ТЗ) */}
+      <div className="rounded-2xl bg-gradient-to-br from-[#161233] to-[#0f172e] border border-purple-500/40 p-4 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-display text-sm font-extrabold text-white">
+            <Globe className="w-4 h-4 text-[#ff00a0]" />
+            <span>GLOBAL HACK — ПРЕСТИЖ</span>
+          </div>
+          <span className="text-xs font-bold text-purple-300">
+            Ур. {derived.level} / {requiredPrestigeLevel}
+          </span>
+        </div>
+
+        <p className="text-[11px] text-slate-300 leading-relaxed">
+          На {requiredPrestigeLevel} уровне вы можете перезапустить матрицу: карточки, команда и Data
+          обнулятся, но вы навсегда получите{' '}
+          <strong>множитель ×{derived.prestigeMultiplier * 2} к доходу</strong>, сохраните все{' '}
+          <strong>💎 Crypto, достижения, скины и Rep</strong>!
+        </p>
+
+        <button
+          type="button"
+          disabled={!canPrestige || busyKey === 'prestige'}
+          onClick={() => void triggerPrestige()}
+          className={`w-full py-2.5 rounded-xl font-display font-extrabold text-xs uppercase tracking-wider transition cursor-pointer ${
+            canPrestige
+              ? 'bg-gradient-to-r from-[#ff00a0] to-purple-500 text-white shadow-[0_0_24px_rgba(255,0,160,0.45)]'
+              : 'bg-[#0a0e1a]/90 text-slate-500 border border-slate-800 cursor-not-allowed'
+          }`}
+        >
+          {canPrestige
+            ? `🌐 ЗАПУСТИТЬ GLOBAL HACK (×${derived.prestigeMultiplier * 2} НАВСЕГДА)`
+            : `Требуется ${requiredPrestigeLevel} уровень (ещё ${requiredPrestigeLevel - derived.level} ур.)`}
+        </button>
+      </div>
 
       {/* Рефералка: своя ссылка, статистика и правила (v3.5) */}
       <ReferralCard />
