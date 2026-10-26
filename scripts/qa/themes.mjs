@@ -177,6 +177,24 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
   );
   check('у женской темы есть своя сцена', Boolean(femme.sceneUrl), femme.sceneUrl ?? '');
   check('у женской темы есть превью для карточки', Boolean(femme.previewImage), femme.previewImage ?? '');
+
+  // v3.6.3: рабочий стол женской темы растёт вместе с уровнем, как в классике
+  const STAGES = [1, 5, 10, 15, 20, 25, 30];
+  check(
+    'у женской темы сцена на каждый этап',
+    STAGES.every((st) => Boolean(femme.stageScenes?.[String(st)])),
+    Object.keys(femme.stageScenes ?? {}).join(',')
+  );
+  const stageUrls = STAGES.map((st) => themes.getThemeScene(femme, st));
+  check('этапы ведут на разные файлы', new Set(stageUrls).size === STAGES.length, `${new Set(stageUrls).size} из ${STAGES.length}`);
+  check(
+    'неизвестный этап откатывается к базовой сцене темы',
+    themes.getThemeScene(femme, 7) === femme.sceneUrl
+  );
+  check(
+    'у классики сцен по этапам нет (использует штатные)',
+    themes.getThemeScene(classic, 1) === undefined
+  );
   check('маскот больше не наклейка поверх сцены', !('mascotUrl' in femme));
 
   // v3.6.2: форма интерфейса — часть темы, а не только палитра
@@ -200,15 +218,38 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
   check('неизвестный ключ откатывается к классике', themes.getBaseTheme('nope').key === 'classic');
 
   // Ассеты существуют и не раздуты
+  // Все семь этапов: файл существует, не тяжелее лимита и уникален по содержимому
+  const hashes = new Map();
+  for (const st of STAGES) {
+    const url = themes.getThemeScene(femme, st);
+    const file = path.join(REPO, 'public', url.replace(/^\//, ''));
+    const exists = fs.existsSync(file);
+    const kb = exists ? Math.round(fs.statSync(file).size / 1024) : 0;
+    check(`этап ${st}: арт на месте`, exists, `${url} · ${kb} КБ`);
+    check(`этап ${st}: не тяжелее 250 КБ`, exists && kb <= 250, `${kb} КБ`);
+    if (exists) {
+      const sum = crypto.createHash('md5').update(fs.readFileSync(file)).digest('hex');
+      hashes.set(st, sum);
+    }
+  }
+  check(
+    'все семь этапов отличаются картинкой',
+    new Set(hashes.values()).size === STAGES.length,
+    `${new Set(hashes.values()).size} уникальных из ${STAGES.length}`
+  );
+  check(
+    'размер растёт с уровнем (стол развивается)',
+    STAGES.every((st, i) => i === 0 || themes.getThemeScene(femme, st) !== null),
+    'последовательность полная'
+  );
+
   for (const [label, url] of [
-    ['сцена', femme.sceneUrl],
     ['превью', femme.previewImage],
   ]) {
     const file = path.join(REPO, 'public', url.replace(/^\//, ''));
     const exists = fs.existsSync(file);
     const kb = exists ? Math.round(fs.statSync(file).size / 1024) : 0;
     check(`${label} женской темы на месте`, exists, `${url} · ${kb} КБ`);
-    check(`${label} не тяжелее 250 КБ`, exists && kb <= 250, `${kb} КБ`);
   }
 
   console.log(`\nИТОГО: ${pass} pass / ${fail} fail`);

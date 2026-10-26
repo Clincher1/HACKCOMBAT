@@ -11,7 +11,7 @@ import {
   OFFLINE_TAP_RATE_PER_SEC,
 } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
-import { composeSceneFilter } from '../../shared/themes.config';
+import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -78,9 +78,10 @@ export const DeskScene: React.FC = () => {
   const activeStage = previewStage ?? derived.deskStage;
   const stageInfo = getDeskStageInfo(activeStage);
   const activeSkin = SKINS_CONFIG.find((s) => s.key === player.equippedSkin) ?? SKINS_CONFIG[0];
-  // v3.6.1: у базовой темы может быть собственный арт сцены (женская тема).
-  // Скин при этом не пропадает: он накладывает фильтр и красит рамку/кнопку.
-  const sceneUrl = baseTheme.sceneUrl ?? stageInfo.sceneUrl;
+  // v3.6.3: у базовой темы свой арт на КАЖДЫЙ этап (1/5/10/15/20/25/30) —
+  // рабочий стол растёт вместе с уровнем, как в классике. Если у темы набора
+  // нет, падаем на единственную сцену, а дальше — на сцену классики.
+  const sceneUrl = getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
   const sceneFilter = composeSceneFilter(activeSkin.cssFilter, baseTheme);
 
   const handleTap = (e: React.MouseEvent<HTMLElement>) => {
