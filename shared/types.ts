@@ -193,6 +193,61 @@ export interface ActiveMissionInstance {
 }
 
 // Счётчики для «неочевидных» достижений. Живут в players.stats (jsonb), считает сервер.
+export type DailyTaskKind = 'tap' | 'mission_start' | 'mission_complete';
+
+export interface ProfileFrameConfig {
+  key: string;
+  name: string;
+  description: string;
+  accent: string;
+  background: string;
+  glow: string;
+  source: string;
+  eventKey?: string;
+}
+
+export interface SeasonEventGoalDefinition {
+  key: string;
+  kind: DailyTaskKind;
+  target: number;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface SeasonEventScenario {
+  day: number;
+  title: string;
+  description: string;
+  system: string;
+}
+
+export interface SeasonEventState {
+  eventKey: string;
+  weekKey: string;
+  progress: Record<string, number>;
+  participationClaimed: boolean;
+  masteryClaimed: boolean;
+}
+
+export interface DailyTaskDefinition {
+  key: string;
+  kind: DailyTaskKind;
+  target: number;
+  rewardXp: number;
+  icon: string;
+  title: string;
+  description: string;
+}
+
+/** Постоянная часть ежедневных поручений хранится внутри уже существующего stats jsonb. */
+export interface DailyTaskState {
+  dayKey: string;
+  taskKeys: string[];
+  progress: Record<string, number>;
+  claimed: string[];
+}
+
 export interface PlayerProgressStats {
   tutorialTabs: string[]; // Просмотренные главы Академии
   tutorialOpens: number;
@@ -222,6 +277,14 @@ export interface PlayerProgressStats {
   lastTapClaimAt?: string | null;
   /** v3.2: игровой день (YYYY-MM-DD по Москве), за который считаем активность. */
   activeDayKey?: string | null;
+  /** v3.8: три персональных ежедневных поручения и их серверный прогресс. */
+  dailyTasks?: DailyTaskState;
+  /** v3.9: прогресс текущей 7-дневной сезонной операции. */
+  seasonEvent?: SeasonEventState;
+  /** v3.9: профильные рамки, открытые за косметические события. */
+  unlockedProfileFrames?: string[];
+  /** v3.9: выбранная рамка, видимая в турнирной таблице. */
+  equippedProfileFrame?: string;
   /** v3.2: сколько секунд активной игры набрано в текущем игровом дне. */
   activeSecondsToday?: number;
   /** v3.5: игровой день, за который считаем суточный лимит Чипов. */
@@ -320,6 +383,9 @@ export type LeaderboardSort = 'data' | 'xp' | 'level';
 
 export interface LeaderboardEntry {
   username: string;
+  /** Косметика профиля, видимая всем в таблице; сервер возвращает только ключи. */
+  avatarKey?: string;
+  profileFrameKey?: string;
   level: number;
   data: number;
   /** Суммарный накопленный опыт — не тратится, поэтому честно показывает прогресс. */
