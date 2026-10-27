@@ -80,7 +80,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   {
     key: 'frame_neon_relay',
     name: 'Neon Relay · Участник',
-    description: 'Рамка первой международной сезонной операции.',
+    description: 'Голубая рамка за первый полностью пройденный день Neon Relay.',
     accent: '#00f0ff',
     background: 'linear-gradient(135deg, rgba(0,240,255,0.22), rgba(168,85,247,0.24))',
     glow: '0 0 12px rgba(0, 240, 255, 0.42)',
@@ -90,7 +90,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   {
     key: 'frame_neon_relay_master',
     name: 'Neon Relay · Мастер',
-    description: 'Редкая рамка за закрытие всех целей сезонной операции.',
+    description: 'Золотая рамка за полное прохождение всех 7 дней Neon Relay.'
     accent: '#ffb703',
     background: 'linear-gradient(135deg, rgba(255,183,3,0.28), rgba(255,0,160,0.24))',
     glow: '0 0 16px rgba(255, 183, 3, 0.52)',

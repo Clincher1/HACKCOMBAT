@@ -213,13 +213,24 @@ export interface ProfileFrameConfig {
   requiredLevel?: number;
 }
 
-export interface SeasonEventGoalDefinition {
+export interface SeasonEventTaskDefinition {
   key: string;
   kind: DailyTaskKind;
   target: number;
   title: string;
   description: string;
   icon: string;
+}
+
+export interface SeasonEventDayState {
+  day: number;
+  dayKey: string;
+  /** Уровень, зафиксированный сервером при создании набора задач. */
+  levelAtGeneration: number;
+  tasks: SeasonEventTaskDefinition[];
+  progress: Record<string, number>;
+  completed: boolean;
+  completedAt?: string | null;
 }
 
 export interface SeasonEventScenario {
@@ -230,9 +241,15 @@ export interface SeasonEventScenario {
 }
 
 export interface SeasonEventState {
+  /** Версия формата нужна, чтобы старые глобальные goals не мигрировали в новый ивент. */
+  version: 2;
   eventKey: string;
   weekKey: string;
-  progress: Record<string, number>;
+  currentDay: number;
+  /** Ключи 1…7 появляются только при наступлении соответствующего календарного дня. */
+  days: Record<string, SeasonEventDayState>;
+  completedDays: number[];
+  /** Эти флаги означают уже выданные навсегда косметические награды. */
   participationClaimed: boolean;
   masteryClaimed: boolean;
 }

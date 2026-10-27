@@ -1,8 +1,10 @@
 /**
- * HACKER KOMBAT — QA v3.9: 7-дневная сезонная операция.
+ * HACKER KOMBAT — QA: Neon Relay, 7 календарных дней × 3 задания.
  *
- * Проверяет серверный прогресс, две косметические награды, отсутствие игровых
- * ресурсов в claim, строгое 7-дневное окно и закрытие после окончания без удаления коллекции рамок.
+ * Проверяет новую модель сезонного события, а не старые глобальные goals:
+ * серверную генерацию, level scaling, стабильность набора после reload,
+ * переход календарного дня, закрытие дня, автоматическую выдачу двух рамок,
+ * duplicate claim и сохранение коллекции после окончания окна.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -75,119 +77,191 @@ async function api(route, body = {}, seed = 'season-qa') {
   }
 }
 
-function sameEconomy(a, b) {
-  return a.xp === b.xp && a.data === b.data && a.crypto === b.crypto && a.chips === b.chips;
+function dayTimestamp(day) {
+  const isoDay = day <= 5 ? `2026-10-${String(27 + day - 1).padStart(2, '0')}` : `2026-11-0${day - 5}`;
+  return Date.parse(`${isoDay}T00:00:00+03:00`);
+}
+
+function currentDayState(player) {
+  const event = player?.stats?.seasonEvent;
+  return event?.days?.[String(event.currentDay)] ?? null;
+}
+
+function taskProgress(day, task) {
+  return Number(day?.progress?.[task.key] ?? 0);
+}
+
+async function closeTapTask(player, day) {
+  const tapTask = day.tasks.find((task) => task.kind === 'tap');
+  for (let attempt = 0; attempt < 30 && taskProgress(day, tapTask) < tapTask.target; attempt += 1) {
+    fakeNow += 3_000;
+    const result = await api('click', { clicks: 60 });
+    player = result.player;
+    day = currentDayState(player);
+  }
+  return { player, day, task: tapTask };
+}
+
+async function closeContractTasks(player, day) {
+  const startTask = day.tasks.find((task) => task.kind === 'mission_start');
+  const completeTask = day.tasks.find((task) => task.kind === 'mission_complete');
+  const required = Math.max(startTask.target, completeTask.target);
+
+  for (let index = 0; index < required; index += 1) {
+    const missionKey = player.availableMissionKeys?.[0];
+    const started = await api('missions', { action: 'start', missionKey });
+    const mission = started.player?.activeMissions?.[0];
+    if (!mission) return { player: started.player, startTask, completeTask, ok: false };
+    player = started.player;
+    // Claim uses the existing contract timer and reward path; no event-only
+    // shortcut is used, so ordinary contract economy remains under test.
+    fakeNow += 900_000;
+    const claimed = await api('missions', { action: 'claim', missionId: mission.id });
+    player = claimed.player;
+  }
+  return {
+    player,
+    startTask,
+    completeTask,
+    ok:
+      taskProgress(currentDayState(player), startTask) >= startTask.target &&
+      taskProgress(currentDayState(player), completeTask) >= completeTask.target,
+  };
 }
 
 (async () => {
-  console.log('=== HACKER KOMBAT — QA v3.9: сезонная операция ===\n');
+  console.log('=== HACKER KOMBAT — QA: Neon Relay 7×3 ===\n');
 
   let result = await api('init');
   let player = result.player;
   let event = player?.stats?.seasonEvent;
-  check('init выдаёт сезонную операцию', result.ok === true && event?.eventKey === 'neon-relay');
-  check('операция начинается с нулевого прогресса', Object.values(event?.progress ?? {}).every((value) => value === 0));
-  check('у операции ровно 7 дней', event?.weekKey === '2026-10-27');
+  let day = currentDayState(player);
 
-  // Ускоряем восстановление Energy временем, но каждую пачку всё равно
-  // проводим через реальный click endpoint с серверным античитом.
-  for (let index = 0; index < 18; index += 1) {
-    fakeNow += 3_000;
-    const clicked = await api('click', { clicks: 60 });
-    player = clicked.player;
-  }
-  event = player.stats.seasonEvent;
-  const tapGoal = Object.entries(event.progress).find(([key]) => key.startsWith('event_taps_1000'));
-  check('тапы двигают сезонную цель', Number(tapGoal?.[1] ?? 0) > 0, `${tapGoal?.[1] ?? 0}/1000`);
-  check('тапы не двигают цели контрактов', event.progress.event_starts_3 === 0 && event.progress.event_completes_3 === 0);
+  check('init выдаёт новую per-day модель', result.ok === true && event?.eventKey === 'neon-relay' && event?.version === 2);
+  check('ивент хранит ровно 7 дней и 3 задания в текущем дне',
+    event?.currentDay === 1 && day?.tasks?.length === 3,
+    JSON.stringify(day?.tasks?.map((task) => task.kind)));
+  check('первый набор содержит tap/start/complete',
+    new Set(day?.tasks?.map((task) => task.kind)).size === 3);
+  check('умеренная сложность зафиксирована уровнем генерации',
+    day?.levelAtGeneration === player.derived.level &&
+      day.tasks.every((task) => task.target > 0 && task.target <= 1200));
 
-  const earlyParticipation = await api('season-event', { action: 'claim_participation' });
-  check('рамку участника нельзя получить после одной цели', earlyParticipation.ok === false, earlyParticipation.error);
-  player = (await api('init')).player;
-  check('до полного прохождения рамки не открыты',
-    !player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
-      !player.stats.unlockedProfileFrames.includes('frame_neon_relay_master'));
+  const firstTasksSnapshot = JSON.stringify(day.tasks);
+  const reloaded = await api('init');
+  const reloadedDay = currentDayState(reloaded.player);
+  check('reload не reroll’ит дневной набор', JSON.stringify(reloadedDay.tasks) === firstTasksSnapshot);
+  player = reloaded.player;
+  day = reloadedDay;
 
-  // Три запуска и три закрытия используют существующую механику контрактов.
-  for (let index = 0; index < 3; index += 1) {
-    const started = await api('missions', { action: 'start', missionKey: player.availableMissionKeys[0] });
-    const mission = started.player?.activeMissions?.[0];
-    if (!mission) break;
-    const closed = await api('missions', { action: 'skip', missionId: mission.id });
-    player = closed.player;
-  }
-  event = player.stats.seasonEvent;
-  check('запуски контрактов закрывают вторую цель', event.progress.event_starts_3 >= 3, String(event.progress.event_starts_3));
-  check('закрытия контрактов закрывают третью цель', event.progress.event_completes_3 >= 3, String(event.progress.event_completes_3));
+  const tapped = await closeTapTask(player, day);
+  player = tapped.player;
+  day = tapped.day;
+  check('тапы двигают только tap-задачу текущего дня',
+    taskProgress(day, tapped.task) >= tapped.task.target &&
+      day.tasks.filter((task) => task.kind !== 'tap').every((task) => taskProgress(day, task) === 0));
 
-  // Если Energy у конкретного баланса меньше, чем нужно для 1000 тапов,
-  // даём серверу ещё немного реального времени на восстановление.
-  for (let index = 0; index < 12 && (player.stats.seasonEvent.progress.event_taps_1000 ?? 0) < 1000; index += 1) {
-    fakeNow += 10_000;
-    const clicked = await api('click', { clicks: 60 });
-    player = clicked.player;
-  }
-  event = player.stats.seasonEvent;
-  check('все три личные цели можно закрыть существующими действиями',
-    event.progress.event_taps_1000 >= 1000 && event.progress.event_starts_3 >= 3 && event.progress.event_completes_3 >= 3,
-    JSON.stringify(event.progress));
+  const contracted = await closeContractTasks(player, day);
+  player = contracted.player;
+  day = currentDayState(player);
+  check('обычные контракты закрывают start/complete задачи дня', contracted.ok, JSON.stringify(day?.progress));
+  check('полное закрытие тройки помечает день завершённым',
+    day?.completed === true && player.stats.seasonEvent.completedDays.includes(1));
+  check('первый полный день автоматически выдаёт голубую рамку навсегда',
+    player.stats.seasonEvent.participationClaimed === true &&
+      player.stats.unlockedProfileFrames.includes('frame_neon_relay'));
 
-  const economyBeforeParticipation = { ...player };
-  const participation = await api('season-event', { action: 'claim_participation' });
-  player = participation.player;
-  check('рамку участника можно получить после полного прохождения', participation.ok === true, participation.error);
-  check('рамка участника открыта и включена',
-    player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
-      player.stats.equippedProfileFrame === 'frame_neon_relay');
-  check('claim рамки участника не даёт игровые ресурсы', sameEconomy(participation.player, economyBeforeParticipation));
-  const removedParticipation = await api('skin', { action: 'profile_frame', skinKey: 'default' });
-  const reequippedParticipation = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay' });
-  check('полученную рамку участника можно снять и надеть снова',
-    removedParticipation.ok === true &&
-      reequippedParticipation.ok === true &&
-      reequippedParticipation.player.stats.equippedProfileFrame === 'frame_neon_relay',
-    reequippedParticipation.error);
-
+  const economyBeforeDuplicate = {
+    xp: player.xp,
+    data: player.data,
+    crypto: player.crypto,
+    chips: player.chips,
+  };
   const duplicateParticipation = await api('season-event', { action: 'claim_participation' });
-  check('рамку участника нельзя получить повторно', duplicateParticipation.ok === false, duplicateParticipation.error);
+  check('повторный claim голубой награды блокируется', duplicateParticipation.ok === false, duplicateParticipation.error);
+  const duplicateParticipationReload = await api('init');
+  check('заблокированный duplicate claim не меняет экономику',
+    duplicateParticipationReload.player.xp === economyBeforeDuplicate.xp &&
+      duplicateParticipationReload.player.data === economyBeforeDuplicate.data &&
+      duplicateParticipationReload.player.crypto === economyBeforeDuplicate.crypto &&
+      duplicateParticipationReload.player.chips === economyBeforeDuplicate.chips);
 
-  const economyBeforeMastery = { ...player };
-  const mastery = await api('season-event', { action: 'claim_mastery' });
-  player = mastery.player;
-  check('редкую рамку можно получить за все цели', mastery.ok === true, mastery.error);
-  check('редкая рамка открыта и включена',
-    player.stats.unlockedProfileFrames.includes('frame_neon_relay_master') &&
-      player.stats.equippedProfileFrame === 'frame_neon_relay_master');
-  check('claim редкой рамки не даёт XP/Data/Crypto/Чипы', sameEconomy(mastery.player, economyBeforeMastery));
-  const removedMastery = await api('skin', { action: 'profile_frame', skinKey: 'default' });
-  const reequippedMastery = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay_master' });
-  check('главный приз можно снять и надеть снова',
-    removedMastery.ok === true &&
-      reequippedMastery.ok === true &&
-      reequippedMastery.player.stats.equippedProfileFrame === 'frame_neon_relay_master',
-    reequippedMastery.error);
+  const removedBlue = await api('skin', { action: 'profile_frame', skinKey: 'default' });
+  const reappliedBlue = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay' });
+  check('голубую рамку можно снять и повторно применить через профиль',
+    removedBlue.ok === true && reappliedBlue.ok === true &&
+      reappliedBlue.player.stats.equippedProfileFrame === 'frame_neon_relay',
+    reappliedBlue.error);
+
+  let previousDayKeys = new Set(day.tasks.map((task) => task.key));
+  for (let calendarDay = 2; calendarDay <= 7; calendarDay += 1) {
+    fakeNow = dayTimestamp(calendarDay);
+    const entered = await api('init');
+    player = entered.player;
+    event = player.stats.seasonEvent;
+    day = currentDayState(player);
+    const freshKeys = new Set(day.tasks.map((task) => task.key));
+    check(`календарный день ${calendarDay} выдаёт ровно 3 новых задания`,
+      event.currentDay === calendarDay && day.tasks.length === 3 &&
+        [...freshKeys].every((key) => !previousDayKeys.has(key)));
+    check(`день ${calendarDay} фиксирует level scaling`,
+      day.levelAtGeneration === player.derived.level && day.tasks.every((task) => task.target > 0));
+
+    if (calendarDay === 4) {
+      const beforeReload = JSON.stringify(day.tasks);
+      const afterReload = await api('init');
+      player = afterReload.player;
+      day = currentDayState(player);
+      check('reload в середине недели сохраняет именно текущую тройку', JSON.stringify(day.tasks) === beforeReload);
+    }
+
+    const tappedDay = await closeTapTask(player, day);
+    player = tappedDay.player;
+    day = tappedDay.day;
+    const contractDay = await closeContractTasks(player, day);
+    player = contractDay.player;
+    day = currentDayState(player);
+    check(`все 3 задачи дня ${calendarDay} закрываются обычными действиями`,
+      contractDay.ok && day.completed === true,
+      JSON.stringify(day.progress));
+    previousDayKeys = freshKeys;
+  }
+
+  event = player.stats.seasonEvent;
+  check('полное прохождение содержит все 7 completedDays',
+    JSON.stringify(event.completedDays) === JSON.stringify([1, 2, 3, 4, 5, 6, 7]));
+  check('седьмой день автоматически выдаёт золотую рамку навсегда',
+    event.masteryClaimed === true &&
+      player.stats.unlockedProfileFrames.includes('frame_neon_relay_master'));
 
   const duplicateMastery = await api('season-event', { action: 'claim_mastery' });
-  check('редкую рамку нельзя получить повторно', duplicateMastery.ok === false, duplicateMastery.error);
+  check('повторный claim золотой награды блокируется', duplicateMastery.ok === false, duplicateMastery.error);
 
-  // Ровно через 7 суток окно закрывается: прогресс и коллекция сохраняются,
-  // но новые claim-запросы сервер больше не принимает.
-  fakeNow = Date.parse('2026-11-03T06:00:01Z');
+  const removedMastery = await api('skin', { action: 'profile_frame', skinKey: 'default' });
+  const reappliedMastery = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay_master' });
+  check('золотую рамку можно снять и повторно применить через профиль',
+    removedMastery.ok === true && reappliedMastery.ok === true &&
+      reappliedMastery.player.stats.equippedProfileFrame === 'frame_neon_relay_master');
+
+  const persistedBeforeEnd = await api('init');
+  fakeNow = Date.parse('2026-11-03T09:00:01+03:00');
   delete process.env.SEASON_EVENT_TEST_MODE;
   const ended = await api('init');
-  const blockedAfterEnd = await api('season-event', { action: 'claim_participation' });
-  check('после 7 дней окно ивента закрывается', blockedAfterEnd.ok === false, blockedAfterEnd.error);
-  check('прогресс после окончания не удаляется', ended.player.stats.seasonEvent.weekKey === '2026-10-27');
-  check('полученные рамки остаются после окончания',
-    ended.player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
-      ended.player.stats.unlockedProfileFrames.includes('frame_neon_relay_master'));
+  const blockedAfterEnd = await api('season-event', { action: 'claim_mastery' });
+  check('после ровно 7 суток новые event actions закрыты', blockedAfterEnd.ok === false, blockedAfterEnd.error);
+  check('reload после окончания сохраняет 7 дней и обе рамки',
+    ended.player.stats.seasonEvent.completedDays.length === 7 &&
+      ended.player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
+      ended.player.stats.unlockedProfileFrames.includes('frame_neon_relay_master') &&
+      persistedBeforeEnd.player.stats.seasonEvent.days['4'].tasks.length === 3);
 
-  // Production guard до старта: новый игрок не получает state и claim закрыт.
-  fakeNow = Date.parse('2026-10-27T05:59:59Z');
+  // Guard до даты старта для нового пользователя: отсутствие state не должно
+  // превращаться в пустой «седьмой день» или разрешённый claim.
+  fakeNow = Date.parse('2026-10-27T08:59:59+03:00');
   const inactive = await api('init', {}, 'season-off-qa');
   const blocked = await api('season-event', { action: 'claim_participation' }, 'season-off-qa');
-  check('до 09:00 MSK event не активируется', !inactive.player.stats.seasonEvent);
-  check('до старта сервер блокирует claim', blocked.ok === false, blocked.error);
+  check('до 09:00 MSK ивент не создаёт state', !inactive.player.stats.seasonEvent);
+  check('до старта сервер блокирует награды', blocked.ok === false, blocked.error);
 
   Date.now = realNow;
   console.log(`\nИтог: ${pass} pass / ${fail} fail`);

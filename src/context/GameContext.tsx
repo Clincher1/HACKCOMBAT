@@ -21,7 +21,6 @@ import type {
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
-import { ACTIVE_SEASON_EVENT } from '../../shared/seasonalEvent.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
 import {
@@ -119,12 +118,19 @@ function incrementOptimisticTapProgress(stats: PlayerState['stats']): PlayerStat
   }
 
   if (stats.seasonEvent) {
-    const progress = { ...stats.seasonEvent.progress };
-    for (const goal of ACTIVE_SEASON_EVENT.goals) {
-      if (goal.kind !== 'tap') continue;
-      progress[goal.key] = Math.min(goal.target, (progress[goal.key] ?? 0) + 1);
+    const dayKey = String(stats.seasonEvent.currentDay);
+    const day = stats.seasonEvent.days[dayKey];
+    if (day && !day.completed) {
+      const progress = { ...day.progress };
+      for (const task of day.tasks) {
+        if (task.kind !== 'tap') continue;
+        progress[task.key] = Math.min(task.target, (progress[task.key] ?? 0) + 1);
+      }
+      nextStats.seasonEvent = {
+        ...stats.seasonEvent,
+        days: { ...stats.seasonEvent.days, [dayKey]: { ...day, progress } },
+      };
     }
-    nextStats.seasonEvent = { ...stats.seasonEvent, progress };
   }
 
   return nextStats;
@@ -300,20 +306,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   : {}),
                 ...(res.player.stats.seasonEvent
                   ? {
-                      seasonEvent: {
-                        ...res.player.stats.seasonEvent,
-                        progress: Object.fromEntries(
-                          Object.entries(res.player.stats.seasonEvent.progress).map(([key, value]) => {
-                            const goal = ACTIVE_SEASON_EVENT.goals.find((candidate) => candidate.key === key);
+                      seasonEvent: (() => {
+                        const seasonEvent = res.player.stats.seasonEvent;
+                        const dayKey = String(seasonEvent.currentDay);
+                        const day = seasonEvent.days[dayKey];
+                        if (!day || day.completed) return seasonEvent;
+                        const progress = Object.fromEntries(
+                          Object.entries(day.progress).map(([key, value]) => {
+                            const task = day.tasks.find((candidate) => candidate.key === key);
                             return [
                               key,
-                              goal?.kind === 'tap'
-                                ? Math.min(goal.target, value + unsent)
+                              task?.kind === 'tap'
+                                ? Math.min(task.target, value + unsent)
                                 : value,
                             ];
                           })
-                        ),
-                      },
+                        );
+                        return {
+                          ...seasonEvent,
+                          days: { ...seasonEvent.days, [dayKey]: { ...day, progress } },
+                        };
+                      })(),
                     }
                   : {}),
               },

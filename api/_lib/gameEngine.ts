@@ -67,8 +67,12 @@ import {
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
   ACTIVE_SEASON_EVENT,
+  getSeasonEventDayNumber,
+  getSeasonEventDayTasks,
   getSeasonEventWindow,
   isSeasonEventLive,
+  SEASON_EVENT_DAY_COUNT,
+  SEASON_EVENT_TASKS_PER_DAY,
 } from '../../shared/seasonalEvent.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import type {
@@ -221,26 +225,128 @@ function normalizeSeasonEventState(raw: unknown): SeasonEventState | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const src = raw as Record<string, unknown>;
   const weekKey = typeof src.weekKey === 'string' ? src.weekKey.slice(0, 10) : '';
-  if (src.eventKey !== ACTIVE_SEASON_EVENT.key || !/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
+  const eventWindow = getSeasonEventWindow();
+  if (
+    src.version !== 2 ||
+    src.eventKey !== ACTIVE_SEASON_EVENT.key ||
+    weekKey !== eventWindow.weekKey ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(weekKey)
+  ) {
+    // Старые три глобальные цели намеренно не мигрируются в новую модель.
     return undefined;
   }
-  const rawProgress =
-    src.progress && typeof src.progress === 'object'
-      ? (src.progress as Record<string, unknown>)
-      : {};
-  const progress: Record<string, number> = {};
-  for (const goal of ACTIVE_SEASON_EVENT.goals) {
-    const value = Number(rawProgress[goal.key]);
-    progress[goal.key] = Number.isFinite(value)
-      ? Math.max(0, Math.min(goal.target, Math.floor(value)))
-      : 0;
+
+  const rawDays = src.days && typeof src.days === 'object'
+    ? (src.days as Record<string, unknown>)
+    : {};
+  const days: SeasonEventState['days'] = {};
+  for (let day = 1; day <= SEASON_EVENT_DAY_COUNT; day += 1) {
+    const rawDay = rawDays[String(day)];
+    if (!rawDay || typeof rawDay !== 'object') continue;
+    const daySrc = rawDay as Record<string, unknown>;
+    const dayKey = typeof daySrc.dayKey === 'string' ? daySrc.dayKey.slice(0, 10) : '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) continue;
+    const levelAtGeneration = Number(daySrc.levelAtGeneration);
+    const rawTasks = Array.isArray(daySrc.tasks) ? daySrc.tasks : [];
+    if (
+      rawTasks.length !== SEASON_EVENT_TASKS_PER_DAY ||
+      !Number.isFinite(levelAtGeneration) ||
+      levelAtGeneration < 1
+    ) {
+      continue;
+    }
+
+    const tasks = rawTasks
+      .map((rawTask) => {
+        if (!rawTask || typeof rawTask !== 'object') return undefined;
+        const task = rawTask as Record<string, unknown>;
+        const kind = task.kind;
+        if (kind !== 'tap' && kind !== 'mission_start' && kind !== 'mission_complete') return undefined;
+        const key = typeof task.key === 'string' ? task.key.slice(0, 120) : '';
+        const title = typeof task.title === 'string' ? task.title.slice(0, 120) : '';
+        const description = typeof task.description === 'string' ? task.description.slice(0, 240) : '';
+        const icon = typeof task.icon === 'string' ? task.icon.slice(0, 8) : '';
+        const target = Number(task.target);
+        if (
+          !key ||
+          !title ||
+          !description ||
+          !icon ||
+          !Number.isFinite(target) ||
+          target < 1 ||
+          target > 10_000
+        ) {
+          return undefined;
+        }
+        return {
+          key,
+          kind: kind as DailyTaskKind,
+          target: Math.floor(target),
+          title,
+          description,
+          icon,
+        };
+      })
+      .filter((task): task is NonNullable<typeof task> => Boolean(task));
+    const taskKeys = new Set(tasks.map((task) => task.key));
+    if (tasks.length !== SEASON_EVENT_TASKS_PER_DAY || taskKeys.size !== tasks.length) continue;
+    const expectedDayKey = new Date(
+      eventWindow.startMs + (day - 1) * 86_400_000
+    )
+      .toISOString()
+      .slice(0, 10);
+    const expectedTasks = getSeasonEventDayTasks(day, expectedDayKey, levelAtGeneration);
+    if (dayKey !== expectedDayKey || !sameSeasonEventTasks(tasks, expectedTasks)) continue;
+
+    const rawProgress =
+      daySrc.progress && typeof daySrc.progress === 'object'
+        ? (daySrc.progress as Record<string, unknown>)
+        : {};
+    const progress: Record<string, number> = {};
+    for (const task of tasks) {
+      const value = Number(rawProgress[task.key]);
+      progress[task.key] = Number.isFinite(value)
+        ? Math.max(0, Math.min(task.target, Math.floor(value)))
+        : 0;
+    }
+    const completeByProgress = tasks.every((task) => progress[task.key] >= task.target);
+    days[String(day)] = {
+      day,
+      dayKey,
+      levelAtGeneration: Math.floor(levelAtGeneration),
+      tasks,
+      progress,
+      completed: daySrc.completed === true && completeByProgress,
+      completedAt:
+        typeof daySrc.completedAt === 'string' && !Number.isNaN(new Date(daySrc.completedAt).getTime())
+          ? daySrc.completedAt
+          : null,
+    };
   }
+
+  const currentDayNumber = Number(src.currentDay);
+  const currentDay = Number.isFinite(currentDayNumber)
+    ? Math.max(1, Math.min(SEASON_EVENT_DAY_COUNT, Math.floor(currentDayNumber)))
+    : 1;
+  const completedDays = Array.from(
+    new Set(
+      (Array.isArray(src.completedDays) ? src.completedDays : [])
+        .map((day) => Number(day))
+        .filter((day) => Number.isInteger(day) && day >= 1 && day <= SEASON_EVENT_DAY_COUNT)
+        .filter((day) => days[String(day)]?.completed === true)
+    )
+  ).sort((a, b) => a - b);
+
   return {
+    version: 2,
     eventKey: ACTIVE_SEASON_EVENT.key,
     weekKey,
-    progress,
-    participationClaimed: src.participationClaimed === true,
-    masteryClaimed: src.masteryClaimed === true,
+    currentDay,
+    days,
+    completedDays,
+    participationClaimed: src.participationClaimed === true && completedDays.length > 0,
+    masteryClaimed:
+      src.masteryClaimed === true && completedDays.length === SEASON_EVENT_DAY_COUNT,
   };
 }
 
@@ -273,15 +379,14 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     return Array.from(new Set(out)).slice(0, 32);
   };
   const seasonEvent = normalizeSeasonEventState(src.seasonEvent);
-  const seasonEventGoalsComplete = Boolean(
-    seasonEvent &&
-      ACTIVE_SEASON_EVENT.goals.every((goal) => (seasonEvent.progress[goal.key] ?? 0) >= goal.target)
-  );
   const validEventFrameKeys = new Set<string>();
-  if (seasonEventGoalsComplete && seasonEvent?.participationClaimed) {
+  if (seasonEvent?.participationClaimed && seasonEvent.completedDays.length > 0) {
     validEventFrameKeys.add(ACTIVE_SEASON_EVENT.participationFrameKey);
   }
-  if (seasonEventGoalsComplete && seasonEvent?.masteryClaimed) {
+  if (
+    seasonEvent?.masteryClaimed &&
+    seasonEvent.completedDays.length === SEASON_EVENT_DAY_COUNT
+  ) {
     validEventFrameKeys.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
   }
   const unlockedProfileFrames = strArr(src.unlockedProfileFrames).filter((key) => {
@@ -382,32 +487,120 @@ function ensureDailyTasks(record: StoredPlayerRecord, dayKey: string): DailyTask
   return state;
 }
 
+function createSeasonEventState(weekKey: string): SeasonEventState {
+  return {
+    version: 2,
+    eventKey: ACTIVE_SEASON_EVENT.key,
+    weekKey,
+    currentDay: 1,
+    days: {},
+    completedDays: [],
+    participationClaimed: false,
+    masteryClaimed: false,
+  };
+}
+
+function sameSeasonEventTasks(
+  actual: SeasonEventState['days'][string]['tasks'],
+  expected: SeasonEventState['days'][string]['tasks']
+): boolean {
+  if (actual.length !== expected.length) return false;
+  return actual.every((task, index) => {
+    const candidate = expected[index];
+    return (
+      task.key === candidate.key &&
+      task.kind === candidate.kind &&
+      task.target === candidate.target &&
+      task.title === candidate.title &&
+      task.description === candidate.description &&
+      task.icon === candidate.icon
+    );
+  });
+}
+
 function ensureSeasonEvent(record: StoredPlayerRecord, nowMs: number = Date.now()): SeasonEventState {
   const window = getSeasonEventWindow(nowMs);
   const current = record.stats.seasonEvent;
   if (
     !current ||
+    current.version !== 2 ||
     current.eventKey !== ACTIVE_SEASON_EVENT.key ||
     current.weekKey !== window.weekKey
   ) {
-    record.stats.seasonEvent = {
-      eventKey: ACTIVE_SEASON_EVENT.key,
-      weekKey: window.weekKey,
-      progress: Object.fromEntries(ACTIVE_SEASON_EVENT.goals.map((goal) => [goal.key, 0])),
-      participationClaimed: false,
-      masteryClaimed: false,
-    };
+    record.stats.seasonEvent = createSeasonEventState(window.weekKey);
   }
 
   const state = record.stats.seasonEvent;
   if (!state) throw new Error('Не удалось подготовить сезонную операцию');
-  for (const goal of ACTIVE_SEASON_EVENT.goals) {
-    state.progress[goal.key] = Math.max(
-      0,
-      Math.min(goal.target, Math.floor(Number(state.progress[goal.key]) || 0))
-    );
+
+  const calendarDay = getSeasonEventDayNumber(nowMs);
+  if (calendarDay >= 1 && calendarDay <= SEASON_EVENT_DAY_COUNT) {
+    state.currentDay = calendarDay;
+    const dayKey = new Date(window.startMs + (calendarDay - 1) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const key = String(calendarDay);
+    const existing = state.days[key];
+    if (!existing) {
+      const levelAtGeneration = deriveStats(record).level;
+      const tasks = getSeasonEventDayTasks(calendarDay, dayKey, levelAtGeneration);
+      state.days[key] = {
+        day: calendarDay,
+        dayKey,
+        levelAtGeneration,
+        tasks,
+        progress: Object.fromEntries(tasks.map((task) => [task.key, 0])),
+        completed: false,
+        completedAt: null,
+      };
+    } else {
+      // Дневной набор — immutable: если JSON был подменён или повреждён,
+      // сервер удаляет только этот незавершённый день и создаёт канонический
+      // набор из сохранённого levelAtGeneration. Уже завершённые дни не reroll'ятся.
+      const expected = getSeasonEventDayTasks(existing.day, existing.dayKey, existing.levelAtGeneration);
+      if (!sameSeasonEventTasks(existing.tasks, expected)) {
+        if (existing.completed) {
+          throw new Error('Повреждённый завершённый набор сезонных задач');
+        }
+        state.days[key] = {
+          day: calendarDay,
+          dayKey: existing.dayKey,
+          levelAtGeneration: existing.levelAtGeneration,
+          tasks: expected,
+          progress: Object.fromEntries(expected.map((task) => [task.key, 0])),
+          completed: false,
+          completedAt: null,
+        };
+      }
+    }
   }
+
+  state.completedDays = Array.from(
+    new Set(
+      state.completedDays
+        .filter((day) => Number.isInteger(day) && day >= 1 && day <= SEASON_EVENT_DAY_COUNT)
+        .filter((day) => state.days[String(day)]?.completed === true)
+    )
+  ).sort((a, b) => a - b);
+  state.participationClaimed = state.participationClaimed && state.completedDays.length > 0;
+  state.masteryClaimed =
+    state.masteryClaimed && state.completedDays.length === SEASON_EVENT_DAY_COUNT;
   return state;
+}
+
+function grantSeasonEventRewards(record: StoredPlayerRecord, state: SeasonEventState): void {
+  const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
+  if (state.completedDays.length > 0) {
+    state.participationClaimed = true;
+    unlocked.add(ACTIVE_SEASON_EVENT.participationFrameKey);
+    record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.participationFrameKey;
+  }
+  if (state.completedDays.length === SEASON_EVENT_DAY_COUNT) {
+    state.masteryClaimed = true;
+    unlocked.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
+    record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.masteryFrameKey;
+  }
+  record.stats.unlockedProfileFrames = Array.from(unlocked);
 }
 
 function incrementSeasonEventProgress(
@@ -417,12 +610,21 @@ function incrementSeasonEventProgress(
 ): void {
   const state = record.stats.seasonEvent;
   if (!state || amount <= 0) return;
-  for (const goal of ACTIVE_SEASON_EVENT.goals) {
-    if (goal.kind !== kind) continue;
-    state.progress[goal.key] = Math.min(
-      goal.target,
-      (state.progress[goal.key] ?? 0) + Math.floor(amount)
+  const day = state.days[String(state.currentDay)];
+  if (!day || day.completed) return;
+  for (const task of day.tasks) {
+    if (task.kind !== kind) continue;
+    day.progress[task.key] = Math.min(
+      task.target,
+      (day.progress[task.key] ?? 0) + Math.floor(amount)
     );
+  }
+  if (day.tasks.every((task) => (day.progress[task.key] ?? 0) >= task.target)) {
+    day.completed = true;
+    day.completedAt = new Date(Date.now()).toISOString();
+    if (!state.completedDays.includes(day.day)) state.completedDays.push(day.day);
+    state.completedDays.sort((a, b) => a - b);
+    grantSeasonEventRewards(record, state);
   }
 }
 
@@ -2507,13 +2709,6 @@ export async function handleSeasonEventAction(
     if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const state = ensureSeasonEvent(record);
-    const allGoalsComplete = ACTIVE_SEASON_EVENT.goals.every(
-      (goal) => (state.progress[goal.key] ?? 0) >= goal.target
-    );
-    // Обе event-рамки — награда за полный результат, а не за первый шаг.
-    // Рамка участника тоже не должна выдаваться после одной случайной цели:
-    // сначала закрываем весь маршрут операции, затем забираем косметику.
-    const participationReady = allGoalsComplete;
     const frameKey =
       action === 'claim_mastery'
         ? ACTIVE_SEASON_EVENT.masteryFrameKey
@@ -2521,27 +2716,33 @@ export async function handleSeasonEventAction(
     const frame = getProfileFrame(frameKey);
 
     if (action === 'claim_mastery') {
-      if (state.masteryClaimed) throw new Error('Мастерская рамка уже получена');
-      if (!allGoalsComplete) throw new Error('Сначала закрой все три цели сезонной операции');
-      state.masteryClaimed = true;
+      if (state.masteryClaimed) throw new Error('Золотая рамка уже получена');
+      if (state.completedDays.length !== SEASON_EVENT_DAY_COUNT) {
+        throw new Error('Сначала закрой все 7 календарных дней Neon Relay');
+      }
     } else {
-      if (state.participationClaimed) throw new Error('Рамка участника уже получена');
-      if (!participationReady) throw new Error('Сначала закрой все три цели сезонной операции');
-      state.participationClaimed = true;
+      if (state.participationClaimed) throw new Error('Голубая рамка уже получена');
+      if (state.completedDays.length < 1) {
+        throw new Error('Сначала полностью закрой любой день: все 3 задания');
+      }
     }
 
-    const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
-    unlocked.add(frame.key);
-    record.stats.unlockedProfileFrames = Array.from(unlocked);
-    // Последняя полученная рамка включается сразу, чтобы награда была видна
-    // и в личном профиле, и в строках турнирной таблицы.
-    record.stats.equippedProfileFrame = frame.key;
+    // Награды выдаются автоматически в момент завершения дня. Этот endpoint
+    // оставлен idempotency-сторожем для старых клиентов и QA: он не начисляет
+    // ресурсы и не может повторно добавить рамку.
+    grantSeasonEventRewards(record, state);
+    if (
+      (action === 'claim_mastery' && !state.masteryClaimed) ||
+      (action === 'claim_participation' && !state.participationClaimed)
+    ) {
+      throw new Error('Награда сезонной операции не готова');
+    }
 
     alerts.push({
       id: crypto.randomUUID(),
       type: 'success',
-      title: `🖼️ Рамка «${frame.name}» получена`,
-      message: 'Косметическая награда включена и видна в турнирной таблице.',
+      title: `🖼️ Рамка «${frame.name}» уже в коллекции`,
+      message: 'Косметическая награда постоянная и доступна для повторного применения в профиле.',
     });
 
     await savePlayerCore(record, mode);

@@ -76,9 +76,12 @@ staleEquippedRecord.stats = {
   unlockedProfileFrames: ['frame_neon_relay_master'],
   equippedProfileFrame: 'frame_neon_relay_master',
   seasonEvent: {
+    version: 2,
     eventKey: 'neon-relay',
     weekKey: '2026-10-27',
-    progress: { event_taps_1000: 0, event_starts_3: 0, event_completes_3: 0 },
+    currentDay: 1,
+    days: {},
+    completedDays: [],
     participationClaimed: false,
     masteryClaimed: true,
   },
