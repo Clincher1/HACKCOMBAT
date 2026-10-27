@@ -208,6 +208,12 @@ export interface ProfileFrameConfig {
   source: string;
   /** Необязательный арт поверх аватара для особых временных рамок. */
   iconUrl?: string;
+  /** Полный временный аватар, который заменяет Telegram-фото в профиле и рейтинге. */
+  avatarUrl?: string;
+  /** CSS-градиент рамки для специальных косметических подарков. */
+  borderImage?: string;
+  /** Такая рамка не покупается и автоматически снимается по expiry в stats. */
+  temporary?: boolean;
   eventKey?: string;
   /** Цена Crypto для постоянной покупки в магазине; у event-наград её нет. */
   cryptoCost?: number;

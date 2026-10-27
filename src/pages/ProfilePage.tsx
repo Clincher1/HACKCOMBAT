@@ -39,6 +39,7 @@ export const ProfilePage: React.FC = () => {
 
   const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection'>('leaderboard');
   const [roosterBurstId, setRoosterBurstId] = useState(0);
+  const [fishBurstId, setFishBurstId] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
 
@@ -55,6 +56,12 @@ export const ProfilePage: React.FC = () => {
     const timer = window.setTimeout(() => setRoosterBurstId(0), 2_000);
     return () => window.clearTimeout(timer);
   }, [roosterBurstId]);
+
+  useEffect(() => {
+    if (fishBurstId === 0) return undefined;
+    const timer = window.setTimeout(() => setFishBurstId(0), 2_200);
+    return () => window.clearTimeout(timer);
+  }, [fishBurstId]);
 
   if (!player) return null;
 
@@ -74,6 +81,7 @@ export const ProfilePage: React.FC = () => {
   const chipsLeftToday = Math.max(0, CHIP_DAILY_CAP - chipsToday);
   const canPrestige = derived.level >= requiredPrestigeLevel;
   const profileFrame = getProfileFrame(player.stats.equippedProfileFrame);
+  const profileAvatarUrl = profileFrame.avatarUrl ?? tgProfile.photoUrl;
 
   // Метрики турнирной таблицы. Data тратится (купил карточки — упал в таблице),
   // XP не тратится никогда, уровень — карьерный итог. Пусть игрок выбирает зачёт.
@@ -103,15 +111,16 @@ export const ProfilePage: React.FC = () => {
       <div className="rounded-2xl bg-[#10172e] border border-[#00f0ff]/30 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {tgProfile.photoUrl ? (
+            {profileAvatarUrl ? (
               <div className="relative shrink-0">
                 <img
-                  src={tgProfile.photoUrl}
+                  src={profileAvatarUrl}
                   alt={player.username}
                   loading="lazy"
-                  className="w-14 h-14 rounded-2xl object-cover border-2"
+                  className={`w-14 h-14 rounded-2xl border-2 ${profileFrame.avatarUrl ? 'object-contain p-0.5' : 'object-cover'}`}
                   style={{
                     borderColor: profileFrame.accent,
+                    borderImage: profileFrame.borderImage,
                     background: profileFrame.background,
                     boxShadow: profileFrame.glow,
                   }}
@@ -132,6 +141,7 @@ export const ProfilePage: React.FC = () => {
                   className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-xl font-black"
                   style={{
                     borderColor: profileFrame.accent,
+                    borderImage: profileFrame.borderImage,
                     background: profileFrame.background,
                     boxShadow: profileFrame.glow,
                     color: profileFrame.accent,
@@ -412,11 +422,13 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
 
-          <div className="rounded-2xl bg-[#10172e] border border-slate-800 divide-y divide-slate-800/80 overflow-hidden">
+          <div className="rounded-2xl bg-[#10172e] border border-slate-800 divide-y divide-slate-800/80 overflow-visible">
             {leaderboard.map((entry, idx) => {
               const avatarSkin = getSkinByKey(entry.avatarKey ?? '');
               const frame = getProfileFrame(entry.profileFrameKey);
               const isRoosterAvatar = entry.username === 'pohoronyat_menya';
+              const isFishAvatar = entry.username === 'SolidPegasus';
+              const hasSpecialAvatar = isRoosterAvatar || isFishAvatar;
               return (
               <div
                 key={`${entry.username}-${idx}`}
@@ -439,34 +451,59 @@ export const ProfilePage: React.FC = () => {
                     #{idx + 1}
                   </span>
                   <div
-                    className={`relative shrink-0 ${isRoosterAvatar ? 'rooster-avatar-trigger' : ''}`}
+                    className={`relative shrink-0 ${
+                      isRoosterAvatar
+                        ? 'rooster-avatar-trigger'
+                        : isFishAvatar
+                          ? 'fish-avatar-trigger'
+                          : ''
+                    }`}
                     onClick={
-                      isRoosterAvatar ? () => setRoosterBurstId((value) => value + 1) : undefined
+                      isRoosterAvatar
+                        ? () => setRoosterBurstId((value) => value + 1)
+                        : isFishAvatar
+                          ? () => setFishBurstId((value) => value + 1)
+                          : undefined
                     }
                     onKeyDown={
-                      isRoosterAvatar
+                      hasSpecialAvatar
                         ? (event) => {
                             if (event.key === 'Enter' || event.key === ' ') {
                               event.preventDefault();
-                              setRoosterBurstId((value) => value + 1);
+                              if (isRoosterAvatar) {
+                                setRoosterBurstId((value) => value + 1);
+                              } else {
+                                setFishBurstId((value) => value + 1);
+                              }
                             }
                           }
                         : undefined
                     }
-                    role={isRoosterAvatar ? 'button' : undefined}
-                    tabIndex={isRoosterAvatar ? 0 : undefined}
+                    role={hasSpecialAvatar ? 'button' : undefined}
+                    tabIndex={hasSpecialAvatar ? 0 : undefined}
                   >
                     <div
                       className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-lg"
                       style={{
                         borderColor: frame.accent,
+                        borderImage: frame.borderImage,
                         background: frame.background,
                         boxShadow: frame.glow,
                       }}
                       title={frame.name}
                       aria-label={`Аватар ${entry.username}, рамка ${frame.name}`}
                     >
-                      {avatarSkin?.category === 'avatar' ? avatarSkin.avatarGlyph ?? '🕶️' : '🕶️'}
+                      {frame.avatarUrl ? (
+                        <img
+                          src={frame.avatarUrl}
+                          alt={`Аватар ${entry.username}`}
+                          className="h-full w-full rounded-[0.55rem] object-contain p-0.5"
+                        />
+                      ) : avatarSkin?.category === 'avatar' ? (
+                        avatarSkin.avatarGlyph ?? '🕶️'
+                      ) : (
+                        '🕶️'
+                      )}
                     </div>
                     {frame.iconUrl && (
                       <img
@@ -488,6 +525,20 @@ export const ProfilePage: React.FC = () => {
                         <span className="rooster-burst__spark rooster-burst__spark--three">✦</span>
                         <span className="rooster-burst__spark rooster-burst__spark--four">•</span>
                         <span className="rooster-burst__text">Кууу Ка Рекуу</span>
+                      </div>
+                    )}
+                    {isFishAvatar && fishBurstId > 0 && (
+                      <div
+                        key={fishBurstId}
+                        className="fish-burst"
+                        aria-live="polite"
+                        aria-label="Блоп-Блоп"
+                      >
+                        <span className="fish-burst__bubble fish-burst__bubble--one">◦</span>
+                        <span className="fish-burst__bubble fish-burst__bubble--two">○</span>
+                        <span className="fish-burst__bubble fish-burst__bubble--three">◌</span>
+                        <span className="fish-burst__bubble fish-burst__bubble--four">°</span>
+                        <span className="fish-burst__text">Блоп-Блоп</span>
                       </div>
                     )}
                   </div>

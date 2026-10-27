@@ -362,8 +362,6 @@ function pickProfileFrameKey(raw: unknown): string | undefined {
   return frame.key === raw && frame.key !== 'default' ? frame.key : undefined;
 }
 
-const TEMPORARY_PROFILE_FRAME_KEY = 'frame_rooster_red';
-
 function normalizeStats(raw: unknown): PlayerProgressStats {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const num = (v: unknown, max = 1_000_000_000) => {
@@ -407,7 +405,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
   const unlockedProfileFrames = strArr(src.unlockedProfileFrames).filter((key) => {
     const frame = PROFILE_FRAMES.find((candidate) => candidate.key === key);
     if (!frame || frame.key === 'default') return false;
-    if (frame.key === TEMPORARY_PROFILE_FRAME_KEY && !temporaryFrameActive) return false;
+    if (frame.temporary && !temporaryFrameActive) return false;
     return !frame.eventKey || validEventFrameKeys.has(frame.key);
   });
   const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
@@ -3075,6 +3073,9 @@ export async function handleSkinAction(
       } else {
         const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
         if (!unlocked.has(frame.key)) {
+          if (frame.temporary) {
+            throw new Error('Эта временная рамка выдаётся персонально и не продаётся');
+          }
           if (frame.eventKey) {
             throw new Error('Эта рамка выдаётся только за успешное прохождение события');
           }

@@ -288,3 +288,130 @@ body[data-theme='femme'] .rounded-2xl {
     animation-iteration-count: 1;
   }
 }
+
+/* Радужный карась SolidPegasus: синий пузырьковый крик с эффектом под водой. */
+.fish-avatar-trigger {
+  cursor: pointer;
+  touch-action: manipulation;
+  outline: none;
+}
+
+.fish-avatar-trigger:focus-visible {
+  border-radius: 0.85rem;
+  box-shadow: 0 0 0 2px rgba(93, 246, 255, 0.95), 0 0 20px rgba(59, 130, 246, 0.7);
+}
+
+.fish-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 50;
+  width: max-content;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.fish-burst__text {
+  display: block;
+  color: #d9fbff;
+  font-family: 'Russo One', 'Arial Black', sans-serif;
+  font-size: clamp(0.72rem, 2.4vw, 1rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow:
+    0 0 3px #ffffff,
+    0 0 8px #5df6ff,
+    0 0 16px #1685e8,
+    2px 3px 0 #075985;
+  white-space: nowrap;
+  animation: fishBubbleText 2.1s ease-in-out both;
+}
+
+.fish-burst__bubble {
+  position: absolute;
+  color: #9ff7ff;
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 0 8px #1685e8;
+  animation: fishBubbleRise 1.85s ease-out both;
+}
+
+.fish-burst__bubble--one {
+  --fish-x: -45px;
+  --fish-y: -37px;
+}
+
+.fish-burst__bubble--two {
+  --fish-x: 49px;
+  --fish-y: -32px;
+  animation-delay: 90ms;
+}
+
+.fish-burst__bubble--three {
+  --fish-x: 45px;
+  --fish-y: 28px;
+  animation-delay: 150ms;
+}
+
+.fish-burst__bubble--four {
+  --fish-x: -50px;
+  --fish-y: 25px;
+  animation-delay: 40ms;
+}
+
+@keyframes fishBubbleText {
+  0% {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(20px) scale(0.32) skewX(-8deg);
+  }
+  18% {
+    opacity: 0.95;
+    filter: blur(0);
+    transform: translateY(-10px) scale(1.14) skewX(4deg);
+  }
+  33% {
+    transform: translateY(3px) scale(0.96) skewX(-3deg);
+  }
+  48% {
+    transform: translateY(-7px) scale(1.06) skewX(2deg);
+  }
+  68% {
+    opacity: 0.92;
+    transform: translateY(-36px) scale(1) skewX(-1deg);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(-86px) scale(0.78) skewX(5deg);
+  }
+}
+
+@keyframes fishBubbleRise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 10px) scale(0.15);
+  }
+  20% {
+    opacity: 0.9;
+    transform: translate(calc(var(--fish-x) * 0.28), calc(var(--fish-y) * 0.28)) scale(0.8);
+  }
+  62% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fish-x), var(--fish-y)) scale(0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fish-burst__text,
+  .fish-burst__bubble {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
