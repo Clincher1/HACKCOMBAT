@@ -186,6 +186,9 @@ export interface ActiveMissionInstance {
   heatDelta: number;
   cryptoReward: number;
   xpReward: number;
+  /** Взнос, списанный при запуске: сохраняется для истории и активной карточки. */
+  entryEnergyCost?: number;
+  entryDataCost?: number;
   /** Зафиксированный на старте шанс успеха (0..1) — игрок видит, на что шёл. */
   successChance: number;
   /** Исход фиксируется сервером в момент забора: success / partial / fail. */
@@ -204,15 +207,30 @@ export interface ProfileFrameConfig {
   glow: string;
   source: string;
   eventKey?: string;
+  /** Цена Crypto для постоянной покупки в магазине; у event-наград её нет. */
+  cryptoCost?: number;
+  /** Рамки магазина открываются только с этого уровня. */
+  requiredLevel?: number;
 }
 
-export interface SeasonEventGoalDefinition {
+export interface SeasonEventTaskDefinition {
   key: string;
   kind: DailyTaskKind;
   target: number;
   title: string;
   description: string;
   icon: string;
+}
+
+export interface SeasonEventDayState {
+  day: number;
+  dayKey: string;
+  /** Уровень, зафиксированный сервером при создании набора задач. */
+  levelAtGeneration: number;
+  tasks: SeasonEventTaskDefinition[];
+  progress: Record<string, number>;
+  completed: boolean;
+  completedAt?: string | null;
 }
 
 export interface SeasonEventScenario {
@@ -223,9 +241,15 @@ export interface SeasonEventScenario {
 }
 
 export interface SeasonEventState {
+  /** Версия формата нужна, чтобы старые глобальные goals не мигрировали в новый ивент. */
+  version: 2;
   eventKey: string;
   weekKey: string;
-  progress: Record<string, number>;
+  currentDay: number;
+  /** Ключи 1…7 появляются только при наступлении соответствующего календарного дня. */
+  days: Record<string, SeasonEventDayState>;
+  completedDays: number[];
+  /** Эти флаги означают уже выданные навсегда косметические награды. */
   participationClaimed: boolean;
   masteryClaimed: boolean;
 }

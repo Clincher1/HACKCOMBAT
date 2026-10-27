@@ -12,13 +12,15 @@ import {
   getMaxCardLevel,
 } from '../../shared/cards.config';
 import { BASE_UPGRADES_CONFIG } from '../../shared/base.config';
+import { computeDerivedStats } from '../../shared/mechanics';
 import type { CardCategory } from '../../shared/types';
 import { BaseUpgradeList } from '../components/BaseUpgradeList';
+import { ProfileFramesShop } from '../components/ProfileFramesShop';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 import { triggerHapticSelection } from '../lib/telegram';
 
-type WorkshopTab = 'cards' | 'base';
+type WorkshopTab = 'cards' | 'base' | 'frames';
 
 export const UpgradesPage: React.FC = () => {
   const { player, buyCard, unlockTier, busyKey, openTutorial } = useGame();
@@ -60,6 +62,9 @@ export const UpgradesPage: React.FC = () => {
             Каждые 5 уровней карточек = +1 Уровень игрока. Уровни всех модулей{' '}
             <strong className="text-[#00f0ff]">{totalLevels}</strong>.
           </p>
+          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+            Зелёная цифра — прибавка к доходу после следующего уровня. «Итого» — скорость до → после; баланс Data сверху — отдельно.
+          </p>
         </div>
         <div className="text-right shrink-0 space-y-1">
           <div className="font-display text-sm font-extrabold text-[#00f0ff]">
@@ -78,8 +83,8 @@ export const UpgradesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Переключатель: Модули / База */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Переключатель: Модули / База / Рамки профиля */}
+      <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
           onClick={() => {
@@ -113,9 +118,25 @@ export const UpgradesPage: React.FC = () => {
             </span>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            triggerHapticSelection();
+            setTab('frames');
+          }}
+          className={`py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition cursor-pointer ${
+            tab === 'frames'
+              ? 'bg-purple-500/18 border-purple-400 text-purple-300'
+              : 'bg-[#10172e] border-slate-800 text-slate-400'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" /> Рамки профиля
+        </button>
       </div>
 
-      {tab === 'base' ? (
+      {tab === 'frames' ? (
+        <ProfileFramesShop />
+      ) : tab === 'base' ? (
         <BaseUpgradeList />
       ) : (
         <>
@@ -240,6 +261,48 @@ export const UpgradesPage: React.FC = () => {
               const isBusy = busyKey === `card:${card.key}`;
               const indexMultiplier = getCardIndexMultiplier(card, totalLevels);
 
+              // Показываем именно эффект следующего уровня, а не условное
+              // `база × (уровень + 1)`. Сервер считает доход геометрически и
+              // учитывает команду, питомцев, ветку и престиж — превью считает
+              // тот же shared-механизм, поэтому итог можно честно сравнить с
+              // цифрой Data/ч в верхней панели.
+              const projectedDerived = isMax
+                ? player.derived
+                : computeDerivedStats({
+                    cards: { ...player.cards, [card.key]: level + 1 },
+                    team: player.team,
+                    rep: player.rep,
+                    heat:
+                      player.heat +
+                      (card.heatOnBuy
+                        ? Math.round(card.heatOnBuy * player.derived.heatMultiplier)
+                        : 0),
+                    data: Math.max(0, player.data - price),
+                    xp: player.xp,
+                    prestigeCount: player.prestigeCount,
+                    equippedSkin: player.equippedSkin,
+                    equippedUi: player.stats.equippedUi,
+                    equippedAvatar: player.stats.equippedAvatar,
+                    pets: player.pets,
+                    baseUpgrades: player.baseUpgrades,
+                    cardTier: player.cardTier,
+                  });
+              const dataGain = projectedDerived.dataPerHour - player.derived.dataPerHour;
+              const tapGain = projectedDerived.clickPower - player.derived.clickPower;
+              const heatGain = card.heatOnBuy
+                ? Math.round(card.heatOnBuy * player.derived.heatMultiplier)
+                : 0;
+              const signedDataGain = `${dataGain >= 0 ? '+' : ''}${formatCompact(dataGain)}`;
+              const signedTapGain = `${tapGain >= 0 ? '+' : ''}${formatCompact(tapGain)}`;
+              const dataGainClass =
+                dataGain < 0
+                  ? 'bg-rose-500/12 text-rose-300'
+                  : 'bg-[#7dff00]/12 text-[#7dff00]';
+              const tapGainClass =
+                tapGain < 0
+                  ? 'bg-rose-500/12 text-rose-300'
+                  : 'bg-[#00f0ff]/12 text-[#00f0ff]';
+
               return (
                 <motion.div
                   key={card.key}
@@ -280,22 +343,41 @@ export const UpgradesPage: React.FC = () => {
                     </div>
 
                     <div className="flex flex-wrap gap-1 pt-0.5">
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#7dff00]/12 text-[#7dff00]">
-                        +{formatCompact(card.dataPerHourPerLevel * (level + 1))}/ч
-                      </span>
-                      {card.clickBonusPerLevel && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#00f0ff]/12 text-[#00f0ff]">
-                          +{Math.round(card.clickBonusPerLevel * (level + 1) * 10) / 10} тап
+                      {!isMax && (
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${dataGainClass}`}
+                          title="Точное изменение общей скорости Data/ч после покупки следующего уровня"
+                        >
+                          {signedDataGain} Data/ч
+                        </span>
+                      )}
+                      {!isMax && card.clickBonusPerLevel && (
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${tapGainClass}`}
+                          title="Точное изменение Data за один тап после покупки следующего уровня"
+                        >
+                          {signedTapGain} Data/тап
+                        </span>
+                      )}
+                      {!isMax && (
+                        <span
+                          className="w-full text-[9px] font-semibold text-slate-400 leading-snug"
+                          title="Слева — текущий общий доход, справа — доход после покупки"
+                        >
+                          Итого Data/ч: {formatCompact(player.derived.dataPerHour)} → {formatCompact(projectedDerived.dataPerHour)}
                         </span>
                       )}
                       {card.energyMaxPerLevel && (
                         <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 flex items-center gap-0.5">
-                          <Zap className="w-2.5 h-2.5" /> +{card.energyMaxPerLevel}
+                          <Zap className="w-2.5 h-2.5" /> +{card.energyMaxPerLevel} Energy Max
                         </span>
                       )}
                       {card.heatOnBuy && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 flex items-center gap-0.5">
-                          <Flame className="w-2.5 h-2.5" /> +{card.heatOnBuy} Heat
+                        <span
+                          className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 flex items-center gap-0.5"
+                          title="Heat с учётом текущей защиты от розыска"
+                        >
+                          <Flame className="w-2.5 h-2.5" /> +{heatGain} Heat
                         </span>
                       )}
                       {indexMultiplier > 1.05 && (

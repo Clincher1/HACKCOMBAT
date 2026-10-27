@@ -43,6 +43,7 @@ import {
 import {
   getHackOdds,
   getLevelProgress,
+  getMissionEntryCost,
   getMissionRewardScale,
   getMissionXpAward,
   getTotalXpForLevel,
@@ -66,8 +67,12 @@ import {
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
   ACTIVE_SEASON_EVENT,
+  getSeasonEventDayNumber,
+  getSeasonEventDayTasks,
   getSeasonEventWindow,
   isSeasonEventLive,
+  SEASON_EVENT_DAY_COUNT,
+  SEASON_EVENT_TASKS_PER_DAY,
 } from '../../shared/seasonalEvent.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import type {
@@ -220,26 +225,128 @@ function normalizeSeasonEventState(raw: unknown): SeasonEventState | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const src = raw as Record<string, unknown>;
   const weekKey = typeof src.weekKey === 'string' ? src.weekKey.slice(0, 10) : '';
-  if (src.eventKey !== ACTIVE_SEASON_EVENT.key || !/^\d{4}-\d{2}-\d{2}$/.test(weekKey)) {
+  const eventWindow = getSeasonEventWindow();
+  if (
+    src.version !== 2 ||
+    src.eventKey !== ACTIVE_SEASON_EVENT.key ||
+    weekKey !== eventWindow.weekKey ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(weekKey)
+  ) {
+    // Старые три глобальные цели намеренно не мигрируются в новую модель.
     return undefined;
   }
-  const rawProgress =
-    src.progress && typeof src.progress === 'object'
-      ? (src.progress as Record<string, unknown>)
-      : {};
-  const progress: Record<string, number> = {};
-  for (const goal of ACTIVE_SEASON_EVENT.goals) {
-    const value = Number(rawProgress[goal.key]);
-    progress[goal.key] = Number.isFinite(value)
-      ? Math.max(0, Math.min(goal.target, Math.floor(value)))
-      : 0;
+
+  const rawDays = src.days && typeof src.days === 'object'
+    ? (src.days as Record<string, unknown>)
+    : {};
+  const days: SeasonEventState['days'] = {};
+  for (let day = 1; day <= SEASON_EVENT_DAY_COUNT; day += 1) {
+    const rawDay = rawDays[String(day)];
+    if (!rawDay || typeof rawDay !== 'object') continue;
+    const daySrc = rawDay as Record<string, unknown>;
+    const dayKey = typeof daySrc.dayKey === 'string' ? daySrc.dayKey.slice(0, 10) : '';
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) continue;
+    const levelAtGeneration = Number(daySrc.levelAtGeneration);
+    const rawTasks = Array.isArray(daySrc.tasks) ? daySrc.tasks : [];
+    if (
+      rawTasks.length !== SEASON_EVENT_TASKS_PER_DAY ||
+      !Number.isFinite(levelAtGeneration) ||
+      levelAtGeneration < 1
+    ) {
+      continue;
+    }
+
+    const tasks = rawTasks
+      .map((rawTask) => {
+        if (!rawTask || typeof rawTask !== 'object') return undefined;
+        const task = rawTask as Record<string, unknown>;
+        const kind = task.kind;
+        if (kind !== 'tap' && kind !== 'mission_start' && kind !== 'mission_complete') return undefined;
+        const key = typeof task.key === 'string' ? task.key.slice(0, 120) : '';
+        const title = typeof task.title === 'string' ? task.title.slice(0, 120) : '';
+        const description = typeof task.description === 'string' ? task.description.slice(0, 240) : '';
+        const icon = typeof task.icon === 'string' ? task.icon.slice(0, 8) : '';
+        const target = Number(task.target);
+        if (
+          !key ||
+          !title ||
+          !description ||
+          !icon ||
+          !Number.isFinite(target) ||
+          target < 1 ||
+          target > 10_000
+        ) {
+          return undefined;
+        }
+        return {
+          key,
+          kind: kind as DailyTaskKind,
+          target: Math.floor(target),
+          title,
+          description,
+          icon,
+        };
+      })
+      .filter((task): task is NonNullable<typeof task> => Boolean(task));
+    const taskKeys = new Set(tasks.map((task) => task.key));
+    if (tasks.length !== SEASON_EVENT_TASKS_PER_DAY || taskKeys.size !== tasks.length) continue;
+    const expectedDayKey = new Date(
+      eventWindow.startMs + (day - 1) * 86_400_000
+    )
+      .toISOString()
+      .slice(0, 10);
+    const expectedTasks = getSeasonEventDayTasks(day, expectedDayKey, levelAtGeneration);
+    if (dayKey !== expectedDayKey || !sameSeasonEventTasks(tasks, expectedTasks)) continue;
+
+    const rawProgress =
+      daySrc.progress && typeof daySrc.progress === 'object'
+        ? (daySrc.progress as Record<string, unknown>)
+        : {};
+    const progress: Record<string, number> = {};
+    for (const task of tasks) {
+      const value = Number(rawProgress[task.key]);
+      progress[task.key] = Number.isFinite(value)
+        ? Math.max(0, Math.min(task.target, Math.floor(value)))
+        : 0;
+    }
+    const completeByProgress = tasks.every((task) => progress[task.key] >= task.target);
+    days[String(day)] = {
+      day,
+      dayKey,
+      levelAtGeneration: Math.floor(levelAtGeneration),
+      tasks,
+      progress,
+      completed: daySrc.completed === true && completeByProgress,
+      completedAt:
+        typeof daySrc.completedAt === 'string' && !Number.isNaN(new Date(daySrc.completedAt).getTime())
+          ? daySrc.completedAt
+          : null,
+    };
   }
+
+  const currentDayNumber = Number(src.currentDay);
+  const currentDay = Number.isFinite(currentDayNumber)
+    ? Math.max(1, Math.min(SEASON_EVENT_DAY_COUNT, Math.floor(currentDayNumber)))
+    : 1;
+  const completedDays = Array.from(
+    new Set(
+      (Array.isArray(src.completedDays) ? src.completedDays : [])
+        .map((day) => Number(day))
+        .filter((day) => Number.isInteger(day) && day >= 1 && day <= SEASON_EVENT_DAY_COUNT)
+        .filter((day) => days[String(day)]?.completed === true)
+    )
+  ).sort((a, b) => a - b);
+
   return {
+    version: 2,
     eventKey: ACTIVE_SEASON_EVENT.key,
     weekKey,
-    progress,
-    participationClaimed: src.participationClaimed === true,
-    masteryClaimed: src.masteryClaimed === true,
+    currentDay,
+    days,
+    completedDays,
+    participationClaimed: src.participationClaimed === true && completedDays.length > 0,
+    masteryClaimed:
+      src.masteryClaimed === true && completedDays.length === SEASON_EVENT_DAY_COUNT,
   };
 }
 
@@ -271,6 +378,24 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       .filter((x) => (allowed ? allowed.has(x) : true));
     return Array.from(new Set(out)).slice(0, 32);
   };
+  const seasonEvent = normalizeSeasonEventState(src.seasonEvent);
+  const validEventFrameKeys = new Set<string>();
+  if (seasonEvent?.participationClaimed && seasonEvent.completedDays.length > 0) {
+    validEventFrameKeys.add(ACTIVE_SEASON_EVENT.participationFrameKey);
+  }
+  if (
+    seasonEvent?.masteryClaimed &&
+    seasonEvent.completedDays.length === SEASON_EVENT_DAY_COUNT
+  ) {
+    validEventFrameKeys.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
+  }
+  const unlockedProfileFrames = strArr(src.unlockedProfileFrames).filter((key) => {
+    const frame = PROFILE_FRAMES.find((candidate) => candidate.key === key);
+    if (!frame || frame.key === 'default') return false;
+    return !frame.eventKey || validEventFrameKeys.has(frame.key);
+  });
+  const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
+
   return {
     tutorialTabs: strArr(src.tutorialTabs),
     tutorialOpens: num(src.tutorialOpens, 100_000),
@@ -300,11 +425,14 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
-    seasonEvent: normalizeSeasonEventState(src.seasonEvent),
-    unlockedProfileFrames: strArr(src.unlockedProfileFrames).filter((key) =>
-      PROFILE_FRAMES.some((frame) => frame.key === key && frame.key !== 'default')
-    ),
-    equippedProfileFrame: pickProfileFrameKey(src.equippedProfileFrame),
+    seasonEvent,
+    unlockedProfileFrames,
+    // Надетой может быть только реально открытая рамка. Это не даёт старому
+    // или повреждённому JSON самовольно показать золотую рамку в рейтинге.
+    equippedProfileFrame:
+      equippedProfileFrame && unlockedProfileFrames.includes(equippedProfileFrame)
+        ? equippedProfileFrame
+        : undefined,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
     chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
     chipsToday: num(src.chipsToday, 100_000),
@@ -359,32 +487,128 @@ function ensureDailyTasks(record: StoredPlayerRecord, dayKey: string): DailyTask
   return state;
 }
 
+function createSeasonEventState(weekKey: string): SeasonEventState {
+  return {
+    version: 2,
+    eventKey: ACTIVE_SEASON_EVENT.key,
+    weekKey,
+    currentDay: 1,
+    days: {},
+    completedDays: [],
+    participationClaimed: false,
+    masteryClaimed: false,
+  };
+}
+
+function sameSeasonEventTasks(
+  actual: SeasonEventState['days'][string]['tasks'],
+  expected: SeasonEventState['days'][string]['tasks']
+): boolean {
+  if (actual.length !== expected.length) return false;
+  return actual.every((task, index) => {
+    const candidate = expected[index];
+    return (
+      task.key === candidate.key &&
+      task.kind === candidate.kind &&
+      task.target === candidate.target &&
+      task.title === candidate.title &&
+      task.description === candidate.description &&
+      task.icon === candidate.icon
+    );
+  });
+}
+
 function ensureSeasonEvent(record: StoredPlayerRecord, nowMs: number = Date.now()): SeasonEventState {
   const window = getSeasonEventWindow(nowMs);
   const current = record.stats.seasonEvent;
   if (
     !current ||
+    current.version !== 2 ||
     current.eventKey !== ACTIVE_SEASON_EVENT.key ||
     current.weekKey !== window.weekKey
   ) {
-    record.stats.seasonEvent = {
-      eventKey: ACTIVE_SEASON_EVENT.key,
-      weekKey: window.weekKey,
-      progress: Object.fromEntries(ACTIVE_SEASON_EVENT.goals.map((goal) => [goal.key, 0])),
-      participationClaimed: false,
-      masteryClaimed: false,
-    };
+    record.stats.seasonEvent = createSeasonEventState(window.weekKey);
   }
 
   const state = record.stats.seasonEvent;
   if (!state) throw new Error('Не удалось подготовить сезонную операцию');
-  for (const goal of ACTIVE_SEASON_EVENT.goals) {
-    state.progress[goal.key] = Math.max(
-      0,
-      Math.min(goal.target, Math.floor(Number(state.progress[goal.key]) || 0))
-    );
+
+  const calendarDay = getSeasonEventDayNumber(nowMs);
+  if (calendarDay >= 1 && calendarDay <= SEASON_EVENT_DAY_COUNT) {
+    state.currentDay = calendarDay;
+    const dayKey = new Date(window.startMs + (calendarDay - 1) * 86_400_000)
+      .toISOString()
+      .slice(0, 10);
+    const key = String(calendarDay);
+    const existing = state.days[key];
+    if (!existing) {
+      const levelAtGeneration = deriveStats(record).level;
+      const tasks = getSeasonEventDayTasks(calendarDay, dayKey, levelAtGeneration);
+      state.days[key] = {
+        day: calendarDay,
+        dayKey,
+        levelAtGeneration,
+        tasks,
+        progress: Object.fromEntries(tasks.map((task) => [task.key, 0])),
+        completed: false,
+        completedAt: null,
+      };
+    } else {
+      // Дневной набор — immutable: если JSON был подменён или повреждён,
+      // сервер удаляет только этот незавершённый день и создаёт канонический
+      // набор из сохранённого levelAtGeneration. Уже завершённые дни не reroll'ятся.
+      const expected = getSeasonEventDayTasks(existing.day, existing.dayKey, existing.levelAtGeneration);
+      if (!sameSeasonEventTasks(existing.tasks, expected)) {
+        if (existing.completed) {
+          throw new Error('Повреждённый завершённый набор сезонных задач');
+        }
+        state.days[key] = {
+          day: calendarDay,
+          dayKey: existing.dayKey,
+          levelAtGeneration: existing.levelAtGeneration,
+          tasks: expected,
+          progress: Object.fromEntries(expected.map((task) => [task.key, 0])),
+          completed: false,
+          completedAt: null,
+        };
+      }
+    }
   }
+
+  state.completedDays = Array.from(
+    new Set(
+      state.completedDays
+        .filter((day) => Number.isInteger(day) && day >= 1 && day <= SEASON_EVENT_DAY_COUNT)
+        .filter((day) => state.days[String(day)]?.completed === true)
+    )
+  ).sort((a, b) => a - b);
+  state.participationClaimed = state.participationClaimed && state.completedDays.length > 0;
+  state.masteryClaimed =
+    state.masteryClaimed && state.completedDays.length === SEASON_EVENT_DAY_COUNT;
   return state;
+}
+
+function grantSeasonEventRewards(record: StoredPlayerRecord, state: SeasonEventState): void {
+  const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
+  if (state.completedDays.length > 0) {
+    const wasParticipationClaimed = state.participationClaimed;
+    state.participationClaimed = true;
+    unlocked.add(ACTIVE_SEASON_EVENT.participationFrameKey);
+    // Equip only at the moment of the first award. Completing another day must
+    // not silently replace a frame the player chose in the Profile tab.
+    if (!wasParticipationClaimed) {
+      record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.participationFrameKey;
+    }
+  }
+  if (state.completedDays.length === SEASON_EVENT_DAY_COUNT) {
+    const wasMasteryClaimed = state.masteryClaimed;
+    state.masteryClaimed = true;
+    unlocked.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
+    if (!wasMasteryClaimed) {
+      record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.masteryFrameKey;
+    }
+  }
+  record.stats.unlockedProfileFrames = Array.from(unlocked);
 }
 
 function incrementSeasonEventProgress(
@@ -394,12 +618,21 @@ function incrementSeasonEventProgress(
 ): void {
   const state = record.stats.seasonEvent;
   if (!state || amount <= 0) return;
-  for (const goal of ACTIVE_SEASON_EVENT.goals) {
-    if (goal.kind !== kind) continue;
-    state.progress[goal.key] = Math.min(
-      goal.target,
-      (state.progress[goal.key] ?? 0) + Math.floor(amount)
+  const day = state.days[String(state.currentDay)];
+  if (!day || day.completed) return;
+  for (const task of day.tasks) {
+    if (task.kind !== kind) continue;
+    day.progress[task.key] = Math.min(
+      task.target,
+      (day.progress[task.key] ?? 0) + Math.floor(amount)
     );
+  }
+  if (day.tasks.every((task) => (day.progress[task.key] ?? 0) >= task.target)) {
+    day.completed = true;
+    day.completedAt = new Date(Date.now()).toISOString();
+    if (!state.completedDays.includes(day.day)) state.completedDays.push(day.day);
+    state.completedDays.sort((a, b) => a - b);
+    grantSeasonEventRewards(record, state);
   }
 }
 
@@ -754,7 +987,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     sb
       .from('missions')
       .select(
-        'id, mission_key, target_type, target_name, started_at, finish_at, reward, rep_delta, heat_delta, crypto_reward, xp_reward, success_chance, outcome'
+        'id, mission_key, target_type, target_name, started_at, finish_at, reward, rep_delta, heat_delta, crypto_reward, xp_reward, energy_cost, data_cost, success_chance, outcome'
       )
       .eq('player_id', pid)
       .eq('status', 'active'),
@@ -855,6 +1088,8 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       heatDelta: Math.floor(safeNonNeg(m.heat_delta, 0)),
       cryptoReward: Math.floor(safeNonNeg(m.crypto_reward, 0)),
       xpReward: Math.floor(safeNonNeg(m.xp_reward, 0)),
+      entryEnergyCost: Math.floor(safeNonNeg(m.energy_cost, 0)),
+      entryDataCost: Math.floor(safeNonNeg(m.data_cost, 0)),
       successChance: Math.max(0, Math.min(1, Number(m.success_chance) || 0)),
       outcome: m.outcome === 'success' || m.outcome === 'fail' ? m.outcome : ('partial' as const),
     })),
@@ -870,7 +1105,9 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
 async function savePlayerCore(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
-  expectedXp?: number
+  expectedXp?: number,
+  expectedData?: number,
+  expectedEnergy?: number
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
@@ -898,6 +1135,65 @@ async function savePlayerCore(
 
   const sb = getSupabaseAdmin();
   if (!sb) return;
+
+  // Сначала фиксируем состояние питомцев и только потом списываем Data/Rep/
+  // Crypto в players. Раньше ошибка upsert в pets проглатывалась, а players
+  // уже сохранялся: корм стоил валюту, но после следующего init голод
+  // возвращался к старому значению. Теперь запись питомца — обязательная часть
+  // операции для всех питомцев.
+  //
+  // Снимок нужен для компенсации: если UPDATE players не прошёл после upsert
+  // pets, возвращаем предыдущие строки, чтобы не получить «бесплатное» кормление
+  // или покупку питомца.
+  let previousPetRows: Array<Record<string, unknown>> | null = null;
+  const restorePetRows = async (): Promise<void> => {
+    if (previousPetRows === null) return;
+    const previousPetKeys = new Set(previousPetRows.map((row) => String(row.pet_key)));
+    const newlyAddedPetKeys = record.pets
+      .map((pet) => pet.key)
+      .filter((key) => !previousPetKeys.has(key));
+    if (newlyAddedPetKeys.length > 0) {
+      const { error: deleteError } = await sb
+        .from('pets')
+        .delete()
+        .eq('player_id', record.id)
+        .in('pet_key', newlyAddedPetKeys);
+      if (deleteError) throw new Error(`Не удалось откатить состояние питомца: ${deleteError.message}`);
+    }
+    if (previousPetRows.length === 0) return;
+    const { error } = await sb.from('pets').upsert(previousPetRows, { onConflict: 'player_id,pet_key' });
+    if (error) throw new Error(`Не удалось откатить состояние питомца: ${error.message}`);
+  };
+
+  if (record.pets.length > 0) {
+    const { data: petRows, error: petsReadError } = await sb
+      .from('pets')
+      .select('player_id, pet_key, hunger, last_fed_at, feed_count')
+      .eq('player_id', record.id);
+    if (petsReadError) {
+      throw new Error(`Не удалось прочитать состояние питомца: ${petsReadError.message}`);
+    }
+    previousPetRows = (petRows ?? []) as Array<Record<string, unknown>>;
+
+    const { error: petsError } = await sb.from('pets').upsert(
+      record.pets.map((p) => ({
+        player_id: record.id,
+        pet_key: p.key,
+        hunger: Math.max(0, Math.min(100, p.hunger)),
+        last_fed_at: p.lastFedAt,
+        feed_count: Math.max(0, Math.floor(p.feedCount)),
+      })),
+      { onConflict: 'player_id,pet_key' }
+    );
+    if (petsError) {
+      try {
+        await restorePetRows();
+      } catch {
+        // Возвращаем исходную ошибку upsert: главное — не обновлять players.
+      }
+      throw new Error(`Не удалось сохранить состояние питомца: ${petsError.message}`);
+    }
+  }
 
   let updateQuery = sb
     .from('players')
@@ -933,30 +1229,41 @@ async function savePlayerCore(
   if (expectedXp !== undefined) {
     updateQuery = updateQuery.eq('xp', expectedXp);
   }
+  if (expectedData !== undefined) {
+    const normalizedExpectedData = Math.max(0, Math.floor(safeNonNeg(expectedData, 0) * 100) / 100);
+    updateQuery = updateQuery.eq('data', normalizedExpectedData);
+  }
+  if (expectedEnergy !== undefined) {
+    const normalizedExpectedEnergy = Math.max(0, Math.floor(safeNonNeg(expectedEnergy, 0)));
+    updateQuery = updateQuery.eq('energy', normalizedExpectedEnergy);
+  }
   const { data: updatedRows, error } = await updateQuery.select('id');
 
   if (error) {
+    try {
+      await restorePetRows();
+    } catch (rollbackError) {
+      throw new Error(`Supabase update player error: ${error.message}; ${rollbackError instanceof Error ? rollbackError.message : 'rollback failed'}`);
+    }
     throw new Error(`Supabase update player error: ${error.message}`);
   }
-  if (expectedXp !== undefined && (!updatedRows || updatedRows.length === 0)) {
-    throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
-  }
-
-  // Питомцы и «База» живут в отдельных таблицах: сохраняем только при изменениях,
-  // ошибки из-за ещё не применённой миграции 003 не должны ломать игровую сессию.
-  try {
-    if (record.pets.length > 0) {
-      await sb.from('pets').upsert(
-        record.pets.map((p) => ({
-          player_id: record.id,
-          pet_key: p.key,
-          hunger: Math.max(0, Math.min(100, p.hunger)),
-          last_fed_at: p.lastFedAt,
-          feed_count: Math.max(0, Math.floor(p.feedCount)),
-        })),
-        { onConflict: 'player_id,pet_key' }
+  if (!updatedRows || updatedRows.length === 0) {
+    try {
+      await restorePetRows();
+    } catch (rollbackError) {
+      throw new Error(
+        `${expectedXp !== undefined ? 'Ежедневное поручение уже обрабатывается в другой сессии — обнови экран' : 'Supabase update player affected no rows'}; ${rollbackError instanceof Error ? rollbackError.message : 'rollback failed'}`
       );
     }
+    if (expectedXp !== undefined) {
+      throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
+    }
+    throw new Error('Supabase update player affected no rows');
+  }
+
+  // «База» живёт в отдельной таблице. Ошибка из-за ещё не применённой
+  // миграции 003 не должна ломать остальную игру.
+  try {
     const baseRows = Object.entries(record.baseUpgrades)
       .filter(([, lvl]) => Number.isFinite(lvl) && lvl > 0)
       .map(([key, lvl]) => ({
@@ -1871,12 +2178,28 @@ export async function handleMissionAction(
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
+    // syncTimeAndRules может выдать оффлайн-Data или восстановить Energy.
+    // Сохраняем баланс, который реально прочитали из БД, для CAS перед
+    // атомарным стартом — иначе RPC увидит уже изменённый, но ещё не записанный
+    // в players баланс и корректно отклонит обычный запуск.
+    const loadedDataBeforeSync = record.data;
+    const loadedEnergyBeforeSync = record.energy;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
     // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
     // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    if (appliedClicks > 0) {
+      // applyPendingClicks атомарно фиксирует только счётчик кликов; перед
+      // продолжением сохраняем также его Data/Energy и синхронизацию времени.
+      await savePlayerCore(
+        record,
+        mode,
+        undefined,
+        mode === 'supabase' ? loadedDataBeforeSync : undefined,
+        mode === 'supabase' ? loadedEnergyBeforeSync : undefined
+      );
+    }
 
     const derived = deriveStats(record);
 
@@ -1895,6 +2218,12 @@ export async function handleMissionAction(
     }
 
     if (action === 'start') {
+      if (mode === 'supabase' && appliedClicks === 0) {
+        // Оффлайн-доход и реген Energy уже изменили record после init.
+        // Сначала фиксируем этот snapshot с CAS, затем RPC списывает взнос
+        // и создаёт миссию относительно уже сохранённого баланса.
+        await savePlayerCore(record, mode, undefined, loadedDataBeforeSync, loadedEnergyBeforeSync);
+      }
       if (record.activeMissions.length >= derived.missionSlots) {
         throw new Error(
           `Достигнут лимит одновременных миссий (${derived.missionSlots}/${derived.missionSlots}). 3 слота открываются на 20 уровне!`
@@ -1941,6 +2270,25 @@ export async function handleMissionAction(
       );
       const repDelta = cfg.repDelta * (whiteHatBonus > 1 && cfg.repDelta > 0 ? 2 : 1);
       const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier);
+      const entryCost = getMissionEntryCost(cfg, reward);
+      if (record.energy < entryCost.energy) {
+        throw new Error(
+          `Недостаточно Energy для запуска: нужно ${entryCost.energy} ⚡ (сейчас ${record.energy}).`
+        );
+      }
+      if (record.data < entryCost.data) {
+        throw new Error(
+          `Недостаточно Data для запуска: нужен взнос ${entryCost.data.toLocaleString('ru-RU')} Data.`
+        );
+      }
+      // Взнос списывается в момент запуска и не возвращается при провале:
+      // игрок платит за подготовку, а не только за удачный результат.
+      // Для Supabase эти значения используются как CAS-снимок внутри одной
+      // транзакции: параллельный старт не может потратить один баланс дважды.
+      const expectedDataBeforeStart = record.data;
+      const expectedEnergyBeforeStart = record.energy;
+      record.energy -= entryCost.energy;
+      record.data -= entryCost.data;
       // «Талисман удачи» на Базе повышает шанс редкого дропа Crypto
       const baseDropChance =
         cfg.targetType === 'grey' ? 0.35 : cfg.cryptoDropChance ?? 0;
@@ -1956,30 +2304,45 @@ export async function handleMissionAction(
 
       if (mode === 'supabase') {
         const sb = getSupabaseAdmin();
-        if (sb) {
-          const { data: inserted, error } = await sb
-            .from('missions')
-            .insert({
-              player_id: record.id,
-              mission_key: cfg.key,
-              target_type: cfg.targetType,
-              target_name: cfg.targetName,
-              status: 'active',
-              started_at: startedAt,
-              finish_at: finishAt,
-              reward,
-              rep_delta: repDelta,
-              heat_delta: heatDelta,
-              crypto_reward: cryptoReward,
-              xp_reward: xpReward,
-              success_chance: successChance,
-              outcome: 'partial',
-            })
-            .select('id')
-            .single();
-          if (error) throw new Error(error.message);
-          if (inserted?.id) instanceId = String(inserted.id);
+        if (!sb) {
+          throw new Error('Supabase недоступен: контракт не запущен и баланс не изменён');
         }
+
+        // PostgreSQL RPC атомарно обновляет баланс и вставляет active-миссию.
+        // Если UPDATE не прошёл CAS или INSERT завершился ошибкой, вся
+        // транзакция откатывается — списанного взноса без миссии не останется.
+        const { data: startedMissionId, error } = await sb.rpc('start_mission_atomic', {
+          p_player_id: record.id,
+          p_expected_data: expectedDataBeforeStart,
+          p_expected_energy: expectedEnergyBeforeStart,
+          p_data_cost: entryCost.data,
+          p_energy_cost: entryCost.energy,
+          p_energy_updated: record.energyUpdated,
+          p_mission_key: cfg.key,
+          p_target_type: cfg.targetType,
+          p_target_name: cfg.targetName,
+          p_started_at: startedAt,
+          p_finish_at: finishAt,
+          p_reward: reward,
+          p_rep_delta: repDelta,
+          p_heat_delta: heatDelta,
+          p_crypto_reward: cryptoReward,
+          p_xp_reward: xpReward,
+          p_success_chance: successChance,
+        });
+        if (error) {
+          if (error.message.includes('MISSION_START_CONFLICT')) {
+            throw new Error('Баланс или активные данные изменились в другой сессии — обновите экран');
+          }
+          throw new Error(`Ошибка атомарного запуска: ${error.message}`);
+        }
+        const returnedMissionId = Array.isArray(startedMissionId)
+          ? startedMissionId[0]
+          : startedMissionId;
+        if (!returnedMissionId) {
+          throw new Error('Supabase не вернул созданную миссию — запуск отменён');
+        }
+        instanceId = String(returnedMissionId);
       }
 
       record.activeMissions.push({
@@ -1994,6 +2357,8 @@ export async function handleMissionAction(
         heatDelta,
         cryptoReward,
         xpReward,
+        entryEnergyCost: entryCost.energy,
+        entryDataCost: entryCost.data,
         successChance,
         outcome: 'partial',
       });
@@ -2005,13 +2370,38 @@ export async function handleMissionAction(
         type: 'info',
         title: `🛰️ Взлом ${cfg.targetName} запущен`,
         message:
+          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data · −${entryCost.energy} Energy. ` +
           `Шанс успеха ${Math.round(successChance * 100)}% · ` +
           `до ${xpReward.toLocaleString('ru-RU')} XP · ` +
-          `до ${reward.toLocaleString('ru-RU')} Data. ` +
+          `чистыми при успехе +${Math.max(0, reward - entryCost.data).toLocaleString('ru-RU')} Data. ` +
           `Готовность: ${describeOdds(successChance)}.`,
       });
 
-      await savePlayerCore(record, mode);
+      if (mode === 'supabase') {
+        // RPC уже списал обе валюты. CAS на финальном сохранении не даёт
+        // параллельному запросу перезаписать более новый баланс старым снимком.
+        try {
+          await savePlayerCore(record, mode, undefined, record.data, record.energy);
+        } catch (persistError) {
+          // RPC уже зафиксировал пару «взнос + active-миссия». Если вторичная
+          // синхронизация stats/pets столкнулась с параллельным запросом,
+          // отдаём свежий серверный snapshot вместо ложного «не запустилось».
+          try {
+            const fresh = await loadPlayerRecord(user);
+            alerts.push({
+              id: crypto.randomUUID(),
+              type: 'warning',
+              title: '🛰️ Контракт запущен, экран обновлён',
+              message: 'Баланс или прогресс изменился в другой сессии — показана актуальная миссия.',
+            });
+            return buildResponse(fresh.record, fresh.mode, alerts, 0, 0, appliedClicks);
+          } catch {
+            throw persistError;
+          }
+        }
+      } else {
+        await savePlayerCore(record, mode);
+      }
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
@@ -2327,12 +2717,6 @@ export async function handleSeasonEventAction(
     if (appliedClicks > 0) await savePlayerCore(record, mode);
 
     const state = ensureSeasonEvent(record);
-    const allGoalsComplete = ACTIVE_SEASON_EVENT.goals.every(
-      (goal) => (state.progress[goal.key] ?? 0) >= goal.target
-    );
-    const participationReady = ACTIVE_SEASON_EVENT.goals.some(
-      (goal) => (state.progress[goal.key] ?? 0) > 0
-    );
     const frameKey =
       action === 'claim_mastery'
         ? ACTIVE_SEASON_EVENT.masteryFrameKey
@@ -2340,27 +2724,33 @@ export async function handleSeasonEventAction(
     const frame = getProfileFrame(frameKey);
 
     if (action === 'claim_mastery') {
-      if (state.masteryClaimed) throw new Error('Мастерская рамка уже получена');
-      if (!allGoalsComplete) throw new Error('Сначала закрой все три цели сезонной операции');
-      state.masteryClaimed = true;
+      if (state.masteryClaimed) throw new Error('Золотая рамка уже получена');
+      if (state.completedDays.length !== SEASON_EVENT_DAY_COUNT) {
+        throw new Error('Сначала закрой все 7 календарных дней Neon Relay');
+      }
     } else {
-      if (state.participationClaimed) throw new Error('Рамка участника уже получена');
-      if (!participationReady) throw new Error('Сначала выполни хотя бы одну цель операции');
-      state.participationClaimed = true;
+      if (state.participationClaimed) throw new Error('Голубая рамка уже получена');
+      if (state.completedDays.length < 1) {
+        throw new Error('Сначала полностью закрой любой день: все 3 задания');
+      }
     }
 
-    const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
-    unlocked.add(frame.key);
-    record.stats.unlockedProfileFrames = Array.from(unlocked);
-    // Последняя полученная рамка включается сразу, чтобы награда была видна
-    // и в личном профиле, и в строках турнирной таблицы.
-    record.stats.equippedProfileFrame = frame.key;
+    // Награды выдаются автоматически в момент завершения дня. Этот endpoint
+    // оставлен idempotency-сторожем для старых клиентов и QA: он не начисляет
+    // ресурсы и не может повторно добавить рамку.
+    grantSeasonEventRewards(record, state);
+    if (
+      (action === 'claim_mastery' && !state.masteryClaimed) ||
+      (action === 'claim_participation' && !state.participationClaimed)
+    ) {
+      throw new Error('Награда сезонной операции не готова');
+    }
 
     alerts.push({
       id: crypto.randomUUID(),
       type: 'success',
-      title: `🖼️ Рамка «${frame.name}» получена`,
-      message: 'Косметическая награда включена и видна в турнирной таблице.',
+      title: `🖼️ Рамка «${frame.name}» уже в коллекции`,
+      message: 'Косметическая награда постоянная и доступна для повторного применения в профиле.',
     });
 
     await savePlayerCore(record, mode);
@@ -2370,7 +2760,7 @@ export async function handleSeasonEventAction(
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme',
+  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
   skinKey?: string,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
@@ -2382,6 +2772,59 @@ export async function handleSkinAction(
     // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
     if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    if (action === 'profile_frame') {
+      const frameKey = typeof skinKey === 'string' && skinKey.length > 0 ? skinKey : 'default';
+      const frame = getProfileFrame(frameKey);
+      if (frame.key !== frameKey) {
+        throw new Error('Рамка профиля не найдена');
+      }
+
+      if (frame.key === 'default') {
+        record.stats.equippedProfileFrame = undefined;
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'success',
+          title: '🖼️ Рамка профиля снята',
+          message: 'Профиль снова использует стандартный контур.',
+        });
+      } else {
+        const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
+        if (!unlocked.has(frame.key)) {
+          if (frame.eventKey) {
+            throw new Error('Эта рамка выдаётся только за успешное прохождение события');
+          }
+          const frameLevel = deriveStats(record).level;
+          if ((frame.requiredLevel ?? 30) > frameLevel) {
+            throw new Error(`Рамка «${frame.name}» открывается на ${frame.requiredLevel ?? 30} уровне`);
+          }
+          const price = frame.cryptoCost ?? 0;
+          if (record.crypto < price) {
+            throw new Error(`Недостаточно Crypto (нужно ${price} 💎)`);
+          }
+          record.crypto -= price;
+          unlocked.add(frame.key);
+          record.stats.unlockedProfileFrames = Array.from(unlocked);
+          alerts.push({
+            id: crypto.randomUUID(),
+            type: 'success',
+            title: `🖼️ Рамка «${frame.name}» куплена`,
+            message: 'Рамка открыта навсегда и сразу надета в профиле.',
+          });
+        } else {
+          alerts.push({
+            id: crypto.randomUUID(),
+            type: 'success',
+            title: `🖼️ Рамка «${frame.name}» включена`,
+            message: 'Рамка сохранена в профиле и видна в рейтинговой таблице.',
+          });
+        }
+        record.stats.equippedProfileFrame = frame.key;
+      }
+
+      await savePlayerCore(record, mode);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
 
     if (action === 'clear_lockdown') {
       if (!record.clickBlockedUntil) {
@@ -2607,23 +3050,6 @@ export async function handlePetAction(
         lastFedAt: nowIso,
         feedCount: 0,
       });
-
-      if (mode === 'supabase') {
-        const sb = getSupabaseAdmin();
-        if (sb) {
-          const { error } = await sb.from('pets').upsert(
-            {
-              player_id: record.id,
-              pet_key: cfg.key,
-              hunger: 100,
-              last_fed_at: nowIso,
-              feed_count: 0,
-            },
-            { onConflict: 'player_id,pet_key', ignoreDuplicates: true }
-          );
-          if (error) throw new Error(`Не удалось заселить питомца: ${error.message}`);
-        }
-      }
 
       alerts.push({
         id: crypto.randomUUID(),
