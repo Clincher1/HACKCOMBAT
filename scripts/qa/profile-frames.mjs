@@ -215,6 +215,9 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
   const eventFrame = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay' });
   check('event-рамку нельзя купить в магазине', eventFrame.ok === false && /событи/i.test(eventFrame.error ?? ''), eventFrame.error);
 
+  const giftOnlyFrame = await api('skin', { action: 'profile_frame', skinKey: 'frame_matrix_rain' });
+  check('персональную Matrix-рамку нельзя купить', giftOnlyFrame.ok === false && /персонально/i.test(giftOnlyFrame.error ?? ''), giftOnlyFrame.error);
+
   const temporaryFrame = await api('init', {}, TEMPORARY_FRAME_SEED);
   check(
     'временная рамка активна до срока истечения',

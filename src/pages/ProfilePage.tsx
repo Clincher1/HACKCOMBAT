@@ -8,6 +8,7 @@ import { AchievementsPanel } from '../components/AchievementsPanel';
 import { CollectionPanel } from '../components/CollectionPanel';
 import { DonateCard } from '../components/DonateCard';
 import { ReferralCard } from '../components/ReferralCard';
+import { MatrixAvatar } from '../components/MatrixAvatar';
 import {
   CHIP_DAILY_CAP,
   CHIP_REWARD_PER_DAILY,
@@ -111,7 +112,20 @@ export const ProfilePage: React.FC = () => {
       <div className="rounded-2xl bg-[#10172e] border border-[#00f0ff]/30 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {profileAvatarUrl ? (
+            {profileFrame.avatarMode === 'matrix_rain' ? (
+              <div className="relative shrink-0">
+                <MatrixAvatar
+                  label={profileFrame.avatarLabel ?? player.username}
+                  className="w-14 h-14 rounded-2xl border-2"
+                  style={{
+                    borderColor: profileFrame.accent,
+                    borderImage: profileFrame.borderImage,
+                    background: profileFrame.background,
+                    boxShadow: profileFrame.glow,
+                  }}
+                />
+              </div>
+            ) : profileAvatarUrl ? (
               <div className="relative shrink-0">
                 <img
                   src={profileAvatarUrl}
@@ -493,7 +507,12 @@ export const ProfilePage: React.FC = () => {
                       title={frame.name}
                       aria-label={`Аватар ${entry.username}, рамка ${frame.name}`}
                     >
-                      {frame.avatarUrl ? (
+                      {frame.avatarMode === 'matrix_rain' ? (
+                        <MatrixAvatar
+                          label={frame.avatarLabel ?? entry.username}
+                          className="h-full w-full rounded-[0.55rem]"
+                        />
+                      ) : frame.avatarUrl ? (
                         <img
                           src={frame.avatarUrl}
                           alt={`Аватар ${entry.username}`}

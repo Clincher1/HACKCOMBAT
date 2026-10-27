@@ -210,10 +210,16 @@ export interface ProfileFrameConfig {
   iconUrl?: string;
   /** Полный временный аватар, который заменяет Telegram-фото в профиле и рейтинге. */
   avatarUrl?: string;
+  /** Встроенный анимированный аватар без внешнего файла. */
+  avatarMode?: 'matrix_rain';
+  /** Текст, который должен быть читаемым внутри анимированного аватара. */
+  avatarLabel?: string;
   /** CSS-градиент рамки для специальных косметических подарков. */
   borderImage?: string;
   /** Такая рамка не покупается и автоматически снимается по expiry в stats. */
   temporary?: boolean;
+  /** Персональный подарок администратора: нельзя купить или разблокировать через API. */
+  giftOnly?: boolean;
   eventKey?: string;
   /** Цена Crypto для постоянной покупки в магазине; у event-наград её нет. */
   cryptoCost?: number;

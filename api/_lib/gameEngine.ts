@@ -3076,6 +3076,9 @@ export async function handleSkinAction(
           if (frame.temporary) {
             throw new Error('Эта временная рамка выдаётся персонально и не продаётся');
           }
+          if (frame.giftOnly) {
+            throw new Error('Эта рамка выдаётся персонально и не продаётся');
+          }
           if (frame.eventKey) {
             throw new Error('Эта рамка выдаётся только за успешное прохождение события');
           }

@@ -415,3 +415,172 @@ body[data-theme='femme'] .rounded-2xl {
     animation-iteration-count: 1;
   }
 }
+
+/* Matrix Runner: бегущий цифровой дождь для персонального аватара useryou2202. */
+.matrix-avatar {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(39, 255, 111, 0.22), transparent 54%),
+    linear-gradient(135deg, #001b0b 0%, #00351a 52%, #001207 100%);
+}
+
+.matrix-avatar__rain,
+.matrix-avatar__grid,
+.matrix-avatar__scanline,
+.matrix-avatar__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.matrix-avatar__rain {
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0.94;
+  filter: drop-shadow(0 0 3px rgba(66, 255, 119, 0.75));
+}
+
+.matrix-avatar__column {
+  position: absolute;
+  top: -220%;
+  width: 10%;
+  height: 240%;
+  color: #24e96a;
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  opacity: 0.74;
+  text-align: center;
+  text-shadow: 0 0 4px #42ff77, 0 0 9px rgba(24, 201, 100, 0.75);
+  text-orientation: upright;
+  writing-mode: vertical-rl;
+  animation: matrixAvatarRain 3.2s linear infinite;
+}
+
+.matrix-avatar__column::first-letter {
+  color: #effff3;
+  text-shadow: 0 0 4px #ffffff, 0 0 10px #42ff77;
+}
+
+.matrix-avatar__column--1 { left: 1%; animation-delay: -2.4s; animation-duration: 2.7s; }
+.matrix-avatar__column--2 { left: 10%; animation-delay: -0.8s; animation-duration: 3.4s; opacity: 0.52; }
+.matrix-avatar__column--3 { left: 19%; animation-delay: -1.9s; animation-duration: 2.9s; }
+.matrix-avatar__column--4 { left: 28%; animation-delay: -0.25s; animation-duration: 3.7s; opacity: 0.62; }
+.matrix-avatar__column--5 { left: 37%; animation-delay: -1.35s; animation-duration: 2.8s; }
+.matrix-avatar__column--6 { left: 46%; animation-delay: -2.05s; animation-duration: 3.5s; opacity: 0.58; }
+.matrix-avatar__column--7 { left: 55%; animation-delay: -0.55s; animation-duration: 2.65s; }
+.matrix-avatar__column--8 { left: 64%; animation-delay: -1.7s; animation-duration: 3.25s; opacity: 0.58; }
+.matrix-avatar__column--9 { left: 73%; animation-delay: -2.8s; animation-duration: 2.95s; }
+.matrix-avatar__column--10 { left: 82%; animation-delay: -1.05s; animation-duration: 3.6s; opacity: 0.55; }
+.matrix-avatar__column--11 { left: 91%; animation-delay: -2.2s; animation-duration: 2.75s; }
+.matrix-avatar__column--12 { left: 97%; animation-delay: -0.4s; animation-duration: 3.35s; opacity: 0.48; }
+
+.matrix-avatar__grid {
+  z-index: 2;
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(66, 255, 119, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(66, 255, 119, 0.16) 1px, transparent 1px);
+  background-size: 9px 9px;
+  mix-blend-mode: screen;
+}
+
+.matrix-avatar__scanline {
+  z-index: 3;
+  top: -34%;
+  bottom: auto;
+  height: 28%;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(182, 255, 203, 0.1) 22%,
+    rgba(66, 255, 119, 0.68) 50%,
+    rgba(182, 255, 203, 0.1) 78%,
+    transparent
+  );
+  filter: blur(1px);
+  animation: matrixAvatarScan 2.6s ease-in-out infinite;
+}
+
+.matrix-avatar__vignette {
+  z-index: 4;
+  background: radial-gradient(circle, transparent 37%, rgba(0, 10, 4, 0.72) 100%);
+  box-shadow: inset 0 0 11px rgba(0, 0, 0, 0.82);
+}
+
+.matrix-avatar__label {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  display: block;
+  padding: 2px 3px;
+  color: #effff3;
+  background: rgba(0, 20, 8, 0.82);
+  border: 1px solid rgba(182, 255, 203, 0.74);
+  border-radius: 3px;
+  box-shadow: 0 0 5px rgba(66, 255, 119, 0.9), inset 0 0 5px rgba(66, 255, 119, 0.24);
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-shadow: 0 0 3px #ffffff, 0 0 8px #42ff77;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) scaleX(0.48);
+  transform-origin: center;
+  animation: matrixAvatarLabel 1.8s ease-in-out infinite;
+}
+
+@keyframes matrixAvatarRain {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 142%, 0);
+  }
+}
+
+@keyframes matrixAvatarScan {
+  0%, 100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  18% {
+    opacity: 0.2;
+  }
+  52% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 0.14;
+  }
+  100% {
+    transform: translateY(480%);
+  }
+}
+
+@keyframes matrixAvatarLabel {
+  0%, 100% {
+    filter: brightness(0.88);
+    text-shadow: 0 0 3px #ffffff, 0 0 7px #42ff77;
+  }
+  50% {
+    filter: brightness(1.24);
+    text-shadow: 0 0 4px #ffffff, 0 0 12px #42ff77, 0 0 20px rgba(66, 255, 119, 0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrix-avatar__column,
+  .matrix-avatar__scanline,
+  .matrix-avatar__label {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
