@@ -115,7 +115,10 @@ function signInitData(tgId, startParam) {
   return params.toString();
 }
 
-async function tgPost(tgId, route, body = {}, startParam) {
+async function tgPost(tgId, route, body = {}, startParam, launchStartParam) {
+  const requestBody = launchStartParam
+    ? { ...body, startParam: launchStartParam }
+    : body;
   const req = {
     url: `/api/${route}`,
     method: 'POST',
@@ -126,7 +129,7 @@ async function tgPost(tgId, route, body = {}, startParam) {
       'x-telegram-init-data': signInitData(tgId, startParam),
       'x-forwarded-for': `10.91.0.${(ipCounter++ % 200) + 1}`,
     },
-    body,
+    body: requestBody,
     socket: { remoteAddress: '127.0.0.1' },
     on() {},
   };
@@ -163,7 +166,20 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   check('код не содержит Telegram ID', !String(info.code).includes(String(REFERRER)));
   const code = info.code;
 
-  // ── 2. Привязка нового игрока по подписанному start_param ──────────────────
+  // ── 2. Direct link: Telegram может прислать startapp отдельным launch-полем ─
+  // без start_param внутри подписанного tgWebAppData. Проверяем, что fallback
+  // работает только после валидной Telegram-подписи и проходит тот же серверный
+  // контур атрибуции.
+  const DIRECT_REFERRER = 900000010;
+  const DIRECT_FRIEND = 900000011;
+  await tgInit(DIRECT_REFERRER, undefined);
+  const directCode = (await tgReferral(DIRECT_REFERRER)).code;
+  await tgPost(DIRECT_FRIEND, 'init', {}, undefined, `ref_${directCode}`);
+  const directStats = await tgReferral(DIRECT_REFERRER);
+  check('direct-link launch-параметр привязывает нового друга', directStats.stats.invited === 1);
+  check('direct-link не выдаёт награду за сам факт запуска', directStats.stats.qualified === 0);
+
+  // ── 3. Привязка нового игрока по подписанному start_param ──────────────────
   const FRIEND = 900000002;
   await tgInit(FRIEND, `ref_${code}`);
   let stats = await tgReferral(REFERRER);
