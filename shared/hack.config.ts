@@ -207,6 +207,36 @@ export function getMissionRewardScale(level: number): number {
   return Math.pow(MISSION_REWARD_LEVEL_GROWTH, safe - 1);
 }
 
+/**
+ * Взнос за запуск контракта.
+ *
+ * Data — это оборотный капитал оператора: тапами его нужно накопить, чтобы
+ * запустить работу, а после завершения контракт возвращает награду. Energy
+ * оплачивает подготовку и вычислительное время операции — ровно по секунде
+ * таймера. Взнос не зависит от исхода и не возвращается: риск должен быть
+ * понятен до нажатия кнопки, а не только после броска.
+ */
+export const MISSION_ENTRY_DATA_RATE = 0.12;
+export const MISSION_ENTRY_MIN_DATA = 25;
+
+export interface MissionEntryCost {
+  energy: number;
+  data: number;
+}
+
+export function getMissionEntryCost(
+  mission: MissionConfig,
+  estimatedReward: number
+): MissionEntryCost {
+  const safeReward = Math.max(0, Number(estimatedReward) || 0);
+  return {
+    // 1 Energy = 1 секунда подготовки. При длительном контракте Energy
+    // продолжает восстанавливаться, поэтому фактический чистый расход ниже.
+    energy: Math.max(10, Math.ceil(Math.max(0, Number(mission.durationSec) || 0))),
+    data: Math.max(MISSION_ENTRY_MIN_DATA, Math.ceil(safeReward * MISSION_ENTRY_DATA_RATE)),
+  };
+}
+
 /** Насколько «прыжок» на цель выше своей подготовки опасен — для UI-подсказок. */
 export function describeReadiness(odds: HackOdds): {
   label: string;

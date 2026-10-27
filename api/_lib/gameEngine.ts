@@ -43,6 +43,7 @@ import {
 import {
   getHackOdds,
   getLevelProgress,
+  getMissionEntryCost,
   getMissionRewardScale,
   getMissionXpAward,
   getTotalXpForLevel,
@@ -776,7 +777,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     sb
       .from('missions')
       .select(
-        'id, mission_key, target_type, target_name, started_at, finish_at, reward, rep_delta, heat_delta, crypto_reward, xp_reward, success_chance, outcome'
+        'id, mission_key, target_type, target_name, started_at, finish_at, reward, rep_delta, heat_delta, crypto_reward, xp_reward, energy_cost, data_cost, success_chance, outcome'
       )
       .eq('player_id', pid)
       .eq('status', 'active'),
@@ -877,6 +878,8 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       heatDelta: Math.floor(safeNonNeg(m.heat_delta, 0)),
       cryptoReward: Math.floor(safeNonNeg(m.crypto_reward, 0)),
       xpReward: Math.floor(safeNonNeg(m.xp_reward, 0)),
+      entryEnergyCost: Math.floor(safeNonNeg(m.energy_cost, 0)),
+      entryDataCost: Math.floor(safeNonNeg(m.data_cost, 0)),
       successChance: Math.max(0, Math.min(1, Number(m.success_chance) || 0)),
       outcome: m.outcome === 'success' || m.outcome === 'fail' ? m.outcome : ('partial' as const),
     })),
@@ -892,7 +895,9 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
 async function savePlayerCore(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
-  expectedXp?: number
+  expectedXp?: number,
+  expectedData?: number,
+  expectedEnergy?: number
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
@@ -1013,6 +1018,14 @@ async function savePlayerCore(
   // serverless instances cannot both award the same task from one snapshot.
   if (expectedXp !== undefined) {
     updateQuery = updateQuery.eq('xp', expectedXp);
+  }
+  if (expectedData !== undefined) {
+    const normalizedExpectedData = Math.max(0, Math.floor(safeNonNeg(expectedData, 0) * 100) / 100);
+    updateQuery = updateQuery.eq('data', normalizedExpectedData);
+  }
+  if (expectedEnergy !== undefined) {
+    const normalizedExpectedEnergy = Math.max(0, Math.floor(safeNonNeg(expectedEnergy, 0)));
+    updateQuery = updateQuery.eq('energy', normalizedExpectedEnergy);
   }
   const { data: updatedRows, error } = await updateQuery.select('id');
 
@@ -1955,12 +1968,28 @@ export async function handleMissionAction(
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
+    // syncTimeAndRules может выдать оффлайн-Data или восстановить Energy.
+    // Сохраняем баланс, который реально прочитали из БД, для CAS перед
+    // атомарным стартом — иначе RPC увидит уже изменённый, но ещё не записанный
+    // в players баланс и корректно отклонит обычный запуск.
+    const loadedDataBeforeSync = record.data;
+    const loadedEnergyBeforeSync = record.energy;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
     // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
     // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    if (appliedClicks > 0) {
+      // applyPendingClicks атомарно фиксирует только счётчик кликов; перед
+      // продолжением сохраняем также его Data/Energy и синхронизацию времени.
+      await savePlayerCore(
+        record,
+        mode,
+        undefined,
+        mode === 'supabase' ? loadedDataBeforeSync : undefined,
+        mode === 'supabase' ? loadedEnergyBeforeSync : undefined
+      );
+    }
 
     const derived = deriveStats(record);
 
@@ -1979,6 +2008,12 @@ export async function handleMissionAction(
     }
 
     if (action === 'start') {
+      if (mode === 'supabase' && appliedClicks === 0) {
+        // Оффлайн-доход и реген Energy уже изменили record после init.
+        // Сначала фиксируем этот snapshot с CAS, затем RPC списывает взнос
+        // и создаёт миссию относительно уже сохранённого баланса.
+        await savePlayerCore(record, mode, undefined, loadedDataBeforeSync, loadedEnergyBeforeSync);
+      }
       if (record.activeMissions.length >= derived.missionSlots) {
         throw new Error(
           `Достигнут лимит одновременных миссий (${derived.missionSlots}/${derived.missionSlots}). 3 слота открываются на 20 уровне!`
@@ -2025,6 +2060,25 @@ export async function handleMissionAction(
       );
       const repDelta = cfg.repDelta * (whiteHatBonus > 1 && cfg.repDelta > 0 ? 2 : 1);
       const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier);
+      const entryCost = getMissionEntryCost(cfg, reward);
+      if (record.energy < entryCost.energy) {
+        throw new Error(
+          `Недостаточно Energy для запуска: нужно ${entryCost.energy} ⚡ (сейчас ${record.energy}).`
+        );
+      }
+      if (record.data < entryCost.data) {
+        throw new Error(
+          `Недостаточно Data для запуска: нужен взнос ${entryCost.data.toLocaleString('ru-RU')} Data.`
+        );
+      }
+      // Взнос списывается в момент запуска и не возвращается при провале:
+      // игрок платит за подготовку, а не только за удачный результат.
+      // Для Supabase эти значения используются как CAS-снимок внутри одной
+      // транзакции: параллельный старт не может потратить один баланс дважды.
+      const expectedDataBeforeStart = record.data;
+      const expectedEnergyBeforeStart = record.energy;
+      record.energy -= entryCost.energy;
+      record.data -= entryCost.data;
       // «Талисман удачи» на Базе повышает шанс редкого дропа Crypto
       const baseDropChance =
         cfg.targetType === 'grey' ? 0.35 : cfg.cryptoDropChance ?? 0;
@@ -2040,30 +2094,45 @@ export async function handleMissionAction(
 
       if (mode === 'supabase') {
         const sb = getSupabaseAdmin();
-        if (sb) {
-          const { data: inserted, error } = await sb
-            .from('missions')
-            .insert({
-              player_id: record.id,
-              mission_key: cfg.key,
-              target_type: cfg.targetType,
-              target_name: cfg.targetName,
-              status: 'active',
-              started_at: startedAt,
-              finish_at: finishAt,
-              reward,
-              rep_delta: repDelta,
-              heat_delta: heatDelta,
-              crypto_reward: cryptoReward,
-              xp_reward: xpReward,
-              success_chance: successChance,
-              outcome: 'partial',
-            })
-            .select('id')
-            .single();
-          if (error) throw new Error(error.message);
-          if (inserted?.id) instanceId = String(inserted.id);
+        if (!sb) {
+          throw new Error('Supabase недоступен: контракт не запущен и баланс не изменён');
         }
+
+        // PostgreSQL RPC атомарно обновляет баланс и вставляет active-миссию.
+        // Если UPDATE не прошёл CAS или INSERT завершился ошибкой, вся
+        // транзакция откатывается — списанного взноса без миссии не останется.
+        const { data: startedMissionId, error } = await sb.rpc('start_mission_atomic', {
+          p_player_id: record.id,
+          p_expected_data: expectedDataBeforeStart,
+          p_expected_energy: expectedEnergyBeforeStart,
+          p_data_cost: entryCost.data,
+          p_energy_cost: entryCost.energy,
+          p_energy_updated: record.energyUpdated,
+          p_mission_key: cfg.key,
+          p_target_type: cfg.targetType,
+          p_target_name: cfg.targetName,
+          p_started_at: startedAt,
+          p_finish_at: finishAt,
+          p_reward: reward,
+          p_rep_delta: repDelta,
+          p_heat_delta: heatDelta,
+          p_crypto_reward: cryptoReward,
+          p_xp_reward: xpReward,
+          p_success_chance: successChance,
+        });
+        if (error) {
+          if (error.message.includes('MISSION_START_CONFLICT')) {
+            throw new Error('Баланс или активные данные изменились в другой сессии — обновите экран');
+          }
+          throw new Error(`Ошибка атомарного запуска: ${error.message}`);
+        }
+        const returnedMissionId = Array.isArray(startedMissionId)
+          ? startedMissionId[0]
+          : startedMissionId;
+        if (!returnedMissionId) {
+          throw new Error('Supabase не вернул созданную миссию — запуск отменён');
+        }
+        instanceId = String(returnedMissionId);
       }
 
       record.activeMissions.push({
@@ -2078,6 +2147,8 @@ export async function handleMissionAction(
         heatDelta,
         cryptoReward,
         xpReward,
+        entryEnergyCost: entryCost.energy,
+        entryDataCost: entryCost.data,
         successChance,
         outcome: 'partial',
       });
@@ -2089,13 +2160,38 @@ export async function handleMissionAction(
         type: 'info',
         title: `🛰️ Взлом ${cfg.targetName} запущен`,
         message:
+          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data · −${entryCost.energy} Energy. ` +
           `Шанс успеха ${Math.round(successChance * 100)}% · ` +
           `до ${xpReward.toLocaleString('ru-RU')} XP · ` +
-          `до ${reward.toLocaleString('ru-RU')} Data. ` +
+          `чистыми при успехе +${Math.max(0, reward - entryCost.data).toLocaleString('ru-RU')} Data. ` +
           `Готовность: ${describeOdds(successChance)}.`,
       });
 
-      await savePlayerCore(record, mode);
+      if (mode === 'supabase') {
+        // RPC уже списал обе валюты. CAS на финальном сохранении не даёт
+        // параллельному запросу перезаписать более новый баланс старым снимком.
+        try {
+          await savePlayerCore(record, mode, undefined, record.data, record.energy);
+        } catch (persistError) {
+          // RPC уже зафиксировал пару «взнос + active-миссия». Если вторичная
+          // синхронизация stats/pets столкнулась с параллельным запросом,
+          // отдаём свежий серверный snapshot вместо ложного «не запустилось».
+          try {
+            const fresh = await loadPlayerRecord(user);
+            alerts.push({
+              id: crypto.randomUUID(),
+              type: 'warning',
+              title: '🛰️ Контракт запущен, экран обновлён',
+              message: 'Баланс или прогресс изменился в другой сессии — показана актуальная миссия.',
+            });
+            return buildResponse(fresh.record, fresh.mode, alerts, 0, 0, appliedClicks);
+          } catch {
+            throw persistError;
+          }
+        }
+      } else {
+        await savePlayerCore(record, mode);
+      }
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 

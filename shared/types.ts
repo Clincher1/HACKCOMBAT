@@ -186,6 +186,9 @@ export interface ActiveMissionInstance {
   heatDelta: number;
   cryptoReward: number;
   xpReward: number;
+  /** Взнос, списанный при запуске: сохраняется для истории и активной карточки. */
+  entryEnergyCost?: number;
+  entryDataCost?: number;
   /** Зафиксированный на старте шанс успеха (0..1) — игрок видит, на что шёл. */
   successChance: number;
   /** Исход фиксируется сервером в момент забора: success / partial / fail. */

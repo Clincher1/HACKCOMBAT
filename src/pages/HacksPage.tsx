@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom';
 import {
   describeReadiness,
   getHackOdds,
+  getMissionEntryCost,
   getMissionRewardScale,
   getMissionXpAward,
 } from '../../shared/hack.config';
@@ -183,6 +184,9 @@ export const HacksPage: React.FC = () => {
             карточки + База + команда = шанс успеха
           </span>
         </div>
+        <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 px-2.5 py-1.5 text-[10px] leading-snug text-amber-200">
+          Запуск платный: контракт списывает Data и Energy сразу. При успехе награда возвращает вложение с прибылью; при провале взнос не возвращается.
+        </div>
       </div>
 
       {/* Короткая легенда риска: помогает новичку читать шанс без отдельного туториала. */}
@@ -288,6 +292,11 @@ export const HacksPage: React.FC = () => {
                       {active.repDelta !== 0 &&
                         ` · ${active.repDelta > 0 ? '+' : ''}${active.repDelta} Rep`}
                       {active.heatDelta > 0 && ` · +${active.heatDelta} Heat`}
+                    </div>
+                    <div className="text-[10px] text-amber-300 mt-0.5">
+                      {(active.entryDataCost ?? 0) > 0 || (active.entryEnergyCost ?? 0) > 0
+                        ? `Взнос уже списан: −${formatCompact(active.entryDataCost ?? 0)} Data · −${formatCompact(active.entryEnergyCost ?? 0)} Energy`
+                        : 'Старый контракт: входной взнос не зафиксирован'}
                     </div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
                       Шанс успеха{' '}
@@ -473,6 +482,10 @@ export const HacksPage: React.FC = () => {
           const durationMinutes = Math.max(1, m.durationSec / 60);
           const successDataPerMinute = Math.round(estReward / durationMinutes);
           const successXpPerMinute = Math.round(xpAward / durationMinutes);
+          const entryCost = getMissionEntryCost(m, estReward);
+          const netSuccessData = Math.max(0, estReward - entryCost.data);
+          const energyLocked = player.energy < entryCost.energy;
+          const dataLocked = player.data < entryCost.data;
           const riskMeta =
             chancePct >= 80
               ? { label: 'Надёжно', className: 'text-[#7dff00]', icon: <ShieldCheck className="w-3 h-3" /> }
@@ -529,6 +542,18 @@ export const HacksPage: React.FC = () => {
                   )}
                 </div>
 
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-bold">
+                  <span className={dataLocked ? 'text-rose-300' : 'text-amber-300'}>
+                    Вход: −{formatCompact(entryCost.data)} Data
+                  </span>
+                  <span className={energyLocked ? 'text-rose-300' : 'text-amber-300'}>
+                    −{formatCompact(entryCost.energy)} Energy
+                  </span>
+                  <span className="text-[#7dff00]">
+                    Чистыми при успехе: +{formatCompact(netSuccessData)} Data
+                  </span>
+                </div>
+
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-500">
                   <span>При успехе: ~{formatCompact(successDataPerMinute)} Data/мин</span>
                   <span>· ~{formatCompact(successXpPerMinute)} XP/мин</span>
@@ -573,6 +598,8 @@ export const HacksPage: React.FC = () => {
                   levelLocked ||
                   alreadyRunning ||
                   slotsFull ||
+                  dataLocked ||
+                  energyLocked ||
                   scanRefreshing ||
                   busyKey === `mission:start:${m.key}`
                 }
@@ -582,9 +609,9 @@ export const HacksPage: React.FC = () => {
                     ? 'bg-[#0a0e1a] text-slate-400 border border-slate-800 cursor-not-allowed'
                     : alreadyRunning
                       ? 'bg-[#7dff00]/15 text-[#7dff00] border border-[#7dff00]/40'
-                      : slotsFull
-                        ? 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
-                        : 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
+                    : slotsFull || dataLocked || energyLocked
+                      ? 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
+                      : 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
                 }`}
               >
                 {levelLocked ? (
@@ -595,6 +622,10 @@ export const HacksPage: React.FC = () => {
                   'Активна'
                 ) : slotsFull ? (
                   'Занято'
+                ) : dataLocked ? (
+                  `Нужно ${formatCompact(entryCost.data)} Data`
+                ) : energyLocked ? (
+                  `Нужно ${formatCompact(entryCost.energy)} Energy`
                 ) : scanRefreshing ? (
                   'Скан...'
                 ) : (
