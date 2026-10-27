@@ -294,6 +294,14 @@ export const UpgradesPage: React.FC = () => {
                 : 0;
               const signedDataGain = `${dataGain >= 0 ? '+' : ''}${formatCompact(dataGain)}`;
               const signedTapGain = `${tapGain >= 0 ? '+' : ''}${formatCompact(tapGain)}`;
+              const dataGainClass =
+                dataGain < 0
+                  ? 'bg-rose-500/12 text-rose-300'
+                  : 'bg-[#7dff00]/12 text-[#7dff00]';
+              const tapGainClass =
+                tapGain < 0
+                  ? 'bg-rose-500/12 text-rose-300'
+                  : 'bg-[#00f0ff]/12 text-[#00f0ff]';
 
               return (
                 <motion.div
@@ -337,15 +345,15 @@ export const UpgradesPage: React.FC = () => {
                     <div className="flex flex-wrap gap-1 pt-0.5">
                       {!isMax && (
                         <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#7dff00]/12 text-[#7dff00]"
-                          title="Точная прибавка к общей скорости Data/ч после покупки следующего уровня"
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${dataGainClass}`}
+                          title="Точное изменение общей скорости Data/ч после покупки следующего уровня"
                         >
                           {signedDataGain} Data/ч
                         </span>
                       )}
                       {!isMax && card.clickBonusPerLevel && (
                         <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[#00f0ff]/12 text-[#00f0ff]"
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${tapGainClass}`}
                           title="Точное изменение Data за один тап после покупки следующего уровня"
                         >
                           {signedTapGain} Data/тап
