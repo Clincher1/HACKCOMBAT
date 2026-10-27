@@ -221,7 +221,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   // ── 6. Квалификация: 8 минут игры → награда ───────────────────────────────
   // Двигаем часы: каждый синк раз в ~40 секунд даёт +40 сек активности.
   const realNow = Date.now;
-  let fakeNow = realNow();
+  const realNowMs = realNow();
+  // Keep the synthetic session away from the Moscow midnight boundary. The
+  // referral scenario lasts about 50 minutes; using the real clock made this
+  // QA flaky when it started shortly before 00:00 MSK and reset activeSeconds.
+  const MOSCOW_OFFSET_MS = 3 * 60 * 60 * 1000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const moscowDate = new Date(realNowMs + MOSCOW_OFFSET_MS);
+  const todayNoonUtc =
+    Date.UTC(
+      moscowDate.getUTCFullYear(),
+      moscowDate.getUTCMonth(),
+      moscowDate.getUTCDate(),
+      12,
+      0,
+      0,
+      0
+    ) - MOSCOW_OFFSET_MS;
+  let fakeNow = todayNoonUtc > realNowMs ? todayNoonUtc : todayNoonUtc + DAY_MS;
   Date.now = () => fakeNow;
   const realSetTimeout = globalThis.setTimeout;
 

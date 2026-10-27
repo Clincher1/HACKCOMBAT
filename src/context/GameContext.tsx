@@ -492,6 +492,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const energyTickCounter = useRef(0);
   useEffect(() => {
     const interval = window.setInterval(() => {
+      // A hidden Telegram WebView is already throttled by the browser. Avoid
+      // producing React work every second in the background; the visibility
+      // handler below performs a server sync after a long absence.
+      if (document.visibilityState !== 'visible') return;
+
       const t = Date.now();
       setNowMs(t);
       energyTickCounter.current += 1;
@@ -521,6 +526,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Периодическая сверка пассивного дохода с сервером раз в 30 сек и при скрытии вкладки
   useEffect(() => {
     const syncInterval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
       if (pendingClicksRef.current > 0) {
         void flushClicks();
       } else {
@@ -907,6 +913,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSoundMuted(muted);
   }, []);
 
+  const dismissOfflineModal = useCallback(() => {
+    setOfflineModalEarned(null);
+    setOfflineModalTaps(0);
+  }, []);
+
   // v3.6.1: палитра берётся из БАЗОВОЙ ТЕМЫ, а скин стола накладывается в сцене.
   // Раньше переменные прибивались к скину: надел аватар — перекрасился весь UI.
   useEffect(() => {
@@ -1029,67 +1040,119 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.clearInterval(interval);
   }, [player?.derived.level, trackEvent]);
 
+  const contextValue = useMemo<GameContextValue>(
+    () => ({
+      player,
+      tgProfile,
+      loading,
+      initError,
+      retryInit,
+      busyKey,
+      storageMode,
+      alerts,
+      offlineModalEarned,
+      offlineModalTaps,
+      dismissOfflineModal,
+      dismissAlert,
+      pushClientAlert,
+      lockdownRemainingSec,
+      nowMs,
+      soundMuted,
+      toggleSound,
+      dailyModalOpen,
+      setDailyModalOpen,
+      skinModalOpen,
+      setSkinModalOpen,
+      tutorialModalOpen,
+      tutorialUnseen,
+      openTutorial,
+      closeTutorial,
+      tapHack,
+      buyCard,
+      startMission,
+      claimMission,
+      skipMission,
+      refreshMissions,
+      hireNpc,
+      unlockTier,
+      buyBaseUpgrade,
+      petAction,
+      trackEvent,
+      claimDailyBonus,
+      resolveDailyIncident,
+      claimDailyTask,
+      claimSeasonEvent,
+      buyOrEquipSkin,
+      buyOrEquipProfileFrame,
+      baseTheme,
+      setBaseTheme,
+      clearHeatLockdown,
+      triggerPrestige,
+      leaderboard,
+      leaderboardSort,
+      leaderboardSelf,
+      setLeaderboardSort,
+      refreshLeaderboard,
+      updateDemoName,
+      missionHistory,
+    }),
+    [
+      player,
+      tgProfile,
+      loading,
+      initError,
+      retryInit,
+      busyKey,
+      storageMode,
+      alerts,
+      offlineModalEarned,
+      offlineModalTaps,
+      dismissOfflineModal,
+      dismissAlert,
+      pushClientAlert,
+      lockdownRemainingSec,
+      nowMs,
+      soundMuted,
+      toggleSound,
+      dailyModalOpen,
+      skinModalOpen,
+      tutorialModalOpen,
+      tutorialUnseen,
+      openTutorial,
+      closeTutorial,
+      tapHack,
+      buyCard,
+      startMission,
+      claimMission,
+      skipMission,
+      refreshMissions,
+      hireNpc,
+      unlockTier,
+      buyBaseUpgrade,
+      petAction,
+      trackEvent,
+      claimDailyBonus,
+      resolveDailyIncident,
+      claimDailyTask,
+      claimSeasonEvent,
+      buyOrEquipSkin,
+      buyOrEquipProfileFrame,
+      baseTheme,
+      setBaseTheme,
+      clearHeatLockdown,
+      triggerPrestige,
+      leaderboard,
+      leaderboardSort,
+      leaderboardSelf,
+      setLeaderboardSort,
+      refreshLeaderboard,
+      updateDemoName,
+      missionHistory,
+    ]
+  );
+
   return (
-    <GameContext.Provider
-      value={{
-        player,
-        tgProfile,
-        loading,
-        initError,
-        retryInit,
-        busyKey,
-        storageMode,
-        alerts,
-        offlineModalEarned,
-        offlineModalTaps,
-        dismissOfflineModal: () => {
-          setOfflineModalEarned(null);
-          setOfflineModalTaps(0);
-        },
-        dismissAlert,
-        pushClientAlert,
-        lockdownRemainingSec,
-        nowMs,
-        soundMuted,
-        toggleSound,
-        dailyModalOpen,
-        setDailyModalOpen,
-        skinModalOpen,
-        setSkinModalOpen,
-        tutorialModalOpen,
-        tutorialUnseen,
-        openTutorial,
-        closeTutorial,
-        tapHack,
-        buyCard,
-        startMission,
-        claimMission,
-        skipMission,
-        refreshMissions,
-        hireNpc,
-        unlockTier,
-        buyBaseUpgrade,
-        petAction,
-        trackEvent,
-        claimDailyBonus,
-        resolveDailyIncident,
-        claimDailyTask,
-        claimSeasonEvent,
-        buyOrEquipSkin,
-        buyOrEquipProfileFrame,
-        baseTheme,
-        setBaseTheme,
-        clearHeatLockdown,
-        triggerPrestige,
-        leaderboard,
-        leaderboardSort,
-        leaderboardSelf,
-        setLeaderboardSort,
-        refreshLeaderboard,
-        updateDemoName,
-        missionHistory,
-      }}
-    >
+    <GameContext.Provider value={contextValue}>
       {children}
     </GameContext.Provider>
   );

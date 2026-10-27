@@ -869,3 +869,25 @@ body[data-theme='femme'] .rounded-2xl {
     animation: none;
   }
 }
+
+/* Lightweight replacement for the alert's simple slide/fade animation. */
+@keyframes alertDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.alert-drop {
+  animation: alertDrop 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-drop {
+    animation: none;
+  }
+}
