@@ -271,6 +271,11 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       .filter((x) => (allowed ? allowed.has(x) : true));
     return Array.from(new Set(out)).slice(0, 32);
   };
+  const unlockedProfileFrames = strArr(src.unlockedProfileFrames).filter((key) =>
+    PROFILE_FRAMES.some((frame) => frame.key === key && frame.key !== 'default')
+  );
+  const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
+
   return {
     tutorialTabs: strArr(src.tutorialTabs),
     tutorialOpens: num(src.tutorialOpens, 100_000),
@@ -301,10 +306,13 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
     seasonEvent: normalizeSeasonEventState(src.seasonEvent),
-    unlockedProfileFrames: strArr(src.unlockedProfileFrames).filter((key) =>
-      PROFILE_FRAMES.some((frame) => frame.key === key && frame.key !== 'default')
-    ),
-    equippedProfileFrame: pickProfileFrameKey(src.equippedProfileFrame),
+    unlockedProfileFrames,
+    // Надетой может быть только реально открытая рамка. Это не даёт старому
+    // или повреждённому JSON самовольно показать золотую рамку в рейтинге.
+    equippedProfileFrame:
+      equippedProfileFrame && unlockedProfileFrames.includes(equippedProfileFrame)
+        ? equippedProfileFrame
+        : undefined,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
     chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
     chipsToday: num(src.chipsToday, 100_000),

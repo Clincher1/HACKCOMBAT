@@ -25,16 +25,17 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SEED = 'profile-frames-qa';
 const LOW_LEVEL_SEED = 'profile-frames-low-level-qa';
 const LOW_CRYPTO_SEED = 'profile-frames-low-crypto-qa';
+const STALE_EQUIPPED_SEED = 'profile-frames-stale-equipped-qa';
 function demoTgId(seed) {
   return -(100_000_000 + crypto.createHash('sha256').update(`hk-guest-sandbox:${seed}`).digest().readUInt32BE(0) % 800_000_000);
 }
 const nowIso = '2026-10-26T12:00:00.000Z';
 
-function makeRecord(tgId, { xp = 5_000_000, cryptoAmount = 5_000 } = {}) {
+function makeRecord(tgId, { xp = 5_000_000, cryptoAmount = 5_000, username = 'FrameTester' } = {}) {
   return {
     id: `${tgId}-qa`,
     tgId,
-    username: 'FrameTester',
+    username,
     data: 10_000,
     crypto: cryptoAmount,
     chips: 0,
@@ -69,6 +70,9 @@ function makeRecord(tgId, { xp = 5_000_000, cryptoAmount = 5_000 } = {}) {
 const tgId = demoTgId(SEED);
 const lowLevelId = demoTgId(LOW_LEVEL_SEED);
 const lowCryptoId = demoTgId(LOW_CRYPTO_SEED);
+const staleEquippedId = demoTgId(STALE_EQUIPPED_SEED);
+const staleEquippedRecord = makeRecord(staleEquippedId, { username: 'StaleFrameTester' });
+staleEquippedRecord.stats = { equippedProfileFrame: 'frame_neon_relay_master' };
 fs.writeFileSync(
   path.join(sandbox, '.local-db.json'),
   JSON.stringify({
@@ -76,6 +80,7 @@ fs.writeFileSync(
       [String(tgId)]: makeRecord(tgId),
       [String(lowLevelId)]: makeRecord(lowLevelId, { xp: 0 }),
       [String(lowCryptoId)]: makeRecord(lowCryptoId, { cryptoAmount: 10 }),
+      [String(staleEquippedId)]: staleEquippedRecord,
     },
   })
 );
@@ -182,6 +187,8 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
   const leaderboard = await api('leaderboard', {}, SEED, 'GET');
   check('рейтинговый endpoint остаётся доступен после покупки рамок',
     leaderboard.ok === true && Array.isArray(leaderboard.entries));
+  const staleEntry = leaderboard.entries?.find((entry) => entry.username === 'StaleFrameTester');
+  check('неоткрытая рамка не показывается в рейтинге', staleEntry?.profileFrameKey === undefined, staleEntry?.profileFrameKey);
 
   console.log(`\nИтог: ${pass} pass / ${fail} fail`);
   if (fail > 0) {
