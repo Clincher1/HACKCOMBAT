@@ -204,6 +204,10 @@ export interface ProfileFrameConfig {
   glow: string;
   source: string;
   eventKey?: string;
+  /** Цена Crypto для постоянной покупки в магазине; у event-наград её нет. */
+  cryptoCost?: number;
+  /** Рамки магазина открываются только с этого уровня. */
+  requiredLevel?: number;
 }
 
 export interface SeasonEventGoalDefinition {

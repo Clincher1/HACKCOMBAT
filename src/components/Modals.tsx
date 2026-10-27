@@ -6,6 +6,7 @@ import { BASE_THEMES } from '../../shared/themes.config';
 import type { SkinCategory } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+import { ProfileFramesShop } from './ProfileFramesShop';
 import { ThemeOnboardingModal } from './ThemeOnboardingModal';
 import { TutorialModal } from './TutorialModal';
 
@@ -28,6 +29,7 @@ export const ModalsAndOverlays: React.FC = () => {
   } = useGame();
 
   const [skinFilter, setSkinFilter] = useState<'all' | SkinCategory>('all');
+  const [storeTab, setStoreTab] = useState<'skins' | 'frames'>('skins');
 
   if (!player) return null;
 
@@ -194,6 +196,35 @@ export const ModalsAndOverlays: React.FC = () => {
                 </button>
               </div>
 
+              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-[var(--ui-panel-deep)] p-1">
+                <button
+                  type="button"
+                  onClick={() => setStoreTab('skins')}
+                  className={`rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer ${
+                    storeTab === 'skins'
+                      ? 'bg-[rgba(var(--ui-secondary-rgb),0.18)] text-[var(--ui-secondary)]'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  Кибер-скины
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStoreTab('frames')}
+                  className={`rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer ${
+                    storeTab === 'frames'
+                      ? 'bg-purple-500/18 text-purple-300'
+                      : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  Рамки профиля
+                </button>
+              </div>
+
+              {storeTab === 'frames' ? (
+                <ProfileFramesShop />
+              ) : (
+                <>
               {/* v3.6.1: ДВЕ БЕСПЛАТНЫЕ БАЗОВЫЕ ТЕМЫ. Это фундамент оформления:
                   выбираешь базу, а платные скины ложатся сверху. Обе темы
                   бесплатны и не дают бонусов к тапу — только внешний вид. */}
@@ -360,6 +391,8 @@ export const ModalsAndOverlays: React.FC = () => {
                   );
                 })}
               </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}

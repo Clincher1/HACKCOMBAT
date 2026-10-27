@@ -899,6 +899,65 @@ async function savePlayerCore(
   const sb = getSupabaseAdmin();
   if (!sb) return;
 
+  // Сначала фиксируем состояние питомцев и только потом списываем Data/Rep/
+  // Crypto в players. Раньше ошибка upsert в pets проглатывалась, а players
+  // уже сохранялся: корм стоил валюту, но после следующего init голод
+  // возвращался к старому значению. Теперь запись питомца — обязательная часть
+  // операции для всех питомцев.
+  //
+  // Снимок нужен для компенсации: если UPDATE players не прошёл после upsert
+  // pets, возвращаем предыдущие строки, чтобы не получить «бесплатное» кормление
+  // или покупку питомца.
+  let previousPetRows: Array<Record<string, unknown>> | null = null;
+  const restorePetRows = async (): Promise<void> => {
+    if (previousPetRows === null) return;
+    const previousPetKeys = new Set(previousPetRows.map((row) => String(row.pet_key)));
+    const newlyAddedPetKeys = record.pets
+      .map((pet) => pet.key)
+      .filter((key) => !previousPetKeys.has(key));
+    if (newlyAddedPetKeys.length > 0) {
+      const { error: deleteError } = await sb
+        .from('pets')
+        .delete()
+        .eq('player_id', record.id)
+        .in('pet_key', newlyAddedPetKeys);
+      if (deleteError) throw new Error(`Не удалось откатить состояние питомца: ${deleteError.message}`);
+    }
+    if (previousPetRows.length === 0) return;
+    const { error } = await sb.from('pets').upsert(previousPetRows, { onConflict: 'player_id,pet_key' });
+    if (error) throw new Error(`Не удалось откатить состояние питомца: ${error.message}`);
+  };
+
+  if (record.pets.length > 0) {
+    const { data: petRows, error: petsReadError } = await sb
+      .from('pets')
+      .select('player_id, pet_key, hunger, last_fed_at, feed_count')
+      .eq('player_id', record.id);
+    if (petsReadError) {
+      throw new Error(`Не удалось прочитать состояние питомца: ${petsReadError.message}`);
+    }
+    previousPetRows = (petRows ?? []) as Array<Record<string, unknown>>;
+
+    const { error: petsError } = await sb.from('pets').upsert(
+      record.pets.map((p) => ({
+        player_id: record.id,
+        pet_key: p.key,
+        hunger: Math.max(0, Math.min(100, p.hunger)),
+        last_fed_at: p.lastFedAt,
+        feed_count: Math.max(0, Math.floor(p.feedCount)),
+      })),
+      { onConflict: 'player_id,pet_key' }
+    );
+    if (petsError) {
+      try {
+        await restorePetRows();
+      } catch {
+        // Возвращаем исходную ошибку upsert: главное — не обновлять players.
+      }
+      throw new Error(`Не удалось сохранить состояние питомца: ${petsError.message}`);
+    }
+  }
+
   let updateQuery = sb
     .from('players')
     .update({
@@ -936,27 +995,30 @@ async function savePlayerCore(
   const { data: updatedRows, error } = await updateQuery.select('id');
 
   if (error) {
+    try {
+      await restorePetRows();
+    } catch (rollbackError) {
+      throw new Error(`Supabase update player error: ${error.message}; ${rollbackError instanceof Error ? rollbackError.message : 'rollback failed'}`);
+    }
     throw new Error(`Supabase update player error: ${error.message}`);
   }
-  if (expectedXp !== undefined && (!updatedRows || updatedRows.length === 0)) {
-    throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
-  }
-
-  // Питомцы и «База» живут в отдельных таблицах: сохраняем только при изменениях,
-  // ошибки из-за ещё не применённой миграции 003 не должны ломать игровую сессию.
-  try {
-    if (record.pets.length > 0) {
-      await sb.from('pets').upsert(
-        record.pets.map((p) => ({
-          player_id: record.id,
-          pet_key: p.key,
-          hunger: Math.max(0, Math.min(100, p.hunger)),
-          last_fed_at: p.lastFedAt,
-          feed_count: Math.max(0, Math.floor(p.feedCount)),
-        })),
-        { onConflict: 'player_id,pet_key' }
+  if (!updatedRows || updatedRows.length === 0) {
+    try {
+      await restorePetRows();
+    } catch (rollbackError) {
+      throw new Error(
+        `${expectedXp !== undefined ? 'Ежедневное поручение уже обрабатывается в другой сессии — обнови экран' : 'Supabase update player affected no rows'}; ${rollbackError instanceof Error ? rollbackError.message : 'rollback failed'}`
       );
     }
+    if (expectedXp !== undefined) {
+      throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
+    }
+    throw new Error('Supabase update player affected no rows');
+  }
+
+  // «База» живёт в отдельной таблице. Ошибка из-за ещё не применённой
+  // миграции 003 не должна ломать остальную игру.
+  try {
     const baseRows = Object.entries(record.baseUpgrades)
       .filter(([, lvl]) => Number.isFinite(lvl) && lvl > 0)
       .map(([key, lvl]) => ({
@@ -2330,9 +2392,10 @@ export async function handleSeasonEventAction(
     const allGoalsComplete = ACTIVE_SEASON_EVENT.goals.every(
       (goal) => (state.progress[goal.key] ?? 0) >= goal.target
     );
-    const participationReady = ACTIVE_SEASON_EVENT.goals.some(
-      (goal) => (state.progress[goal.key] ?? 0) > 0
-    );
+    // Обе event-рамки — награда за полный результат, а не за первый шаг.
+    // Рамка участника тоже не должна выдаваться после одной случайной цели:
+    // сначала закрываем весь маршрут операции, затем забираем косметику.
+    const participationReady = allGoalsComplete;
     const frameKey =
       action === 'claim_mastery'
         ? ACTIVE_SEASON_EVENT.masteryFrameKey
@@ -2345,7 +2408,7 @@ export async function handleSeasonEventAction(
       state.masteryClaimed = true;
     } else {
       if (state.participationClaimed) throw new Error('Рамка участника уже получена');
-      if (!participationReady) throw new Error('Сначала выполни хотя бы одну цель операции');
+      if (!participationReady) throw new Error('Сначала закрой все три цели сезонной операции');
       state.participationClaimed = true;
     }
 
@@ -2370,7 +2433,7 @@ export async function handleSeasonEventAction(
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme',
+  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
   skinKey?: string,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
@@ -2382,6 +2445,59 @@ export async function handleSkinAction(
     // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
     if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    if (action === 'profile_frame') {
+      const frameKey = typeof skinKey === 'string' && skinKey.length > 0 ? skinKey : 'default';
+      const frame = getProfileFrame(frameKey);
+      if (frame.key !== frameKey) {
+        throw new Error('Рамка профиля не найдена');
+      }
+
+      if (frame.key === 'default') {
+        record.stats.equippedProfileFrame = undefined;
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'success',
+          title: '🖼️ Рамка профиля снята',
+          message: 'Профиль снова использует стандартный контур.',
+        });
+      } else {
+        const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
+        if (!unlocked.has(frame.key)) {
+          if (frame.eventKey) {
+            throw new Error('Эта рамка выдаётся только за успешное прохождение события');
+          }
+          const frameLevel = deriveStats(record).level;
+          if ((frame.requiredLevel ?? 30) > frameLevel) {
+            throw new Error(`Рамка «${frame.name}» открывается на ${frame.requiredLevel ?? 30} уровне`);
+          }
+          const price = frame.cryptoCost ?? 0;
+          if (record.crypto < price) {
+            throw new Error(`Недостаточно Crypto (нужно ${price} 💎)`);
+          }
+          record.crypto -= price;
+          unlocked.add(frame.key);
+          record.stats.unlockedProfileFrames = Array.from(unlocked);
+          alerts.push({
+            id: crypto.randomUUID(),
+            type: 'success',
+            title: `🖼️ Рамка «${frame.name}» куплена`,
+            message: 'Рамка открыта навсегда и сразу надета в профиле.',
+          });
+        } else {
+          alerts.push({
+            id: crypto.randomUUID(),
+            type: 'success',
+            title: `🖼️ Рамка «${frame.name}» включена`,
+            message: 'Рамка сохранена в профиле и видна в рейтинговой таблице.',
+          });
+        }
+        record.stats.equippedProfileFrame = frame.key;
+      }
+
+      await savePlayerCore(record, mode);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
 
     if (action === 'clear_lockdown') {
       if (!record.clickBlockedUntil) {
@@ -2607,23 +2723,6 @@ export async function handlePetAction(
         lastFedAt: nowIso,
         feedCount: 0,
       });
-
-      if (mode === 'supabase') {
-        const sb = getSupabaseAdmin();
-        if (sb) {
-          const { error } = await sb.from('pets').upsert(
-            {
-              player_id: record.id,
-              pet_key: cfg.key,
-              hunger: 100,
-              last_fed_at: nowIso,
-              feed_count: 0,
-            },
-            { onConflict: 'player_id,pet_key', ignoreDuplicates: true }
-          );
-          if (error) throw new Error(`Не удалось заселить питомца: ${error.message}`);
-        }
-      }
 
       alerts.push({
         id: crypto.randomUUID(),

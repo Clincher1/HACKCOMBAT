@@ -101,17 +101,12 @@ function sameEconomy(a, b) {
   check('тапы двигают сезонную цель', Number(tapGoal?.[1] ?? 0) > 0, `${tapGoal?.[1] ?? 0}/1000`);
   check('тапы не двигают цели контрактов', event.progress.event_starts_3 === 0 && event.progress.event_completes_3 === 0);
 
-  const economyBeforeParticipation = { ...player };
-  const participation = await api('season-event', { action: 'claim_participation' });
-  player = participation.player;
-  check('рамку участника можно получить после первой цели', participation.ok === true);
-  check('рамка участника открыта и включена',
-    player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
-      player.stats.equippedProfileFrame === 'frame_neon_relay');
-  check('claim рамки участника не даёт игровые ресурсы', sameEconomy(participation.player, economyBeforeParticipation));
-
-  const duplicateParticipation = await api('season-event', { action: 'claim_participation' });
-  check('рамку участника нельзя получить повторно', duplicateParticipation.ok === false, duplicateParticipation.error);
+  const earlyParticipation = await api('season-event', { action: 'claim_participation' });
+  check('рамку участника нельзя получить после одной цели', earlyParticipation.ok === false, earlyParticipation.error);
+  player = (await api('init')).player;
+  check('до полного прохождения рамки не открыты',
+    !player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
+      !player.stats.unlockedProfileFrames.includes('frame_neon_relay_master'));
 
   // Три запуска и три закрытия используют существующую механику контрактов.
   for (let index = 0; index < 3; index += 1) {
@@ -136,6 +131,18 @@ function sameEconomy(a, b) {
   check('все три личные цели можно закрыть существующими действиями',
     event.progress.event_taps_1000 >= 1000 && event.progress.event_starts_3 >= 3 && event.progress.event_completes_3 >= 3,
     JSON.stringify(event.progress));
+
+  const economyBeforeParticipation = { ...player };
+  const participation = await api('season-event', { action: 'claim_participation' });
+  player = participation.player;
+  check('рамку участника можно получить после полного прохождения', participation.ok === true, participation.error);
+  check('рамка участника открыта и включена',
+    player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
+      player.stats.equippedProfileFrame === 'frame_neon_relay');
+  check('claim рамки участника не даёт игровые ресурсы', sameEconomy(participation.player, economyBeforeParticipation));
+
+  const duplicateParticipation = await api('season-event', { action: 'claim_participation' });
+  check('рамку участника нельзя получить повторно', duplicateParticipation.ok === false, duplicateParticipation.error);
 
   const economyBeforeMastery = { ...player };
   const mastery = await api('season-event', { action: 'claim_mastery' });
