@@ -289,42 +289,6 @@ body[data-theme='femme'] .rounded-2xl {
   }
 }
 
-/* Красные и золотые перья для персонального тап-эффекта pohoronyat_menya. */
-.rooster-feather-particle {
-  position: absolute;
-  z-index: 12;
-  pointer-events: none;
-  display: block;
-  font-size: clamp(1.1rem, 4vw, 1.65rem);
-  line-height: 1;
-  transform-origin: 50% 65%;
-  text-shadow:
-    0 0 3px #fff7d6,
-    0 0 8px rgba(255, 48, 79, 0.95),
-    0 0 15px rgba(255, 184, 77, 0.72);
-  will-change: transform, opacity;
-}
-
-.rooster-feather-particle--red {
-  filter: saturate(1.7) hue-rotate(320deg) drop-shadow(0 0 4px rgba(255, 48, 79, 0.85));
-}
-
-.rooster-feather-particle--gold {
-  filter: sepia(0.75) saturate(2.5) hue-rotate(355deg) drop-shadow(0 0 4px rgba(255, 184, 77, 0.9));
-}
-
-.rooster-feather-particle--scarlet {
-  filter: saturate(2.1) hue-rotate(300deg) drop-shadow(0 0 4px rgba(220, 38, 38, 0.9));
-}
-
-/* При reduced motion всё равно оставляем короткий визуальный отклик, но без
-   полёта и вращения на полную дистанцию. */
-@media (prefers-reduced-motion: reduce) {
-  .rooster-feather-particle {
-    transition: opacity 0.12s ease-out;
-  }
-}
-
 /* Радужный карась SolidPegasus: синий пузырьковый крик с эффектом под водой. */
 .fish-avatar-trigger {
   cursor: pointer;
