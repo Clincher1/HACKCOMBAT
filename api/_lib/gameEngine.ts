@@ -102,6 +102,7 @@ import type {
   SkinCategory,
 } from '../../shared/types';
 import { getSupabaseAdmin } from './supabaseAdmin';
+import { ensurePermanentProfileFrameGifts } from './profileFrameGifts';
 import { attributeReferral, payoutReferrals, qualifyInvitee } from './referrals';
 import type { VerifiedTelegramUser } from './telegramAuth';
 
@@ -1023,8 +1024,10 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       rec.baseUpgrades = rec.baseUpgrades && typeof rec.baseUpgrades === 'object' ? rec.baseUpgrades : {};
       rec.stats = normalizeStats(rec.stats);
     }
-    migrateLegacyEquippedSkins(db.playersByTgId[key]);
-    return { record: db.playersByTgId[key], mode: 'memory-fallback' };
+    const localRecord = db.playersByTgId[key];
+    ensurePermanentProfileFrameGifts(localRecord.stats, localRecord.tgId);
+    migrateLegacyEquippedSkins(localRecord);
+    return { record: localRecord, mode: 'memory-fallback' };
   }
 
   const { data: playerRow, error: initErr } = await sb.rpc('init_player', {
@@ -1068,6 +1071,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   // serverless-инстансов. Раньше salt жил в памяти Lambda — из-за этого список
   // на экране и серверная проверка иногда расходились.
   const persistedStats = normalizeStats(playerRow.stats);
+  ensurePermanentProfileFrameGifts(persistedStats, Number(playerRow.tg_id));
   const offer = computeOfferWindow(
     user.tgId,
     hasAnalyst,
