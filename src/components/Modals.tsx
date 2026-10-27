@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Gem, Gift, Lock, Sparkles, X } from 'lucide-react';
 import React, { useState } from 'react';
+import { PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import { SKIN_CATEGORIES, SKINS_CONFIG } from '../../shared/skins.config';
 import { BASE_THEMES } from '../../shared/themes.config';
 import type { SkinCategory } from '../../shared/types';
@@ -9,6 +10,8 @@ import { formatCompact } from '../lib/format';
 import { ProfileFramesShop } from './ProfileFramesShop';
 import { ThemeOnboardingModal } from './ThemeOnboardingModal';
 import { TutorialModal } from './TutorialModal';
+
+const SHOP_FRAME_PREVIEWS = PROFILE_FRAMES.filter((frame) => frame.cryptoCost !== undefined);
 
 export const ModalsAndOverlays: React.FC = () => {
   const {
@@ -220,6 +223,43 @@ export const ModalsAndOverlays: React.FC = () => {
                   Рамки профиля
                 </button>
               </div>
+
+              {storeTab === 'skins' && (
+                <button
+                  type="button"
+                  onClick={() => setStoreTab('frames')}
+                  aria-label="Открыть магазин рамок профиля"
+                  className="w-full rounded-xl border border-purple-400/35 bg-gradient-to-r from-purple-950/55 via-[#171535] to-cyan-950/45 p-3 text-left transition hover:border-purple-300/70 hover:brightness-110 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-purple-300/70 bg-purple-500/15 text-lg text-purple-200 shadow-[0_0_14px_rgba(192,132,252,0.3)]">
+                      ✦
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-extrabold text-white">Рамки профиля</span>
+                        <span className="shrink-0 rounded-md bg-amber-300/15 px-1.5 py-0.5 text-[9px] font-black text-amber-200">
+                          🔒 С 30 уровня
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">
+                        6 базовых цветов для профиля и рейтинга · покупка навсегда за Crypto
+                      </p>
+                      <div className="mt-2 flex items-center gap-1.5">
+                        {SHOP_FRAME_PREVIEWS.map((frame) => (
+                          <span
+                            key={frame.key}
+                            className="h-3.5 w-3.5 rounded-full border-2"
+                            style={{ borderColor: frame.accent, background: frame.background, boxShadow: frame.glow }}
+                            aria-hidden="true"
+                          />
+                        ))}
+                        <span className="ml-1 text-[9px] font-bold text-purple-200">Открыть раздел →</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              )}
 
               {storeTab === 'frames' ? (
                 <ProfileFramesShop />
