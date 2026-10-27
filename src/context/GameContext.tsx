@@ -487,7 +487,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void retryInit();
   }, [retryInit]);
 
-  // Живой секундный тик на клиенте: плавный прирост Data/hour, реген 1 Energy / 3 сек и обновление таймеров
+  // Живой секундный тик на клиенте: плавный прирост Data/hour, реген Energy по shared-модели и обновление таймеров
   const energyTickCounter = useRef(0);
   useEffect(() => {
     const interval = window.setInterval(() => {

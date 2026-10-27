@@ -20,9 +20,14 @@ export const XP_CURVE_COEF = 140;
 export const XP_CURVE_POWER = 2.0;
 export const MAX_PLAYER_LEVEL = 200;
 
+/**
+ * На максимальном уровне нет следующего уровня. Возвращаем 0, а не Infinity:
+ * значение попадает в UI, referrals и PostgreSQL RPC, поэтому бесконечность
+ * никогда не должна пересекать границу игрового движка.
+ */
 export function getXpToNext(level: number): number {
   const safe = Math.max(1, Math.min(MAX_PLAYER_LEVEL, Math.floor(Number(level) || 1)));
-  if (safe >= MAX_PLAYER_LEVEL) return Number.POSITIVE_INFINITY;
+  if (safe >= MAX_PLAYER_LEVEL) return 0;
   const raw = XP_CURVE_COEF * Math.pow(safe, XP_CURVE_POWER);
   return Math.max(50, Math.round(raw / 10) * 10);
 }
@@ -189,22 +194,43 @@ export const MISSION_TIER_MAX_LEVEL: Record<number, number> = {
 };
 
 export function getMissionXpAward(xpReward: number, tier: number, level: number): number {
+  const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
+  // L200 — карьерный cap. Контракт можно завершить ради Data/Rep, но XP и
+  // referral не должны превращаться в Infinity и ломать bigint/integer в БД.
+  if (safeLevel >= MAX_PLAYER_LEVEL) return 0;
+
   const safeReward = Math.max(1, Math.round(Number(xpReward) || 1));
   const ref = MISSION_TIER_REF_LEVEL[tier] ?? 1;
-  const tierMax = MISSION_TIER_MAX_LEVEL[tier] ?? 200;
-  const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
-  const ratio = getXpToNext(safeLevel) / getXpToNext(ref);
+  const tierMax = MISSION_TIER_MAX_LEVEL[tier] ?? MAX_PLAYER_LEVEL;
+  const refNeed = getXpToNext(ref);
+  const levelNeed = getXpToNext(safeLevel);
+  if (!Number.isFinite(refNeed) || refNeed <= 0 || !Number.isFinite(levelNeed) || levelNeed <= 0) return 0;
+
+  const ratio = levelNeed / refNeed;
   const over = Math.max(0, safeLevel - tierMax);
   const overPenalty = Math.max(0.02, Math.pow(0.85, over));
-  return Math.max(1, Math.round(safeReward * Math.pow(ratio, XP_LEVEL_EXPONENT) * overPenalty));
+  const award = Math.round(safeReward * Math.pow(ratio, XP_LEVEL_EXPONENT) * overPenalty);
+  return Number.isFinite(award) ? Math.max(1, award) : 0;
 }
 
-/** Денежная награда масштабируется уровнем так же, как пассивный доход карточек. */
+/**
+ * Денежная награда растёт быстро до L90, а затем мягко продолжает расти.
+ * Старое 1.14^level разгоняло L200 до 2.1e11× и делало Data неточным для
+ * JavaScript Number. Soft cap сохраняет смысл эндгейма, но оставляет reward
+ * конечным даже при максимальном уровне и пяти престижах.
+ */
 export const MISSION_REWARD_LEVEL_GROWTH = 1.14;
+export const MISSION_REWARD_SOFT_CAP_LEVEL = 90;
+export const MISSION_REWARD_POST_CAP_GROWTH = 1.02;
 
 export function getMissionRewardScale(level: number): number {
-  const safe = Math.max(1, Math.floor(Number(level) || 1));
-  return Math.pow(MISSION_REWARD_LEVEL_GROWTH, safe - 1);
+  const safe = Math.max(1, Math.min(MAX_PLAYER_LEVEL, Math.floor(Number(level) || 1)));
+  const preCap = Math.min(safe, MISSION_REWARD_SOFT_CAP_LEVEL);
+  const postCapLevels = Math.max(0, safe - MISSION_REWARD_SOFT_CAP_LEVEL);
+  return (
+    Math.pow(MISSION_REWARD_LEVEL_GROWTH, preCap - 1) *
+    Math.pow(MISSION_REWARD_POST_CAP_GROWTH, postCapLevels)
+  );
 }
 
 /**

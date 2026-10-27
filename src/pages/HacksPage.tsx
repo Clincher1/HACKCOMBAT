@@ -98,7 +98,12 @@ export const HacksPage: React.FC = () => {
   const refreshLeftSec = player
     ? Math.max(
         0,
-        15 * 60 - Math.floor((nowMs - new Date(player.missionsRefreshedAt).getTime()) / 1000)
+        15 * 60 -
+          Math.floor(
+            (nowMs -
+              new Date(player.stats.lastMissionRefreshAt ?? player.missionsRefreshedAt).getTime()) /
+              1000
+          )
       )
     : 0;
   const missionRefreshBusy = busyKey === 'mission:refresh';
@@ -163,14 +168,14 @@ export const HacksPage: React.FC = () => {
 
           <button
             type="button"
-            disabled={busyKey === 'mission:refresh'}
+            disabled={busyKey === 'mission:refresh' || refreshLeftSec > 0}
             onClick={() => void refreshMissions()}
             className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#162244] hover:bg-[#1f305e] border border-[#00f0ff]/35 text-xs font-bold text-[#00f0ff] transition cursor-pointer"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${busyKey === 'mission:refresh' ? 'animate-spin' : ''}`}
             />
-            <span>Обновить</span>
+            <span>{refreshLeftSec > 0 ? 'Скан свежий' : 'Обновить'}</span>
           </button>
         </div>
 

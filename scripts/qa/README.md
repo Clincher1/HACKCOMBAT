@@ -8,7 +8,8 @@ npm run dev            # терминал №1 — сервер на :5173
 
 node scripts/qa/api.mjs          # ~2 мин: полный API (миссии, гейты, экономика, античит)
 node scripts/qa/clicks.mjs       # ~1 мин: быстрый тап не ловит 429; флуд режется античитом
-npm run qa:offline               # мгновенно: оффлайн-экономика v3.2 (собирает и грузит api/_core.cjs)
+npm run qa:integrity              # finite XP/Data, prestige cap, migration/RPC и MAX UI checks
+npm run qa:offline                # мгновенно: оффлайн-экономика v3.2 (собирает и грузит api/_core.cjs)
 npm run qa:buy                   # ~30 с: покупки с «хвостом» кликов (v3.3), без dev-сервера
 ```
 
@@ -43,7 +44,7 @@ npm run qa:buy                   # ~30 с: покупки с «хвостом» 
 ## Другие проверки
 
 ```bash
-npm run balance:sim              # симулятор баланса (экономика/XP)
+npm run balance:sim              # finite simulator: entry/Energy/offline/offers/chips/prestige
 ./node_modules/.bin/tsc -b       # типы
 npm run build                    # прод-сборка + бандл API
 ```

@@ -59,9 +59,11 @@ export function parseReferralStartParam(startParam: unknown): string | null {
   return isValidReferralCode(code) ? code : null;
 }
 
-/** XP пригласившему — ровно половина его текущего уровня. */
+/** XP пригласившему — половина текущего уровня, но не после карьерного cap. */
 export function getReferrerXpReward(level: number): number {
-  return Math.max(1, Math.round(getXpToNext(level) * REFERRAL_REFERRER_XP_SHARE));
+  const next = getXpToNext(level);
+  if (!Number.isFinite(next) || next <= 0) return 0;
+  return Math.max(1, Math.round(next * REFERRAL_REFERRER_XP_SHARE));
 }
 
 /** Data пригласившему — час пассива с вилкой. */
@@ -71,7 +73,9 @@ export function getReferrerDataReward(dataPerHour: number): number {
 }
 
 export function getInviteeXpReward(level: number): number {
-  return Math.max(1, Math.round(getXpToNext(level) * REFERRAL_INVITEE_XP_SHARE));
+  const next = getXpToNext(level);
+  if (!Number.isFinite(next) || next <= 0) return 0;
+  return Math.max(1, Math.round(next * REFERRAL_INVITEE_XP_SHARE));
 }
 
 export const REFERRAL_INVITEE_DATA_REWARD = REFERRAL_INVITEE_DATA;

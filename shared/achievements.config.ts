@@ -31,7 +31,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'first_mission',
     title: 'Полевое Крещение',
-    description: 'Успешно завершить первую миссию взлома.',
+    description: 'Завершить первый контракт взлома.',
     cryptoReward: 5,
     icon: '🎯',
     rarity: 'common',
@@ -71,7 +71,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'first_chip',
     title: 'Первая Микросхема',
-    description: 'Получить первый Чип с завершённого контракта.',
+    description: 'Получить первый Чип с успешного контракта или ежедневной награды.',
     cryptoReward: 3,
     icon: '⚙️',
     rarity: 'common',
@@ -166,7 +166,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'tier_2',
     title: 'Промышленный Разгон',
-    description: 'Открыть Тир II и разблокировать 11–15 уровни всех модулей.',
+    description: 'Открыть Тир II и разблокировать 16–30 уровни всех модулей.',
     cryptoReward: 25,
     icon: '⚡',
     rarity: 'rare',
@@ -174,7 +174,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'tier_3',
     title: 'Военный Подряд',
-    description: 'Открыть Тир III и разблокировать 16–20 уровни всех модулей.',
+    description: 'Открыть Тир III и разблокировать 31–45 уровни всех модулей.',
     cryptoReward: 45,
     icon: '🔋',
     rarity: 'epic',
@@ -208,7 +208,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'card_level_25',
     title: 'Абсолютный Максимум',
-    description: 'Прокачать любую карточку до 25 уровня.',
+    description: 'Прокачать любую карточку до 25 уровня — рубеж полного промышленного арсенала.',
     cryptoReward: 80,
     icon: '💠',
     rarity: 'legendary',

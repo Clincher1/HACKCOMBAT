@@ -1,9 +1,24 @@
 # HACKER KOMBAT — системный аудит игровой механики
 
 **Дата аудита:** 27.10.2026 (локальная таймзона пользователя: Europe/Moscow)
-**Проверенный commit:** `63b43502ebc5f6ed984c7d64d9f15075b123893d`
+**Исходный commit аудита:** `63b43502ebc5f6ed984c7d64d9f15075b123893d`
 **Область:** конфигурация `shared/*`, серверный `api/_lib/gameEngine.ts`, API-обвязка, Supabase migrations, клиентские страницы и QA-сценарии.
-**Статус документа:** аудит и план работ. Балансирующие изменения в формулах, API и UI этим документом **не вносятся**.
+**Статус документа:** исторические findings ниже сохранены для трассируемости; раздел 0.1 фиксирует реализованные исправления на ветке `arena/34603a72-hackcombat`.
+
+### 0.1. Реализованный remediation-checklist (27.10.2026)
+
+| Риск аудита | Реализация | Проверка |
+|---|---|---|
+| `Infinity`/переполнение XP и Data | L200 возвращает finite `xpToNext=0`, mission/referral XP = 0; Data reward после L90 имеет soft-cap; persistence зажимает Data | `npm run build`, `npm run qa:all`, finite assertions в integrity QA |
+| Бесконечный prestige | `MAX_PRESTIGE_COUNT=5`, уровни 50/60/70/80/90, серверный отказ после cap, multiplier единой функцией | memory QA + migration CHECK |
+| Double mission claim | `claim_mission_atomic` меняет mission и player snapshot в одной CAS-транзакции | staging RPC smoke-test: success + повторный claim |
+| Double purchase/частичное сохранение | `commit_purchase_atomic` для card/tier/base/team/pet/cosmetics; owned row и баланс в одной транзакции | memory QA + staging card RPC smoke-test |
+| Старые Supabase defaults/passive cron | migration 010–014: defaults 250/1500, безопасный backfill только неигравших, level/rank из lifetime XP, finite Data CHECK, legacy passive no-op/unschedule, atomic prestige reset и guard карточек до L60 | staging: defaults, RPC existence, Data CHECK, prestige/claim/purchase smoke |
+| Telemetry reward exploit | client telemetry оставлена для badge/progress, resource rewards отключены для недоказуемых событий | `scripts/qa/api.mjs` и full QA |
+| Разные игровые сутки | daily, pets, chips, telemetry, donations используют `getGameDayKey()` | full QA + source audit |
+| Grey drop/reroll/UI | tier `cryptoDropChance` используется; refresh cooldown проверяется сервером и отображается как `Скан свежий`; XP cap в UI показывает `MAX` | mission QA + build |
+
+**Staging smoke-test 27.10.2026:** проект `hacker-kombat` (`llciyqawfbeabkkdsnmc`) получил миграции `progression_integrity`, `atomic_purchases`, `data_finite_cap`, `atomic_prestige` и `purchase_card_cap`; проверены defaults `250/1500`, три RPC, Data/prestige constraints, no-op passive, атомарные claim/card purchase/prestige в rollback-очистке и исправленный card cap L60. Production apply требует отдельного backup/snapshot и не выполняется автоматически.
 
 ---
 
@@ -36,18 +51,19 @@
 - `cards.config.ts`, `base.config.ts`, `team.config.ts`, `pets.config.ts` — источники дохода, стоимость, бонусы и долгие инвестиции;
 - daily tasks, Neon Relay, referrals, achievements, skins/profile frames, donation и leaderboard;
 - `api/_lib/gameEngine.ts` — нормализация, синхронизация, действия, persistence и античит;
-- Supabase migrations 001–009 — типы столбцов, defaults, RPC и старый passive cron;
+- Supabase migrations 001–011 — типы столбцов, defaults, RPC и переход от старого passive cron;
 - клиентский `GameContext`, основные страницы и текстовые подсказки;
 - QA в memory/local режиме.
 
 Результат проверки кода:
 
-- `npm run qa:all`: **13 сценариев, 386 pass / 0 fail**;
+- `npm run qa:all`: **14 сценариев, 406 pass / 0 fail** (включая finite/progression integrity QA);
+- live memory API QA: **50 pass / 0 fail**, click/anti-cheat QA: **6 pass / 0 fail**;
 - build, TypeScript, Vite и API bundle прошли;
 - остаётся только warning о production chunk примерно 519 KB;
-- полноценный Supabase-backed QA из sandbox не выполнился из-за `ECONNRESET`/`fetch failed`, поэтому ниже отдельно отмечены тесты, которые ещё обязательно провести на staging Supabase.
+- staging Supabase smoke-test после миграций 010–014 прошёл: defaults, RPC existence, no-op legacy passive, Data/prestige constraints и транзакционные claim/card purchase/prestige проверены через connector; production ещё требует отдельного backup/snapshot.
 
-Существующий `scripts/balance-sim.ts` полезен как smoke-test, но не как финальная модель: он не списывает `entry Data/Energy`, не учитывает 15-минутную витрину, offline qualification, дневной Chip cap и не моделирует реальные параллельные миссии. Его результаты нельзя использовать как доказательство фактического времени до уровня или окупаемости.
+`scripts/balance-sim.ts` теперь учитывает entry Data/Energy, Energy regen, шанс/исходы, 15-минутный offer cooldown, Chip cap, offline qualification и prestige 0–5. Это всё ещё верхняя граница для идеального бота, а не обещание темпа для casual-игрока.
 
 ---
 

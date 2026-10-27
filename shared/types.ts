@@ -8,7 +8,7 @@ export interface CardConfig {
   basePrice: number;
   dataPerHourPerLevel: number;
   clickBonusPerLevel?: number; // Дополнительный вклад в множитель клика
-  energyMaxPerLevel?: number; // Для категории Comfort (рост Energy max от 1000 до 5000)
+  energyMaxPerLevel?: number; // Для категории Comfort (рост Energy max от 1500 до 5000)
   heatOnBuy?: number; // Для категории Darknet (+Heat при покупке)
   minLevel?: number; // Опциональное требование к уровню игрока
   iconGlyph: string;
@@ -319,6 +319,8 @@ export interface PlayerProgressStats {
   chipsCapNotifiedDay?: string | null;
   /** v3.7: версия ручного скана целей — хранится в stats, чтобы Vercel-инстансы видели один оффер. */
   missionRefreshSalt?: number;
+  /** v3.7: серверное время последнего ручного скана; auto-refresh не продлевает cooldown. */
+  lastMissionRefreshAt?: string | null;
   /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
   baseTheme?: string;
   /**
@@ -390,7 +392,7 @@ export interface PlayerState {
   unlockedSkins: string[];
   totalClicks: number;
   totalMissions: number;
-  cards: Record<string, number>; // card_key -> level (1..25)
+  cards: Record<string, number>; // card_key -> level (1..60)
   team: string[]; // hired npc_keys
   pets: PetState[];
   baseUpgrades: Record<string, number>;

@@ -18,9 +18,8 @@ import type {
   PetState,
 } from './types';
 
-// v3.1: быстрый тап не должен задыхаться. Было 1000 энергии и +1 за 3 сек —
-// после двух минут активного клика кнопка «умирала». Стало 1500 и +1 за 2 сек,
-// потолок с апгрейдами Базы прежний (MAX_ENERGY_CAP).
+// v3.1: быстрый тап не должен задыхаться. Канон текущей модели — 1500 стартовой
+// энергии и +1 за 2 сек; потолок с апгрейдами Базы прежний (MAX_ENERGY_CAP).
 export const BASE_MAX_ENERGY = 1500;
 export const MAX_ENERGY_CAP = 5000;
 export const ENERGY_REGEN_SECONDS = 2; // 1 Energy / 2 сек
@@ -61,11 +60,24 @@ export const HEAT_RESET_AFTER_PENALTY = 50;
 export const HEAT_PENALTY_DATA_LOSS_PCT = 0.1; // Потеря 10% Data
 export const HEAT_LOCKDOWN_SECONDS = 60; // Блок кликов на 60 сек
 export const PRESTIGE_REQUIRED_LEVEL = 50; // Базовый Global Hack I на 50 уровне (раздел 5.5 ТЗ)
+/** Пять циклов 50→60→70→80→90 — законченная карьерная дуга текущего сезона. */
+export const MAX_PRESTIGE_COUNT = 5;
 export const BASE_OFFLINE_CAP_SECONDS = 8 * 3600; // v3.2: 8 часов оффлайн-копилки (было 24 ч)
 
-// Для долгой прогрессии каждый следующий цикл Global Hack требует на +10 уровней выше (50 -> 60 -> 70 -> 80 -> 90)
+export function getSafePrestigeCount(prestigeCount: number): number {
+  return Math.max(0, Math.min(MAX_PRESTIGE_COUNT, Math.floor(Number(prestigeCount) || 0)));
+}
+
+export function getPrestigeMultiplier(prestigeCount: number): number {
+  return Math.pow(2, getSafePrestigeCount(prestigeCount));
+}
+
+// Для долгой прогрессии каждый следующий цикл Global Hack требует на +10 уровней выше (50 -> 60 -> 70 -> 80 -> 90).
+// После пятого цикла текущая карьерная дуга закрыта: новый reset не должен
+// бесконечно удваивать экономику и переписывать рейтинг игрока.
 export function getPrestigeRequiredLevel(prestigeCount: number): number {
-  return Math.min(90, PRESTIGE_REQUIRED_LEVEL + Math.max(0, Math.floor(prestigeCount)) * 10);
+  const safe = getSafePrestigeCount(prestigeCount);
+  return Math.min(90, PRESTIGE_REQUIRED_LEVEL + safe * 10);
 }
 
 // 12 ступеней кибер-рангов: первые 8 — канон ТЗ + 4 эндгейм-ранга под 25-уровневые карточки.
@@ -83,6 +95,24 @@ export const RANK_TITLES: { minLevel: number; minData: number; title: string }[]
   { minLevel: 125, minData: 8_000_000_000, title: 'Architect of Chaos' },
   { minLevel: 155, minData: 40_000_000_000, title: 'Zero-Point Entity' },
 ];
+
+/**
+ * Ранг — карьерный, а не текущий кошелёк. minData оставлен в конфиге для
+ * исторического UI, но после prestige текущий Data обнуляется, поэтому rank
+ * должен определяться только lifetime XP/уровнем и одинаково на всех путях.
+ */
+export function getRankForLevel(level: number): { rankIndex: number; rankTitle: string } {
+  const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
+  let rankIndex = 1;
+  let rankTitle = RANK_TITLES[0].title;
+  RANK_TITLES.forEach((rank, index) => {
+    if (safeLevel >= rank.minLevel) {
+      rankIndex = index + 1;
+      rankTitle = rank.title;
+    }
+  });
+  return { rankIndex, rankTitle };
+}
 
 export function computeAlignment(rep: number, heat: number): AlignmentBranch {
   if (rep >= 10 && rep > heat * 2) {
@@ -463,8 +493,8 @@ export function computeDerivedStats(params: {
   const summedSkinBonus = equippedSkinConfigs.reduce((sum, s) => sum + (s.clickBonusPct || 0), 0);
   const skinClickBonusPct = Math.min(SKIN_CLICK_BONUS_CAP, summedSkinBonus);
 
-  const safePrestige = Math.max(0, Math.min(20, Math.floor(Number(prestigeCount) || 0)));
-  const prestigeMultiplier = Math.pow(2, safePrestige);
+  const safePrestige = getSafePrestigeCount(prestigeCount);
+  const prestigeMultiplier = getPrestigeMultiplier(safePrestige);
 
   const clickMultiplier =
     (1 + cardClickBonus) *
@@ -501,17 +531,8 @@ export function computeDerivedStats(params: {
   );
   const heatMultiplier = Math.max(0.25, baseHeatMult * (1 - totalHeatReduction));
 
-  // Ранг присваивается строго по достижению И уровня, И накопленного порога прогрессии (кроме стартового ранга 1)
-  let rankIndex = 1;
-  let rankTitle = RANK_TITLES[0].title;
-  RANK_TITLES.forEach((r, idx) => {
-    // Ранг — это карьерный уровень, а не кошелёк: он не сбрасывается Престижем.
-    const qualifies = idx === 0 || level >= r.minLevel;
-    if (qualifies) {
-      rankIndex = idx + 1;
-      rankTitle = r.title;
-    }
-  });
+  // Ранг — карьерный уровень и не демотится после prestige.
+  const { rankIndex, rankTitle } = getRankForLevel(level);
 
   // Слоты миссий: 1 → 2 на 10 уровне → 3 на 20 уровне (теперь это награда за наигранные взломы).
   const missionSlots = level >= 20 ? 3 : level >= 10 ? 2 : 1;

@@ -306,7 +306,7 @@ export const DeskScene: React.FC = () => {
             До Ур. {derived.level + 1}:{' '}
             <strong className="text-[var(--ui-primary)]">
               {Math.round(derived.xpIntoLevel).toLocaleString('ru-RU')}/
-              {derived.xpToNext > 0 ? Math.round(derived.xpToNext).toLocaleString('ru-RU') : '∞'} XP
+              {derived.xpToNext > 0 ? Math.round(derived.xpToNext).toLocaleString('ru-RU') : 'MAX'} XP
             </strong>
           </span>
           {stageInfo.nextLevel && (
