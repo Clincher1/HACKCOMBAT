@@ -591,14 +591,22 @@ function ensureSeasonEvent(record: StoredPlayerRecord, nowMs: number = Date.now(
 function grantSeasonEventRewards(record: StoredPlayerRecord, state: SeasonEventState): void {
   const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
   if (state.completedDays.length > 0) {
+    const wasParticipationClaimed = state.participationClaimed;
     state.participationClaimed = true;
     unlocked.add(ACTIVE_SEASON_EVENT.participationFrameKey);
-    record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.participationFrameKey;
+    // Equip only at the moment of the first award. Completing another day must
+    // not silently replace a frame the player chose in the Profile tab.
+    if (!wasParticipationClaimed) {
+      record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.participationFrameKey;
+    }
   }
   if (state.completedDays.length === SEASON_EVENT_DAY_COUNT) {
+    const wasMasteryClaimed = state.masteryClaimed;
     state.masteryClaimed = true;
     unlocked.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
-    record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.masteryFrameKey;
+    if (!wasMasteryClaimed) {
+      record.stats.equippedProfileFrame = ACTIVE_SEASON_EVENT.masteryFrameKey;
+    }
   }
   record.stats.unlockedProfileFrames = Array.from(unlocked);
 }

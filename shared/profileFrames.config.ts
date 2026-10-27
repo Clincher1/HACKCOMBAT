@@ -90,7 +90,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   {
     key: 'frame_neon_relay_master',
     name: 'Neon Relay · Мастер',
-    description: 'Золотая рамка за полное прохождение всех 7 дней Neon Relay.'
+    description: 'Золотая рамка за полное прохождение всех 7 дней Neon Relay.',
     accent: '#ffb703',
     background: 'linear-gradient(135deg, rgba(255,183,3,0.28), rgba(255,0,160,0.24))',
     glow: '0 0 16px rgba(255, 183, 3, 0.52)',
