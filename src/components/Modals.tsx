@@ -275,7 +275,7 @@ export const ModalsAndOverlays: React.FC = () => {
 
               {/* Единый переключатель разделов косметики: рамки находятся рядом
                   с рабочим столом, интерфейсом и аватарами. */}
-              <div className="flex flex-wrap items-center gap-1.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 {[{ id: 'all' as const, label: 'Все' }, ...SKIN_CATEGORIES].map((cat) => (
                   <button
                     key={cat.id}
@@ -298,7 +298,7 @@ export const ModalsAndOverlays: React.FC = () => {
                   type="button"
                   aria-pressed={storeTab === 'frames'}
                   onClick={() => setStoreTab('frames')}
-                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                  className={`col-span-2 inline-flex w-full items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
                     storeTab === 'frames'
                       ? 'bg-purple-500/18 border-purple-400 text-purple-300'
                       : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400 hover:text-slate-200'
