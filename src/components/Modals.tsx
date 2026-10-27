@@ -275,7 +275,7 @@ export const ModalsAndOverlays: React.FC = () => {
 
               {/* Единый переключатель разделов косметики: рамки находятся рядом
                   с рабочим столом, интерфейсом и аватарами. */}
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <div className="flex flex-wrap items-center gap-1.5">
                 {[{ id: 'all' as const, label: 'Все' }, ...SKIN_CATEGORIES].map((cat) => (
                   <button
                     key={cat.id}
