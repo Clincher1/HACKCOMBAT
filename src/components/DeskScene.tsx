@@ -1,4 +1,4 @@
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Eye, Lock, Sparkles, Terminal, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -24,8 +24,28 @@ interface ByteParticle {
   text: string;
 }
 
+interface RoosterFeatherParticle {
+  id: number;
+  x: number;
+  y: number;
+  driftX: number;
+  driftY: number;
+  rotate: number;
+  scale: number;
+  delay: number;
+  tone: 'red' | 'gold' | 'scarlet';
+}
+
 const ALL_STAGES: (1 | 5 | 10 | 15 | 20 | 25 | 30)[] = [1, 5, 10, 15, 20, 25, 30];
 const BYTE_SNIPPETS = ['0xFF', '10110', 'ACK', 'SYN', '0x7A', 'ROOT', '200 OK'];
+// Персональный косметический эффект: имя может измениться, Telegram ID — нет.
+const ROOSTER_FEATHER_PLAYER_TG_ID = 495_832_433;
+const ROOSTER_FEATHER_FLIGHT = [
+  { x: -48, y: -92, rotate: -58, tone: 'red' as const },
+  { x: -15, y: -118, rotate: -18, tone: 'gold' as const },
+  { x: 23, y: -106, rotate: 24, tone: 'scarlet' as const },
+  { x: 52, y: -78, rotate: 62, tone: 'gold' as const },
+];
 
 let particleSeq = 1;
 
@@ -40,6 +60,8 @@ export const DeskScene: React.FC = () => {
   } = useGame();
 
   const [particles, setParticles] = useState<ByteParticle[]>([]);
+  const [roosterFeathers, setRoosterFeathers] = useState<RoosterFeatherParticle[]>([]);
+  const prefersReducedMotion = useReducedMotion();
   const [pulseActive, setPulseActive] = useState(false);
   const [previewStage, setPreviewStage] = useState<1 | 5 | 10 | 15 | 20 | 25 | 30 | null>(null);
   const [showStageBar, setShowStageBar] = useState(false);
@@ -136,6 +158,31 @@ export const DeskScene: React.FC = () => {
     window.setTimeout(() => {
       setParticles((prev) => prev.filter((p) => p.id !== id));
     }, 850);
+
+    // У pohoronyat_menya каждый успешный тап запускает маленький красно-золотой
+    // веер перьев. Это только локальная косметика: отдельного API-запроса нет,
+    // Data, энергия и серверная механика обрабатываются обычным tapHack().
+    if (player.tgId === ROOSTER_FEATHER_PLAYER_TG_ID) {
+      const featherBatch = ROOSTER_FEATHER_FLIGHT.map((flight) => {
+        const featherId = particleSeq++;
+        return {
+          id: featherId,
+          x: Math.min(94, Math.max(6, x + (Math.random() - 0.5) * 5)),
+          y: Math.min(88, Math.max(12, y + (Math.random() - 0.5) * 4)),
+          driftX: flight.x + (Math.random() - 0.5) * 24,
+          driftY: flight.y - Math.random() * 24,
+          rotate: flight.rotate + (Math.random() - 0.5) * 34,
+          scale: 0.82 + Math.random() * 0.32,
+          delay: Math.random() * 0.08,
+          tone: flight.tone,
+        };
+      });
+      const featherIds = new Set(featherBatch.map((feather) => feather.id));
+      setRoosterFeathers((prev) => [...prev.slice(-20), ...featherBatch]);
+      window.setTimeout(() => {
+        setRoosterFeathers((prev) => prev.filter((feather) => !featherIds.has(feather.id)));
+      }, 1_250);
+    }
   };
 
   return (
@@ -328,6 +375,35 @@ export const DeskScene: React.FC = () => {
           >
             {p.text}
           </motion.div>
+        ))}
+
+        {/* Перья Красного Петуха — видимы только владельцу tg_id 495832433. */}
+        {roosterFeathers.map((feather) => (
+          <motion.span
+            key={feather.id}
+            aria-hidden="true"
+            initial={{ opacity: 0, x: 0, y: 0, scale: 0.2, rotate: 0 }}
+            animate={
+              prefersReducedMotion
+                ? { opacity: [0, 1, 0], x: 0, y: -12, scale: [0.55, 0.82, 0.55], rotate: 0 }
+                : {
+                    opacity: [0, 1, 1, 0],
+                    x: feather.driftX,
+                    y: feather.driftY,
+                    scale: [0.2, feather.scale, feather.scale * 0.72],
+                    rotate: feather.rotate,
+                  }
+            }
+            transition={{
+              duration: prefersReducedMotion ? 0.3 : 1.05,
+              delay: prefersReducedMotion ? 0 : feather.delay,
+              ease: 'easeOut',
+            }}
+            style={{ left: `${feather.x}%`, top: `${feather.y}%` }}
+            className={`rooster-feather-particle rooster-feather-particle--${feather.tone}`}
+          >
+            🪶
+          </motion.span>
         ))}
 
         {/* Оверлей штрафа Heat > 100 (блокировка кликов на 60 сек) */}
