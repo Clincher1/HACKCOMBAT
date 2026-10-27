@@ -69,6 +69,7 @@ interface GameContextValue {
   petAction: (action: 'buy' | 'feed', petKey: string) => Promise<void>;
   trackEvent: (event: string, value?: number) => void;
   claimDailyBonus: () => Promise<void>;
+  resolveDailyIncident: (choiceKey: string) => Promise<void>;
   claimDailyTask: (taskKey: string) => Promise<void>;
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery') => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
@@ -820,6 +821,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const resolveDailyIncident = useCallback(
+    (choiceKey: string) =>
+      runAction(
+        `daily-incident:${choiceKey}`,
+        (clicks) => gameApi.resolveDailyIncident(choiceKey, clicks),
+        true,
+        'light'
+      ),
+    [runAction]
+  );
+
   const claimDailyTask = useCallback(
     (taskKey: string) =>
       runAction(`daily-task:claim:${taskKey}`, (clicks) => gameApi.claimDailyTask(taskKey, clicks), true, 'light'),
@@ -1060,6 +1072,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         petAction,
         trackEvent,
         claimDailyBonus,
+        resolveDailyIncident,
         claimDailyTask,
         claimSeasonEvent,
         buyOrEquipSkin,

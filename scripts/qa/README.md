@@ -1,4 +1,4 @@
-# QA-скрипты (v3.3)
+# QA-скрипты (v3.13)
 
 Живые проверки против локального dev-сервера. Ничего не пишут в прод.
 
@@ -11,6 +11,7 @@ node scripts/qa/clicks.mjs       # ~1 мин: быстрый тап не лов�
 npm run qa:integrity              # finite XP/Data, prestige cap, migration/RPC и MAX UI checks
 npm run qa:offline                # мгновенно: оффлайн-экономика v3.2 (собирает и грузит api/_core.cjs)
 npm run qa:buy                   # ~30 с: покупки с «хвостом» кликов (v3.3), без dev-сервера
+npm run qa:daily-incident        # мгновенно: выбор дня, legacy migration и double-tap guard
 ```
 
 ## Оффлайн-копилка v3.2 (`npm run qa:offline`)

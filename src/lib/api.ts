@@ -69,6 +69,8 @@ export const gameApi = {
   hireNpc: (npcKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/hire', 'POST', { npcKey, clicks }),
   claimDaily: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/daily', 'POST', { clicks }),
+  resolveDailyIncident: (choiceKey: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/daily-incident', 'POST', { choiceKey, clicks }),
   claimDailyTask: (taskKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/daily-tasks', 'POST', { action: 'claim', taskKey, clicks }),
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>

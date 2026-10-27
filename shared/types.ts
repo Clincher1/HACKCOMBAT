@@ -286,6 +286,40 @@ export interface DailyTaskState {
   claimed: string[];
 }
 
+/** Один серверный выбор в ежедневном киберинциденте. */
+export interface DailyIncidentChoiceDefinition {
+  key: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface DailyIncidentDefinition {
+  key: string;
+  title: string;
+  brief: string;
+  system: string;
+  choices: readonly DailyIncidentChoiceDefinition[];
+}
+
+export interface DailyIncidentOutcomeState {
+  data: number;
+  crypto: number;
+  rep: number;
+  heat: number;
+  summary: string;
+}
+
+/** Состояние одного неизменяемого инцидента за московские сутки. */
+export interface DailyIncidentState {
+  version: 1;
+  dayKey: string;
+  incidentKey: string;
+  choiceKey?: string | null;
+  resolvedAt?: string | null;
+  outcome?: DailyIncidentOutcomeState | null;
+}
+
 export interface PlayerProgressStats {
   tutorialTabs: string[]; // Просмотренные главы Академии
   tutorialOpens: number;
@@ -317,6 +351,8 @@ export interface PlayerProgressStats {
   activeDayKey?: string | null;
   /** v3.8: три персональных ежедневных поручения и их серверный прогресс. */
   dailyTasks?: DailyTaskState;
+  /** v3.13: один серверный киберинцидент с выбором в каждые московские сутки. */
+  dailyIncident?: DailyIncidentState;
   /** v3.9: прогресс текущей 7-дневной сезонной операции. */
   seasonEvent?: SeasonEventState;
   /** v3.9: профильные рамки, открытые за косметические события. */

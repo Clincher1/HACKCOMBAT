@@ -22,6 +22,7 @@ import {
 import { getFirstChapterState } from '../../shared/chapter.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { MissionTargetType } from '../../shared/types';
+import { DailyIncidentPanel } from '../components/DailyIncidentPanel';
 import { useGame } from '../context/GameContext';
 import { formatCompact, formatCountdown } from '../lib/format';
 
@@ -193,6 +194,8 @@ export const HacksPage: React.FC = () => {
           Запуск платный: контракт списывает Data и Energy сразу. При успехе награда возвращает вложение с прибылью; при провале взнос не возвращается.
         </div>
       </div>
+
+      <DailyIncidentPanel />
 
       {/* Короткая легенда риска: помогает новичку читать шанс без отдельного туториала. */}
       <div className="rounded-xl bg-[#0a0e1a]/65 border border-slate-800/90 px-3 py-2.5 space-y-2">

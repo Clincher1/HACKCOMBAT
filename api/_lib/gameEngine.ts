@@ -79,6 +79,12 @@ import {
   SEASON_EVENT_TASKS_PER_DAY,
 } from '../../shared/seasonalEvent.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
+import {
+  ensureDailyIncident,
+  normalizeDailyIncidentState,
+  resolveDailyIncidentOutcome,
+} from './dailyIncident';
+import { getDailyIncidentDefinition } from '../../shared/incidents.config';
 import type {
   ActiveMissionInstance,
   ApiSyncResponse,
@@ -166,6 +172,7 @@ const EMPTY_STATS: PlayerProgressStats = {
   lastTapClaimAt: null,
   activeDayKey: null,
   activeSecondsToday: 0,
+  dailyIncident: undefined,
   missionRefreshSalt: 0,
   lastMissionRefreshAt: null,
   equippedProfileFrameExpiresAt: null,
@@ -446,6 +453,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
+    dailyIncident: normalizeDailyIncidentState(src.dailyIncident),
     seasonEvent,
     unlockedProfileFrames,
     // Надетой может быть только реально открытая рамка. Это не даёт старому
@@ -1146,7 +1154,9 @@ async function savePlayerCore(
   mode: 'supabase' | 'memory-fallback',
   expectedXp?: number,
   expectedData?: number,
-  expectedEnergy?: number
+  expectedEnergy?: number,
+  expectedRep?: number,
+  expectedHeat?: number
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
@@ -1276,6 +1286,14 @@ async function savePlayerCore(
   if (expectedEnergy !== undefined) {
     const normalizedExpectedEnergy = Math.max(0, Math.floor(safeNonNeg(expectedEnergy, 0)));
     updateQuery = updateQuery.eq('energy', normalizedExpectedEnergy);
+  }
+  if (expectedRep !== undefined) {
+    const normalizedExpectedRep = Math.max(0, Math.floor(safeNonNeg(expectedRep, 0)));
+    updateQuery = updateQuery.eq('rep', normalizedExpectedRep);
+  }
+  if (expectedHeat !== undefined) {
+    const normalizedExpectedHeat = Math.max(0, Math.floor(safeNonNeg(expectedHeat, 0)));
+    updateQuery = updateQuery.eq('heat', normalizedExpectedHeat);
   }
   const { data: updatedRows, error } = await updateQuery.select('id');
 
@@ -1582,6 +1600,9 @@ async function syncTimeAndRules(
   // Ежедневные поручения используют те же московские сутки, что и активность
   // и лимит Чипов. Создание/сброс происходит только на сервере.
   ensureDailyTasks(record, nowDayKey);
+  // Один короткий киберинцидент в сутки добавляет выбор, но не новую валюту
+  // и не обязательный гринд. Сценарий фиксируется сервером до смены дня.
+  ensureDailyIncident(record.stats, record.tgId, nowDayKey);
   // Сезонная операция живёт ровно в согласованном окне 27.10 09:00 →
   // 03.11 09:00 по Москве; после окончания новый state не создаётся.
   if (isSeasonEventLive(nowMs)) ensureSeasonEvent(record, nowMs);
@@ -2977,6 +2998,71 @@ export async function handleDailyTaskAction(
     });
 
     await savePlayerCore(record, mode, expectedXp);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/**
+ * Ежедневный киберинцидент. Выбор одноразовый и серверный: клиент присылает
+ * только ключ кнопки, а исход вычисляется здесь и сохраняется через Data-CAS.
+ */
+export async function handleDailyIncidentAction(
+  user: VerifiedTelegramUser,
+  choiceKey: string,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    const state = ensureDailyIncident(record.stats, record.tgId, getGameDayKey(Date.now()));
+    if (state.choiceKey) {
+      throw new Error('Сегодняшний киберинцидент уже закрыт');
+    }
+
+    const definition = getDailyIncidentDefinition(state.incidentKey);
+    if (!definition || !definition.choices.some((choice) => choice.key === choiceKey)) {
+      throw new Error('Этот выбор не относится к сегодняшнему инциденту');
+    }
+
+    const expectedData = record.data;
+    const outcome = resolveDailyIncidentOutcome(
+      record.tgId,
+      state,
+      deriveStats(record).level,
+      choiceKey
+    );
+    const previousRep = record.rep;
+    const previousHeat = record.heat;
+
+    record.data = safeDataBalance(record.data + outcome.data);
+    record.crypto += outcome.crypto;
+    record.rep = Math.max(0, record.rep + outcome.rep);
+    record.heat = Math.max(0, record.heat + outcome.heat);
+    state.choiceKey = outcome.choiceKey;
+    state.resolvedAt = new Date().toISOString();
+    state.outcome = {
+      data: outcome.data,
+      crypto: outcome.crypto,
+      rep: record.rep - previousRep,
+      heat: record.heat - previousHeat,
+      summary: outcome.summary,
+    };
+
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: outcome.heat > 0 ? 'warning' : 'success',
+      title: `📡 ${definition.title} закрыт`,
+      message: outcome.summary,
+    });
+
+    // Data + Rep/Heat CAS защищают одноразовый выбор на разных serverless-инстансах.
+    // Это сохраняет guard даже если Data уже упёрся в конечный cap.
+    await savePlayerCore(record, mode, undefined, expectedData, undefined, previousRep, previousHeat);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
