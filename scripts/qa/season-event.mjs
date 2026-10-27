@@ -101,17 +101,12 @@ function sameEconomy(a, b) {
   check('тапы двигают сезонную цель', Number(tapGoal?.[1] ?? 0) > 0, `${tapGoal?.[1] ?? 0}/1000`);
   check('тапы не двигают цели контрактов', event.progress.event_starts_3 === 0 && event.progress.event_completes_3 === 0);
 
-  const economyBeforeParticipation = { ...player };
-  const participation = await api('season-event', { action: 'claim_participation' });
-  player = participation.player;
-  check('рамку участника можно получить после первой цели', participation.ok === true);
-  check('рамка участника открыта и включена',
-    player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
-      player.stats.equippedProfileFrame === 'frame_neon_relay');
-  check('claim рамки участника не даёт игровые ресурсы', sameEconomy(participation.player, economyBeforeParticipation));
-
-  const duplicateParticipation = await api('season-event', { action: 'claim_participation' });
-  check('рамку участника нельзя получить повторно', duplicateParticipation.ok === false, duplicateParticipation.error);
+  const earlyParticipation = await api('season-event', { action: 'claim_participation' });
+  check('рамку участника нельзя получить после одной цели', earlyParticipation.ok === false, earlyParticipation.error);
+  player = (await api('init')).player;
+  check('до полного прохождения рамки не открыты',
+    !player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
+      !player.stats.unlockedProfileFrames.includes('frame_neon_relay_master'));
 
   // Три запуска и три закрытия используют существующую механику контрактов.
   for (let index = 0; index < 3; index += 1) {
@@ -137,6 +132,25 @@ function sameEconomy(a, b) {
     event.progress.event_taps_1000 >= 1000 && event.progress.event_starts_3 >= 3 && event.progress.event_completes_3 >= 3,
     JSON.stringify(event.progress));
 
+  const economyBeforeParticipation = { ...player };
+  const participation = await api('season-event', { action: 'claim_participation' });
+  player = participation.player;
+  check('рамку участника можно получить после полного прохождения', participation.ok === true, participation.error);
+  check('рамка участника открыта и включена',
+    player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
+      player.stats.equippedProfileFrame === 'frame_neon_relay');
+  check('claim рамки участника не даёт игровые ресурсы', sameEconomy(participation.player, economyBeforeParticipation));
+  const removedParticipation = await api('skin', { action: 'profile_frame', skinKey: 'default' });
+  const reequippedParticipation = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay' });
+  check('полученную рамку участника можно снять и надеть снова',
+    removedParticipation.ok === true &&
+      reequippedParticipation.ok === true &&
+      reequippedParticipation.player.stats.equippedProfileFrame === 'frame_neon_relay',
+    reequippedParticipation.error);
+
+  const duplicateParticipation = await api('season-event', { action: 'claim_participation' });
+  check('рамку участника нельзя получить повторно', duplicateParticipation.ok === false, duplicateParticipation.error);
+
   const economyBeforeMastery = { ...player };
   const mastery = await api('season-event', { action: 'claim_mastery' });
   player = mastery.player;
@@ -145,6 +159,13 @@ function sameEconomy(a, b) {
     player.stats.unlockedProfileFrames.includes('frame_neon_relay_master') &&
       player.stats.equippedProfileFrame === 'frame_neon_relay_master');
   check('claim редкой рамки не даёт XP/Data/Crypto/Чипы', sameEconomy(mastery.player, economyBeforeMastery));
+  const removedMastery = await api('skin', { action: 'profile_frame', skinKey: 'default' });
+  const reequippedMastery = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay_master' });
+  check('главный приз можно снять и надеть снова',
+    removedMastery.ok === true &&
+      reequippedMastery.ok === true &&
+      reequippedMastery.player.stats.equippedProfileFrame === 'frame_neon_relay_master',
+    reequippedMastery.error);
 
   const duplicateMastery = await api('season-event', { action: 'claim_mastery' });
   check('редкую рамку нельзя получить повторно', duplicateMastery.ok === false, duplicateMastery.error);

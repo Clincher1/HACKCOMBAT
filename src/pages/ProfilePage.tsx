@@ -64,6 +64,7 @@ export const ProfilePage: React.FC = () => {
     : 0;
   const chipsLeftToday = Math.max(0, CHIP_DAILY_CAP - chipsToday);
   const canPrestige = derived.level >= requiredPrestigeLevel;
+  const profileFrame = getProfileFrame(player.stats.equippedProfileFrame);
 
   // Метрики турнирной таблицы. Data тратится (купил карточки — упал в таблице),
   // XP не тратится никогда, уровень — карьерный итог. Пусть игрок выбирает зачёт.
@@ -98,10 +99,25 @@ export const ProfilePage: React.FC = () => {
                 src={tgProfile.photoUrl}
                 alt={player.username}
                 loading="lazy"
-                className="w-14 h-14 rounded-2xl object-cover border-2 border-[#00f0ff]"
+                className="w-14 h-14 rounded-2xl object-cover border-2"
+                style={{
+                  borderColor: profileFrame.accent,
+                  background: profileFrame.background,
+                  boxShadow: profileFrame.glow,
+                }}
+                title={`Рамка профиля: ${profileFrame.name}`}
               />
             ) : (
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00f0ff]/25 to-[#ff00a0]/25 border border-[#00f0ff]/50 flex items-center justify-center font-display text-xl font-black text-[#00f0ff] shrink-0">
+              <div
+                className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-xl font-black shrink-0"
+                style={{
+                  borderColor: profileFrame.accent,
+                  background: profileFrame.background,
+                  boxShadow: profileFrame.glow,
+                  color: profileFrame.accent,
+                }}
+                title={`Рамка профиля: ${profileFrame.name}`}
+              >
                 {player.username.slice(0, 2).toUpperCase()}
               </div>
             )}
@@ -128,6 +144,9 @@ export const ProfilePage: React.FC = () => {
               <div className="inline-flex items-center gap-1.5 mt-0.5 px-2 py-0.5 rounded-md bg-[#00f0ff]/12 border border-[#00f0ff]/35 text-[11px] font-bold text-[#00f0ff]">
                 <Crown className="w-3 h-3" />
                 <span>Ранг: {derived.rankTitle}</span>
+              </div>
+              <div className="mt-1 text-[10px] font-semibold" style={{ color: profileFrame.accent }}>
+                Рамка: {profileFrame.name}
               </div>
             </div>
           </div>

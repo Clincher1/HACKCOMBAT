@@ -14,11 +14,12 @@ import {
 import { BASE_UPGRADES_CONFIG } from '../../shared/base.config';
 import type { CardCategory } from '../../shared/types';
 import { BaseUpgradeList } from '../components/BaseUpgradeList';
+import { ProfileFramesShop } from '../components/ProfileFramesShop';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 import { triggerHapticSelection } from '../lib/telegram';
 
-type WorkshopTab = 'cards' | 'base';
+type WorkshopTab = 'cards' | 'base' | 'frames';
 
 export const UpgradesPage: React.FC = () => {
   const { player, buyCard, unlockTier, busyKey, openTutorial } = useGame();
@@ -78,8 +79,8 @@ export const UpgradesPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Переключатель: Модули / База */}
-      <div className="grid grid-cols-2 gap-2">
+      {/* Переключатель: Модули / База / Рамки профиля */}
+      <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
           onClick={() => {
@@ -113,9 +114,25 @@ export const UpgradesPage: React.FC = () => {
             </span>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            triggerHapticSelection();
+            setTab('frames');
+          }}
+          className={`py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition cursor-pointer ${
+            tab === 'frames'
+              ? 'bg-purple-500/18 border-purple-400 text-purple-300'
+              : 'bg-[#10172e] border-slate-800 text-slate-400'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5" /> Рамки профиля
+        </button>
       </div>
 
-      {tab === 'base' ? (
+      {tab === 'frames' ? (
+        <ProfileFramesShop />
+      ) : tab === 'base' ? (
         <BaseUpgradeList />
       ) : (
         <>

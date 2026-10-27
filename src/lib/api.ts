@@ -62,8 +62,13 @@ export const gameApi = {
     apiRequest<ApiSyncResponse>('/api/daily-tasks', 'POST', { action: 'claim', taskKey, clicks }),
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/season-event', 'POST', { action, clicks }),
-  skinAction: (action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme', skinKey?: string, clicks = 0) =>
-    apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
+  skinAction: (
+    action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+    skinKey?: string,
+    clicks = 0
+  ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
+  profileFrameAction: (frameKey: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action: 'profile_frame', skinKey: frameKey, clicks }),
   prestige: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/prestige', 'POST', { clicks }),
   unlockTier: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/tier', 'POST', { clicks }),
   buyBaseUpgrade: (upgradeKey: string, clicks = 0) =>

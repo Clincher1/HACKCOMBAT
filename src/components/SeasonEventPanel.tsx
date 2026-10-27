@@ -45,9 +45,8 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
   const allComplete = ACTIVE_SEASON_EVENT.goals.every(
     (goal) => (eventState.progress[goal.key] ?? 0) >= goal.target
   );
-  const hasParticipation = ACTIVE_SEASON_EVENT.goals.some(
-    (goal) => (eventState.progress[goal.key] ?? 0) > 0
-  );
+  // Обе рамки выдаются только после полного закрытия всех трёх целей.
+  const eventCompleted = allComplete;
 
   return (
     <section
@@ -136,20 +135,20 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <RewardButton
           frame={participationFrame}
-          ready={live && hasParticipation}
+          ready={live && eventCompleted}
           claimed={eventState.participationClaimed}
           busy={busyKey === 'season-event:claim_participation'}
           label="Рамка участника"
-          lockedLabel={upcoming ? 'Откроется после старта ивента' : undefined}
+          lockedLabel={upcoming ? 'Откроется после старта ивента' : 'Закрой все три цели операции'}
           onClick={() => void claimSeasonEvent('claim_participation')}
         />
         <RewardButton
           frame={masteryFrame}
-          ready={live && allComplete}
+          ready={live && eventCompleted}
           claimed={eventState.masteryClaimed}
           busy={busyKey === 'season-event:claim_mastery'}
           label="Рамка мастера"
-          lockedLabel={upcoming ? 'Станет доступна после закрытия всех целей' : undefined}
+          lockedLabel={upcoming ? 'Станет доступна после закрытия всех целей' : 'Закрой все три цели операции'}
           onClick={() => void claimSeasonEvent('claim_mastery')}
         />
       </div>
