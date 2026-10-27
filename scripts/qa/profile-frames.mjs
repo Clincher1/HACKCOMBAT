@@ -26,8 +26,8 @@ const SEED = 'profile-frames-qa';
 const LOW_LEVEL_SEED = 'profile-frames-low-level-qa';
 const LOW_CRYPTO_SEED = 'profile-frames-low-crypto-qa';
 const STALE_EQUIPPED_SEED = 'profile-frames-stale-equipped-qa';
-const TEMPORARY_FRAME_SEED = 'profile-frames-temporary-qa';
-const EXPIRED_FRAME_SEED = 'profile-frames-expired-qa';
+const GIFTED_FRAME_SEED = 'profile-frames-gifted-qa';
+const STALE_GIFTED_FRAME_SEED = 'profile-frames-stale-gifted-qa';
 function demoTgId(seed) {
   return -(100_000_000 + crypto.createHash('sha256').update(`hk-guest-sandbox:${seed}`).digest().readUInt32BE(0) % 800_000_000);
 }
@@ -73,19 +73,19 @@ const tgId = demoTgId(SEED);
 const lowLevelId = demoTgId(LOW_LEVEL_SEED);
 const lowCryptoId = demoTgId(LOW_CRYPTO_SEED);
 const staleEquippedId = demoTgId(STALE_EQUIPPED_SEED);
-const temporaryFrameId = demoTgId(TEMPORARY_FRAME_SEED);
-const expiredFrameId = demoTgId(EXPIRED_FRAME_SEED);
+const giftedFrameId = demoTgId(GIFTED_FRAME_SEED);
+const staleGiftedFrameId = demoTgId(STALE_GIFTED_FRAME_SEED);
 const staleEquippedRecord = makeRecord(staleEquippedId, { username: 'StaleFrameTester' });
-const temporaryFrameRecord = makeRecord(temporaryFrameId, { username: 'TemporaryFrameTester' });
-temporaryFrameRecord.stats = {
-  unlockedProfileFrames: ['frame_rooster_red'],
+const giftedFrameRecord = makeRecord(giftedFrameId, { username: 'GiftedFrameTester' });
+giftedFrameRecord.stats = {
+  unlockedProfileFrames: ['frame_rooster_red', 'frame_rainbow_fish'],
   equippedProfileFrame: 'frame_rooster_red',
   equippedProfileFrameExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
 };
-const expiredFrameRecord = makeRecord(expiredFrameId, { username: 'ExpiredFrameTester' });
-expiredFrameRecord.stats = {
-  unlockedProfileFrames: ['frame_rooster_red'],
-  equippedProfileFrame: 'frame_rooster_red',
+const staleGiftedFrameRecord = makeRecord(staleGiftedFrameId, { username: 'StaleGiftedFrameTester' });
+staleGiftedFrameRecord.stats = {
+  unlockedProfileFrames: ['frame_rainbow_fish'],
+  equippedProfileFrame: 'frame_rainbow_fish',
   equippedProfileFrameExpiresAt: new Date(Date.now() - 1000).toISOString(),
 };
 staleEquippedRecord.stats = {
@@ -110,8 +110,8 @@ fs.writeFileSync(
       [String(lowLevelId)]: makeRecord(lowLevelId, { xp: 0 }),
       [String(lowCryptoId)]: makeRecord(lowCryptoId, { cryptoAmount: 10 }),
       [String(staleEquippedId)]: staleEquippedRecord,
-      [String(temporaryFrameId)]: temporaryFrameRecord,
-      [String(expiredFrameId)]: expiredFrameRecord,
+      [String(giftedFrameId)]: giftedFrameRecord,
+      [String(staleGiftedFrameId)]: staleGiftedFrameRecord,
     },
   })
 );
@@ -218,17 +218,20 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
   const giftOnlyFrame = await api('skin', { action: 'profile_frame', skinKey: 'frame_matrix_rain' });
   check('персональную Matrix-рамку нельзя купить', giftOnlyFrame.ok === false && /персонально/i.test(giftOnlyFrame.error ?? ''), giftOnlyFrame.error);
 
-  const temporaryFrame = await api('init', {}, TEMPORARY_FRAME_SEED);
+  const giftedFrame = await api('init', {}, GIFTED_FRAME_SEED);
   check(
-    'временная рамка активна до срока истечения',
-    temporaryFrame.player?.stats?.equippedProfileFrame === 'frame_rooster_red' &&
-      typeof temporaryFrame.player?.stats?.equippedProfileFrameExpiresAt === 'string'
+    'подарочные рамки остаются навсегда и доступны для смены',
+    giftedFrame.player?.stats?.equippedProfileFrame === 'frame_rooster_red' &&
+      (giftedFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rooster_red') &&
+      (giftedFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rainbow_fish') &&
+      giftedFrame.player?.stats?.equippedProfileFrameExpiresAt === null
   );
-  const expiredFrame = await api('init', {}, EXPIRED_FRAME_SEED);
+  const staleGiftedFrame = await api('init', {}, STALE_GIFTED_FRAME_SEED);
   check(
-    'истёкшая временная рамка автоматически снимается',
-    expiredFrame.player?.stats?.equippedProfileFrame === undefined &&
-      !(expiredFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rooster_red')
+    'старый expiry не снимает постоянный подарок',
+    staleGiftedFrame.player?.stats?.equippedProfileFrame === 'frame_rainbow_fish' &&
+      (staleGiftedFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rainbow_fish') &&
+      staleGiftedFrame.player?.stats?.equippedProfileFrameExpiresAt === null
   );
 
   const leaderboard = await api('leaderboard', {}, SEED, 'GET');

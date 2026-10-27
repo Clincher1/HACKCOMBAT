@@ -395,7 +395,15 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
   ) {
     validEventFrameKeys.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
   }
+  const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
+  const equippedFrameConfig = equippedProfileFrame
+    ? PROFILE_FRAMES.find((candidate) => candidate.key === equippedProfileFrame)
+    : undefined;
+  // Expiry is meaningful only for frames explicitly marked temporary. This
+  // also migrates old gifted-frame records that still carry a stale 24-hour
+  // timestamp: permanent gifts keep working and expose no expiry.
   const temporaryFrameExpiry =
+    equippedFrameConfig?.temporary &&
     typeof src.equippedProfileFrameExpiresAt === 'string' &&
     !Number.isNaN(new Date(src.equippedProfileFrameExpiresAt).getTime())
       ? src.equippedProfileFrameExpiresAt
@@ -408,7 +416,6 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     if (frame.temporary && !temporaryFrameActive) return false;
     return !frame.eventKey || validEventFrameKeys.has(frame.key);
   });
-  const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
 
   return {
     tutorialTabs: strArr(src.tutorialTabs),
