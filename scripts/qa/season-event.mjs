@@ -138,6 +138,7 @@ async function closeContractTasks(player, day) {
   let day = currentDayState(player);
 
   check('init выдаёт новую per-day модель', result.ok === true && event?.eventKey === 'neon-relay' && event?.version === 2);
+  check('старая модель трёх глобальных goals удалена', !Object.hasOwn(event ?? {}, 'progress'));
   check('ивент хранит ровно 7 дней и 3 задания в текущем дне',
     event?.currentDay === 1 && day?.tasks?.length === 3,
     JSON.stringify(day?.tasks?.map((task) => task.kind)));
