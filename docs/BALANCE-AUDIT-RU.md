@@ -57,7 +57,7 @@
 
 Результат проверки кода:
 
-- `npm run qa:all`: **14 сценариев, 406 pass / 0 fail** (включая finite/progression integrity QA);
+- `npm run qa:all`: **14 сценариев, 408 pass / 0 fail** (включая finite/progression и временную рамку QA);
 - live memory API QA: **50 pass / 0 fail**, click/anti-cheat QA: **6 pass / 0 fail**;
 - build, TypeScript, Vite и API bundle прошли;
 - остаётся только warning о production chunk примерно 519 KB;
