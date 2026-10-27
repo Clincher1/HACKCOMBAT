@@ -17,7 +17,8 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const CORE = path.join(process.cwd(), 'api/_core.cjs');
+const REPO_ROOT = process.cwd();
+const CORE = path.join(REPO_ROOT, 'api/_core.cjs');
 if (!fs.existsSync(CORE)) {
   console.error('Нет api/_core.cjs — сначала выполните: npm run build');
   process.exit(1);
@@ -215,6 +216,16 @@ function reloadRuntime() {
   const nextChoice = firstChoiceByIncident[nextIncident.incidentKey];
   const nextResolved = await api('daily-incident', { choiceKey: nextChoice }, seed);
   check('выбор доступен снова только после смены дня', nextResolved.ok === true && nextResolved.player.stats.dailyIncident.choiceKey === nextChoice);
+
+  const panelSource = fs.readFileSync(path.join(REPO_ROOT, 'src/components/DailyIncidentPanel.tsx'), 'utf8');
+  const styleSource = fs.readFileSync(path.join(REPO_ROOT, 'src/index.css'), 'utf8');
+  const hacksPageSource = fs.readFileSync(path.join(REPO_ROOT, 'src/pages/HacksPage.tsx'), 'utf8');
+  check('панель «Сигнал дня» подключена в разделе Hacks',
+    hacksPageSource.includes("import { DailyIncidentPanel }") && hacksPageSource.includes('<DailyIncidentPanel />'));
+  check('активная панель имеет пульсирующую подсветку и scanline',
+    panelSource.includes('daily-incident-panel') &&
+      styleSource.includes('@keyframes dailyIncidentPanelPulse') &&
+      styleSource.includes('@keyframes dailyIncidentScanline'));
 
   Date.now = realNow;
   console.log(`\nИтог: ${pass} pass / ${fail} fail`);

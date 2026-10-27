@@ -692,3 +692,180 @@ body[data-theme='femme'] .rounded-2xl {
     animation-iteration-count: 1;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   v3.14: «Сигнал дня» должен быть заметным на мобильном экране. Активный
+   киберинцидент мягко пульсирует, подсвечивается и получает живую scanline,
+   но закрытый инцидент остаётся спокойным, чтобы не отвлекать игрока.
+   --------------------------------------------------------------------------- */
+.daily-incident-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(244, 114, 182, 0.78);
+  box-shadow:
+    0 0 0 1px rgba(244, 114, 182, 0.24),
+    0 0 22px rgba(217, 70, 239, 0.34),
+    inset 0 0 24px rgba(217, 70, 239, 0.12);
+  animation: dailyIncidentPanelPulse 1.9s ease-in-out infinite;
+}
+
+.daily-incident-panel::before {
+  position: absolute;
+  inset: -35%;
+  z-index: 0;
+  pointer-events: none;
+  content: '';
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.2), transparent 20%),
+    radial-gradient(circle at 82% 75%, rgba(217, 70, 239, 0.28), transparent 42%);
+  opacity: 0.5;
+  animation: dailyIncidentGlow 2.6s ease-in-out infinite;
+}
+
+.daily-incident-panel::after {
+  position: absolute;
+  top: -24%;
+  left: -15%;
+  z-index: 0;
+  width: 130%;
+  height: 18%;
+  pointer-events: none;
+  content: '';
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.34),
+    rgba(244, 114, 182, 0.18),
+    transparent
+  );
+  opacity: 0;
+  transform: rotate(-4deg);
+  animation: dailyIncidentScanline 3.1s linear infinite;
+}
+
+.daily-incident-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.daily-incident-panel__signal {
+  box-shadow:
+    0 0 0 1px rgba(244, 114, 182, 0.25),
+    0 0 14px rgba(244, 114, 182, 0.58),
+    inset 0 0 12px rgba(255, 255, 255, 0.1);
+  animation: dailyIncidentSignalPulse 1.15s ease-in-out infinite;
+}
+
+.daily-incident-panel__badge {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.42);
+  animation: dailyIncidentBadgeBlink 1.45s steps(2, end) infinite;
+}
+
+.daily-incident-live-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: #f9a8d4;
+  box-shadow: 0 0 6px #f9a8d4, 0 0 14px #e879f9;
+  animation: dailyIncidentDotBlink 0.95s ease-in-out infinite;
+}
+
+.daily-incident-panel--resolved {
+  border-color: rgba(110, 231, 183, 0.38);
+  box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.12), inset 0 0 18px rgba(16, 185, 129, 0.06);
+  animation: none;
+}
+
+.daily-incident-panel--resolved::before,
+.daily-incident-panel--resolved::after,
+.daily-incident-panel--resolved .daily-incident-panel__signal,
+.daily-incident-panel--resolved .daily-incident-panel__badge {
+  animation: none;
+}
+
+@keyframes dailyIncidentPanelPulse {
+  0%, 100% {
+    border-color: rgba(244, 114, 182, 0.58);
+    box-shadow:
+      0 0 0 1px rgba(244, 114, 182, 0.16),
+      0 0 16px rgba(217, 70, 239, 0.22),
+      inset 0 0 18px rgba(217, 70, 239, 0.08);
+  }
+  50% {
+    border-color: rgba(255, 255, 255, 0.94);
+    box-shadow:
+      0 0 0 1px rgba(244, 114, 182, 0.58),
+      0 0 34px rgba(217, 70, 239, 0.56),
+      inset 0 0 30px rgba(244, 114, 182, 0.2);
+  }
+}
+
+@keyframes dailyIncidentGlow {
+  0%, 100% {
+    opacity: 0.28;
+    transform: scale(0.92) rotate(0deg);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.04) rotate(5deg);
+  }
+}
+
+@keyframes dailyIncidentScanline {
+  0% {
+    opacity: 0;
+    transform: translateY(-180%) rotate(-4deg);
+  }
+  16%, 70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(760%) rotate(-4deg);
+  }
+}
+
+@keyframes dailyIncidentSignalPulse {
+  0%, 100% {
+    transform: scale(0.96);
+    filter: brightness(0.95);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.45);
+  }
+}
+
+@keyframes dailyIncidentBadgeBlink {
+  0%, 100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes dailyIncidentDotBlink {
+  0%, 100% {
+    opacity: 0.38;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-incident-panel,
+  .daily-incident-panel::before,
+  .daily-incident-panel::after,
+  .daily-incident-panel__signal,
+  .daily-incident-panel__badge,
+  .daily-incident-live-dot {
+    animation: none;
+  }
+}

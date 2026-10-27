@@ -22,18 +22,19 @@ export const DailyIncidentPanel: React.FC = () => {
   return (
     <section
       aria-label="Ежедневный киберинцидент"
-      className="rounded-2xl border border-fuchsia-300/30 bg-gradient-to-br from-[#261238] via-[#171535] to-[#10172e] p-3.5 shadow-[0_0_24px_rgba(217,70,239,0.14)]"
+      className={`daily-incident-panel rounded-2xl border border-fuchsia-300/30 bg-gradient-to-br from-[#261238] via-[#171535] to-[#10172e] p-3.5 shadow-[0_0_24px_rgba(217,70,239,0.14)]${resolved ? ' daily-incident-panel--resolved' : ''}`}
     >
       <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fuchsia-400/15 text-fuchsia-200 ring-1 ring-fuchsia-200/25">
-          <Radio className={`h-4 w-4 ${resolved ? '' : 'animate-pulse'}`} />
+        <div className="daily-incident-panel__signal mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fuchsia-400/15 text-fuchsia-100 ring-1 ring-fuchsia-200/45">
+          <Radio className={`h-4 w-4 ${resolved ? '' : 'animate-pulse motion-reduce:animate-none'}`} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-[10px] font-black uppercase tracking-[0.12em] text-fuchsia-200">
-              {resolved ? 'ИНЦИДЕНТ ЗАКРЫТ' : 'СИГНАЛ ДНЯ'}
+            <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-fuchsia-100">
+              {!resolved && <span className="daily-incident-live-dot" aria-hidden="true" />}
+              <span>{resolved ? 'ИНЦИДЕНТ ЗАКРЫТ' : 'СИГНАЛ ДНЯ'}</span>
             </div>
-            <span className="rounded-md bg-fuchsia-300/10 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-100 ring-1 ring-fuchsia-200/20">
+            <span className="daily-incident-panel__badge rounded-md bg-fuchsia-300/10 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-50 ring-1 ring-fuchsia-200/35">
               1 выбор · Москва
             </span>
           </div>
