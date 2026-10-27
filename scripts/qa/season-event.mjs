@@ -140,6 +140,13 @@ function sameEconomy(a, b) {
     player.stats.unlockedProfileFrames.includes('frame_neon_relay') &&
       player.stats.equippedProfileFrame === 'frame_neon_relay');
   check('claim рамки участника не даёт игровые ресурсы', sameEconomy(participation.player, economyBeforeParticipation));
+  const removedParticipation = await api('skin', { action: 'profile_frame', skinKey: 'default' });
+  const reequippedParticipation = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay' });
+  check('полученную рамку участника можно снять и надеть снова',
+    removedParticipation.ok === true &&
+      reequippedParticipation.ok === true &&
+      reequippedParticipation.player.stats.equippedProfileFrame === 'frame_neon_relay',
+    reequippedParticipation.error);
 
   const duplicateParticipation = await api('season-event', { action: 'claim_participation' });
   check('рамку участника нельзя получить повторно', duplicateParticipation.ok === false, duplicateParticipation.error);
@@ -152,6 +159,13 @@ function sameEconomy(a, b) {
     player.stats.unlockedProfileFrames.includes('frame_neon_relay_master') &&
       player.stats.equippedProfileFrame === 'frame_neon_relay_master');
   check('claim редкой рамки не даёт XP/Data/Crypto/Чипы', sameEconomy(mastery.player, economyBeforeMastery));
+  const removedMastery = await api('skin', { action: 'profile_frame', skinKey: 'default' });
+  const reequippedMastery = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay_master' });
+  check('главный приз можно снять и надеть снова',
+    removedMastery.ok === true &&
+      reequippedMastery.ok === true &&
+      reequippedMastery.player.stats.equippedProfileFrame === 'frame_neon_relay_master',
+    reequippedMastery.error);
 
   const duplicateMastery = await api('season-event', { action: 'claim_mastery' });
   check('редкую рамку нельзя получить повторно', duplicateMastery.ok === false, duplicateMastery.error);
