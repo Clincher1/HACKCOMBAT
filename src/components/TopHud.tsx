@@ -253,8 +253,9 @@ export const TopHud: React.FC = () => {
               <span
                 className="text-[9px] font-bold shrink-0 whitespace-nowrap"
                 style={{ color: baseTheme.ui.successHex }}
+                title="Скорость пассивного дохода: столько Data добавляется за час"
               >
-                +{formatCompact(derived.dataPerHour)}/ч
+                +{formatCompact(derived.dataPerHour)}/ч доход
               </span>
             </div>
             <div
@@ -262,7 +263,7 @@ export const TopHud: React.FC = () => {
               style={{ color: CURRENCY_COLORS.data }}
             >
               <Sparkles className="w-2.5 h-2.5 shrink-0" />
-              Data
+              Data · баланс
             </div>
           </div>
 
