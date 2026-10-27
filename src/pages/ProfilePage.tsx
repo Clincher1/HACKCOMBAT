@@ -95,30 +95,50 @@ export const ProfilePage: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {tgProfile.photoUrl ? (
-              <img
-                src={tgProfile.photoUrl}
-                alt={player.username}
-                loading="lazy"
-                className="w-14 h-14 rounded-2xl object-cover border-2"
-                style={{
-                  borderColor: profileFrame.accent,
-                  background: profileFrame.background,
-                  boxShadow: profileFrame.glow,
-                }}
-                title={`Рамка профиля: ${profileFrame.name}`}
-              />
+              <div className="relative shrink-0">
+                <img
+                  src={tgProfile.photoUrl}
+                  alt={player.username}
+                  loading="lazy"
+                  className="w-14 h-14 rounded-2xl object-cover border-2"
+                  style={{
+                    borderColor: profileFrame.accent,
+                    background: profileFrame.background,
+                    boxShadow: profileFrame.glow,
+                  }}
+                  title={`Рамка профиля: ${profileFrame.name}`}
+                />
+                {profileFrame.iconUrl && (
+                  <img
+                    src={profileFrame.iconUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-2 -top-3 h-9 w-9 object-contain drop-shadow-[0_0_6px_rgba(255,48,79,0.85)]"
+                  />
+                )}
+              </div>
             ) : (
-              <div
-                className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-xl font-black shrink-0"
-                style={{
-                  borderColor: profileFrame.accent,
-                  background: profileFrame.background,
-                  boxShadow: profileFrame.glow,
-                  color: profileFrame.accent,
-                }}
-                title={`Рамка профиля: ${profileFrame.name}`}
-              >
-                {player.username.slice(0, 2).toUpperCase()}
+              <div className="relative shrink-0">
+                <div
+                  className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-xl font-black"
+                  style={{
+                    borderColor: profileFrame.accent,
+                    background: profileFrame.background,
+                    boxShadow: profileFrame.glow,
+                    color: profileFrame.accent,
+                  }}
+                  title={`Рамка профиля: ${profileFrame.name}`}
+                >
+                  {player.username.slice(0, 2).toUpperCase()}
+                </div>
+                {profileFrame.iconUrl && (
+                  <img
+                    src={profileFrame.iconUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-2 -top-3 h-9 w-9 object-contain drop-shadow-[0_0_6px_rgba(255,48,79,0.85)]"
+                  />
+                )}
               </div>
             )}
 
@@ -408,17 +428,27 @@ export const ProfilePage: React.FC = () => {
                   >
                     #{idx + 1}
                   </span>
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 text-lg"
-                    style={{
-                      borderColor: frame.accent,
-                      background: frame.background,
-                      boxShadow: frame.glow,
-                    }}
-                    title={frame.name}
-                    aria-label={`Аватар ${entry.username}, рамка ${frame.name}`}
-                  >
-                    {avatarSkin?.category === 'avatar' ? avatarSkin.avatarGlyph ?? '🕶️' : '🕶️'}
+                  <div className="relative shrink-0">
+                    <div
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-lg"
+                      style={{
+                        borderColor: frame.accent,
+                        background: frame.background,
+                        boxShadow: frame.glow,
+                      }}
+                      title={frame.name}
+                      aria-label={`Аватар ${entry.username}, рамка ${frame.name}`}
+                    >
+                      {avatarSkin?.category === 'avatar' ? avatarSkin.avatarGlyph ?? '🕶️' : '🕶️'}
+                    </div>
+                    {frame.iconUrl && (
+                      <img
+                        src={frame.iconUrl}
+                        alt=""
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -right-1.5 -top-2 h-6 w-6 object-contain drop-shadow-[0_0_5px_rgba(255,48,79,0.8)]"
+                      />
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="font-bold text-white truncate flex items-center gap-1.5">

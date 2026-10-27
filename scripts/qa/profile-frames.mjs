@@ -26,6 +26,8 @@ const SEED = 'profile-frames-qa';
 const LOW_LEVEL_SEED = 'profile-frames-low-level-qa';
 const LOW_CRYPTO_SEED = 'profile-frames-low-crypto-qa';
 const STALE_EQUIPPED_SEED = 'profile-frames-stale-equipped-qa';
+const TEMPORARY_FRAME_SEED = 'profile-frames-temporary-qa';
+const EXPIRED_FRAME_SEED = 'profile-frames-expired-qa';
 function demoTgId(seed) {
   return -(100_000_000 + crypto.createHash('sha256').update(`hk-guest-sandbox:${seed}`).digest().readUInt32BE(0) % 800_000_000);
 }
@@ -71,7 +73,21 @@ const tgId = demoTgId(SEED);
 const lowLevelId = demoTgId(LOW_LEVEL_SEED);
 const lowCryptoId = demoTgId(LOW_CRYPTO_SEED);
 const staleEquippedId = demoTgId(STALE_EQUIPPED_SEED);
+const temporaryFrameId = demoTgId(TEMPORARY_FRAME_SEED);
+const expiredFrameId = demoTgId(EXPIRED_FRAME_SEED);
 const staleEquippedRecord = makeRecord(staleEquippedId, { username: 'StaleFrameTester' });
+const temporaryFrameRecord = makeRecord(temporaryFrameId, { username: 'TemporaryFrameTester' });
+temporaryFrameRecord.stats = {
+  unlockedProfileFrames: ['frame_rooster_red'],
+  equippedProfileFrame: 'frame_rooster_red',
+  equippedProfileFrameExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+};
+const expiredFrameRecord = makeRecord(expiredFrameId, { username: 'ExpiredFrameTester' });
+expiredFrameRecord.stats = {
+  unlockedProfileFrames: ['frame_rooster_red'],
+  equippedProfileFrame: 'frame_rooster_red',
+  equippedProfileFrameExpiresAt: new Date(Date.now() - 1000).toISOString(),
+};
 staleEquippedRecord.stats = {
   unlockedProfileFrames: ['frame_neon_relay_master'],
   equippedProfileFrame: 'frame_neon_relay_master',
@@ -94,6 +110,8 @@ fs.writeFileSync(
       [String(lowLevelId)]: makeRecord(lowLevelId, { xp: 0 }),
       [String(lowCryptoId)]: makeRecord(lowCryptoId, { cryptoAmount: 10 }),
       [String(staleEquippedId)]: staleEquippedRecord,
+      [String(temporaryFrameId)]: temporaryFrameRecord,
+      [String(expiredFrameId)]: expiredFrameRecord,
     },
   })
 );
@@ -196,6 +214,19 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
 
   const eventFrame = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay' });
   check('event-рамку нельзя купить в магазине', eventFrame.ok === false && /событи/i.test(eventFrame.error ?? ''), eventFrame.error);
+
+  const temporaryFrame = await api('init', {}, TEMPORARY_FRAME_SEED);
+  check(
+    'временная рамка активна до срока истечения',
+    temporaryFrame.player?.stats?.equippedProfileFrame === 'frame_rooster_red' &&
+      typeof temporaryFrame.player?.stats?.equippedProfileFrameExpiresAt === 'string'
+  );
+  const expiredFrame = await api('init', {}, EXPIRED_FRAME_SEED);
+  check(
+    'истёкшая временная рамка автоматически снимается',
+    expiredFrame.player?.stats?.equippedProfileFrame === undefined &&
+      !(expiredFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rooster_red')
+  );
 
   const leaderboard = await api('leaderboard', {}, SEED, 'GET');
   check('рейтинговый endpoint остаётся доступен после покупки рамок',

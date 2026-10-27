@@ -206,6 +206,8 @@ export interface ProfileFrameConfig {
   background: string;
   glow: string;
   source: string;
+  /** Необязательный арт поверх аватара для особых временных рамок. */
+  iconUrl?: string;
   eventKey?: string;
   /** Цена Crypto для постоянной покупки в магазине; у event-наград её нет. */
   cryptoCost?: number;
@@ -321,6 +323,8 @@ export interface PlayerProgressStats {
   missionRefreshSalt?: number;
   /** v3.7: серверное время последнего ручного скана; auto-refresh не продлевает cooldown. */
   lastMissionRefreshAt?: string | null;
+  /** v3.12: временная рамка-подарок автоматически исчезает после этого ISO-времени. */
+  equippedProfileFrameExpiresAt?: string | null;
   /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
   baseTheme?: string;
   /**

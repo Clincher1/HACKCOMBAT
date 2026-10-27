@@ -78,6 +78,16 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     requiredLevel: 30,
   },
   {
+    key: 'frame_rooster_red',
+    name: 'Красный Петух · 24 часа',
+    description: 'Алый боевой профиль с головой кибер-петуха. Временный подарок администратора на 24 часа.',
+    accent: '#ff304f',
+    background: 'linear-gradient(135deg, rgba(255,48,79,0.34), rgba(92,10,24,0.72))',
+    glow: '0 0 18px rgba(255, 48, 79, 0.7), inset 0 0 12px rgba(255, 184, 77, 0.18)',
+    source: 'Подарок администратора · 24 часа',
+    iconUrl: '/assets/frames/rooster-red.png',
+  },
+  {
     key: 'frame_neon_relay',
     name: 'Neon Relay · Участник',
     description: 'Голубая рамка за первый полностью пройденный день Neon Relay.',

@@ -168,6 +168,7 @@ const EMPTY_STATS: PlayerProgressStats = {
   activeSecondsToday: 0,
   missionRefreshSalt: 0,
   lastMissionRefreshAt: null,
+  equippedProfileFrameExpiresAt: null,
   lastQualifiedDayKey: null,
   lastActiveAt: null,
   offlineGraceUsed: false,
@@ -361,6 +362,8 @@ function pickProfileFrameKey(raw: unknown): string | undefined {
   return frame.key === raw && frame.key !== 'default' ? frame.key : undefined;
 }
 
+const TEMPORARY_PROFILE_FRAME_KEY = 'frame_rooster_red';
+
 function normalizeStats(raw: unknown): PlayerProgressStats {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const num = (v: unknown, max = 1_000_000_000) => {
@@ -394,9 +397,17 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
   ) {
     validEventFrameKeys.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
   }
+  const temporaryFrameExpiry =
+    typeof src.equippedProfileFrameExpiresAt === 'string' &&
+    !Number.isNaN(new Date(src.equippedProfileFrameExpiresAt).getTime())
+      ? src.equippedProfileFrameExpiresAt
+      : null;
+  const temporaryFrameActive =
+    temporaryFrameExpiry !== null && new Date(temporaryFrameExpiry).getTime() > Date.now();
   const unlockedProfileFrames = strArr(src.unlockedProfileFrames).filter((key) => {
     const frame = PROFILE_FRAMES.find((candidate) => candidate.key === key);
     if (!frame || frame.key === 'default') return false;
+    if (frame.key === TEMPORARY_PROFILE_FRAME_KEY && !temporaryFrameActive) return false;
     return !frame.eventKey || validEventFrameKeys.has(frame.key);
   });
   const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
@@ -438,6 +449,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       equippedProfileFrame && unlockedProfileFrames.includes(equippedProfileFrame)
         ? equippedProfileFrame
         : undefined,
+    equippedProfileFrameExpiresAt: temporaryFrameActive ? temporaryFrameExpiry : null,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
     chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
     chipsToday: num(src.chipsToday, 100_000),
