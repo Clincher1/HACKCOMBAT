@@ -38,6 +38,7 @@ export const ProfilePage: React.FC = () => {
   } = useGame();
 
   const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection'>('leaderboard');
+  const [roosterBurstId, setRoosterBurstId] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
 
@@ -46,6 +47,14 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (tab === 'leaderboard') void refreshLeaderboard();
   }, [refreshLeaderboard, tab]);
+
+  // Крик рамки — короткий локальный cosmetic-эффект: он не вызывает API,
+  // не тратит ресурсы и срабатывает только для подарочного профиля игрока.
+  useEffect(() => {
+    if (roosterBurstId === 0) return undefined;
+    const timer = window.setTimeout(() => setRoosterBurstId(0), 2_000);
+    return () => window.clearTimeout(timer);
+  }, [roosterBurstId]);
 
   if (!player) return null;
 
@@ -407,6 +416,7 @@ export const ProfilePage: React.FC = () => {
             {leaderboard.map((entry, idx) => {
               const avatarSkin = getSkinByKey(entry.avatarKey ?? '');
               const frame = getProfileFrame(entry.profileFrameKey);
+              const isRoosterAvatar = entry.username === 'pohoronyat_menya';
               return (
               <div
                 key={`${entry.username}-${idx}`}
@@ -428,7 +438,24 @@ export const ProfilePage: React.FC = () => {
                   >
                     #{idx + 1}
                   </span>
-                  <div className="relative shrink-0">
+                  <div
+                    className={`relative shrink-0 ${isRoosterAvatar ? 'rooster-avatar-trigger' : ''}`}
+                    onClick={
+                      isRoosterAvatar ? () => setRoosterBurstId((value) => value + 1) : undefined
+                    }
+                    onKeyDown={
+                      isRoosterAvatar
+                        ? (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              setRoosterBurstId((value) => value + 1);
+                            }
+                          }
+                        : undefined
+                    }
+                    role={isRoosterAvatar ? 'button' : undefined}
+                    tabIndex={isRoosterAvatar ? 0 : undefined}
+                  >
                     <div
                       className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-lg"
                       style={{
@@ -448,6 +475,20 @@ export const ProfilePage: React.FC = () => {
                         aria-hidden="true"
                         className="pointer-events-none absolute -right-1.5 -top-2 h-6 w-6 object-contain drop-shadow-[0_0_5px_rgba(255,48,79,0.8)]"
                       />
+                    )}
+                    {isRoosterAvatar && roosterBurstId > 0 && (
+                      <div
+                        key={roosterBurstId}
+                        className="rooster-burst"
+                        aria-live="polite"
+                        aria-label="Кууу Ка Рекуу"
+                      >
+                        <span className="rooster-burst__spark rooster-burst__spark--one">✦</span>
+                        <span className="rooster-burst__spark rooster-burst__spark--two">✧</span>
+                        <span className="rooster-burst__spark rooster-burst__spark--three">✦</span>
+                        <span className="rooster-burst__spark rooster-burst__spark--four">•</span>
+                        <span className="rooster-burst__text">Кууу Ка Рекуу</span>
+                      </div>
                     )}
                   </div>
                   <div className="min-w-0">

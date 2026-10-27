@@ -162,3 +162,129 @@ body[data-theme='femme'] .rounded-xl {
 body[data-theme='femme'] .rounded-2xl {
   border-radius: 1.25rem; /* 20px вместо 16px */
 }
+
+/* ---------------------------------------------------------------------------
+   v3.12: крик красного Петуха в рейтинге. Это локальный cosmetic burst:
+   текст подпрыгивает, разлетаются искры, а тап не делает сетевой запрос.
+   --------------------------------------------------------------------------- */
+.rooster-avatar-trigger {
+  cursor: pointer;
+  touch-action: manipulation;
+  outline: none;
+}
+
+.rooster-avatar-trigger:focus-visible {
+  border-radius: 0.85rem;
+  box-shadow: 0 0 0 2px rgba(255, 48, 79, 0.9), 0 0 18px rgba(255, 48, 79, 0.65);
+}
+
+.rooster-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 50;
+  width: max-content;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.rooster-burst__text {
+  display: block;
+  color: #fff4cf;
+  font-family: 'Russo One', 'Arial Black', sans-serif;
+  font-size: clamp(0.72rem, 2.4vw, 1rem);
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  line-height: 1;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 8px #ff304f,
+    0 0 16px #ff304f,
+    2px 3px 0 #8f1027;
+  white-space: nowrap;
+  animation: roosterBurstText 1.9s cubic-bezier(0.18, 0.82, 0.24, 1) both;
+}
+
+.rooster-burst__spark {
+  position: absolute;
+  color: #ffd166;
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 8px #ff304f;
+  animation: roosterBurstSpark 1.35s ease-out both;
+}
+
+.rooster-burst__spark--one {
+  --rooster-x: -42px;
+  --rooster-y: -34px;
+}
+
+.rooster-burst__spark--two {
+  --rooster-x: 49px;
+  --rooster-y: -27px;
+  animation-delay: 70ms;
+}
+
+.rooster-burst__spark--three {
+  --rooster-x: 43px;
+  --rooster-y: 25px;
+  animation-delay: 110ms;
+}
+
+.rooster-burst__spark--four {
+  --rooster-x: -48px;
+  --rooster-y: 24px;
+  animation-delay: 40ms;
+}
+
+@keyframes roosterBurstText {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(22px) scale(0.2) rotate(-8deg);
+  }
+  16% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(-13px) scale(1.18) rotate(3deg);
+  }
+  31% {
+    transform: translateY(5px) scale(0.94) rotate(-2deg);
+  }
+  46% {
+    transform: translateY(-8px) scale(1.06) rotate(1deg);
+  }
+  68% {
+    opacity: 1;
+    transform: translateY(-35px) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(-82px) scale(0.78) rotate(-4deg);
+  }
+}
+
+@keyframes roosterBurstSpark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.1) rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(calc(var(--rooster-x) * 0.35), calc(var(--rooster-y) * 0.35)) scale(1.25) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--rooster-x), var(--rooster-y)) scale(0.2) rotate(180deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rooster-burst__text,
+  .rooster-burst__spark {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
