@@ -41,6 +41,7 @@ export const ProfilePage: React.FC = () => {
   const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection'>('leaderboard');
   const [roosterBurstId, setRoosterBurstId] = useState(0);
   const [fishBurstId, setFishBurstId] = useState(0);
+  const [matrixBurstId, setMatrixBurstId] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
 
@@ -63,6 +64,12 @@ export const ProfilePage: React.FC = () => {
     const timer = window.setTimeout(() => setFishBurstId(0), 2_200);
     return () => window.clearTimeout(timer);
   }, [fishBurstId]);
+
+  useEffect(() => {
+    if (matrixBurstId === 0) return undefined;
+    const timer = window.setTimeout(() => setMatrixBurstId(0), 2_000);
+    return () => window.clearTimeout(timer);
+  }, [matrixBurstId]);
 
   if (!player) return null;
 
@@ -113,9 +120,21 @@ export const ProfilePage: React.FC = () => {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {profileFrame.avatarMode === 'matrix_rain' ? (
-              <div className="relative shrink-0">
+              <div
+                className="relative shrink-0 matrix-avatar-trigger"
+                onClick={() => setMatrixBurstId((value) => value + 1)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setMatrixBurstId((value) => value + 1);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
                 <MatrixAvatar
                   label={profileFrame.avatarLabel ?? player.username}
+                  burstId={matrixBurstId}
                   className="w-14 h-14 rounded-2xl border-2"
                   style={{
                     borderColor: profileFrame.accent,
@@ -442,7 +461,9 @@ export const ProfilePage: React.FC = () => {
               const frame = getProfileFrame(entry.profileFrameKey);
               const isRoosterAvatar = entry.username === 'pohoronyat_menya';
               const isFishAvatar = entry.username === 'SolidPegasus';
-              const hasSpecialAvatar = isRoosterAvatar || isFishAvatar;
+              const isMatrixAvatar =
+                entry.username === 'useryou2202' && frame.avatarMode === 'matrix_rain';
+              const hasSpecialAvatar = isRoosterAvatar || isFishAvatar || isMatrixAvatar;
               return (
               <div
                 key={`${entry.username}-${idx}`}
@@ -470,14 +491,18 @@ export const ProfilePage: React.FC = () => {
                         ? 'rooster-avatar-trigger'
                         : isFishAvatar
                           ? 'fish-avatar-trigger'
-                          : ''
+                          : isMatrixAvatar
+                            ? 'matrix-avatar-trigger'
+                            : ''
                     }`}
                     onClick={
                       isRoosterAvatar
                         ? () => setRoosterBurstId((value) => value + 1)
                         : isFishAvatar
                           ? () => setFishBurstId((value) => value + 1)
-                          : undefined
+                          : isMatrixAvatar
+                            ? () => setMatrixBurstId((value) => value + 1)
+                            : undefined
                     }
                     onKeyDown={
                       hasSpecialAvatar
@@ -486,8 +511,10 @@ export const ProfilePage: React.FC = () => {
                               event.preventDefault();
                               if (isRoosterAvatar) {
                                 setRoosterBurstId((value) => value + 1);
-                              } else {
+                              } else if (isFishAvatar) {
                                 setFishBurstId((value) => value + 1);
+                              } else {
+                                setMatrixBurstId((value) => value + 1);
                               }
                             }
                           }
@@ -510,6 +537,7 @@ export const ProfilePage: React.FC = () => {
                       {frame.avatarMode === 'matrix_rain' ? (
                         <MatrixAvatar
                           label={frame.avatarLabel ?? entry.username}
+                          burstId={isMatrixAvatar ? matrixBurstId : 0}
                           className="h-full w-full rounded-[0.55rem]"
                         />
                       ) : frame.avatarUrl ? (

@@ -584,3 +584,111 @@ body[data-theme='femme'] .rounded-2xl {
     animation-iteration-count: 1;
   }
 }
+
+.matrix-avatar-trigger {
+  cursor: pointer;
+  touch-action: manipulation;
+  outline: none;
+}
+
+.matrix-avatar-trigger:focus-visible {
+  border-radius: 0.85rem;
+  box-shadow: 0 0 0 2px rgba(66, 255, 119, 0.98), 0 0 22px rgba(66, 255, 119, 0.72);
+}
+
+.matrix-avatar__burst {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+  background: rgba(0, 25, 10, 0.32);
+  box-shadow: inset 0 0 12px rgba(66, 255, 119, 0.72), 0 0 16px rgba(66, 255, 119, 0.7);
+}
+
+.matrix-avatar__burst-line {
+  position: absolute;
+  left: -125%;
+  width: 350%;
+  color: #b6ffcb;
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 0 4px #ffffff, 0 0 9px #42ff77;
+  white-space: nowrap;
+  animation: matrixAvatarBurstLine 1.65s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+.matrix-avatar__burst-line--1 { top: 18%; --matrix-line-tilt: -5deg; }
+.matrix-avatar__burst-line--2 { top: 37%; animation-delay: 80ms; --matrix-line-tilt: 3deg; }
+.matrix-avatar__burst-line--3 { top: 58%; animation-delay: 140ms; --matrix-line-tilt: -2deg; }
+.matrix-avatar__burst-line--4 { top: 77%; animation-delay: 220ms; --matrix-line-tilt: 4deg; }
+
+.matrix-avatar__burst-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  color: #f0fff4;
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: 0 0 4px #ffffff, 0 0 11px #42ff77, 0 0 22px #18c964;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) scaleX(0.48);
+  transform-origin: center;
+  animation: matrixAvatarBurstLabel 1.85s ease-out both;
+}
+
+@keyframes matrixAvatarBurstLine {
+  0% {
+    opacity: 0;
+    transform: translateX(-16%) rotate(var(--matrix-line-tilt, 0deg));
+  }
+  18% {
+    opacity: 0.98;
+  }
+  56% {
+    opacity: 0.86;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(68%) rotate(var(--matrix-line-tilt, 0deg));
+  }
+}
+
+@keyframes matrixAvatarBurstLabel {
+  0% {
+    opacity: 0;
+    filter: blur(7px);
+    transform: translate(-50%, 30%) scaleX(0.34) scale(0.72);
+  }
+  22% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate(-50%, -50%) scaleX(0.48) scale(1.12);
+  }
+  66% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleX(0.48) scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate(-50%, -150%) scaleX(0.48) scale(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrix-avatar__burst-line,
+  .matrix-avatar__burst-label {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
