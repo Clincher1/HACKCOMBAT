@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Gem, Gift, Lock, Sparkles, X } from 'lucide-react';
 import React, { useState } from 'react';
-import { PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import { SKIN_CATEGORIES, SKINS_CONFIG } from '../../shared/skins.config';
 import { BASE_THEMES } from '../../shared/themes.config';
 import type { SkinCategory } from '../../shared/types';
@@ -10,8 +9,6 @@ import { formatCompact } from '../lib/format';
 import { ProfileFramesShop } from './ProfileFramesShop';
 import { ThemeOnboardingModal } from './ThemeOnboardingModal';
 import { TutorialModal } from './TutorialModal';
-
-const SHOP_FRAME_PREVIEWS = PROFILE_FRAMES.filter((frame) => frame.cryptoCost !== undefined);
 
 export const ModalsAndOverlays: React.FC = () => {
   const {
@@ -199,154 +196,97 @@ export const ModalsAndOverlays: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-[var(--ui-panel-deep)] p-1">
-                <button
-                  type="button"
-                  onClick={() => setStoreTab('skins')}
-                  className={`rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer ${
-                    storeTab === 'skins'
-                      ? 'bg-[rgba(var(--ui-secondary-rgb),0.18)] text-[var(--ui-secondary)]'
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  Кибер-скины
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStoreTab('frames')}
-                  className={`rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer ${
-                    storeTab === 'frames'
-                      ? 'bg-purple-500/18 text-purple-300'
-                      : 'text-slate-500 hover:text-slate-300'
-                  }`}
-                >
-                  Рамки профиля
-                </button>
-              </div>
-
               {storeTab === 'skins' && (
-                <button
-                  type="button"
-                  onClick={() => setStoreTab('frames')}
-                  aria-label="Открыть магазин рамок профиля"
-                  className="w-full rounded-xl border border-purple-400/35 bg-gradient-to-r from-purple-950/55 via-[#171535] to-cyan-950/45 p-3 text-left transition hover:border-purple-300/70 hover:brightness-110 cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-2 border-purple-300/70 bg-purple-500/15 text-lg text-purple-200 shadow-[0_0_14px_rgba(192,132,252,0.3)]">
-                      ✦
+                <>
+                  {/* v3.6.1: ДВЕ БЕСПЛАТНЫЕ БАЗОВЫЕ ТЕМЫ. Это фундамент оформления:
+                      выбираешь базу, а платные скины ложатся сверху. Обе темы
+                      бесплатны и не дают бонусов к тапу — только внешний вид. */}
+                  <div className="space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Базовая тема · бесплатно
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-extrabold text-white">Рамки профиля</span>
-                        <span className="shrink-0 rounded-md bg-amber-300/15 px-1.5 py-0.5 text-[9px] font-black text-amber-200">
-                          🔒 С 30 уровня
-                        </span>
-                      </div>
-                      <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">
-                        6 базовых цветов для профиля и рейтинга · покупка навсегда за Crypto
-                      </p>
-                      <div className="mt-2 flex items-center gap-1.5">
-                        {SHOP_FRAME_PREVIEWS.map((frame) => (
-                          <span
-                            key={frame.key}
-                            className="h-3.5 w-3.5 rounded-full border-2"
-                            style={{ borderColor: frame.accent, background: frame.background, boxShadow: frame.glow }}
-                            aria-hidden="true"
-                          />
-                        ))}
-                        <span className="ml-1 text-[9px] font-bold text-purple-200">Открыть раздел →</span>
-                      </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {BASE_THEMES.map((theme) => {
+                        const active = baseTheme.key === theme.key;
+                        const pending = busyKey === `theme:${theme.key}`;
+                        return (
+                          <button
+                            key={theme.key}
+                            type="button"
+                            disabled={pending}
+                            onClick={() => void setBaseTheme(theme.key)}
+                            className={`relative overflow-hidden rounded-xl border p-2.5 text-left transition cursor-pointer disabled:opacity-60 ${
+                              active
+                                ? 'border-white/70 ring-1 ring-white/30'
+                                : 'border-slate-700/70 hover:border-slate-500'
+                            }`}
+                            style={{
+                              background: theme.previewImage
+                                ? undefined
+                                : `linear-gradient(135deg, ${theme.previewFrom}22 0%, ${theme.previewTo}22 100%)`,
+                            }}
+                          >
+                            {/* Если у темы есть арт — показываем его, иначе градиент */}
+                            {theme.previewImage && (
+                              <>
+                                <img
+                                  src={theme.previewImage}
+                                  alt={theme.name}
+                                  loading="lazy"
+                                  className="absolute inset-0 w-full h-full object-cover opacity-60"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-[var(--ui-panel-deep)] via-[rgba(var(--ui-panel-deep-rgb),0.45)] to-transparent" />
+                              </>
+                            )}
+                            <div className="relative flex items-center justify-between gap-1">
+                              <span className="text-base leading-none">{theme.glyph}</span>
+                              {active ? (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[var(--ui-panel-deep)] flex items-center gap-0.5">
+                                  <Check className="w-2.5 h-2.5" /> ВКЛ
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/30 text-white/80">
+                                  бесплатно
+                                </span>
+                              )}
+                            </div>
+                            <div className="relative font-display font-bold text-xs text-white mt-1.5 leading-tight">
+                              {theme.name}
+                            </div>
+                            <div className="relative text-[9px] text-slate-300/90 mt-0.5 leading-snug">
+                              {theme.tagline}
+                            </div>
+                            <div
+                              className="relative h-1.5 w-full rounded-full mt-1.5"
+                              style={{
+                                background: `linear-gradient(90deg, ${theme.previewFrom}, ${theme.previewTo})`,
+                              }}
+                            />
+                          </button>
+                        );
+                      })}
                     </div>
+                    <p className="text-[9px] text-slate-500 leading-snug">
+                      Тема — это основа оформления. Скины ниже накладываются на неё сверху.
+                    </p>
                   </div>
-                </button>
+                </>
               )}
 
-              {storeTab === 'frames' ? (
-                <ProfileFramesShop />
-              ) : (
-                <>
-              {/* v3.6.1: ДВЕ БЕСПЛАТНЫЕ БАЗОВЫЕ ТЕМЫ. Это фундамент оформления:
-                  выбираешь базу, а платные скины ложатся сверху. Обе темы
-                  бесплатны и не дают бонусов к тапу — только внешний вид. */}
-              <div className="space-y-1.5">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Базовая тема · бесплатно
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {BASE_THEMES.map((theme) => {
-                    const active = baseTheme.key === theme.key;
-                    const pending = busyKey === `theme:${theme.key}`;
-                    return (
-                      <button
-                        key={theme.key}
-                        type="button"
-                        disabled={pending}
-                        onClick={() => void setBaseTheme(theme.key)}
-                        className={`relative overflow-hidden rounded-xl border p-2.5 text-left transition cursor-pointer disabled:opacity-60 ${
-                          active
-                            ? 'border-white/70 ring-1 ring-white/30'
-                            : 'border-slate-700/70 hover:border-slate-500'
-                        }`}
-                        style={{
-                          background: theme.previewImage
-                            ? undefined
-                            : `linear-gradient(135deg, ${theme.previewFrom}22 0%, ${theme.previewTo}22 100%)`,
-                        }}
-                      >
-                        {/* Если у темы есть арт — показываем его, иначе градиент */}
-                        {theme.previewImage && (
-                          <>
-                            <img
-                              src={theme.previewImage}
-                              alt={theme.name}
-                              loading="lazy"
-                              className="absolute inset-0 w-full h-full object-cover opacity-60"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-[var(--ui-panel-deep)] via-[rgba(var(--ui-panel-deep-rgb),0.45)] to-transparent" />
-                          </>
-                        )}
-                        <div className="relative flex items-center justify-between gap-1">
-                          <span className="text-base leading-none">{theme.glyph}</span>
-                          {active ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[var(--ui-panel-deep)] flex items-center gap-0.5">
-                              <Check className="w-2.5 h-2.5" /> ВКЛ
-                            </span>
-                          ) : (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/30 text-white/80">
-                              бесплатно
-                            </span>
-                          )}
-                        </div>
-                        <div className="relative font-display font-bold text-xs text-white mt-1.5 leading-tight">
-                          {theme.name}
-                        </div>
-                        <div className="relative text-[9px] text-slate-300/90 mt-0.5 leading-snug">
-                          {theme.tagline}
-                        </div>
-                        <div
-                          className="relative h-1.5 w-full rounded-full mt-1.5"
-                          style={{
-                            background: `linear-gradient(90deg, ${theme.previewFrom}, ${theme.previewTo})`,
-                          }}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[9px] text-slate-500 leading-snug">
-                  Тема — это основа оформления. Скины ниже накладываются на неё сверху.
-                </p>
-              </div>
-
-              {/* Категории косметики: рабочий стол / интерфейс / аватар */}
+              {/* Единый переключатель разделов косметики: рамки находятся рядом
+                  с рабочим столом, интерфейсом и аватарами. */}
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 {[{ id: 'all' as const, label: 'Все' }, ...SKIN_CATEGORIES].map((cat) => (
                   <button
                     key={cat.id}
                     type="button"
-                    onClick={() => setSkinFilter(cat.id)}
+                    aria-pressed={storeTab === 'skins' && skinFilter === cat.id}
+                    onClick={() => {
+                      setStoreTab('skins');
+                      setSkinFilter(cat.id);
+                    }}
                     className={`shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
-                      skinFilter === cat.id
+                      storeTab === 'skins' && skinFilter === cat.id
                         ? 'bg-[rgba(var(--ui-secondary-rgb),0.18)] border-[var(--ui-secondary)] text-[var(--ui-secondary)]'
                         : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
@@ -354,84 +294,98 @@ export const ModalsAndOverlays: React.FC = () => {
                     {cat.label}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  aria-pressed={storeTab === 'frames'}
+                  onClick={() => setStoreTab('frames')}
+                  className={`shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
+                    storeTab === 'frames'
+                      ? 'bg-purple-500/18 border-purple-400 text-purple-300'
+                      : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Sparkles className="h-3 w-3" /> Рамки Профиля
+                </button>
               </div>
 
-              <div className="space-y-2.5">
-                {SKINS_CONFIG.filter(
-                  (skin) => skinFilter === 'all' || skin.category === skinFilter
-                ).map((skin) => {
-                  const unlocked = player.unlockedSkins.includes(skin.key);
-                  // v3.6.5: «активен» считается ПО СВОЕМУ СЛОТУ категории.
-                  // Раньше сравнивалось одно общее поле, поэтому надеть можно
-                  // было только что-то одно, а остальные «слетали».
-                  const equipped =
-                    skin.category === 'ui'
-                      ? player.stats?.equippedUi === skin.key
-                      : skin.category === 'avatar'
-                        ? player.stats?.equippedAvatar === skin.key
-                        : player.equippedSkin === skin.key;
-                  const levelLocked = (skin.requiredLevel ?? 1) > player.derived.level;
-                  return (
-                    <div
-                      key={skin.key}
-                      className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 p-3 flex items-center justify-between gap-3"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="w-3.5 h-3.5 rounded-full shrink-0"
-                            style={{
-                              background: `linear-gradient(135deg, ${skin.primaryHex}, ${skin.secondaryHex})`,
-                            }}
-                          />
-                          <span className="font-bold text-sm text-white truncate">
-                            {skin.avatarGlyph ? `${skin.avatarGlyph} ` : ''}
-                            {skin.name}
-                          </span>
-                          {levelLocked && !unlocked && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 shrink-0">
-                              <Lock className="w-2.5 h-2.5" /> Ур. {skin.requiredLevel}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400">{skin.description}</p>
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={equipped || levelLocked || busyKey === `skin:${skin.key}`}
-                        onClick={() => void buyOrEquipSkin(skin.key)}
-                        className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
-                          equipped
-                            ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)]'
-                            : levelLocked
-                              ? 'bg-[var(--ui-panel-deep)] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
-                              : unlocked
-                                ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
-                                : skin.prestigeRequired
-                                  ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
-                                  : 'bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white'
-                        }`}
+              {storeTab === 'frames' ? (
+                <ProfileFramesShop />
+              ) : (
+                <div className="space-y-2.5">
+                  {SKINS_CONFIG.filter(
+                    (skin) => skinFilter === 'all' || skin.category === skinFilter
+                  ).map((skin) => {
+                    const unlocked = player.unlockedSkins.includes(skin.key);
+                    // v3.6.5: «активен» считается ПО СВОЕМУ СЛОТУ категории.
+                    // Раньше сравнивалось одно общее поле, поэтому надеть можно
+                    // было только что-то одно, а остальные «слетали».
+                    const equipped =
+                      skin.category === 'ui'
+                        ? player.stats?.equippedUi === skin.key
+                        : skin.category === 'avatar'
+                          ? player.stats?.equippedAvatar === skin.key
+                          : player.equippedSkin === skin.key;
+                    const levelLocked = (skin.requiredLevel ?? 1) > player.derived.level;
+                    return (
+                      <div
+                        key={skin.key}
+                        className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 p-3 flex items-center justify-between gap-3"
                       >
-                        {equipped ? (
-                          <span className="flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> Активен
-                          </span>
-                        ) : levelLocked ? (
-                          `Ур. ${skin.requiredLevel}`
-                        ) : unlocked ? (
-                          'Надеть'
-                        ) : skin.prestigeRequired ? (
-                          '50 Ур. Престиж'
-                        ) : (
-                          `${skin.cryptoCost} 💎`
-                        )}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-                </>
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="w-3.5 h-3.5 rounded-full shrink-0"
+                              style={{
+                                background: `linear-gradient(135deg, ${skin.primaryHex}, ${skin.secondaryHex})`,
+                              }}
+                            />
+                            <span className="font-bold text-sm text-white truncate">
+                              {skin.avatarGlyph ? `${skin.avatarGlyph} ` : ''}
+                              {skin.name}
+                            </span>
+                            {levelLocked && !unlocked && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 shrink-0">
+                                <Lock className="w-2.5 h-2.5" /> Ур. {skin.requiredLevel}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400">{skin.description}</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          disabled={equipped || levelLocked || busyKey === `skin:${skin.key}`}
+                          onClick={() => void buyOrEquipSkin(skin.key)}
+                          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                            equipped
+                              ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)]'
+                              : levelLocked
+                                ? 'bg-[var(--ui-panel-deep)] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
+                                : unlocked
+                                  ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
+                                  : skin.prestigeRequired
+                                    ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
+                                    : 'bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white'
+                          }`}
+                        >
+                          {equipped ? (
+                            <span className="flex items-center gap-1">
+                              <Check className="w-3.5 h-3.5" /> Активен
+                            </span>
+                          ) : levelLocked ? (
+                            `Ур. ${skin.requiredLevel}`
+                          ) : unlocked ? (
+                            'Надеть'
+                          ) : skin.prestigeRequired ? (
+                            '50 Ур. Престиж'
+                          ) : (
+                            `${skin.cryptoCost} 💎`
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </motion.div>
           </motion.div>
