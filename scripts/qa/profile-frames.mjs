@@ -84,7 +84,9 @@ giftedFrameRecord.stats = {
 };
 const staleGiftedFrameRecord = makeRecord(staleGiftedFrameId, { username: 'StaleGiftedFrameTester' });
 staleGiftedFrameRecord.stats = {
-  unlockedProfileFrames: ['frame_rainbow_fish'],
+  // Legacy admin gift: an older write stored only the equipped key and a stale
+  // 24-hour field. Migration must reconstruct the permanent collection entry.
+  unlockedProfileFrames: [],
   equippedProfileFrame: 'frame_rainbow_fish',
   equippedProfileFrameExpiresAt: new Date(Date.now() - 1000).toISOString(),
 };
@@ -232,6 +234,15 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
     staleGiftedFrame.player?.stats?.equippedProfileFrame === 'frame_rainbow_fish' &&
       (staleGiftedFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rainbow_fish') &&
       staleGiftedFrame.player?.stats?.equippedProfileFrameExpiresAt === null
+  );
+  const staleGiftCleared = await api('skin', { action: 'profile_frame', skinKey: 'default' }, STALE_GIFTED_FRAME_SEED);
+  const staleGiftReapplied = await api('skin', { action: 'profile_frame', skinKey: 'frame_rainbow_fish' }, STALE_GIFTED_FRAME_SEED);
+  check(
+    'унаследованный подарок можно снять и снова надеть',
+    staleGiftCleared.ok === true &&
+      staleGiftReapplied.ok === true &&
+      staleGiftReapplied.player?.stats?.equippedProfileFrame === 'frame_rainbow_fish',
+    staleGiftReapplied.error
   );
 
   const leaderboard = await api('leaderboard', {}, SEED, 'GET');

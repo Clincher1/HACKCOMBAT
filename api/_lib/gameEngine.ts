@@ -417,7 +417,15 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       : null;
   const temporaryFrameActive =
     temporaryFrameExpiry !== null && new Date(temporaryFrameExpiry).getTime() > Date.now();
-  const unlockedProfileFrames = strArr(src.unlockedProfileFrames).filter((key) => {
+  // Ранние админские выдачи иногда записывали только equippedProfileFrame.
+  // Подарок не должен исчезнуть из коллекции из-за неполного старого JSONB.
+  const rawUnlockedProfileFrames = Array.from(
+    new Set([
+      ...strArr(src.unlockedProfileFrames),
+      ...(equippedFrameConfig?.giftOnly && equippedProfileFrame ? [equippedProfileFrame] : []),
+    ])
+  );
+  const unlockedProfileFrames = rawUnlockedProfileFrames.filter((key) => {
     const frame = PROFILE_FRAMES.find((candidate) => candidate.key === key);
     if (!frame || frame.key === 'default') return false;
     if (frame.temporary && !temporaryFrameActive) return false;
