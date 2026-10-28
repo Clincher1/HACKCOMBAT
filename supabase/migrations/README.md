@@ -82,3 +82,9 @@ from public.players;
   памятный `reward:first_donut` и создаёт закрытую по умолчанию витрину в `stats`.
   Runtime-нормализация повторяет эту выдачу для новых игроков и старых записей,
   если миграция ещё не была применена.
+- `017_personal_inventory_gifts.sql` по стабильным Telegram ID выдаёт
+  `reward:gift_cola`, `reward:gift_whiskey` и `reward:gift_snus` игрокам
+  `SolidPegasus` (`296857803`) и `pohoronyat_menya` (`495832433`). Backfill
+  идемпотентен, сохраняет остальные ключи `inventoryOwned`, а витрина остаётся
+  закрытой до добровольного действия владельца. Runtime-реестр повторяет
+  назначение для этих игроков при каждом серверном sync.

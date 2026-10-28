@@ -13,6 +13,7 @@ npm run qa:offline                # мгновенно: оффлайн-экон�
 npm run qa:buy                   # ~30 с: покупки с «хвостом» кликов (v3.3), без dev-сервера
 npm run qa:daily-incident        # мгновенно: выбор дня, legacy migration и double-tap guard
 npm run qa:profile-frame-gifts   # мгновенно: Telegram ID assignments, permanence и снять/надеть
+npm run qa:profile-inventory-gifts # мгновенно: стабильные ID, идемпотентность и закрытая витрина
 ```
 
 ## Оффлайн-копилка v3.2 (`npm run qa:offline`)

@@ -7,6 +7,11 @@ import type { InventoryItemDefinition } from './types';
 /** Первый постоянный приз профиля. Он намеренно не имеет игрового эффекта. */
 export const FIRST_DONUT_ITEM_KEY = 'reward:first_donut';
 
+/** Постоянные персональные подарки: только показать или скрыть, без игровых эффектов. */
+export const GIFT_COLA_ITEM_KEY = 'reward:gift_cola';
+export const GIFT_WHISKEY_ITEM_KEY = 'reward:gift_whiskey';
+export const GIFT_SNUS_ITEM_KEY = 'reward:gift_snus';
+
 const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
   [FIRST_DONUT_ITEM_KEY]: {
     key: FIRST_DONUT_ITEM_KEY,
@@ -16,6 +21,39 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     icon: '🍩',
     source: 'Подарок всем игрокам',
     accent: '#f9a8d4',
+    usable: false,
+    equipAction: null,
+  },
+  [GIFT_COLA_ITEM_KEY]: {
+    key: GIFT_COLA_ITEM_KEY,
+    kind: 'reward',
+    name: 'Бутылка колы',
+    description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
+    icon: '🥤',
+    source: 'Персональный подарок',
+    accent: '#60a5fa',
+    usable: false,
+    equipAction: null,
+  },
+  [GIFT_WHISKEY_ITEM_KEY]: {
+    key: GIFT_WHISKEY_ITEM_KEY,
+    kind: 'reward',
+    name: 'Виски',
+    description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
+    icon: '🥃',
+    source: 'Персональный подарок',
+    accent: '#f59e0b',
+    usable: false,
+    equipAction: null,
+  },
+  [GIFT_SNUS_ITEM_KEY]: {
+    key: GIFT_SNUS_ITEM_KEY,
+    kind: 'reward',
+    name: 'Шайба снюса',
+    description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
+    icon: '🟤',
+    source: 'Персональный подарок',
+    accent: '#a3a3a3',
     usable: false,
     equipAction: null,
   },

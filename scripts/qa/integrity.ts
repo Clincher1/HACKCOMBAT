@@ -18,7 +18,13 @@ import {
   getReferrerXpReward,
 } from '../../shared/referral.config';
 import { PROFILE_FRAMES } from '../../shared/profileFrames.config';
-import { FIRST_DONUT_ITEM_KEY, getInventoryItemDefinition } from '../../shared/inventory.config';
+import {
+  FIRST_DONUT_ITEM_KEY,
+  GIFT_COLA_ITEM_KEY,
+  GIFT_SNUS_ITEM_KEY,
+  GIFT_WHISKEY_ITEM_KEY,
+  getInventoryItemDefinition,
+} from '../../shared/inventory.config';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 
 let pass = 0;
@@ -73,6 +79,7 @@ const migration013 = readFileSync('supabase/migrations/013_atomic_prestige.sql',
 const migration014 = readFileSync('supabase/migrations/014_purchase_card_cap.sql', 'utf8');
 const migration015 = readFileSync('supabase/migrations/015_open_ended_progression.sql', 'utf8');
 const migration016 = readFileSync('supabase/migrations/016_player_inventory_showcase.sql', 'utf8');
+const migration017 = readFileSync('supabase/migrations/017_personal_inventory_gifts.sql', 'utf8');
 check('integrity migration is non-destructive', !/TRUNCATE|DELETE\s+FROM\s+public\.players/i.test(migration010));
 check('mission claim RPC is present', /claim_mission_atomic/.test(migration010));
 check('purchase RPC is present', /commit_purchase_atomic/.test(migration011));
@@ -96,6 +103,20 @@ check(
   /reward:first_donut/.test(migration016) &&
     /inventoryShowcase/.test(migration016) &&
     !/TRUNCATE|DELETE\s+FROM\s+public\.players/i.test(migration016)
+);
+check(
+  'персональные подарки — только публичные неприменимые предметы',
+  [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY].every((key) => {
+    const item = getInventoryItemDefinition(key);
+    return item?.usable === false && item?.equipAction === null;
+  })
+);
+check(
+  'migration 017 назначает три подарка двум стабильным Telegram ID без вайпа',
+  /296857803/.test(migration017) &&
+    /495832433/.test(migration017) &&
+    [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY].every((key) => migration017.includes(key)) &&
+    !/TRUNCATE|DELETE\s+FROM\s+public\.players/i.test(migration017)
 );
 
 const eliteFrames = PROFILE_FRAMES.filter((frame) => frame.source.includes('элитный сектор'));

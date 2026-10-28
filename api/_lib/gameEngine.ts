@@ -110,6 +110,7 @@ import type {
 } from '../../shared/types';
 import { getSupabaseAdmin } from './supabaseAdmin';
 import { ensurePermanentProfileFrameGifts } from './profileFrameGifts';
+import { ensurePermanentProfileInventoryGifts } from './profileInventoryGifts';
 import { attributeReferral, payoutReferrals, qualifyInvitee } from './referrals';
 import type { VerifiedTelegramUser } from './telegramAuth';
 
@@ -1109,6 +1110,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     }
     const localRecord = db.playersByTgId[key];
     ensurePermanentProfileFrameGifts(localRecord.stats, localRecord.tgId);
+    ensurePermanentProfileInventoryGifts(localRecord.stats, localRecord.tgId);
     migrateLegacyEquippedSkins(localRecord);
     return { record: localRecord, mode: 'memory-fallback' };
   }
@@ -1155,6 +1157,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   // на экране и серверная проверка иногда расходились.
   const persistedStats = normalizeStats(playerRow.stats);
   ensurePermanentProfileFrameGifts(persistedStats, Number(playerRow.tg_id));
+  ensurePermanentProfileInventoryGifts(persistedStats, Number(playerRow.tg_id));
   const offer = computeOfferWindow(
     user.tgId,
     hasAnalyst,
@@ -1266,6 +1269,7 @@ async function savePlayerCore(
   record.prestigeCount = getSafePrestigeCount(record.prestigeCount);
   record.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(record.cardTier, 1)) || 1));
   record.stats = normalizeStats(record.stats);
+  ensurePermanentProfileInventoryGifts(record.stats, record.tgId);
 
   const derived = deriveStats(record);
 
@@ -1498,6 +1502,7 @@ async function commitPurchaseAtomic(
   record.prestigeCount = getSafePrestigeCount(record.prestigeCount);
   record.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(record.cardTier, 1)) || 1));
   record.stats = normalizeStats(record.stats);
+  ensurePermanentProfileInventoryGifts(record.stats, record.tgId);
 
   const derived = deriveStats(record);
   record.energy = Math.max(0, Math.min(derived.maxEnergy, Math.floor(safeNonNeg(record.energy, 0))));
@@ -2158,6 +2163,7 @@ export async function handleGetPublicProfile(
 
     const stats = normalizeStats(row.stats);
     ensurePermanentProfileFrameGifts(stats, Number(row.tg_id));
+    ensurePermanentProfileInventoryGifts(stats, Number(row.tg_id));
     const level = Math.max(1, Number(row.level ?? getLevelProgress(Number(row.xp ?? 0)).level));
     const rank = Math.max(1, Math.min(RANK_TITLES.length, Number(row.rank ?? getRankForLevel(level).rankIndex)));
     return buildPublicProfile(
@@ -2184,6 +2190,7 @@ export async function handleGetPublicProfile(
   if (!record) throw new Error('Профиль не найден');
   record.stats = normalizeStats(record.stats);
   ensurePermanentProfileFrameGifts(record.stats, record.tgId);
+  ensurePermanentProfileInventoryGifts(record.stats, record.tgId);
   const derived = deriveStats(record);
   return buildPublicProfile(
     {
