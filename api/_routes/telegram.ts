@@ -81,7 +81,8 @@ function escapeHtml(text: string): string {
 /**
  * Экран «Пригласи друга» (v3.5). Один и тот же текст для /invite и кнопки.
  * Ссылка ведёт на мини-апп с startapp=ref_<код>: код приезжает в подписанном
- * initData, поэтому подделать «кто меня позвал» нельзя.
+ * initData либо в отдельном Telegram launch-параметре, который сервер
+ * принимает только после проверки подписи initData.
  */
 async function sendReferralScreen(
   token: string,

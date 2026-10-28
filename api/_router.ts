@@ -3,14 +3,17 @@ import base from './_routes/base';
 import buyCard from './_routes/buy-card';
 import click from './_routes/click';
 import daily from './_routes/daily';
+import dailyIncident from './_routes/daily-incident';
 import dailyTasks from './_routes/daily-tasks';
 import donate from './_routes/donate';
 import hire from './_routes/hire';
 import init from './_routes/init';
+import inventory from './_routes/inventory';
 import leaderboard from './_routes/leaderboard';
 import missions from './_routes/missions';
 import pets from './_routes/pets';
 import ping from './_routes/ping';
+import profile from './_routes/profile';
 import prestige from './_routes/prestige';
 import referral from './_routes/referral';
 import seasonEvent from './_routes/season-event';
@@ -37,14 +40,17 @@ const routes: Record<string, Handler> = {
   'buy-card': buyCard,
   click,
   daily,
+  'daily-incident': dailyIncident,
   'daily-tasks': dailyTasks,
   donate,
   hire,
   init,
+  inventory,
   leaderboard,
   missions,
   pets,
   ping,
+  profile,
   prestige,
   referral,
   'season-event': seasonEvent,
