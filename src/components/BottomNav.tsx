@@ -13,14 +13,12 @@ const TABS = [
   { to: '/hacks', label: 'Взломы', icon: Crosshair },
   { to: '/team', label: 'Команда', icon: Users },
   { to: '/profile', label: 'Профиль', icon: UserCheck },
-  { to: '/profile?tab=inventory', label: 'Инвентарь', icon: Backpack },
+  { to: '/inventory', label: 'Инвентарь', icon: Backpack },
 ];
 
 export const BottomNav: React.FC = () => {
   const { player, nowMs } = useGame();
   const location = useLocation();
-  const inventoryTabActive =
-    location.pathname === '/profile' && new URLSearchParams(location.search).get('tab') === 'inventory';
 
   const affordableCardsCount = React.useMemo(() => {
     if (!player) return 0;
@@ -85,13 +83,7 @@ export const BottomNav: React.FC = () => {
     <nav className="fixed bottom-0 inset-x-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.95)] border-t border-[rgba(var(--ui-primary-rgb),0.20)] pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-xl mx-auto grid grid-cols-6 px-1 py-1.5 gap-1">
         {TABS.map(({ to, label, icon: Icon }) => {
-          const isInventoryTab = to.includes('?tab=inventory');
-          const isProfileTab = to === '/profile';
-          const tabActive = isInventoryTab
-            ? inventoryTabActive
-            : isProfileTab
-              ? location.pathname === '/profile' && !inventoryTabActive
-              : location.pathname === to;
+          const tabActive = location.pathname === to;
           const badge =
             to === '/upgrades' && affordableCardsCount > 0
               ? affordableCardsCount

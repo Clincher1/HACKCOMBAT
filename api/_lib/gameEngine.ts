@@ -71,6 +71,7 @@ import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.conf
 import {
   FIRST_DONUT_ITEM_KEY,
   getInventoryItemDefinition,
+  isCollectibleInventoryItem,
 } from '../../shared/inventory.config';
 import {
   ACTIVE_SEASON_EVENT,
@@ -535,16 +536,11 @@ interface InventoryRecordLike {
 function getInventoryOwnedKeys(record: InventoryRecordLike): string[] {
   const keys = new Set<string>([
     FIRST_DONUT_ITEM_KEY,
-    ...(record.stats.inventoryOwned ?? []),
-    ...(record.stats.unlockedProfileFrames ?? []).map((key) => `frame:${key}`),
-    ...record.unlockedSkins
-      .filter((key) => key !== 'default')
-      .map((key) => `skin:${key}`),
+    ...(record.stats.inventoryOwned ?? []).filter((key) => getInventoryItemDefinition(key)?.kind === 'reward'),
     ...record.achievements.map((key) => `achievement:${key}`),
-    ...record.pets.map((pet) => `companion:${pet.key}`),
   ]);
 
-  return Array.from(keys).filter((key) => Boolean(getInventoryItemDefinition(key)));
+  return Array.from(keys).filter(isCollectibleInventoryItem);
 }
 
 function isInventoryItemEquipped(record: InventoryRecordLike, itemKey: string): boolean {
@@ -2095,7 +2091,8 @@ export async function handleInventoryAction(
     await syncTimeAndRules(record, mode, alerts);
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
     await syncTimeAndRules(record, mode, alerts);
-    const showcase = new Set(inventory.showcaseKeys);
+    // Keep legacy showcase preferences even though non-collectibles are no longer displayed.
+    const showcase = new Set(record.stats.inventoryShowcase ?? []);
     if (visible) showcase.add(itemKey);
     else showcase.delete(itemKey);
     record.stats.inventoryShowcase = Array.from(showcase);

@@ -1,13 +1,11 @@
 import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Scale, Sparkles, Trophy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import {
   ACHIEVEMENTS_CONFIG,
   PUBLIC_ACHIEVEMENTS_COUNT,
 } from '../../shared/achievements.config';
 import { AchievementsPanel } from '../components/AchievementsPanel';
 import { CollectionPanel } from '../components/CollectionPanel';
-import { InventoryPanel } from '../components/InventoryPanel';
 import { DonateCard } from '../components/DonateCard';
 import { ReferralCard } from '../components/ReferralCard';
 import { MatrixAvatar } from '../components/MatrixAvatar';
@@ -40,10 +38,7 @@ export const ProfilePage: React.FC = () => {
     openTutorial,
     busyKey,
   } = useGame();
-  const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection' | 'inventory'>(
-    searchParams.get('tab') === 'inventory' ? 'inventory' : 'leaderboard'
-  );
+  const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection'>('leaderboard');
   const [publicProfileId, setPublicProfileId] = useState<string | null>(null);
   const [roosterBurstId, setRoosterBurstId] = useState(0);
   const [fishBurstId, setFishBurstId] = useState(0);
@@ -56,11 +51,6 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (tab === 'leaderboard') void refreshLeaderboard();
   }, [refreshLeaderboard, tab]);
-
-  useEffect(() => {
-    const requestedTab = searchParams.get('tab') === 'inventory' ? 'inventory' : null;
-    if (requestedTab && tab !== requestedTab) setTab(requestedTab);
-  }, [searchParams, tab]);
 
   // Крик рамки — короткий локальный cosmetic-эффект: он не вызывает API,
   // не тратит ресурсы и срабатывает только для подарочного профиля игрока.
@@ -372,8 +362,8 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
 
-      {/* Вкладки рейтинга, достижений, коллекции и постоянного инвентаря */}
-      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+      {/* Вкладки рейтинга, достижений и коллекции */}
+      <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
           onClick={() => setTab('leaderboard')}
@@ -413,18 +403,6 @@ export const ProfilePage: React.FC = () => {
           <span>Коллекция</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setTab('inventory')}
-          className={`py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 border transition cursor-pointer ${
-            tab === 'inventory'
-              ? 'bg-amber-400/18 border-amber-300 text-amber-200'
-              : 'bg-[#10172e] border-slate-800 text-slate-400'
-          }`}
-        >
-          <span aria-hidden>🎒</span>
-          <span>Инвентарь</span>
-        </button>
       </div>
 
       {tab === 'leaderboard' ? (
@@ -676,10 +654,8 @@ export const ProfilePage: React.FC = () => {
         </div>
       ) : tab === 'achievements' ? (
         <AchievementsPanel />
-      ) : tab === 'collection' ? (
-        <CollectionPanel />
       ) : (
-        <InventoryPanel />
+        <CollectionPanel />
       )}
 
       {/* Визуальная шкала «Белый хакинг ←→ Чёрный хакинг» */}

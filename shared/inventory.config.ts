@@ -20,6 +20,7 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     description: 'Памятный первый приз профиля. Его можно только выставить или скрыть.',
     icon: '🍩',
     source: 'Подарок всем игрокам',
+    inventoryCategory: 'prize',
     accent: '#f9a8d4',
     usable: false,
     equipAction: null,
@@ -31,6 +32,7 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
     icon: '🥤',
     source: 'Персональный подарок',
+    inventoryCategory: 'gift',
     accent: '#60a5fa',
     usable: false,
     equipAction: null,
@@ -42,6 +44,7 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
     icon: '🥃',
     source: 'Персональный подарок',
+    inventoryCategory: 'gift',
     accent: '#f59e0b',
     usable: false,
     equipAction: null,
@@ -52,7 +55,9 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     name: 'Шайба снюса',
     description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
     icon: '🟤',
+    imageUrl: '/assets/inventory/snus-packed.jpg',
     source: 'Персональный подарок',
+    inventoryCategory: 'gift',
     accent: '#a3a3a3',
     usable: false,
     equipAction: null,
@@ -113,7 +118,8 @@ export function getInventoryItemDefinition(key: string): InventoryItemDefinition
       name: achievement.title,
       description: achievement.description,
       icon: achievement.icon,
-      source: 'Награда за достижение',
+      source: achievement.inventoryEventReward ? 'Достижение события' : 'Награда за достижение',
+      inventoryCategory: achievement.inventoryEventReward ? 'event' : undefined,
       accent:
         achievement.rarity === 'legendary'
           ? '#ffb703'
@@ -148,4 +154,10 @@ export function getInventoryItemDefinition(key: string): InventoryItemDefinition
 
 export function isInventoryItemKey(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 120 && Boolean(getInventoryItemDefinition(value));
+}
+
+/** Only explicitly classified prizes and event achievements belong in the inventory. */
+export function isCollectibleInventoryItem(key: string): boolean {
+  const item = getInventoryItemDefinition(key);
+  return Boolean(item?.inventoryCategory && (item.kind === 'reward' || item.kind === 'achievement'));
 }

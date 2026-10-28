@@ -136,6 +136,8 @@ export interface AchievementConfig {
   // Необязательная награда Чипами/Data за особенно «душные» достижения
   chipReward?: number;
   dataReward?: number;
+  /** Отмечаются только специальные достижения за события, не обычный прогресс. */
+  inventoryEventReward?: boolean;
 }
 
 export type SkinCategory = 'desk' | 'ui' | 'avatar';
@@ -177,6 +179,7 @@ export type AlignmentBranch = 'neutral' | 'white_hat' | 'black_hat';
 /** Предметы постоянного профиля: всё, что игрок получил и может показать. */
 export type InventoryItemKind = 'reward' | 'frame' | 'skin' | 'achievement' | 'companion';
 export type InventoryEquipAction = 'profile_frame' | 'skin' | null;
+export type InventoryCategory = 'event' | 'prize' | 'gift';
 
 export interface InventoryItemDefinition {
   key: string;
@@ -191,6 +194,7 @@ export interface InventoryItemDefinition {
   equipAction: InventoryEquipAction;
   equipKey?: string;
   imageUrl?: string;
+  inventoryCategory?: InventoryCategory;
 }
 
 export interface PlayerInventoryState {

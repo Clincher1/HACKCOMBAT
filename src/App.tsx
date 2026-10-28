@@ -1,6 +1,6 @@
 import { RefreshCw, WifiOff } from 'lucide-react';
 import React, { Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
 import { BottomNav } from './components/BottomNav';
 import { TopHud } from './components/TopHud';
@@ -21,6 +21,10 @@ const ProfilePage = React.lazy(async () => {
   const module = await import('./pages/ProfilePage');
   return { default: module.ProfilePage };
 });
+const InventoryPage = React.lazy(async () => {
+  const module = await import('./pages/InventoryPage');
+  return { default: module.InventoryPage };
+});
 const TeamPage = React.lazy(async () => {
   const module = await import('./pages/TeamPage');
   return { default: module.TeamPage };
@@ -40,6 +44,14 @@ const RouteLoading: React.FC = () => (
     <p className="text-xs text-slate-400">Открываем раздел…</p>
   </div>
 );
+
+// Старые ссылки на вкладку инвентаря в профиле ведут в новый раздел.
+const ProfileRoute: React.FC = () => {
+  const location = useLocation();
+  return new URLSearchParams(location.search).get('tab') === 'inventory'
+    ? <Navigate to="/inventory" replace />
+    : <ProfilePage />;
+};
 
 const AppShell: React.FC = () => {
   const { loading, player, initError, retryInit } = useGame();
@@ -97,7 +109,8 @@ const AppShell: React.FC = () => {
             <Route path="/upgrades" element={<UpgradesPage />} />
             <Route path="/hacks" element={<HacksPage />} />
             <Route path="/team" element={<TeamPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/profile" element={<ProfileRoute />} />
+            <Route path="/inventory" element={<InventoryPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
