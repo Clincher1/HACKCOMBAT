@@ -27,6 +27,7 @@ interface CurrencyTileProps {
   hint: string;
   onClick?: () => void;
   muted?: boolean;
+  lightTheme?: boolean;
 }
 
 /**
@@ -41,6 +42,7 @@ const CurrencyTile: React.FC<CurrencyTileProps> = ({
   hint,
   onClick,
   muted,
+  lightTheme,
 }) => {
   const body = (
     <>
@@ -59,7 +61,7 @@ const CurrencyTile: React.FC<CurrencyTileProps> = ({
       </div>
       <div
         className="text-[9px] font-bold uppercase tracking-[0.08em] leading-none mt-1 truncate"
-        style={{ color: accent }}
+        style={{ color: lightTheme ? (label === 'Crypto' ? '#664282' : '#276344') : accent }}
       >
         {label}
       </div>
@@ -276,6 +278,7 @@ export const TopHud: React.FC = () => {
             hint="Crypto — премиум-валюта: скины стола и косметика. Нажми, чтобы открыть магазин"
             onClick={() => setSkinModalOpen(true)}
             muted={player.crypto === 0}
+            lightTheme={baseTheme.colorScheme === 'light'}
           />
 
           <CurrencyTile
@@ -286,6 +289,7 @@ export const TopHud: React.FC = () => {
             hint="Чипы — открывают Тиры карточек и улучшения Базы. Нажми, чтобы перейти в «Улучшения»"
             onClick={() => navigate('/upgrades')}
             muted={player.chips === 0}
+            lightTheme={baseTheme.colorScheme === 'light'}
           />
         </div>
 
@@ -300,7 +304,7 @@ export const TopHud: React.FC = () => {
           >
             <span
               className="text-[9px] font-bold uppercase tracking-[0.06em] leading-none truncate"
-              style={{ color: CURRENCY_COLORS.rep }}
+              style={{ color: baseTheme.colorScheme === 'light' ? '#276344' : CURRENCY_COLORS.rep }}
             >
               🛡️ Rep
             </span>

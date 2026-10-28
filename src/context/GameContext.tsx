@@ -944,6 +944,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--cyber-panel-deep', theme.palette.panelDeep);
     root.setProperty('--theme-vignette', theme.sceneVignette);
     document.body.dataset.theme = theme.key;
+    if (theme.colorScheme === 'light') document.body.dataset.colorScheme = 'light';
+    else delete document.body.dataset.colorScheme;
   }, [player?.stats.baseTheme]);
 
   // v3.6.5: скин интерфейса наконец красит интерфейс.
@@ -956,7 +958,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       equippedSkin: player?.equippedSkin,
       stats: player?.stats,
     });
-    const uiSkin = equipped.ui;
+    // Светлые темы должны оставаться читаемыми даже с надетым тёмным UI-скином.
+    // Слот скина при этом не снимается и возвращается при выборе тёмной темы.
+    const uiSkin = theme.colorScheme === 'light' ? undefined : equipped.ui;
     const root = document.documentElement.style;
     const accent = uiSkin?.uiTokens?.accent ?? theme.palette.cyan;
     const accent2 = uiSkin?.uiTokens?.accent2 ?? theme.palette.magenta;
@@ -971,6 +975,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--ui-panel-deep', panelDeep);
     root.setProperty('--ui-panel-deep-rgb', hexToRgbTriplet(panelDeep));
     root.setProperty('--ui-text', uiSkin?.uiTokens?.text ?? theme.palette.text);
+    root.setProperty('--ui-text-muted', theme.palette.textMuted);
     if (uiSkin) {
       document.body.dataset.uiSkin = uiSkin.key;
     } else {

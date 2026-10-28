@@ -14,7 +14,7 @@
 //   поправка, которая компенсирует базу и возвращает скину его задуманный вид.
 // ============================================================================
 
-export type BaseThemeKey = 'classic' | 'femme';
+export type BaseThemeKey = 'classic' | 'femme' | 'light_mist' | 'light_sand';
 
 export interface BaseThemeConfig {
   key: BaseThemeKey;
@@ -22,6 +22,8 @@ export interface BaseThemeConfig {
   tagline: string;
   /** Бесплатна ли тема (обе бесплатные — поле на будущее, если появятся платные). */
   free: boolean;
+  /** Светлая схема интерфейса (существующие тёмные темы не меняются). */
+  colorScheme?: 'light';
   /** Глиф для превью-карточки в модалке скинов. */
   glyph: string;
   /** Цвета превью (градиент карточки). */
@@ -140,6 +142,42 @@ export const BASE_THEMES: BaseThemeConfig[] = [
     },
     // База уже смещена в розово-фиолетовый диапазон; при появлении платных
     // тем-баз здесь будет компенсация, чтобы скины не уезжали.
+    themeOffset: 0,
+  },
+  {
+    key: 'light_mist',
+    name: 'Тихий свет',
+    tagline: 'Прохладный светлый интерфейс без резкого неона.',
+    free: true,
+    colorScheme: 'light',
+    glyph: '☁️',
+    previewFrom: '#477b89',
+    previewTo: '#7785ad',
+    palette: {
+      cyan: '#245f70', magenta: '#71518d', green: '#296d53', purple: '#674991',
+      panel: '#f5f7f8', panelDeep: '#e6edf0', bg: '#edf2f4',
+      text: '#1c3340', textMuted: '#526976',
+    },
+    sceneVignette: 'rgba(95, 150, 175, 0.08)',
+    ui: { radiusBoost: 2, catEars: false, buttonGradient: ['#b8d4db', '#cfcae2'], successHex: '#296d53' },
+    themeOffset: 0,
+  },
+  {
+    key: 'light_sand',
+    name: 'Тёплый свет',
+    tagline: 'Мягкие песочные оттенки и спокойные тёплые акценты.',
+    free: true,
+    colorScheme: 'light',
+    glyph: '☀️',
+    previewFrom: '#a87955',
+    previewTo: '#a56d7c',
+    palette: {
+      cyan: '#805332', magenta: '#88485f', green: '#42683f', purple: '#755782',
+      panel: '#faf6ee', panelDeep: '#ece4d6', bg: '#f3ede2',
+      text: '#3d3028', textMuted: '#716052',
+    },
+    sceneVignette: 'rgba(185, 139, 95, 0.07)',
+    ui: { radiusBoost: 2, catEars: false, buttonGradient: ['#e2c8aa', '#d7b9bc'], successHex: '#42683f' },
     themeOffset: 0,
   },
 ];

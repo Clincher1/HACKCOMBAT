@@ -510,7 +510,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         ? src.lastMissionRefreshAt
         : null,
     baseTheme:
-      src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
+      typeof src.baseTheme === 'string' && BASE_THEMES.some((theme) => theme.key === src.baseTheme)
+        ? src.baseTheme
+        : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
     // категории — мусор из jsonb не должен попадать в экипировку.
     equippedUi: pickSkinKey(src.equippedUi, 'ui'),
@@ -3477,7 +3479,9 @@ export async function handleSkinAction(
         id: crypto.randomUUID(),
         type: 'success',
         title: `${theme.glyph} Тема «${theme.name}» включена`,
-        message: 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
+        message: theme.colorScheme === 'light'
+          ? 'Светлый интерфейс включён. Тёмный скин интерфейса сохранён.'
+          : 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
       });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);

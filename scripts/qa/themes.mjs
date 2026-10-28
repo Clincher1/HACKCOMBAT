@@ -162,8 +162,24 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
   check('тема не слетела от смены скина', r.player.stats.baseTheme === 'femme', r.player.stats.baseTheme);
   check('скин применился', r.player.equippedSkin === 'default', r.player.equippedSkin);
 
+  // Светлые темы бесплатны, сохраняются между серверными загрузками и не меняют экономику.
+  for (const key of ['light_mist', 'light_sand']) {
+    const before = (await call(TG, 'init')).player;
+    const chosen = await setTheme(TG, key);
+    const after = (await call(TG, 'init')).player;
+    check(`${key}: включается и сохраняется`, chosen.ok && after.stats.baseTheme === key);
+    check(`${key}: балансы и сила тапа не меняются`,
+      before.data === after.data && before.crypto === after.crypto && before.chips === after.chips &&
+      before.derived.clickPower === after.derived.clickPower);
+    check(`${key}: сохранение после повторной смены`, (await setTheme(TG, key)).player?.stats?.baseTheme === key);
+    check(`${key}: светлая тема и нет замены эволюции стола`,
+      themes.getBaseTheme(key).colorScheme === 'light' && themes.getThemeScene(themes.getBaseTheme(key), 1) === undefined);
+  }
+  res = await setTheme(TG, 'classic');
+  check('из светлой темы можно вернуться к классике', res.ok && (await call(TG, 'init')).player.stats.baseTheme === 'classic');
+
   // ── 6. Чистая функция композиции фильтра ─────────────────────────────────
-  check('в конфиге две темы', themes.BASE_THEMES.length === 2, themes.BASE_THEMES.length);
+  check('в конфиге две тёмные и две светлые темы', themes.BASE_THEMES.length === 4, themes.BASE_THEMES.length);
   check('обе темы бесплатные', themes.BASE_THEMES.every((t) => t.free === true));
   check(
     'у тем нет поля бонуса к тапу (чистая косметика)',

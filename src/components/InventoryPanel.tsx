@@ -73,7 +73,7 @@ export const InventoryPanel: React.FC = () => {
                   </div>
                   <div className="mt-2 min-w-0 flex-1">
                     <div className="text-xs font-extrabold text-white" title={item.name}>{item.name}</div>
-                    <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ color: item.accent }}>{item.source}</div>
+                    <div className="theme-accent-text mt-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ color: item.accent }}>{item.source}</div>
                     <p className="mt-1 text-[10px] leading-relaxed text-slate-400">{item.description}</p>
                   </div>
                   <button

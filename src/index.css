@@ -891,3 +891,99 @@ body[data-theme='femme'] .rounded-2xl {
     animation: none;
   }
 }
+
+
+/* Светлые темы: мягкие поверхности и контрастный текст во всех разделах.
+   Старые утилиты с фиксированными тёмными цветами отображаются через палитру
+   темы. Сцена и специальные аватары помечены theme-art и не перекрашиваются. */
+body[data-color-scheme='light'] { color-scheme: light; color: var(--ui-text); }
+body[data-color-scheme='light'] .cyber-grid-bg {
+  background-color: var(--cyber-bg);
+  background-image:
+    radial-gradient(circle at 18% 0%, rgba(var(--ui-primary-rgb), 0.05), transparent 42%),
+    radial-gradient(circle at 85% 12%, rgba(var(--ui-secondary-rgb), 0.04), transparent 40%),
+    linear-gradient(rgba(var(--ui-primary-rgb), 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(var(--ui-primary-rgb), 0.025) 1px, transparent 1px);
+}
+body[data-color-scheme='light'] :is(
+  [class*="bg-[#070a14]"],
+  [class*="bg-[#090d19]"],
+  [class*="bg-[#090d1a]"],
+  [class*="bg-[#0a0e1a]"],
+  [class*="bg-[#0b0f1c]"],
+  [class*="bg-[#0b1020]"],
+  [class*="bg-[#0b1021]"],
+  [class*="bg-[#0d1224]"],
+  [class*="bg-[#0d1326]"],
+  [class*="bg-[#0d152b]"],
+  [class*="bg-[#0d172e]"],
+  [class*="bg-[#0e152b]"],
+  [class*="bg-[#0e1d14]"],
+  [class*="bg-[#0f1730]"],
+  [class*="bg-[#10172e]"],
+  [class*="bg-[#101935]"],
+  [class*="bg-[#101c28]"],
+  [class*="bg-[#121a30]"],
+  [class*="bg-[#121c38]"],
+  [class*="bg-[#131b36]"],
+  [class*="bg-[#152042]"],
+  [class*="bg-[#162040]"],
+  [class*="bg-[#162244]"],
+  [class*="bg-[#171535]"],
+  [class*="bg-[#1a2548]"],
+  [class*="bg-[#1c160c]"],
+  [class*="bg-[#1e2c56]"],
+  [class*="bg-[#1e2e5c]"],
+  [class*="bg-[#1f305e]"],
+  [class*="bg-slate-900"], [class*="bg-slate-800"], [class*="bg-black/20"],
+  [class*="bg-black/25"], [class*="bg-black/30"], [class*="bg-black/35"],
+  [class*="bg-rose-950"], [class*="bg-amber-950"], [class*="bg-emerald-950"]
+):not(.theme-art, .theme-art *) { background-color: var(--ui-panel-deep) !important; }
+
+/* The HUD and banners use hard-coded gradient backgrounds rather than bg-* colors. */
+body[data-color-scheme='light'] :is(
+  [class*="from-[#141d3a]"], [class*="from-[#111c3a]"], [class*="from-[#0"],
+  [class*="from-[#1"], [class*="from-[#2"], [class*="from-slate-9"],
+  [class*="bg-gradient"][class*="from-purple-950"], [class*="bg-gradient"][class*="from-indigo-950"],
+  [class*="bg-gradient"][class*="from-cyan-950"]
+):not(.theme-art, .theme-art *) {
+  background-image: linear-gradient(135deg, var(--ui-panel), var(--ui-panel-deep)) !important;
+}
+body[data-color-scheme='light'] :is(
+  [class*="border-slate-800"], [class*="border-slate-700"], [class*="border-slate-600"]
+):not(.theme-art, .theme-art *) { border-color: color-mix(in srgb, var(--ui-text-muted) 30%, transparent) !important; }
+body[data-color-scheme='light'] :is(
+  [class~="text-white"], [class*="text-white/"], [class*="text-slate-100"],
+  [class*="text-slate-200"], [class*="text-slate-300"]
+):not(.theme-art, .theme-art *) { color: var(--ui-text) !important; }
+body[data-color-scheme='light'] :is(
+  [class*="text-slate-400"], [class*="text-slate-500"], [class*="text-slate-600"]
+):not(.theme-art, .theme-art *) { color: var(--ui-text-muted) !important; }
+body[data-color-scheme='light'] :is([class*="text-[#00f0ff]"], [class*="text-cyan-100"], [class*="text-cyan-200"], [class*="text-cyan-300"]):not(.theme-art, .theme-art *) { color: var(--ui-primary) !important; }
+body[data-color-scheme='light'] :is([class*="text-[#ff00a0]"], [class*="text-pink-"], [class*="text-fuchsia-"]):not(.theme-art, .theme-art *) { color: var(--ui-secondary) !important; }
+body[data-color-scheme='light'] :is([class*="text-[#7dff00]"], [class*="text-emerald-"], [class*="text-green-"]):not(.theme-art, .theme-art *) { color: #276344 !important; }
+body[data-color-scheme='light'] :is([class*="text-[#c084fc]"], [class*="text-purple-"], [class*="text-violet-"], [class*="text-indigo-"]):not(.theme-art, .theme-art *) { color: #664282 !important; }
+body[data-color-scheme='light'] :is([class*="text-amber-"], [class*="text-yellow-"]):not(.theme-art, .theme-art *) { color: #80510a !important; }
+body[data-color-scheme='light'] :is([class*="text-rose-"], [class*="text-red-"]):not(.theme-art, .theme-art *) { color: #a12f4b !important; }
+/* Primary buttons use dark text in the dark theme; the light-theme primary is
+   deliberately dark for contrast on pale cards, so its label must be light. */
+body[data-color-scheme='light'] :is([class*="bg-[var(--ui-primary)]"], [class*="bg-[var(--ui-secondary)]"]):not(.theme-art, .theme-art *) { color: #fff !important; }
+body[data-color-scheme='light'] .theme-preview-card [class*="bg-white/"] { background-color: var(--ui-text) !important; color: var(--ui-panel) !important; }
+body[data-color-scheme='light'] .theme-preview-card [class*="bg-black/"] { background-color: var(--ui-panel-deep) !important; color: var(--ui-text) !important; }
+body[data-color-scheme='light'] input, body[data-color-scheme='light'] textarea { color: var(--ui-text); }
+
+body[data-color-scheme='light'] .theme-accent-text { color: var(--ui-primary) !important; }
+/* Притушить неоновые обводки и заливки в светлых темах, сохраняя цвет статусов. */
+body[data-color-scheme='light'] :is([class*="border-[#00f0ff]"], [class*="border-cyan-"]):not(.theme-art, .theme-art *) {
+  border-color: color-mix(in srgb, var(--ui-primary) 35%, transparent) !important;
+}
+body[data-color-scheme='light'] :is([class*="border-[#ff00a0]"], [class*="border-fuchsia-"], [class*="border-pink-"]):not(.theme-art, .theme-art *) {
+  border-color: color-mix(in srgb, var(--ui-secondary) 35%, transparent) !important;
+}
+body[data-color-scheme='light'] :is([class*="border-[#7dff00]"], [class*="border-emerald-"]):not(.theme-art, .theme-art *) {
+  border-color: color-mix(in srgb, #276344 35%, transparent) !important;
+}
+body[data-color-scheme='light'] :is([class~="bg-[#00f0ff]"], [class~="bg-[#7dff00]"], [class~="bg-[#ff00a0]"]):not(.theme-art, .theme-art *) {
+  background-color: color-mix(in srgb, var(--ui-primary) 25%, var(--ui-panel)) !important;
+  color: var(--ui-text) !important;
+}

@@ -98,7 +98,7 @@ export const DeskScene: React.FC = () => {
   const uiSkin = equippedSkins.ui;
   // v3.6.5: скин интерфейса задаёт градиент главной кнопки. Если его нет —
   // работает градиент базовой темы (у классики циан, у Neon Muse роза).
-  const buttonGradient: [string, string] = uiSkin?.uiTokens
+  const buttonGradient: [string, string] = baseTheme.colorScheme !== 'light' && uiSkin?.uiTokens
     ? [uiSkin.uiTokens.accent, uiSkin.uiTokens.accent2]
     : baseTheme.ui.buttonGradient;
   // v3.6.3: у базовой темы свой арт на КАЖДЫЙ этап (1/5/10/15/20/25/30) —
@@ -220,7 +220,7 @@ export const DeskScene: React.FC = () => {
             tapHack();
           }
         }}
-        className="relative rounded-2xl overflow-hidden border select-none cursor-pointer aspect-[16/10] bg-[#070a14] transition-transform duration-100 active:scale-[0.992]"
+        className="theme-art relative rounded-2xl overflow-hidden border select-none cursor-pointer aspect-[16/10] bg-[#070a14] transition-transform duration-100 active:scale-[0.992]"
         style={{
           borderColor: `${activeSkin.primaryHex}55`,
           boxShadow: pulseActive

@@ -219,7 +219,7 @@ export const ProfilePage: React.FC = () => {
                 <Crown className="w-3 h-3" />
                 <span>Ранг: {derived.rankTitle}</span>
               </div>
-              <div className="mt-1 text-[10px] font-semibold" style={{ color: profileFrame.accent }}>
+              <div className="theme-accent-text mt-1 text-[10px] font-semibold" style={{ color: profileFrame.accent }}>
                 Рамка: {profileFrame.name}
               </div>
             </div>

@@ -198,12 +198,10 @@ export const ModalsAndOverlays: React.FC = () => {
 
               {storeTab === 'skins' && (
                 <>
-                  {/* v3.6.1: ДВЕ БЕСПЛАТНЫЕ БАЗОВЫЕ ТЕМЫ. Это фундамент оформления:
-                      выбираешь базу, а платные скины ложатся сверху. Обе темы
-                      бесплатны и не дают бонусов к тапу — только внешний вид. */}
+                  {/* Бесплатные темы — основа оформления, без игровых бонусов. */}
                   <div className="space-y-1.5">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Базовая тема · бесплатно
+                      Бесплатные темы интерфейса
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       {BASE_THEMES.map((theme) => {
@@ -215,7 +213,7 @@ export const ModalsAndOverlays: React.FC = () => {
                             type="button"
                             disabled={pending}
                             onClick={() => void setBaseTheme(theme.key)}
-                            className={`relative overflow-hidden rounded-xl border p-2.5 text-left transition cursor-pointer disabled:opacity-60 ${
+                            className={`theme-preview-card relative overflow-hidden rounded-xl border p-2.5 text-left transition cursor-pointer disabled:opacity-60 ${
                               active
                                 ? 'border-white/70 ring-1 ring-white/30'
                                 : 'border-slate-700/70 hover:border-slate-500'
@@ -267,7 +265,7 @@ export const ModalsAndOverlays: React.FC = () => {
                       })}
                     </div>
                     <p className="text-[9px] text-slate-500 leading-snug">
-                      Тема — это основа оформления. Скины ниже накладываются на неё сверху.
+                      Светлые темы приглушают яркость интерфейса. Тёмный скин интерфейса сохраняется и снова появится при возврате к тёмной теме.
                     </p>
                   </div>
                 </>

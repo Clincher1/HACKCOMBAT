@@ -270,6 +270,20 @@ const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKe
   check('стол при этом цел', r.player.equippedSkin === 'sakura', r.player.equippedSkin);
   check('аватар при этом цел', r.player.stats.equippedAvatar === 'avatar_ghost', r.player.stats.equippedAvatar);
 
+  // Светлая тема меняет только внешний вид: надетые скины, их бонус и баланс остаются.
+  const beforeTheme = r.player;
+  const lightResult = await call(TG, 'skin', { action: 'set_theme', skinKey: 'light_mist' });
+  const lightReload = await call(TG, 'init');
+  check('светлая тема сохраняется со всеми тремя слотами', lightResult.ok &&
+    lightReload.player.stats.baseTheme === 'light_mist' && lightReload.player.equippedSkin === 'sakura' &&
+    lightReload.player.stats.equippedUi === 'ui_mint' && lightReload.player.stats.equippedAvatar === 'avatar_ghost');
+  check('скины остаются полученными, балансы и бонус не меняются',
+    lightReload.player.unlockedSkins.includes('ui_mint') && lightReload.player.crypto === beforeTheme.crypto &&
+    lightReload.player.derived.clickPower === beforeTheme.derived.clickPower);
+  await call(TG, 'skin', { action: 'set_theme', skinKey: 'classic' });
+  r = await call(TG, 'init');
+  check('после возврата к классике UI-скин всё ещё надет', r.player.stats.baseTheme === 'classic' && r.player.stats.equippedUi === 'ui_mint');
+
   // ── 5. Повторная экипировка не списывает Crypto ──────────────────────────
   const beforeCrypto = r.player.crypto;
   await equip(TG, 'ui_mint');

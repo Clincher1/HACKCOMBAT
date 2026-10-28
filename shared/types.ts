@@ -431,7 +431,7 @@ export interface PlayerProgressStats {
   lastMissionRefreshAt?: string | null;
   /** v3.12: временная рамка-подарок автоматически исчезает после этого ISO-времени. */
   equippedProfileFrameExpiresAt?: string | null;
-  /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
+  /** Выбранная базовая тема оформления; проверяется серверным реестром. */
   baseTheme?: string;
   /**
    * v3.6.5: отдельные слоты косметики.

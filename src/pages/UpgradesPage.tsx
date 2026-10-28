@@ -228,7 +228,7 @@ export const UpgradesPage: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between px-1 gap-2">
-            <span className="text-[11px] font-bold" style={{ color: activeCategoryMeta.accentColor }}>
+            <span className="theme-accent-text text-[11px] font-bold" style={{ color: activeCategoryMeta.accentColor }}>
               {activeCategoryMeta.label} — {activeCategoryMeta.subtitle}
             </span>
           </div>
