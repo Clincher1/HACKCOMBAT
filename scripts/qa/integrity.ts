@@ -17,6 +17,8 @@ import {
   getInviteeXpReward,
   getReferrerXpReward,
 } from '../../shared/referral.config';
+import { PROFILE_FRAMES } from '../../shared/profileFrames.config';
+import { SKINS_CONFIG } from '../../shared/skins.config';
 
 let pass = 0;
 let fail = 0;
@@ -81,6 +83,21 @@ check(
   /ALTER COLUMN prestige_count TYPE bigint/.test(migration015) &&
     !/LEAST\(5|<= 5/.test(migration015) &&
     /p_expected_prestige bigint/.test(migration015)
+);
+
+const eliteFrames = PROFILE_FRAMES.filter((frame) => frame.source.includes('элитный сектор'));
+const newShopSkins = SKINS_CONFIG.filter((skin) =>
+  ['aurora_grid', 'black_ice', 'singularity_crown', 'ui_hologram', 'ui_obsidian', 'ui_aurora', 'avatar_cyber_fox', 'avatar_wyrm', 'avatar_starborn'].includes(skin.key)
+);
+check(
+  'элитные рамки не покупаются на старте',
+  eliteFrames.length === 6 && eliteFrames.every((frame) => (frame.cryptoCost ?? 0) >= 2_500 && (frame.requiredLevel ?? 0) >= 45)
+);
+check(
+  'новые скины имеют дорогой вход и уникальные ключи',
+  newShopSkins.length === 9 &&
+    new Set(newShopSkins.map((skin) => skin.key)).size === newShopSkins.length &&
+    newShopSkins.every((skin) => skin.cryptoCost >= 160 && Number.isFinite(skin.clickBonusPct))
 );
 
 const deskSource = readFileSync('src/components/DeskScene.tsx', 'utf8');

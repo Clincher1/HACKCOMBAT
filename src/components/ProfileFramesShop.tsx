@@ -28,7 +28,7 @@ export const ProfileFramesShop: React.FC = () => {
           <div className="min-w-0">
             <h2 className="text-sm font-extrabold text-white">Рамки профиля</h2>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-              Базовые цветные рамки для профиля и рейтинга. Открываются с 30 уровня, покупаются за Crypto и остаются навсегда — даже после Global Hack Престижа.
+              Цветные и элитные рамки для профиля и рейтинга. Базовые открываются с 30 уровня, элитные требуют высокого уровня и много Crypto. Все купленные рамки остаются навсегда — даже после Global Hack Престижа.
             </p>
           </div>
         </div>
