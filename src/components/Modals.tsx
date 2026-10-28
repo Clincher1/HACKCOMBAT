@@ -326,6 +326,8 @@ export const ModalsAndOverlays: React.FC = () => {
                           ? player.stats?.equippedAvatar === skin.key
                           : player.equippedSkin === skin.key;
                     const levelLocked = (skin.requiredLevel ?? 1) > player.derived.level;
+                    const prestigeLocked = Boolean(skin.prestigeRequired && player.prestigeCount < 1);
+                    const eliteCosmetic = skin.prestigeRequired || skin.cryptoCost >= 160;
                     return (
                       <div
                         key={skin.key}
@@ -348,22 +350,27 @@ export const ModalsAndOverlays: React.FC = () => {
                                 <Lock className="w-2.5 h-2.5" /> Ур. {skin.requiredLevel}
                               </span>
                             )}
+                            {eliteCosmetic && !levelLocked && !unlocked && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-400/30 shrink-0">
+                                ЭЛИТА
+                              </span>
+                            )}
                           </div>
                           <p className="text-[11px] text-slate-400">{skin.description}</p>
                         </div>
 
                         <button
                           type="button"
-                          disabled={equipped || levelLocked || busyKey === `skin:${skin.key}`}
+                          disabled={equipped || levelLocked || prestigeLocked || busyKey === `skin:${skin.key}`}
                           onClick={() => void buyOrEquipSkin(skin.key)}
                           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                             equipped
                               ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)]'
-                              : levelLocked
+                              : levelLocked || prestigeLocked
                                 ? 'bg-[var(--ui-panel-deep)] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
                                 : unlocked
                                   ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
-                                  : skin.prestigeRequired
+                                  : eliteCosmetic
                                     ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
                                     : 'bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white'
                           }`}
@@ -374,10 +381,10 @@ export const ModalsAndOverlays: React.FC = () => {
                             </span>
                           ) : levelLocked ? (
                             `Ур. ${skin.requiredLevel}`
+                          ) : prestigeLocked ? (
+                            'После Престижа'
                           ) : unlocked ? (
                             'Надеть'
-                          ) : skin.prestigeRequired ? (
-                            '50 Ур. Престиж'
                           ) : (
                             `${skin.cryptoCost} 💎`
                           )}

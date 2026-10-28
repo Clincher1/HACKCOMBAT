@@ -177,8 +177,8 @@ export const TutorialModal: React.FC = () => {
 
                   <div className="rounded-xl bg-[#0a0e1a] border border-slate-800 p-3">
                     <strong className="text-white">⚡ CPU Charge (Энергия):</strong> 1 клик тратит 1
-                    энергию. Восстанавливается сама (<strong>+1⚡ каждые 3 сек</strong>). Стартовый
-                    запас <code>1000</code> разгоняется карточками <strong>Comfort</strong> вплоть до{' '}
+                    энергию. Восстанавливается сама (<strong>+1⚡ каждые 2 сек</strong>). Стартовый
+                    запас <code>1500</code> разгоняется карточками <strong>Comfort</strong> вплоть до{' '}
                     <code>5000</code>!
                   </div>
                 </>

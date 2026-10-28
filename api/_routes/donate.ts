@@ -1,3 +1,4 @@
+import { getGameDayKey } from '../../shared/mechanics';
 import {
   DONATE_CURRENCY,
   DONATE_MAX_STARS,
@@ -29,7 +30,7 @@ const invoiceThrottle = new Map<string, { lastAt: number; dayKey: string; count:
 
 function hitInvoiceThrottle(userKey: string): number {
   const now = Date.now();
-  const dayKey = new Date(now).toISOString().slice(0, 10);
+  const dayKey = getGameDayKey(now);
   const bucket = invoiceThrottle.get(userKey);
   if (!bucket || bucket.dayKey !== dayKey) {
     invoiceThrottle.set(userKey, { lastAt: now, dayKey, count: 1 });

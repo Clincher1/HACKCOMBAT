@@ -173,6 +173,15 @@ export function sendJson(res: ApiResponse, statusCode: number, data: unknown): v
   res.end(JSON.stringify(data));
 }
 
+const TELEGRAM_START_PARAM_RE = /^[a-z0-9_:-]{1,64}$/i;
+
+function getClientStartParam(body?: Record<string, unknown>): string | undefined {
+  const candidate = body?.startParam;
+  if (typeof candidate !== 'string') return undefined;
+  const value = candidate.trim();
+  return TELEGRAM_START_PARAM_RE.test(value) ? value : undefined;
+}
+
 export function authenticateRequest(req: ApiRequest, body?: Record<string, unknown>): VerifiedTelegramUser {
   const headerInitData = req.headers['x-telegram-init-data'];
   const rawInitData =
@@ -190,12 +199,23 @@ export function authenticateRequest(req: ApiRequest, body?: Record<string, unkno
     decodedDemoName = undefined;
   }
 
-  return verifyTelegramInitData(
+  const verified = verifyTelegramInitData(
     rawInitData,
     process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
     Array.isArray(demoIdHeader) ? demoIdHeader[0] : demoIdHeader,
     decodedDemoName
   );
+
+  // Direct-link Mini Apps in some Telegram clients expose startapp as the
+  // outer tgWebAppStartParam launch value and omit it from tgWebAppData. The
+  // client sends that value only on /api/init. It is never accepted for the
+  // synthetic browser identity, and the referral layer still enforces a real
+  // code, no self-referral, one-time binding, and a zero-progress account.
+  if (!verified.startParam && verified.isVerifiedTelegram) {
+    verified.startParam = getClientStartParam(body);
+  }
+
+  return verified;
 }
 
 /**

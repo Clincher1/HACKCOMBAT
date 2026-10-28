@@ -357,7 +357,7 @@ const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKe
 
   // ── 10. Токены цвета у всех UI-скинов ────────────────────────────────────
   const uiSkins = skins.SKINS_CONFIG.filter((s) => s.category === 'ui');
-  check('UI-скинов пять', uiSkins.length === 5, String(uiSkins.length));
+  check('UI-скинов восемь', uiSkins.length === 8, String(uiSkins.length));
   check(
     'у каждого UI-скина есть токены цвета',
     uiSkins.every((s) => s.uiTokens?.accent && s.uiTokens?.accent2 && s.uiTokens?.panel),

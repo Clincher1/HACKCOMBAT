@@ -60,7 +60,9 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks: {
             react: ['react', 'react-dom', 'react-router-dom'],
-            motion: ['framer-motion'],
+            // Framer Motion is used by the desk and modal routes only. Do not
+            // promote it into the entry preload: keep the first Telegram paint
+            // free of animation code and load it with the route that needs it.
             sdk: ['@telegram-apps/sdk-react', '@supabase/supabase-js'],
           },
         },

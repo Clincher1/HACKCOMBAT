@@ -1,52 +1,119 @@
 /**
- * HACKER KOMBAT — симулятор баланса v3 (XP-прогрессия + шанс успеха взлома).
+ * HACKER KOMBAT — finite economic simulator (XP / Energy / entry / offers).
  *
- * Запуск:
- *   npx esbuild scripts/balance-sim.ts --bundle --platform=node --format=cjs --outfile=/tmp/hk-sim.cjs
- *   node /tmp/hk-sim.cjs
+ * This is deliberately an upper-bound model: the bot plays during the configured
+ * active window, keeps every available slot occupied, buys the best ROI card and
+ * immediately performs an eligible prestige. It still models the server rules:
+ * entry Data/Energy, Energy regeneration, chance outcomes, Heat penalty, 15-minute
+ * offer windows, daily Chip cap, offline qualification and open-ended prestige.
  *
- * Бот играет «идеально»: держит все слоты занятыми лучшей по опыту целью,
- * мгновенно забирает награды и покупает карточки по максимальному приросту
- * дохода на потраченный Data. Это ВЕРХНЯЯ граница темпа: живой игрок медленнее.
- * Цифры берутся из тех же конфигов, что и в игре (shared/*).
+ * Run:
+ *   npm run balance:sim
+ *   SIM_DAYS=60 ACTIVE_HOURS_PER_DAY=8 npm run balance:sim
  */
 import {
   CARD_LEVEL_INCOME_GROWTH,
   CARD_TIERS,
+  CARDS_CONFIG,
   getCardPrice,
   getMaxCardLevel,
   MAX_CARD_LEVEL,
 } from '../shared/cards.config';
 import { getBaseUpgradePrice, BASE_UPGRADES_CONFIG } from '../shared/base.config';
-import { getHackOdds, getMissionXpAward, rollHackOutcome } from '../shared/hack.config';
-import { computeDerivedStats } from '../shared/mechanics';
+import {
+  getHackOdds,
+  getMissionEntryCost,
+  getMissionRewardScale,
+  getMissionXpAward,
+  HACK_OUTCOME_REWARD,
+} from '../shared/hack.config';
+import {
+  BASE_MAX_ENERGY,
+  computeDerivedStats,
+  getPrestigeMultiplier,
+  getPrestigeRequiredLevel,
+} from '../shared/mechanics';
+import {
+  CHIP_DAILY_CAP,
+  CHIP_REWARD_PER_GREY_MISSION,
+  CHIP_REWARD_PER_MISSION,
+} from '../shared/base.config';
 import { MISSIONS_CONFIG } from '../shared/missions.config';
-import type { MissionConfig } from '../shared/types';
+import type { MissionConfig, MissionTargetType } from '../shared/types';
 
 const STEP_SEC = 30;
-const SIM_DAYS = Number(process.env.SIM_DAYS ?? 60);
-const TOTAL_STEPS = Math.floor((SIM_DAYS * 86_400) / STEP_SEC);
+const DAY_SEC = 86_400;
+const OFFER_WINDOW_SEC = 15 * 60;
+const OFFLINE_REQUIRED_ACTIVE_SEC = 8 * 60;
+const OFFLINE_RATE = 0.5;
+const OFFLINE_TAPS_PER_SEC = 0.1;
+const HEAT_PENALTY_THRESHOLD = 100;
+const HEAT_RESET_AFTER_PENALTY = 50;
+const HEAT_PENALTY_DATA_LOSS = 0.1;
+const SIM_DAYS = Math.max(1, Number(process.env.SIM_DAYS ?? 60));
+const ACTIVE_HOURS_PER_DAY = Math.max(0.25, Math.min(24, Number(process.env.ACTIVE_HOURS_PER_DAY ?? 8)));
+const ACTIVE_SEC_PER_DAY = Math.floor(ACTIVE_HOURS_PER_DAY * 3600);
+const TOTAL_STEPS = Math.floor((SIM_DAYS * DAY_SEC) / STEP_SEC);
 
 interface Slot {
   mission: MissionConfig;
   endAt: number;
   chance: number;
   xpReward: number;
-  dataReward: number;
+  reward: number;
+  entryData: number;
+  entryEnergy: number;
 }
 
 const state = {
   xp: 0,
   data: 250,
+  crypto: 5,
   chips: 0,
+  chipsToday: 0,
+  chipsDay: 0,
   rep: 0,
   heat: 0,
+  energy: BASE_MAX_ENERGY,
   cards: {} as Record<string, number>,
   base: {} as Record<string, number>,
   tier: 1,
+  prestige: 0,
+  totalMissions: 0,
+  activeSecondsToday: 0,
+  qualifiedDays: new Set<number>(),
+  lastActiveSec: -STEP_SEC,
+  nextOfferRefreshSec: 0,
+  offeredKeys: [] as string[],
+  successesByType: {} as Record<MissionTargetType, number>,
+  failsByType: {} as Record<MissionTargetType, number>,
 };
 
-let nowSec = 0;
+const slots: Slot[] = [];
+const milestones: Record<number, number | null> = {
+  2: null,
+  5: null,
+  10: null,
+  12: null,
+  15: null,
+  20: null,
+  26: null,
+  30: null,
+  40: null,
+};
+const prestigeMilestones: Record<number, number | null> = { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null, 7: null };
+const cardMilestones: Record<number, number | null> = { 25: null, 50: null, 75: null, 100: null, 150: null };
+
+// Reproducible PRNG: balance changes should be diffable between runs.
+let randomState = 0x34603a72;
+function random(): number {
+  randomState = (Math.imul(randomState, 1664525) + 1013904223) >>> 0;
+  return randomState / 0x1_0000_0000;
+}
+
+function isActive(second: number): boolean {
+  return (second % DAY_SEC) < ACTIVE_SEC_PER_DAY;
+}
 
 function derive() {
   return computeDerivedStats({
@@ -56,110 +123,154 @@ function derive() {
     heat: state.heat,
     data: state.data,
     xp: state.xp,
-    prestigeCount: 0,
+    prestigeCount: state.prestige,
     equippedSkin: 'default',
     baseUpgrades: state.base,
     cardTier: state.tier,
   });
 }
 
-/** Математическое ожидание исхода: шанс успеха / частичного / провала. */
-function outcomeEv(chance: number): { data: number; xp: number; success: number } {
-  const partial = (1 - chance) * 0.45;
-  const fail = (1 - chance) * 0.55;
-  return {
-    data: chance * 1 + partial * 0.45,
-    xp: chance * 1 + partial * 0.55 + fail * 0.15,
-    success: chance,
-  };
+function refreshOffers(nowSec: number): void {
+  if (nowSec < state.nextOfferRefreshSec && state.offeredKeys.length > 0) return;
+  const level = derive().level;
+  state.offeredKeys = MISSIONS_CONFIG
+    .filter((mission) => mission.targetType !== 'grey' && (mission.minLevel ?? 1) <= level)
+    .map((mission) => mission.key);
+  state.nextOfferRefreshSec = nowSec + OFFER_WINDOW_SEC;
 }
 
-const milestones: Record<number, number | null> = {
-  2: null, 5: null, 10: null, 12: null, 15: null, 20: null, 26: null, 30: null, 40: null,
-};
+function settleOffline(nowSec: number): void {
+  if (state.lastActiveSec < 0) return;
+  const gapSec = nowSec - state.lastActiveSec;
+  if (gapSec <= STEP_SEC) return;
 
-const cardMilestones: Record<number, number | null> = { 25: null, 50: null, 75: null, 100: null, 150: null };
+  // Only a completed previous game-day qualifies for the offline bank. No XP,
+  // Crypto or Chips are generated by this path.
+  const previousDay = Math.floor((nowSec - 1) / DAY_SEC);
+  if (!state.qualifiedDays.has(previousDay)) return;
 
-const slots: Slot[] = [];
-const derivedFirst = derive();
-
-function startBestMission() {
   const d = derive();
-  const available = MISSIONS_CONFIG.filter((m) => (m.minLevel ?? 1) <= d.level);
-  if (available.length === 0) return;
+  const elapsed = Math.min(d.offlineCapSeconds, gapSec);
+  state.data += ((d.dataPerHour * OFFLINE_RATE) / 3600) * elapsed;
+  state.data += Math.floor(elapsed * OFFLINE_TAPS_PER_SEC * d.clickPower);
+}
 
-  let best: MissionConfig | null = null;
-  let bestRate = -1;
-  for (const m of available) {
+function onNewDay(nowSec: number): void {
+  const day = Math.floor(nowSec / DAY_SEC);
+  const previousDay = day - 1;
+  if (state.activeSecondsToday >= OFFLINE_REQUIRED_ACTIVE_SEC) {
+    state.qualifiedDays.add(previousDay < 0 ? 0 : previousDay);
+  }
+  state.activeSecondsToday = 0;
+  state.chipsToday = 0;
+  state.chipsDay = day;
+}
+
+function chooseOutcome(chance: number): 'success' | 'partial' | 'fail' {
+  const roll = random();
+  if (roll < chance) return 'success';
+  if (roll < chance + (1 - chance) * 0.45) return 'partial';
+  return 'fail';
+}
+
+function startBestMission(nowSec: number): boolean {
+  const d = derive();
+  const available = state.offeredKeys
+    .map((key) => MISSIONS_CONFIG.find((mission) => mission.key === key))
+    .filter((mission): mission is MissionConfig => Boolean(mission));
+  let best: { mission: MissionConfig; score: number; chance: number; reward: number; entryData: number; entryEnergy: number; xpReward: number } | null = null;
+
+  for (const mission of available) {
+    if ((mission.minLevel ?? 1) > d.level) continue;
+    if (slots.some((slot) => slot.mission.key === mission.key)) continue;
     const odds = getHackOdds({
-      mission: m,
+      mission,
       level: d.level,
       hackPower: d.hackPower,
       heat: state.heat,
-      tierSuccesses: 0,
-      tierFails: 0,
+      tierSuccesses: state.successesByType[mission.targetType] ?? 0,
+      tierFails: state.failsByType[mission.targetType] ?? 0,
     });
-    const xp = getMissionXpAward(m.xpReward ?? 10, m.tier ?? 1, d.level);
-    const ev = outcomeEv(odds.chance);
-    const rate = (xp * ev.xp) / Math.max(1, m.durationSec);
-    if (rate > bestRate) {
-      bestRate = rate;
-      best = m;
+    const reward = Math.max(
+      0,
+      Math.round(
+        mission.baseDataReward *
+          getMissionRewardScale(d.level) *
+          d.prestigeMultiplier *
+          (1 + d.missionRewardBonusPct)
+      )
+    );
+    const entry = getMissionEntryCost(mission, reward);
+    const xpReward = getMissionXpAward(mission.xpReward ?? 10, mission.tier ?? 1, d.level);
+    const expectedXpPerSec = (xpReward * (odds.chance + (1 - odds.chance) * 0.45 * 0.55 + (1 - odds.chance) * 0.55 * 0.15)) / Math.max(1, mission.durationSec);
+    if (entry.data > state.data || entry.energy > state.energy) continue;
+    if (!best || expectedXpPerSec > best.score) {
+      best = { mission, score: expectedXpPerSec, chance: odds.chance, reward, entryData: entry.data, entryEnergy: entry.energy, xpReward };
     }
   }
-  if (!best) return;
 
-  const odds = getHackOdds({
-    mission: best,
-    level: d.level,
-    hackPower: d.hackPower,
-    heat: state.heat,
-    tierSuccesses: 0,
-    tierFails: 0,
-  });
+  if (!best) return false;
+  state.data -= best.entryData;
+  state.energy -= best.entryEnergy;
   slots.push({
-    mission: best,
-    endAt: nowSec + best.durationSec,
-    chance: odds.chance,
-    xpReward: getMissionXpAward(best.xpReward ?? 10, best.tier ?? 1, d.level),
-    dataReward: Math.round(best.baseDataReward),
+    mission: best.mission,
+    endAt: nowSec + best.mission.durationSec,
+    chance: best.chance,
+    xpReward: best.xpReward,
+    reward: best.reward,
+    entryData: best.entryData,
+    entryEnergy: best.entryEnergy,
   });
+  return true;
 }
 
-function claimReady() {
-  for (let i = slots.length - 1; i >= 0; i--) {
+function claimReady(nowSec: number): void {
+  for (let i = slots.length - 1; i >= 0; i -= 1) {
     const slot = slots[i];
     if (slot.endAt > nowSec) continue;
-    const outcome = rollHackOutcome(slot.chance);
-    const mult = outcome === 'success' ? 1 : outcome === 'partial' ? 0.5 : 0.15;
-    state.xp += Math.max(1, Math.round(slot.xpReward * (outcome === 'fail' ? 0.15 : mult)));
-    state.data += Math.round(slot.dataReward * (outcome === 'success' ? 1 : outcome === 'partial' ? 0.45 : 0));
+    const outcome = chooseOutcome(slot.chance);
+    const outcomeRules = HACK_OUTCOME_REWARD[outcome];
+    const xpGain = slot.xpReward > 0 ? Math.max(1, Math.round(slot.xpReward * outcomeRules.xp)) : 0;
+    state.xp += xpGain;
+    state.data += Math.round(slot.reward * outcomeRules.data);
+    state.rep = Math.max(0, state.rep + Math.round(slot.mission.repDelta * outcomeRules.rep));
+    state.heat = Math.max(0, state.heat + Math.round(slot.mission.heatDelta * outcomeRules.heat));
     if (outcome === 'success') {
-      state.chips += 1;
-      state.rep += Math.max(0, slot.mission.repDelta);
+      const chipReward = slot.mission.targetType === 'grey' ? CHIP_REWARD_PER_GREY_MISSION : CHIP_REWARD_PER_MISSION;
+      const chipGrant = Math.min(chipReward, Math.max(0, CHIP_DAILY_CAP - state.chipsToday));
+      state.chipsToday += chipGrant;
+      state.chips += chipGrant;
+      state.successesByType[slot.mission.targetType] = (state.successesByType[slot.mission.targetType] ?? 0) + 1;
+      if (random() < (slot.mission.cryptoDropChance ?? 0)) state.crypto += 1;
+    } else if (outcome === 'fail') {
+      state.failsByType[slot.mission.targetType] = (state.failsByType[slot.mission.targetType] ?? 0) + 1;
     }
-    state.heat = Math.max(0, state.heat + slot.mission.heatDelta);
+    state.totalMissions += 1;
     slots.splice(i, 1);
+
+    if (state.heat > HEAT_PENALTY_THRESHOLD) {
+      state.data = Math.max(0, state.data * (1 - HEAT_PENALTY_DATA_LOSS));
+      state.heat = HEAT_RESET_AFTER_PENALTY;
+    }
   }
 }
 
-function buyCards() {
-  for (let guard = 0; guard < 200; guard++) {
+function buyCards(): void {
+  for (let guard = 0; guard < 200; guard += 1) {
     const d = derive();
     const maxLevel = getMaxCardLevel(state.tier);
     const total = Object.values(state.cards).reduce((a, b) => a + b, 0);
     let bestKey: string | null = null;
     let bestScore = -Infinity;
     let bestPrice = 0;
-
-    for (const card of MISSIONS_CARD_CACHE) {
-      const lvl = state.cards[card.key] ?? 0;
-      if (lvl >= maxLevel || lvl >= MAX_CARD_LEVEL) continue;
+    for (const card of CARDS_CONFIG) {
+      const level = state.cards[card.key] ?? 0;
+      if (level >= maxLevel || level >= MAX_CARD_LEVEL) continue;
       if (card.minLevel && d.level < card.minLevel) continue;
-      const price = getCardPrice(card, lvl, total, d.cardPriceDiscountPct);
+      const price = getCardPrice(card, level, total, d.cardPriceDiscountPct);
       if (price > state.data) continue;
-      const gain = card.dataPerHourPerLevel * Math.pow(CARD_LEVEL_INCOME_GROWTH, lvl);
-      const score = gain / price;
+      const gain = card.dataPerHourPerLevel * Math.pow(CARD_LEVEL_INCOME_GROWTH, level);
+      const score = gain / Math.max(1, price);
       if (score > bestScore) {
         bestScore = score;
         bestKey = card.key;
@@ -172,74 +283,101 @@ function buyCards() {
   }
 }
 
-function buyTierAndBase() {
+function buyTierAndBase(): void {
   const d = derive();
   if (state.tier < CARD_TIERS.length) {
     const tierCfg = CARD_TIERS[state.tier];
-    if (
-      d.level >= tierCfg.requiredPlayerLevel &&
-      state.chips >= tierCfg.chipCost &&
-      state.data >= tierCfg.dataCost
-    ) {
+    if (d.level >= tierCfg.requiredPlayerLevel && state.chips >= tierCfg.chipCost && state.data >= tierCfg.dataCost) {
       state.chips -= tierCfg.chipCost;
       state.data -= tierCfg.dataCost;
       state.tier += 1;
     }
   }
-
   for (const cfg of BASE_UPGRADES_CONFIG) {
-    const lvl = state.base[cfg.key] ?? 0;
-    if (lvl >= cfg.maxLevel) continue;
-    if ((cfg.requiredLevel ?? 1) > d.level) continue;
-    const price = getBaseUpgradePrice(cfg, lvl);
+    const level = state.base[cfg.key] ?? 0;
+    if (level >= cfg.maxLevel || (cfg.requiredLevel ?? 1) > d.level) continue;
+    const price = getBaseUpgradePrice(cfg, level);
     if (state.data < price) continue;
     state.data -= price;
-    state.base[cfg.key] = lvl + 1;
+    state.base[cfg.key] = level + 1;
   }
 }
 
-// Кэшируем список карточек один раз (импорт внутри функции не нужен)
-import { CARDS_CONFIG } from '../shared/cards.config';
-const MISSIONS_CARD_CACHE = CARDS_CONFIG;
+function prestigeIfEligible(nowSec: number): void {
+  const d = derive();
+  if (d.level < getPrestigeRequiredLevel(state.prestige)) return;
+  state.prestige += 1;
+  state.data = 0;
+  state.cards = {};
+  state.heat = 0;
+  state.energy = BASE_MAX_ENERGY;
+  slots.length = 0;
+  if (prestigeMilestones[state.prestige] === null) prestigeMilestones[state.prestige] = nowSec;
+}
 
-const fmtDay = (sec: number) => (sec / 86_400).toFixed(2);
+// Prime the first offer window.
+refreshOffers(0);
+const derivedFirst = derive();
 
-for (let step = 0; step < TOTAL_STEPS; step++) {
-  nowSec += STEP_SEC;
-  claimReady();
+for (let step = 0; step < TOTAL_STEPS; step += 1) {
+  const nowSec = step * STEP_SEC;
+  const active = isActive(nowSec);
+  const previousDay = Math.floor((nowSec - STEP_SEC) / DAY_SEC);
+  const currentDay = Math.floor(nowSec / DAY_SEC);
+  if (currentDay !== previousDay && step > 0) onNewDay(nowSec);
+  if (active && !isActive(Math.max(0, nowSec - STEP_SEC))) settleOffline(nowSec);
+  if (active) {
+    state.activeSecondsToday += STEP_SEC;
+    refreshOffers(nowSec);
+    state.energy = Math.min(derive().maxEnergy, state.energy + derive().energyRegenPerSec * STEP_SEC);
+    claimReady(nowSec);
+    const missionSlots = derive().missionSlots;
+    while (slots.length < missionSlots && startBestMission(nowSec)) {
+      // Fill all unlocked slots while entry resources allow it.
+    }
+    buyCards();
+    buyTierAndBase();
+    prestigeIfEligible(nowSec);
+    state.lastActiveSec = nowSec;
+  }
 
   const d = derive();
-  while (slots.length < d.missionSlots && slots.length < 3) startBestMission();
-
-  buyCards();
-  buyTierAndBase();
-
-  const dd = derive();
   for (const target of Object.keys(milestones).map(Number)) {
-    if (milestones[target] === null && dd.level >= target) milestones[target] = nowSec;
+    if (milestones[target] === null && d.level >= target) milestones[target] = nowSec;
   }
   const totalCardLevels = Object.values(state.cards).reduce((a, b) => a + b, 0);
   for (const target of Object.keys(cardMilestones).map(Number)) {
     if (cardMilestones[target] === null && totalCardLevels >= target) cardMilestones[target] = nowSec;
   }
-
-  if (milestones[40] !== null) break;
 }
 
 const dEnd = derive();
-console.log('=== HACKER KOMBAT — balance simulation v3 ===');
-console.log(`Модель: бот держит слоты занятыми, берёт лучшую по XP/сек цель, покупает по ROI.`);
-console.log(`Стартовые условия: 1 уровень, ${derivedFirst.xpToNext} XP до 2 уровня.\n`);
-console.log('Уровень игрока (чистые часы игры):');
-for (const [lvl, sec] of Object.entries(milestones)) {
-  console.log(`  Ур. ${lvl.padStart(2)}: ${sec === null ? '—' : `${fmtDay(sec)} дн. (${(sec / 3600).toFixed(1)} ч)`}`);
+const finiteValues = [state.xp, state.data, state.crypto, state.chips, state.energy, dEnd.dataPerHour, dEnd.xpToNext];
+if (!finiteValues.every(Number.isFinite) || finiteValues.some((value) => value < 0)) {
+  throw new Error(`Simulator produced a non-finite/negative value: ${finiteValues.join(', ')}`);
+}
+
+const fmtDay = (sec: number) => (sec / DAY_SEC).toFixed(2);
+console.log('=== HACKER KOMBAT — finite balance simulation ===');
+console.log(`Модель: ${ACTIVE_HOURS_PER_DAY} ч активной игры/сутки, ${SIM_DAYS} суток, entry + Energy + offline + offers + prestige.`);
+console.log(`Старт: ур. 1, ${derivedFirst.xpToNext} XP до ур. 2, ${BASE_MAX_ENERGY} Energy.\n`);
+console.log('Уровень игрока (чистое модельное время):');
+for (const [level, second] of Object.entries(milestones)) {
+  console.log(`  Ур. ${level.padStart(2)}: ${second === null ? '—' : `${fmtDay(second)} дн. (${(second / 3600).toFixed(1)} ч)`}`);
+}
+console.log('\nPrestige:');
+for (const [cycle, second] of Object.entries(prestigeMilestones)) {
+  console.log(`  #${cycle}: ${second === null ? '—' : `${fmtDay(second)} дн.`}`);
 }
 console.log('\nСуммарные уровни карточек:');
-for (const [lvl, sec] of Object.entries(cardMilestones)) {
-  console.log(`  ${lvl.padStart(3)} lvl: ${sec === null ? '—' : `${fmtDay(sec)} дн.`}`);
+for (const [level, second] of Object.entries(cardMilestones)) {
+  console.log(`  ${level.padStart(3)} lvl: ${second === null ? '—' : `${fmtDay(second)} дн.`}`);
 }
 console.log(
-  `\nИтог: ур. ${dEnd.level}, карточек ${Object.values(state.cards).reduce((a, b) => a + b, 0)}, ` +
+  `\nИтог: ур. ${dEnd.level}, XP ${Math.round(state.xp).toLocaleString('ru-RU')}, ` +
+    `миссий ${state.totalMissions}, карточек ${Object.values(state.cards).reduce((a, b) => a + b, 0)}, ` +
     `Data/час ${Math.round(dEnd.dataPerHour).toLocaleString('ru-RU')}, ` +
-    `Tier ${state.tier}, сила железа ${Math.round(dEnd.hackPower)}`
+    `Data ${Math.floor(state.data).toLocaleString('ru-RU')}, Tier ${state.tier}, ` +
+    `prestige ${state.prestige} (open), ×${getPrestigeMultiplier(state.prestige)}, ` +
+    `сила железа ${Math.round(dEnd.hackPower)}`
 );
