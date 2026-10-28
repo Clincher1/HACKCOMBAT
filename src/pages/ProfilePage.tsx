@@ -8,6 +8,7 @@ import { AchievementsPanel } from '../components/AchievementsPanel';
 import { CollectionPanel } from '../components/CollectionPanel';
 import { DonateCard } from '../components/DonateCard';
 import { ReferralCard } from '../components/ReferralCard';
+import { MatrixAvatar } from '../components/MatrixAvatar';
 import {
   CHIP_DAILY_CAP,
   CHIP_REWARD_PER_DAILY,
@@ -16,7 +17,7 @@ import {
 } from '../../shared/base.config';
 import { getProfileFrame } from '../../shared/profileFrames.config';
 import { getSkinByKey } from '../../shared/skins.config';
-import { getGameDayKey, getPrestigeRequiredLevel } from '../../shared/mechanics';
+import { getGameDayKey, getPrestigeMultiplier, getPrestigeRequiredLevel } from '../../shared/mechanics';
 import type { LeaderboardSort } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -38,6 +39,9 @@ export const ProfilePage: React.FC = () => {
   } = useGame();
 
   const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection'>('leaderboard');
+  const [roosterBurstId, setRoosterBurstId] = useState(0);
+  const [fishBurstId, setFishBurstId] = useState(0);
+  const [matrixBurstId, setMatrixBurstId] = useState(0);
   const [editingName, setEditingName] = useState(false);
   const [draftName, setDraftName] = useState('');
 
@@ -46,6 +50,26 @@ export const ProfilePage: React.FC = () => {
   useEffect(() => {
     if (tab === 'leaderboard') void refreshLeaderboard();
   }, [refreshLeaderboard, tab]);
+
+  // Крик рамки — короткий локальный cosmetic-эффект: он не вызывает API,
+  // не тратит ресурсы и срабатывает только для подарочного профиля игрока.
+  useEffect(() => {
+    if (roosterBurstId === 0) return undefined;
+    const timer = window.setTimeout(() => setRoosterBurstId(0), 2_000);
+    return () => window.clearTimeout(timer);
+  }, [roosterBurstId]);
+
+  useEffect(() => {
+    if (fishBurstId === 0) return undefined;
+    const timer = window.setTimeout(() => setFishBurstId(0), 2_200);
+    return () => window.clearTimeout(timer);
+  }, [fishBurstId]);
+
+  useEffect(() => {
+    if (matrixBurstId === 0) return undefined;
+    const timer = window.setTimeout(() => setMatrixBurstId(0), 2_000);
+    return () => window.clearTimeout(timer);
+  }, [matrixBurstId]);
 
   if (!player) return null;
 
@@ -56,6 +80,7 @@ export const ProfilePage: React.FC = () => {
   const alignmentMarkerPct = Math.min(95, Math.max(5, 50 + alignmentDiff * 0.45));
 
   const requiredPrestigeLevel = getPrestigeRequiredLevel(player.prestigeCount);
+  const nextPrestigeMultiplier = getPrestigeMultiplier(player.prestigeCount + 1);
   // Дневной счётчик Чипов считаем по тому же игровому дню (Москва), что и сервер:
   // после полуночи показываем 0, даже если сервер ещё не успел обнулить.
   const chipsDayIsToday = player.stats.chipsDayKey === getGameDayKey();
@@ -65,6 +90,7 @@ export const ProfilePage: React.FC = () => {
   const chipsLeftToday = Math.max(0, CHIP_DAILY_CAP - chipsToday);
   const canPrestige = derived.level >= requiredPrestigeLevel;
   const profileFrame = getProfileFrame(player.stats.equippedProfileFrame);
+  const profileAvatarUrl = profileFrame.avatarUrl ?? tgProfile.photoUrl;
 
   // Метрики турнирной таблицы. Data тратится (купил карточки — упал в таблице),
   // XP не тратится никогда, уровень — карьерный итог. Пусть игрок выбирает зачёт.
@@ -94,31 +120,78 @@ export const ProfilePage: React.FC = () => {
       <div className="rounded-2xl bg-[#10172e] border border-[#00f0ff]/30 p-4 space-y-3">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            {tgProfile.photoUrl ? (
-              <img
-                src={tgProfile.photoUrl}
-                alt={player.username}
-                loading="lazy"
-                className="w-14 h-14 rounded-2xl object-cover border-2"
-                style={{
-                  borderColor: profileFrame.accent,
-                  background: profileFrame.background,
-                  boxShadow: profileFrame.glow,
-                }}
-                title={`Рамка профиля: ${profileFrame.name}`}
-              />
-            ) : (
+            {profileFrame.avatarMode === 'matrix_rain' ? (
               <div
-                className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-xl font-black shrink-0"
-                style={{
-                  borderColor: profileFrame.accent,
-                  background: profileFrame.background,
-                  boxShadow: profileFrame.glow,
-                  color: profileFrame.accent,
+                className="relative shrink-0 matrix-avatar-trigger"
+                onClick={() => setMatrixBurstId((value) => value + 1)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    setMatrixBurstId((value) => value + 1);
+                  }
                 }}
-                title={`Рамка профиля: ${profileFrame.name}`}
+                role="button"
+                tabIndex={0}
               >
-                {player.username.slice(0, 2).toUpperCase()}
+                <MatrixAvatar
+                  label={profileFrame.avatarLabel ?? player.username}
+                  burstId={matrixBurstId}
+                  className="w-14 h-14 rounded-2xl border-2"
+                  style={{
+                    borderColor: profileFrame.accent,
+                    borderImage: profileFrame.borderImage,
+                    background: profileFrame.background,
+                    boxShadow: profileFrame.glow,
+                  }}
+                />
+              </div>
+            ) : profileAvatarUrl ? (
+              <div className="relative shrink-0">
+                <img
+                  src={profileAvatarUrl}
+                  alt={player.username}
+                  loading="lazy"
+                  className={`w-14 h-14 rounded-2xl border-2 ${profileFrame.avatarUrl ? 'object-contain p-0.5' : 'object-cover'}`}
+                  style={{
+                    borderColor: profileFrame.accent,
+                    borderImage: profileFrame.borderImage,
+                    background: profileFrame.background,
+                    boxShadow: profileFrame.glow,
+                  }}
+                  title={`Рамка профиля: ${profileFrame.name}`}
+                />
+                {profileFrame.iconUrl && (
+                  <img
+                    src={profileFrame.iconUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-2 -top-3 h-9 w-9 object-contain drop-shadow-[0_0_6px_rgba(255,48,79,0.85)]"
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="relative shrink-0">
+                <div
+                  className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-xl font-black"
+                  style={{
+                    borderColor: profileFrame.accent,
+                    borderImage: profileFrame.borderImage,
+                    background: profileFrame.background,
+                    boxShadow: profileFrame.glow,
+                    color: profileFrame.accent,
+                  }}
+                  title={`Рамка профиля: ${profileFrame.name}`}
+                >
+                  {player.username.slice(0, 2).toUpperCase()}
+                </div>
+                {profileFrame.iconUrl && (
+                  <img
+                    src={profileFrame.iconUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="pointer-events-none absolute -right-2 -top-3 h-9 w-9 object-contain drop-shadow-[0_0_6px_rgba(255,48,79,0.85)]"
+                  />
+                )}
               </div>
             )}
 
@@ -260,7 +333,7 @@ export const ProfilePage: React.FC = () => {
           <div className="flex items-center justify-between text-[10px] font-bold">
             <span className="text-purple-300">
               XP {formatCompact(derived.xpIntoLevel)} /{' '}
-              {derived.xpToNext > 0 ? formatCompact(derived.xpToNext) : 'MAX'}
+              {formatCompact(derived.xpToNext)}
             </span>
             <span className="text-slate-400">всего {formatCompact(derived.totalXp)} XP</span>
           </div>
@@ -383,10 +456,15 @@ export const ProfilePage: React.FC = () => {
             </div>
           )}
 
-          <div className="rounded-2xl bg-[#10172e] border border-slate-800 divide-y divide-slate-800/80 overflow-hidden">
+          <div className="rounded-2xl bg-[#10172e] border border-slate-800 divide-y divide-slate-800/80 overflow-visible">
             {leaderboard.map((entry, idx) => {
               const avatarSkin = getSkinByKey(entry.avatarKey ?? '');
               const frame = getProfileFrame(entry.profileFrameKey);
+              const isRoosterAvatar = entry.username === 'pohoronyat_menya';
+              const isFishAvatar = entry.username === 'SolidPegasus';
+              const isMatrixAvatar =
+                entry.username === 'useryou2202' && frame.avatarMode === 'matrix_rain';
+              const hasSpecialAvatar = isRoosterAvatar || isFishAvatar || isMatrixAvatar;
               return (
               <div
                 key={`${entry.username}-${idx}`}
@@ -409,16 +487,108 @@ export const ProfilePage: React.FC = () => {
                     #{idx + 1}
                   </span>
                   <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border-2 text-lg"
-                    style={{
-                      borderColor: frame.accent,
-                      background: frame.background,
-                      boxShadow: frame.glow,
-                    }}
-                    title={frame.name}
-                    aria-label={`Аватар ${entry.username}, рамка ${frame.name}`}
+                    className={`relative shrink-0 ${
+                      isRoosterAvatar
+                        ? 'rooster-avatar-trigger'
+                        : isFishAvatar
+                          ? 'fish-avatar-trigger'
+                          : isMatrixAvatar
+                            ? 'matrix-avatar-trigger'
+                            : ''
+                    }`}
+                    onClick={
+                      isRoosterAvatar
+                        ? () => setRoosterBurstId((value) => value + 1)
+                        : isFishAvatar
+                          ? () => setFishBurstId((value) => value + 1)
+                          : isMatrixAvatar
+                            ? () => setMatrixBurstId((value) => value + 1)
+                            : undefined
+                    }
+                    onKeyDown={
+                      hasSpecialAvatar
+                        ? (event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault();
+                              if (isRoosterAvatar) {
+                                setRoosterBurstId((value) => value + 1);
+                              } else if (isFishAvatar) {
+                                setFishBurstId((value) => value + 1);
+                              } else {
+                                setMatrixBurstId((value) => value + 1);
+                              }
+                            }
+                          }
+                        : undefined
+                    }
+                    role={hasSpecialAvatar ? 'button' : undefined}
+                    tabIndex={hasSpecialAvatar ? 0 : undefined}
                   >
-                    {avatarSkin?.category === 'avatar' ? avatarSkin.avatarGlyph ?? '🕶️' : '🕶️'}
+                    <div
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-lg"
+                      style={{
+                        borderColor: frame.accent,
+                        borderImage: frame.borderImage,
+                        background: frame.background,
+                        boxShadow: frame.glow,
+                      }}
+                      title={frame.name}
+                      aria-label={`Аватар ${entry.username}, рамка ${frame.name}`}
+                    >
+                      {frame.avatarMode === 'matrix_rain' ? (
+                        <MatrixAvatar
+                          label={frame.avatarLabel ?? entry.username}
+                          burstId={isMatrixAvatar ? matrixBurstId : 0}
+                          className="h-full w-full rounded-[0.55rem]"
+                        />
+                      ) : frame.avatarUrl ? (
+                        <img
+                          src={frame.avatarUrl}
+                          alt={`Аватар ${entry.username}`}
+                          className="h-full w-full rounded-[0.55rem] object-contain p-0.5"
+                        />
+                      ) : avatarSkin?.category === 'avatar' ? (
+                        avatarSkin.avatarGlyph ?? '🕶️'
+                      ) : (
+                        '🕶️'
+                      )}
+                    </div>
+                    {frame.iconUrl && (
+                      <img
+                        src={frame.iconUrl}
+                        alt=""
+                        aria-hidden="true"
+                        className="pointer-events-none absolute -right-1.5 -top-2 h-6 w-6 object-contain drop-shadow-[0_0_5px_rgba(255,48,79,0.8)]"
+                      />
+                    )}
+                    {isRoosterAvatar && roosterBurstId > 0 && (
+                      <div
+                        key={roosterBurstId}
+                        className="rooster-burst"
+                        aria-live="polite"
+                        aria-label="Кууу Ка Рекуу"
+                      >
+                        <span className="rooster-burst__spark rooster-burst__spark--one">✦</span>
+                        <span className="rooster-burst__spark rooster-burst__spark--two">✧</span>
+                        <span className="rooster-burst__spark rooster-burst__spark--three">✦</span>
+                        <span className="rooster-burst__spark rooster-burst__spark--four">•</span>
+                        <span className="rooster-burst__text">Кууу Ка Рекуу</span>
+                      </div>
+                    )}
+                    {isFishAvatar && fishBurstId > 0 && (
+                      <div
+                        key={fishBurstId}
+                        className="fish-burst"
+                        aria-live="polite"
+                        aria-label="Блоп-Блоп"
+                      >
+                        <span className="fish-burst__bubble fish-burst__bubble--one">◦</span>
+                        <span className="fish-burst__bubble fish-burst__bubble--two">○</span>
+                        <span className="fish-burst__bubble fish-burst__bubble--three">◌</span>
+                        <span className="fish-burst__bubble fish-burst__bubble--four">°</span>
+                        <span className="fish-burst__text">Блоп-Блоп</span>
+                      </div>
+                    )}
                   </div>
                   <div className="min-w-0">
                     <div className="font-bold text-white truncate flex items-center gap-1.5">
@@ -524,7 +694,7 @@ export const ProfilePage: React.FC = () => {
         <p className="text-[11px] text-slate-300 leading-relaxed">
           На {requiredPrestigeLevel} уровне вы можете перезапустить матрицу: карточки, команда и Data
           обнулятся, но вы навсегда получите{' '}
-          <strong>множитель ×{derived.prestigeMultiplier * 2} к доходу</strong>, сохраните все{' '}
+          <strong>множитель ×{nextPrestigeMultiplier} к доходу</strong>, сохраните все{' '}
           <strong>💎 Crypto, достижения, скины и Rep</strong>!
         </p>
 
@@ -539,7 +709,7 @@ export const ProfilePage: React.FC = () => {
           }`}
         >
           {canPrestige
-            ? `🌐 ЗАПУСТИТЬ GLOBAL HACK (×${derived.prestigeMultiplier * 2} НАВСЕГДА)`
+            ? `🌐 ЗАПУСТИТЬ GLOBAL HACK (×${nextPrestigeMultiplier} НАВСЕГДА)`
             : `Требуется ${requiredPrestigeLevel} уровень (ещё ${requiredPrestigeLevel - derived.level} ур.)`}
         </button>
       </div>

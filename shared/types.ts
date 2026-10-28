@@ -8,7 +8,7 @@ export interface CardConfig {
   basePrice: number;
   dataPerHourPerLevel: number;
   clickBonusPerLevel?: number; // Дополнительный вклад в множитель клика
-  energyMaxPerLevel?: number; // Для категории Comfort (рост Energy max от 1000 до 5000)
+  energyMaxPerLevel?: number; // Для категории Comfort (рост Energy max от 1500 до 5000)
   heatOnBuy?: number; // Для категории Darknet (+Heat при покупке)
   minLevel?: number; // Опциональное требование к уровню игрока
   iconGlyph: string;
@@ -206,6 +206,20 @@ export interface ProfileFrameConfig {
   background: string;
   glow: string;
   source: string;
+  /** Необязательный арт поверх аватара для особых временных рамок. */
+  iconUrl?: string;
+  /** Полный временный аватар, который заменяет Telegram-фото в профиле и рейтинге. */
+  avatarUrl?: string;
+  /** Встроенный анимированный аватар без внешнего файла. */
+  avatarMode?: 'matrix_rain';
+  /** Текст, который должен быть читаемым внутри анимированного аватара. */
+  avatarLabel?: string;
+  /** CSS-градиент рамки для специальных косметических подарков. */
+  borderImage?: string;
+  /** Такая рамка не покупается и автоматически снимается по expiry в stats. */
+  temporary?: boolean;
+  /** Персональный подарок администратора: нельзя купить или разблокировать через API. */
+  giftOnly?: boolean;
   eventKey?: string;
   /** Цена Crypto для постоянной покупки в магазине; у event-наград её нет. */
   cryptoCost?: number;
@@ -272,6 +286,40 @@ export interface DailyTaskState {
   claimed: string[];
 }
 
+/** Один серверный выбор в ежедневном киберинциденте. */
+export interface DailyIncidentChoiceDefinition {
+  key: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface DailyIncidentDefinition {
+  key: string;
+  title: string;
+  brief: string;
+  system: string;
+  choices: readonly DailyIncidentChoiceDefinition[];
+}
+
+export interface DailyIncidentOutcomeState {
+  data: number;
+  crypto: number;
+  rep: number;
+  heat: number;
+  summary: string;
+}
+
+/** Состояние одного неизменяемого инцидента за московские сутки. */
+export interface DailyIncidentState {
+  version: 1;
+  dayKey: string;
+  incidentKey: string;
+  choiceKey?: string | null;
+  resolvedAt?: string | null;
+  outcome?: DailyIncidentOutcomeState | null;
+}
+
 export interface PlayerProgressStats {
   tutorialTabs: string[]; // Просмотренные главы Академии
   tutorialOpens: number;
@@ -303,6 +351,8 @@ export interface PlayerProgressStats {
   activeDayKey?: string | null;
   /** v3.8: три персональных ежедневных поручения и их серверный прогресс. */
   dailyTasks?: DailyTaskState;
+  /** v3.13: один серверный киберинцидент с выбором в каждые московские сутки. */
+  dailyIncident?: DailyIncidentState;
   /** v3.9: прогресс текущей 7-дневной сезонной операции. */
   seasonEvent?: SeasonEventState;
   /** v3.9: профильные рамки, открытые за косметические события. */
@@ -319,6 +369,10 @@ export interface PlayerProgressStats {
   chipsCapNotifiedDay?: string | null;
   /** v3.7: версия ручного скана целей — хранится в stats, чтобы Vercel-инстансы видели один оффер. */
   missionRefreshSalt?: number;
+  /** v3.7: серверное время последнего ручного скана; auto-refresh не продлевает cooldown. */
+  lastMissionRefreshAt?: string | null;
+  /** v3.12: временная рамка-подарок автоматически исчезает после этого ISO-времени. */
+  equippedProfileFrameExpiresAt?: string | null;
   /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
   baseTheme?: string;
   /**
@@ -390,7 +444,7 @@ export interface PlayerState {
   unlockedSkins: string[];
   totalClicks: number;
   totalMissions: number;
-  cards: Record<string, number>; // card_key -> level (1..25)
+  cards: Record<string, number>; // card_key -> level (1..60)
   team: string[]; // hired npc_keys
   pets: PetState[];
   baseUpgrades: Record<string, number>;

@@ -46,7 +46,18 @@ async function apiRequest<T>(path: string, method: 'GET' | 'POST' = 'POST', body
 // тапов уезжает вместе с покупкой. Один сетевой круг вместо двух: покупка
 // ощущается мгновенной, и сервер уже видит свежий баланс.
 export const gameApi = {
-  init: () => apiRequest<ApiSyncResponse>('/api/init', 'POST'),
+  /**
+   * Для direct-link Mini Apps Telegram иногда кладёт startapp только в
+   * tgWebAppStartParam внешнего launch payload, а не в подписанный tgWebAppData.
+   * Досылаем его на самый первый init; сервер принимает fallback только после
+   * успешной проверки Telegram initData и всё равно проверяет код/новизну игрока.
+   */
+  init: () => {
+    const tg = initTelegramMiniApp();
+    return apiRequest<ApiSyncResponse>('/api/init', 'POST', {
+      ...(tg.startParam ? { startParam: tg.startParam } : {}),
+    });
+  },
   clickBatch: (clicks: number) => apiRequest<ApiSyncResponse>('/api/click', 'POST', { clicks }),
   buyCard: (cardKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/buy-card', 'POST', { cardKey, clicks }),
@@ -58,6 +69,8 @@ export const gameApi = {
   hireNpc: (npcKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/hire', 'POST', { npcKey, clicks }),
   claimDaily: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/daily', 'POST', { clicks }),
+  resolveDailyIncident: (choiceKey: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/daily-incident', 'POST', { choiceKey, clicks }),
   claimDailyTask: (taskKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/daily-tasks', 'POST', { action: 'claim', taskKey, clicks }),
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>

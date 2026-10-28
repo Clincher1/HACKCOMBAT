@@ -69,6 +69,7 @@ interface GameContextValue {
   petAction: (action: 'buy' | 'feed', petKey: string) => Promise<void>;
   trackEvent: (event: string, value?: number) => void;
   claimDailyBonus: () => Promise<void>;
+  resolveDailyIncident: (choiceKey: string) => Promise<void>;
   claimDailyTask: (taskKey: string) => Promise<void>;
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery') => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
@@ -487,10 +488,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void retryInit();
   }, [retryInit]);
 
-  // Живой секундный тик на клиенте: плавный прирост Data/hour, реген 1 Energy / 3 сек и обновление таймеров
+  // Живой секундный тик на клиенте: плавный прирост Data/hour, реген Energy по shared-модели и обновление таймеров
   const energyTickCounter = useRef(0);
   useEffect(() => {
     const interval = window.setInterval(() => {
+      // A hidden Telegram WebView is already throttled by the browser. Avoid
+      // producing React work every second in the background; the visibility
+      // handler below performs a server sync after a long absence.
+      if (document.visibilityState !== 'visible') return;
+
       const t = Date.now();
       setNowMs(t);
       energyTickCounter.current += 1;
@@ -520,6 +526,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Периодическая сверка пассивного дохода с сервером раз в 30 сек и при скрытии вкладки
   useEffect(() => {
     const syncInterval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
       if (pendingClicksRef.current > 0) {
         void flushClicks();
       } else {
@@ -820,6 +827,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const resolveDailyIncident = useCallback(
+    (choiceKey: string) =>
+      runAction(
+        `daily-incident:${choiceKey}`,
+        (clicks) => gameApi.resolveDailyIncident(choiceKey, clicks),
+        true,
+        'light'
+      ),
+    [runAction]
+  );
+
   const claimDailyTask = useCallback(
     (taskKey: string) =>
       runAction(`daily-task:claim:${taskKey}`, (clicks) => gameApi.claimDailyTask(taskKey, clicks), true, 'light'),
@@ -893,6 +911,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const toggleSound = useCallback(() => {
     const muted = cyberSound.toggleMute();
     setSoundMuted(muted);
+  }, []);
+
+  const dismissOfflineModal = useCallback(() => {
+    setOfflineModalEarned(null);
+    setOfflineModalTaps(0);
   }, []);
 
   // v3.6.1: палитра берётся из БАЗОВОЙ ТЕМЫ, а скин стола накладывается в сцене.
@@ -1017,66 +1040,119 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.clearInterval(interval);
   }, [player?.derived.level, trackEvent]);
 
+  const contextValue = useMemo<GameContextValue>(
+    () => ({
+      player,
+      tgProfile,
+      loading,
+      initError,
+      retryInit,
+      busyKey,
+      storageMode,
+      alerts,
+      offlineModalEarned,
+      offlineModalTaps,
+      dismissOfflineModal,
+      dismissAlert,
+      pushClientAlert,
+      lockdownRemainingSec,
+      nowMs,
+      soundMuted,
+      toggleSound,
+      dailyModalOpen,
+      setDailyModalOpen,
+      skinModalOpen,
+      setSkinModalOpen,
+      tutorialModalOpen,
+      tutorialUnseen,
+      openTutorial,
+      closeTutorial,
+      tapHack,
+      buyCard,
+      startMission,
+      claimMission,
+      skipMission,
+      refreshMissions,
+      hireNpc,
+      unlockTier,
+      buyBaseUpgrade,
+      petAction,
+      trackEvent,
+      claimDailyBonus,
+      resolveDailyIncident,
+      claimDailyTask,
+      claimSeasonEvent,
+      buyOrEquipSkin,
+      buyOrEquipProfileFrame,
+      baseTheme,
+      setBaseTheme,
+      clearHeatLockdown,
+      triggerPrestige,
+      leaderboard,
+      leaderboardSort,
+      leaderboardSelf,
+      setLeaderboardSort,
+      refreshLeaderboard,
+      updateDemoName,
+      missionHistory,
+    }),
+    [
+      player,
+      tgProfile,
+      loading,
+      initError,
+      retryInit,
+      busyKey,
+      storageMode,
+      alerts,
+      offlineModalEarned,
+      offlineModalTaps,
+      dismissOfflineModal,
+      dismissAlert,
+      pushClientAlert,
+      lockdownRemainingSec,
+      nowMs,
+      soundMuted,
+      toggleSound,
+      dailyModalOpen,
+      skinModalOpen,
+      tutorialModalOpen,
+      tutorialUnseen,
+      openTutorial,
+      closeTutorial,
+      tapHack,
+      buyCard,
+      startMission,
+      claimMission,
+      skipMission,
+      refreshMissions,
+      hireNpc,
+      unlockTier,
+      buyBaseUpgrade,
+      petAction,
+      trackEvent,
+      claimDailyBonus,
+      resolveDailyIncident,
+      claimDailyTask,
+      claimSeasonEvent,
+      buyOrEquipSkin,
+      buyOrEquipProfileFrame,
+      baseTheme,
+      setBaseTheme,
+      clearHeatLockdown,
+      triggerPrestige,
+      leaderboard,
+      leaderboardSort,
+      leaderboardSelf,
+      setLeaderboardSort,
+      refreshLeaderboard,
+      updateDemoName,
+      missionHistory,
+    ]
+  );
+
   return (
-    <GameContext.Provider
-      value={{
-        player,
-        tgProfile,
-        loading,
-        initError,
-        retryInit,
-        busyKey,
-        storageMode,
-        alerts,
-        offlineModalEarned,
-        offlineModalTaps,
-        dismissOfflineModal: () => {
-          setOfflineModalEarned(null);
-          setOfflineModalTaps(0);
-        },
-        dismissAlert,
-        pushClientAlert,
-        lockdownRemainingSec,
-        nowMs,
-        soundMuted,
-        toggleSound,
-        dailyModalOpen,
-        setDailyModalOpen,
-        skinModalOpen,
-        setSkinModalOpen,
-        tutorialModalOpen,
-        tutorialUnseen,
-        openTutorial,
-        closeTutorial,
-        tapHack,
-        buyCard,
-        startMission,
-        claimMission,
-        skipMission,
-        refreshMissions,
-        hireNpc,
-        unlockTier,
-        buyBaseUpgrade,
-        petAction,
-        trackEvent,
-        claimDailyBonus,
-        claimDailyTask,
-        claimSeasonEvent,
-        buyOrEquipSkin,
-        buyOrEquipProfileFrame,
-        baseTheme,
-        setBaseTheme,
-        clearHeatLockdown,
-        triggerPrestige,
-        leaderboard,
-        leaderboardSort,
-        leaderboardSelf,
-        setLeaderboardSort,
-        refreshLeaderboard,
-        updateDemoName,
-        missionHistory,
-      }}
-    >
+    <GameContext.Provider value={contextValue}>
       {children}
     </GameContext.Provider>
   );

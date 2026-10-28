@@ -5,6 +5,7 @@ import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
 const SHOP_FRAMES = PROFILE_FRAMES.filter((frame) => frame.cryptoCost !== undefined);
+const GIFTED_FRAMES = PROFILE_FRAMES.filter((frame) => frame.giftOnly);
 const EVENT_FRAMES = PROFILE_FRAMES.filter((frame) => frame.eventKey);
 const DEFAULT_FRAME = getProfileFrame('default');
 
@@ -99,6 +100,75 @@ export const ProfileFramesShop: React.FC = () => {
           );
         })}
       </div>
+
+      {GIFTED_FRAMES.some((frame) => unlocked.has(frame.key)) && (
+        <div className="space-y-2">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-[0.12em] text-fuchsia-200">
+              Персональные подарки
+            </div>
+            <div className="mt-1 text-[10px] text-slate-500">
+              Эти рамки остаются навсегда: их можно снять и снова надеть в любой момент.
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {GIFTED_FRAMES.filter((frame) => unlocked.has(frame.key)).map((frame) => {
+              const frameEquipped = equippedKey === frame.key;
+              const busy = busyKey === `profile-frame:${frame.key}`;
+              const previewUrl = frame.iconUrl ?? frame.avatarUrl;
+              return (
+                <div
+                  key={frame.key}
+                  className={`rounded-2xl border p-3 transition ${
+                    frameEquipped
+                      ? 'border-fuchsia-300/70 bg-fuchsia-300/8 shadow-[0_0_18px_rgba(217,70,239,0.12)]'
+                      : 'border-fuchsia-200/25 bg-[#171535]/80'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div
+                      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 text-lg font-black"
+                      style={{
+                        borderColor: frame.accent,
+                        background: frame.background,
+                        boxShadow: frame.glow,
+                      }}
+                      aria-label={`Предпросмотр рамки ${frame.name}`}
+                    >
+                      {previewUrl ? (
+                        <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        '✦'
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-extrabold text-white">{frame.name}</div>
+                      <div className="mt-0.5 text-[10px] font-bold text-fuchsia-200/80">Подарок администратора · навсегда</div>
+                    </div>
+                    {frameEquipped && <Check className="h-4 w-4 shrink-0 text-fuchsia-200" />}
+                  </div>
+                  <p className="mt-2 min-h-[32px] text-[10px] leading-relaxed text-slate-400">{frame.description}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-slate-400">В коллекции навсегда</span>
+                    <button
+                      type="button"
+                      disabled={frameEquipped || busy}
+                      onClick={() => void buyOrEquipProfileFrame(frame.key)}
+                      className={`rounded-lg px-2.5 py-1.5 text-[10px] font-extrabold transition ${
+                        frameEquipped
+                          ? 'cursor-default bg-emerald-950/40 text-emerald-300'
+                          : 'cursor-pointer bg-fuchsia-300 text-[#210b2c] hover:bg-fuchsia-200'
+                      }`}
+                    >
+                      {busy ? 'Обработка…' : frameEquipped ? 'Надето' : 'Надеть'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         <div>

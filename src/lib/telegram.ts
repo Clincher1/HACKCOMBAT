@@ -10,6 +10,7 @@ import {
   mountMiniAppSync,
   mountViewport,
   restoreInitData,
+  retrieveLaunchParams,
   retrieveRawInitData,
   setMiniAppBackgroundColor,
   setMiniAppHeaderColor,
@@ -20,7 +21,51 @@ export interface TelegramProfileInfo {
   username: string;
   photoUrl?: string;
   rawInitData: string;
+  /**
+   * startapp из внешних launch-параметров Telegram.
+   * В некоторых клиентах Telegram он приходит только как
+   * tgWebAppStartParam, а не дублируется внутри tgWebAppData.
+   */
+  startParam?: string;
   isInsideTelegram: boolean;
+}
+
+const TELEGRAM_START_PARAM_RE = /^[a-z0-9_:-]{1,64}$/i;
+
+function normalizeStartParam(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const candidate = value.trim();
+  return TELEGRAM_START_PARAM_RE.test(candidate) ? candidate : undefined;
+}
+
+/**
+ * Telegram передаёт startapp в двух местах в зависимости от версии клиента:
+ * внутри подписанного initData и отдельным launch-параметром
+ * tgWebAppStartParam. Сначала читаем официальный launch payload, затем URL как
+ * совместимый fallback для старых WebView. Сам пользователь всё равно
+ * подтверждается сервером по HMAC initData; этот параметр лишь не даёт
+ * потерять код, когда Telegram не продублировал его в tgWebAppData.
+ */
+function readTelegramLaunchStartParam(): string | undefined {
+  try {
+    const launch = retrieveLaunchParams(true) as { tgWebAppStartParam?: unknown };
+    const fromLaunch = normalizeStartParam(launch.tgWebAppStartParam);
+    if (fromLaunch) return fromLaunch;
+  } catch {
+    // Вне Telegram launch-параметров нет — проверяем обычный URL ниже.
+  }
+
+  if (typeof window === 'undefined') return undefined;
+  try {
+    const params = new URLSearchParams(window.location.search);
+    return (
+      normalizeStartParam(params.get('tgWebAppStartParam')) ||
+      normalizeStartParam(params.get('start_param')) ||
+      normalizeStartParam(params.get('startapp'))
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 let cachedProfile: TelegramProfileInfo | null = null;
@@ -87,6 +132,7 @@ export function initTelegramMiniApp(): TelegramProfileInfo {
         username: user.username || user.first_name || `Hacker_${user.id}`,
         photoUrl: user.photo_url,
         rawInitData,
+        startParam: readTelegramLaunchStartParam(),
         isInsideTelegram: true,
       };
       return cachedProfile;

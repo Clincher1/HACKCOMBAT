@@ -1,16 +1,45 @@
 import { RefreshCw, WifiOff } from 'lucide-react';
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
 import { BottomNav } from './components/BottomNav';
-import { ModalsAndOverlays } from './components/Modals';
 import { TopHud } from './components/TopHud';
 import { GameProvider, useGame } from './context/GameContext';
-import { DeskPage } from './pages/DeskPage';
-import { HacksPage } from './pages/HacksPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { TeamPage } from './pages/TeamPage';
-import { UpgradesPage } from './pages/UpgradesPage';
+
+// The shell and the first API request stay small. Pages and the modal bundle are
+// fetched only when the authenticated shell is ready, which keeps the Telegram
+// WebView's first paint free of every tab's UI and tutorial code.
+const DeskPage = React.lazy(async () => {
+  const module = await import('./pages/DeskPage');
+  return { default: module.DeskPage };
+});
+const HacksPage = React.lazy(async () => {
+  const module = await import('./pages/HacksPage');
+  return { default: module.HacksPage };
+});
+const ProfilePage = React.lazy(async () => {
+  const module = await import('./pages/ProfilePage');
+  return { default: module.ProfilePage };
+});
+const TeamPage = React.lazy(async () => {
+  const module = await import('./pages/TeamPage');
+  return { default: module.TeamPage };
+});
+const UpgradesPage = React.lazy(async () => {
+  const module = await import('./pages/UpgradesPage');
+  return { default: module.UpgradesPage };
+});
+const ModalsAndOverlays = React.lazy(async () => {
+  const module = await import('./components/Modals');
+  return { default: module.ModalsAndOverlays };
+});
+
+const RouteLoading: React.FC = () => (
+  <div className="min-h-[55vh] flex flex-col items-center justify-center text-center">
+    <div className="w-9 h-9 rounded-xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-3" />
+    <p className="text-xs text-slate-400">Открываем раздел…</p>
+  </div>
+);
 
 const AppShell: React.FC = () => {
   const { loading, player, initError, retryInit } = useGame();
@@ -62,17 +91,21 @@ const AppShell: React.FC = () => {
       <TopHud />
       <AlertStack />
       <main className="flex-1 w-full max-w-xl mx-auto px-3 pt-3 pb-24">
-        <Routes>
-          <Route path="/" element={<DeskPage />} />
-          <Route path="/upgrades" element={<UpgradesPage />} />
-          <Route path="/hacks" element={<HacksPage />} />
-          <Route path="/team" element={<TeamPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/" element={<DeskPage />} />
+            <Route path="/upgrades" element={<UpgradesPage />} />
+            <Route path="/hacks" element={<HacksPage />} />
+            <Route path="/team" element={<TeamPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
       <BottomNav />
-      <ModalsAndOverlays />
+      <Suspense fallback={null}>
+        <ModalsAndOverlays />
+      </Suspense>
     </div>
   );
 };

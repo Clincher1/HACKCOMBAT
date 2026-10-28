@@ -13,12 +13,15 @@
     "qa:api": "node scripts/qa/api.mjs",
     "qa:clicks": "node scripts/qa/clicks.mjs",
     "qa:offline": "node scripts/qa/offline-v32.mjs",
-    "qa:all": "npm run build && npm run qa:offline && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:daily && npm run qa:season && npm run qa:mission-costs && npm run qa:pets && npm run qa:profile-frames && npm run qa:leaderboard && npm run qa:themes && npm run qa:cosmetics",
+    "qa:integrity": "npx esbuild scripts/qa/integrity.ts --bundle --platform=node --format=cjs --outfile=/tmp/hk-integrity.cjs --log-level=warning && node /tmp/hk-integrity.cjs",
+    "qa:all": "npm run build && npm run qa:integrity && npm run qa:offline && npm run qa:daily-incident && npm run qa:profile-frame-gifts && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:daily && npm run qa:season && npm run qa:mission-costs && npm run qa:pets && npm run qa:profile-frames && npm run qa:leaderboard && npm run qa:themes && npm run qa:cosmetics",
     "qa:buy": "node scripts/qa/buy-fast.mjs",
     "qa:donate": "node scripts/qa/donates.mjs",
     "qa:referral": "node scripts/qa/referral.mjs",
     "qa:chips": "node scripts/qa/chips.mjs",
     "qa:daily": "node scripts/qa/daily-tasks.mjs",
+    "qa:daily-incident": "node scripts/qa/daily-incident.mjs",
+    "qa:profile-frame-gifts": "node scripts/qa/profile-frame-gifts.mjs",
     "qa:season": "node scripts/qa/season-event.mjs",
     "qa:mission-costs": "node scripts/qa/mission-entry-costs.mjs",
     "qa:mission-costs:supabase": "node scripts/qa/mission-entry-costs-supabase.mjs",
@@ -46,5 +49,8 @@
     "tailwindcss": "^4.0.9",
     "typescript": "^5.7.3",
     "vite": "^6.2.0"
+  },
+  "overrides": {
+    "valibot": "1.5.0"
   }
 }
