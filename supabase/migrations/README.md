@@ -49,3 +49,36 @@ select count(*) as players, coalesce(sum(xp), 0) as total_xp,
        coalesce(sum(data), 0) as total_data
 from public.players;
 ```
+
+## 010–015: текущая целостность прогресса
+
+- `010_progression_integrity.sql` меняет defaults новых аккаунтов на `250 Data / 1500 Energy`,
+  один раз поднимает только полностью неигравшие старые записи с `0 / 1000`, зажимает
+  старые значения `prestige_count` и пересчитывает **только хранимые** `level/rank` из неизменённого
+  lifetime `xp`, делает старый `distribute_passive_income()` no-op и снимает известный
+  `pg_cron` job. XP, Data активных игроков, карточки и скины не обнуляются.
+- В той же миграции `claim_mission_atomic(...)` в одной транзакции переводит mission
+  `active → completed` и обновляет reward snapshot с CAS по валютам, XP, Heat и счётчику
+  миссий. Повторный claim и конфликт баланса откатывают всю транзакцию.
+- `011_atomic_purchases.sql` добавляет `commit_purchase_atomic(...)` для карточек, Тиров,
+  «Базы», команды, питомцев и косметических покупок. Списание валюты и owned-row теперь
+  проходят через один CAS-транзакционный вызов; клиентский `savePlayerCore` не является
+  заменой транзакции.
+- `012_data_finite_cap.sql` нормализует только отрицательные/unsafe Data и ставит
+  PostgreSQL CHECK `0..9007199254740991`, чтобы числовое переполнение не вернулось.
+- `013_atomic_prestige.sql` делает Global Hack reset транзакционным: CAS по cycle и
+  удаление cards/team/active missions откатываются вместе при ошибке.
+- `014_purchase_card_cap.sql` исправляет guard атомарной покупки карточки до
+  текущего Tier IV потолка `60` уровней (а не исторических `25`).
+- `015_open_ended_progression.sql` переводит `level`, `rank` и `prestige_count` в `bigint`,
+  убирает конечный prestige-check и оставляет XP-прогрессию открытой. Первые пять
+  Global Hack сохраняют множитель ×2, следующие циклы дают безопасный +10% бонус.
+- После применения 010–015 проверить `to_regprocedure(...)` RPC, Data CHECK и
+  убедиться, что ручной вызов legacy passive возвращает `0`. Для production-проекта
+  `llciyqawfbeabkkdsnmc` миграция `open_ended_progression` применена 28.10.2026;
+  live-проверка подтвердила `bigint` для `level/rank/prestige_count/xp`, отсутствие
+  prestige-cap constraint и сигнатуры bigint для `global_prestige_atomic`.
+- `016_player_inventory_showcase.sql` аддитивно выдаёт существующим игрокам
+  памятный `reward:first_donut` и создаёт закрытую по умолчанию витрину в `stats`.
+  Runtime-нормализация повторяет эту выдачу для новых игроков и старых записей,
+  если миграция ещё не была применена.

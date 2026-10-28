@@ -2,8 +2,11 @@
 // РЕФЕРАЛКИ — серверный слой (v3.5)
 // ----------------------------------------------------------------------------
 // Как устроено и почему именно так:
-//   • Код приглашения приезжает ТОЛЬКО из подписанного Telegram initData
-//     (start_param) или из вебхука бота — подделать с клиента нельзя.
+//   • Код приглашения приезжает из подписанного Telegram initData
+//     (start_param) либо из Telegram launch-параметра, который сервер
+//     принимает только после успешной проверки initData. Веб-клиентский
+//     fallback не работает для синтетических demo-id и всё равно проходит
+//     проверку кода/новизны ниже.
 //   • Привязка одноразовая: PRIMARY KEY(invitee_tg). Кто позвал первым, тот и
 //     получает друга навсегда; повторные ссылки ничего не меняют.
 //   • Награда — не за клик, а за 8 реальных минут игры приглашённого
@@ -163,13 +166,23 @@ export async function attributeReferral(
       if ((count ?? 0) >= REFERRAL_MAX_SAME_NETWORK_PER_DAY) status = 'flagged';
     }
     // 23505 (уже привязан) — нормальный повтор, просто ничего не делаем.
-    await sb.from('referrals').insert({
+    const { error: insertError } = await sb.from('referrals').insert({
       referrer_tg: referrerTg,
       invitee_tg: record.tgId,
       code,
       status,
       ip_hash: ipHash,
     });
+    if (insertError && insertError.code !== '23505') {
+      // Не проглатываем реальные ошибки схемы/прав доступа: иначе игрок
+      // видит «0 из 0», хотя Telegram-параметр был получен.
+      console.error('[referral] attribution insert failed', {
+        inviteeTg: record.tgId,
+        referrerTg,
+        code,
+        error: insertError.message,
+      });
+    }
     return;
   }
 

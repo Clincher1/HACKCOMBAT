@@ -31,19 +31,32 @@ export const ReferralCard: React.FC = () => {
 
   useEffect(() => {
     let alive = true;
-    void gameApi
-      .referralInfo()
-      .then((res) => {
-        if (alive) setInfo(res as ReferralInfo);
-      })
-      .catch(() => {
-        // Рефералка недоступна — не мешаем играть.
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
+
+    const refresh = () => {
+      void gameApi
+        .referralInfo()
+        .then((res) => {
+          if (alive) setInfo(res as ReferralInfo);
+        })
+        .catch(() => {
+          // Рефералка недоступна — не мешаем играть.
+        })
+        .finally(() => {
+          if (alive) setLoading(false);
+        });
+    };
+
+    refresh();
+    // Приглашение может привязаться, пока пригласивший уже держит игру
+    // открытой. Обновляем карточку по фокусу и редко по таймеру, чтобы
+    // «0 из 0» не оставалось на экране после успешного перехода друга.
+    const onFocus = () => refresh();
+    window.addEventListener('focus', onFocus);
+    const timer = window.setInterval(refresh, 30_000);
     return () => {
       alive = false;
+      window.removeEventListener('focus', onFocus);
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -97,6 +110,7 @@ export const ReferralCard: React.FC = () => {
     }
   }, [info?.link]);
 
+  const invited = info?.stats.invited ?? 0;
   const qualified = info?.stats.qualified ?? 0;
 
   return (
@@ -106,7 +120,7 @@ export const ReferralCard: React.FC = () => {
           <Users className="w-4 h-4 text-[#00f0ff]" /> Пригласи друга
         </span>
         <span className="text-[10px] font-bold text-[#00f0ff] bg-[#00f0ff]/12 border border-[#00f0ff]/35 px-2 py-0.5 rounded">
-          {qualified} засчитано
+          {qualified} из {invited} засчитано
         </span>
       </div>
 

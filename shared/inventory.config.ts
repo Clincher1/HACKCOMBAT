@@ -1,0 +1,113 @@
+import { ACHIEVEMENTS_BY_KEY } from './achievements.config';
+import { getProfileFrame } from './profileFrames.config';
+import { PETS_CONFIG } from './pets.config';
+import { getSkinByKey } from './skins.config';
+import type { InventoryItemDefinition } from './types';
+
+/** Первый постоянный приз профиля. Он намеренно не имеет игрового эффекта. */
+export const FIRST_DONUT_ITEM_KEY = 'reward:first_donut';
+
+const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
+  [FIRST_DONUT_ITEM_KEY]: {
+    key: FIRST_DONUT_ITEM_KEY,
+    kind: 'reward',
+    name: 'Первый пончик',
+    description: 'Памятный первый приз профиля. Его можно только выставить или скрыть.',
+    icon: '🍩',
+    source: 'Подарок всем игрокам',
+    accent: '#f9a8d4',
+    usable: false,
+    equipAction: null,
+  },
+};
+
+export function getInventoryItemDefinition(key: string): InventoryItemDefinition | null {
+  const special = REWARD_ITEMS[key];
+  if (special) return special;
+
+  const separator = key.indexOf(':');
+  if (separator <= 0) return null;
+  const kind = key.slice(0, separator);
+  const sourceKey = key.slice(separator + 1);
+  if (!sourceKey) return null;
+
+  if (kind === 'frame') {
+    const frame = getProfileFrame(sourceKey);
+    if (frame.key !== sourceKey || frame.key === 'default') return null;
+    return {
+      key,
+      kind: 'frame',
+      name: frame.name,
+      description: frame.description,
+      icon: frame.iconUrl || frame.avatarUrl ? '🖼️' : '◈',
+      source: frame.source,
+      accent: frame.accent,
+      usable: true,
+      equipAction: 'profile_frame',
+      equipKey: frame.key,
+      imageUrl: frame.iconUrl ?? frame.avatarUrl,
+    };
+  }
+
+  if (kind === 'skin') {
+    const skin = getSkinByKey(sourceKey);
+    if (!skin || skin.key === 'default') return null;
+    return {
+      key,
+      kind: 'skin',
+      name: skin.name,
+      description: skin.description,
+      icon: skin.avatarGlyph ?? (skin.category === 'desk' ? '🖥️' : skin.category === 'ui' ? '🎛️' : '🧑‍💻'),
+      source: skin.category === 'desk' ? 'Косметика · рабочий стол' : skin.category === 'ui' ? 'Косметика · интерфейс' : 'Косметика · аватар',
+      accent: skin.primaryHex,
+      usable: true,
+      equipAction: 'skin',
+      equipKey: skin.key,
+    };
+  }
+
+  if (kind === 'achievement') {
+    const achievement = ACHIEVEMENTS_BY_KEY[sourceKey];
+    if (!achievement) return null;
+    return {
+      key,
+      kind: 'achievement',
+      name: achievement.title,
+      description: achievement.description,
+      icon: achievement.icon,
+      source: 'Награда за достижение',
+      accent:
+        achievement.rarity === 'legendary'
+          ? '#ffb703'
+          : achievement.rarity === 'epic'
+            ? '#c084fc'
+            : achievement.rarity === 'rare'
+              ? '#00f0ff'
+              : '#94a3b8',
+      usable: false,
+      equipAction: null,
+    };
+  }
+
+  if (kind === 'companion') {
+    const pet = PETS_CONFIG.find((candidate) => candidate.key === sourceKey);
+    if (!pet) return null;
+    return {
+      key,
+      kind: 'companion',
+      name: pet.name,
+      description: pet.description,
+      icon: pet.emoji,
+      source: 'Союзник · питомец',
+      accent: '#c084fc',
+      usable: false,
+      equipAction: null,
+    };
+  }
+
+  return null;
+}
+
+export function isInventoryItemKey(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 120 && Boolean(getInventoryItemDefinition(value));
+}

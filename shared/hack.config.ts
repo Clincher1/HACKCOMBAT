@@ -18,45 +18,80 @@ import type { MissionConfig, MissionTargetType } from './types';
  */
 export const XP_CURVE_COEF = 140;
 export const XP_CURVE_POWER = 2.0;
-export const MAX_PLAYER_LEVEL = 200;
 
+/**
+ * Уровни не имеют игрового потолка. `MAX_PLAYER_LEVEL` оставлен как числовой
+ * safety-horizon для старых импортов и защитных проверок, но он не означает
+ * «MAX» для игрока: обычный XP-путь продолжает открывать новые уровни.
+ */
+export const MAX_PLAYER_LEVEL = Number.MAX_SAFE_INTEGER;
+export const MAX_SAFE_XP = Number.MAX_SAFE_INTEGER;
+
+// Сколько уровней можно точно вычислить в обычном JS Number до потери смысла
+// XP. Это предел представления числа, а не игровой cap: до него больше 50 000
+// уровней, а все реальные сейвы остаются в bigint/numeric диапазоне БД.
+const NUMBER_SAFE_LEVEL_HORIZON = Math.max(
+  1,
+  Math.floor(Math.cbrt((MAX_SAFE_XP * 6) / (XP_CURVE_COEF * 2))) + 2
+);
+
+/**
+ * Сколько XP нужно, чтобы уйти с уровня `level` на следующий: 140 · level².
+ * Для очень больших входных значений возвращается конечное safety-значение,
+ * чтобы Infinity никогда не попала в JSON, RPC или UI.
+ */
 export function getXpToNext(level: number): number {
-  const safe = Math.max(1, Math.min(MAX_PLAYER_LEVEL, Math.floor(Number(level) || 1)));
-  if (safe >= MAX_PLAYER_LEVEL) return Number.POSITIVE_INFINITY;
-  const raw = XP_CURVE_COEF * Math.pow(safe, XP_CURVE_POWER);
-  return Math.max(50, Math.round(raw / 10) * 10);
+  const rawLevel = Number(level);
+  const safeLevel = Number.isFinite(rawLevel) ? Math.max(1, Math.floor(rawLevel)) : 1;
+  const raw = XP_CURVE_COEF * Math.pow(safeLevel, XP_CURVE_POWER);
+  if (!Number.isFinite(raw) || raw >= MAX_SAFE_XP) return MAX_SAFE_XP;
+  return Math.max(50, Math.min(MAX_SAFE_XP, Math.round(raw / 10) * 10));
 }
 
-/** Уровень + прогресс внутри уровня по суммарному опыту. Чистая функция — одинаковая на сервере и в UI. */
+/** Суммарный XP, необходимый для достижения уровня (для миграции старых сейвов). */
+export function getTotalXpForLevel(level: number): number {
+  const rawLevel = Number(level);
+  const target = Number.isFinite(rawLevel)
+    ? Math.max(1, Math.floor(rawLevel))
+    : NUMBER_SAFE_LEVEL_HORIZON + 1;
+  const n = target - 1;
+  // Сумма 140 · l² для l = 1..target-1. Формула не ходит циклом по уровням,
+  // поэтому переход к бесконечной прогрессии не делает init медленнее.
+  const total = (XP_CURVE_COEF * n * (n + 1) * (2 * n + 1)) / 6;
+  if (!Number.isFinite(total) || total >= MAX_SAFE_XP) return MAX_SAFE_XP;
+  return Math.max(0, Math.floor(total));
+}
+
+/** Уровень + прогресс внутри уровня по суммарному опыту. */
 export function getLevelProgress(totalXp: number): {
   level: number;
   xpIntoLevel: number;
   xpToNext: number;
   totalXp: number;
 } {
-  let xp = Math.max(0, Math.floor(Number(totalXp) || 0));
-  let level = 1;
-  while (level < MAX_PLAYER_LEVEL) {
-    const need = getXpToNext(level);
-    if (xp < need) break;
-    xp -= need;
-    level += 1;
-  }
-  const xpToNext = getXpToNext(level);
-  return {
-    level,
-    xpIntoLevel: Math.floor(xp),
-    xpToNext: Number.isFinite(xpToNext) ? xpToNext : 0,
-    totalXp: Math.max(0, Math.floor(Number(totalXp) || 0)),
-  };
-}
+  const rawXp = Number(totalXp);
+  const safeTotalXp = Number.isFinite(rawXp)
+    ? Math.max(0, Math.min(MAX_SAFE_XP, Math.floor(rawXp)))
+    : MAX_SAFE_XP;
 
-/** Суммарный XP, необходимый для достижения уровня (для миграции старых сейвов). */
-export function getTotalXpForLevel(level: number): number {
-  const target = Math.max(1, Math.min(MAX_PLAYER_LEVEL, Math.floor(Number(level) || 1)));
-  let total = 0;
-  for (let l = 1; l < target; l += 1) total += getXpToNext(l);
-  return total;
+  // Бинарный поиск по аналитической сумме: вычисление остаётся быстрым даже
+  // для очень высокого игрока, в отличие от старого while до L200.
+  let low = 1;
+  let high = NUMBER_SAFE_LEVEL_HORIZON + 1;
+  while (low + 1 < high) {
+    const middle = Math.floor((low + high) / 2);
+    if (getTotalXpForLevel(middle) <= safeTotalXp) low = middle;
+    else high = middle;
+  }
+
+  const reachedXp = getTotalXpForLevel(low);
+  const xpIntoLevel = Math.max(0, Math.min(MAX_SAFE_XP, safeTotalXp - reachedXp));
+  return {
+    level: low,
+    xpIntoLevel,
+    xpToNext: getXpToNext(low),
+    totalXp: safeTotalXp,
+  };
 }
 
 /** Базовый шанс успеха по типу цели «у готового» игрока. */
@@ -189,22 +224,48 @@ export const MISSION_TIER_MAX_LEVEL: Record<number, number> = {
 };
 
 export function getMissionXpAward(xpReward: number, tier: number, level: number): number {
+  const rawLevel = Number(level);
+  const safeLevel = Number.isFinite(rawLevel) ? Math.max(1, Math.floor(rawLevel)) : 1;
   const safeReward = Math.max(1, Math.round(Number(xpReward) || 1));
   const ref = MISSION_TIER_REF_LEVEL[tier] ?? 1;
   const tierMax = MISSION_TIER_MAX_LEVEL[tier] ?? 200;
-  const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
-  const ratio = getXpToNext(safeLevel) / getXpToNext(ref);
+  const refNeed = getXpToNext(ref);
+  const levelNeed = getXpToNext(safeLevel);
+  if (!Number.isFinite(refNeed) || refNeed <= 0 || !Number.isFinite(levelNeed) || levelNeed <= 0) {
+    return 1;
+  }
+
+  const ratio = Math.min(MAX_SAFE_XP / refNeed, levelNeed / refNeed);
   const over = Math.max(0, safeLevel - tierMax);
+  // Старые тиры постепенно теряют эффективность, но никогда не обнуляют XP:
+  // после L200 игрок продолжает двигаться, пока новые тиры добавляются сезонами.
   const overPenalty = Math.max(0.02, Math.pow(0.85, over));
-  return Math.max(1, Math.round(safeReward * Math.pow(ratio, XP_LEVEL_EXPONENT) * overPenalty));
+  const scaled = safeReward * Math.pow(Math.max(1, ratio), XP_LEVEL_EXPONENT) * overPenalty;
+  if (!Number.isFinite(scaled)) return 1;
+  return Math.max(1, Math.min(MAX_SAFE_XP, Math.round(scaled)));
 }
 
-/** Денежная награда масштабируется уровнем так же, как пассивный доход карточек. */
+/**
+ * Денежная награда растёт быстро до L90, а затем мягко продолжает расти.
+ * Soft cap ограничивает только скорость и числовой масштаб награды — он не
+ * закрывает уровни и не превращает эндгейм в экран «MAX».
+ */
 export const MISSION_REWARD_LEVEL_GROWTH = 1.14;
+export const MISSION_REWARD_SOFT_CAP_LEVEL = 90;
+export const MISSION_REWARD_POST_CAP_GROWTH = 1.02;
 
 export function getMissionRewardScale(level: number): number {
-  const safe = Math.max(1, Math.floor(Number(level) || 1));
-  return Math.pow(MISSION_REWARD_LEVEL_GROWTH, safe - 1);
+  const rawLevel = Number(level);
+  const safe = Number.isFinite(rawLevel) ? Math.max(1, Math.floor(rawLevel)) : 1;
+  const preCap = Math.min(safe, MISSION_REWARD_SOFT_CAP_LEVEL);
+  const postCapLevels = Math.max(0, safe - MISSION_REWARD_SOFT_CAP_LEVEL);
+  const logScale =
+    (preCap - 1) * Math.log(MISSION_REWARD_LEVEL_GROWTH) +
+    postCapLevels * Math.log(MISSION_REWARD_POST_CAP_GROWTH);
+  // Soft-cap — это только темп роста, а не остановка уровней. После очень
+  // больших чисел масштаб упирается в безопасное представление, но не
+  // возвращает Infinity и не ломает баланс/JSON.
+  return Math.max(1, Math.exp(Math.min(Math.log(MAX_SAFE_XP), logScale)));
 }
 
 /**

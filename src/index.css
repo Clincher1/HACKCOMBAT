@@ -162,3 +162,732 @@ body[data-theme='femme'] .rounded-xl {
 body[data-theme='femme'] .rounded-2xl {
   border-radius: 1.25rem; /* 20px вместо 16px */
 }
+
+/* ---------------------------------------------------------------------------
+   v3.12: крик красного Петуха в рейтинге. Это локальный cosmetic burst:
+   текст подпрыгивает, разлетаются искры, а тап не делает сетевой запрос.
+   --------------------------------------------------------------------------- */
+.rooster-avatar-trigger {
+  cursor: pointer;
+  touch-action: manipulation;
+  outline: none;
+}
+
+.rooster-avatar-trigger:focus-visible {
+  border-radius: 0.85rem;
+  box-shadow: 0 0 0 2px rgba(255, 48, 79, 0.9), 0 0 18px rgba(255, 48, 79, 0.65);
+}
+
+.rooster-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 50;
+  width: max-content;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.rooster-burst__text {
+  display: block;
+  color: #fff4cf;
+  font-family: 'Russo One', 'Arial Black', sans-serif;
+  font-size: clamp(0.72rem, 2.4vw, 1rem);
+  font-weight: 900;
+  letter-spacing: 0.045em;
+  line-height: 1;
+  text-shadow:
+    0 0 3px #fff,
+    0 0 8px #ff304f,
+    0 0 16px #ff304f,
+    2px 3px 0 #8f1027;
+  white-space: nowrap;
+  animation: roosterBurstText 1.9s cubic-bezier(0.18, 0.82, 0.24, 1) both;
+}
+
+.rooster-burst__spark {
+  position: absolute;
+  color: #ffd166;
+  font-size: 1.1rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 8px #ff304f;
+  animation: roosterBurstSpark 1.35s ease-out both;
+}
+
+.rooster-burst__spark--one {
+  --rooster-x: -42px;
+  --rooster-y: -34px;
+}
+
+.rooster-burst__spark--two {
+  --rooster-x: 49px;
+  --rooster-y: -27px;
+  animation-delay: 70ms;
+}
+
+.rooster-burst__spark--three {
+  --rooster-x: 43px;
+  --rooster-y: 25px;
+  animation-delay: 110ms;
+}
+
+.rooster-burst__spark--four {
+  --rooster-x: -48px;
+  --rooster-y: 24px;
+  animation-delay: 40ms;
+}
+
+@keyframes roosterBurstText {
+  0% {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(22px) scale(0.2) rotate(-8deg);
+  }
+  16% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(-13px) scale(1.18) rotate(3deg);
+  }
+  31% {
+    transform: translateY(5px) scale(0.94) rotate(-2deg);
+  }
+  46% {
+    transform: translateY(-8px) scale(1.06) rotate(1deg);
+  }
+  68% {
+    opacity: 1;
+    transform: translateY(-35px) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(2px);
+    transform: translateY(-82px) scale(0.78) rotate(-4deg);
+  }
+}
+
+@keyframes roosterBurstSpark {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.1) rotate(0deg);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(calc(var(--rooster-x) * 0.35), calc(var(--rooster-y) * 0.35)) scale(1.25) rotate(45deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--rooster-x), var(--rooster-y)) scale(0.2) rotate(180deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rooster-burst__text,
+  .rooster-burst__spark {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+/* Радужный карась SolidPegasus: синий пузырьковый крик с эффектом под водой. */
+.fish-avatar-trigger {
+  cursor: pointer;
+  touch-action: manipulation;
+  outline: none;
+}
+
+.fish-avatar-trigger:focus-visible {
+  border-radius: 0.85rem;
+  box-shadow: 0 0 0 2px rgba(93, 246, 255, 0.95), 0 0 20px rgba(59, 130, 246, 0.7);
+}
+
+.fish-burst {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 50;
+  width: max-content;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.fish-burst__text {
+  display: block;
+  color: #d9fbff;
+  font-family: 'Russo One', 'Arial Black', sans-serif;
+  font-size: clamp(0.72rem, 2.4vw, 1rem);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-shadow:
+    0 0 3px #ffffff,
+    0 0 8px #5df6ff,
+    0 0 16px #1685e8,
+    2px 3px 0 #075985;
+  white-space: nowrap;
+  animation: fishBubbleText 2.1s ease-in-out both;
+}
+
+.fish-burst__bubble {
+  position: absolute;
+  color: #9ff7ff;
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 0 8px #1685e8;
+  animation: fishBubbleRise 1.85s ease-out both;
+}
+
+.fish-burst__bubble--one {
+  --fish-x: -45px;
+  --fish-y: -37px;
+}
+
+.fish-burst__bubble--two {
+  --fish-x: 49px;
+  --fish-y: -32px;
+  animation-delay: 90ms;
+}
+
+.fish-burst__bubble--three {
+  --fish-x: 45px;
+  --fish-y: 28px;
+  animation-delay: 150ms;
+}
+
+.fish-burst__bubble--four {
+  --fish-x: -50px;
+  --fish-y: 25px;
+  animation-delay: 40ms;
+}
+
+@keyframes fishBubbleText {
+  0% {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(20px) scale(0.32) skewX(-8deg);
+  }
+  18% {
+    opacity: 0.95;
+    filter: blur(0);
+    transform: translateY(-10px) scale(1.14) skewX(4deg);
+  }
+  33% {
+    transform: translateY(3px) scale(0.96) skewX(-3deg);
+  }
+  48% {
+    transform: translateY(-7px) scale(1.06) skewX(2deg);
+  }
+  68% {
+    opacity: 0.92;
+    transform: translateY(-36px) scale(1) skewX(-1deg);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(-86px) scale(0.78) skewX(5deg);
+  }
+}
+
+@keyframes fishBubbleRise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 10px) scale(0.15);
+  }
+  20% {
+    opacity: 0.9;
+    transform: translate(calc(var(--fish-x) * 0.28), calc(var(--fish-y) * 0.28)) scale(0.8);
+  }
+  62% {
+    opacity: 0.72;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--fish-x), var(--fish-y)) scale(0.3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fish-burst__text,
+  .fish-burst__bubble {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+/* Matrix Runner: бегущий цифровой дождь для персонального аватара useryou2202. */
+.matrix-avatar {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(39, 255, 111, 0.22), transparent 54%),
+    linear-gradient(135deg, #001b0b 0%, #00351a 52%, #001207 100%);
+}
+
+.matrix-avatar__rain,
+.matrix-avatar__grid,
+.matrix-avatar__scanline,
+.matrix-avatar__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.matrix-avatar__rain {
+  z-index: 1;
+  overflow: hidden;
+  opacity: 0.94;
+  filter: drop-shadow(0 0 3px rgba(66, 255, 119, 0.75));
+}
+
+.matrix-avatar__column {
+  position: absolute;
+  top: -220%;
+  width: 10%;
+  height: 240%;
+  color: #24e96a;
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  line-height: 1;
+  opacity: 0.74;
+  text-align: center;
+  text-shadow: 0 0 4px #42ff77, 0 0 9px rgba(24, 201, 100, 0.75);
+  text-orientation: upright;
+  writing-mode: vertical-rl;
+  animation: matrixAvatarRain 3.2s linear infinite;
+}
+
+.matrix-avatar__column::first-letter {
+  color: #effff3;
+  text-shadow: 0 0 4px #ffffff, 0 0 10px #42ff77;
+}
+
+.matrix-avatar__column--1 { left: 1%; animation-delay: -2.4s; animation-duration: 2.7s; }
+.matrix-avatar__column--2 { left: 10%; animation-delay: -0.8s; animation-duration: 3.4s; opacity: 0.52; }
+.matrix-avatar__column--3 { left: 19%; animation-delay: -1.9s; animation-duration: 2.9s; }
+.matrix-avatar__column--4 { left: 28%; animation-delay: -0.25s; animation-duration: 3.7s; opacity: 0.62; }
+.matrix-avatar__column--5 { left: 37%; animation-delay: -1.35s; animation-duration: 2.8s; }
+.matrix-avatar__column--6 { left: 46%; animation-delay: -2.05s; animation-duration: 3.5s; opacity: 0.58; }
+.matrix-avatar__column--7 { left: 55%; animation-delay: -0.55s; animation-duration: 2.65s; }
+.matrix-avatar__column--8 { left: 64%; animation-delay: -1.7s; animation-duration: 3.25s; opacity: 0.58; }
+.matrix-avatar__column--9 { left: 73%; animation-delay: -2.8s; animation-duration: 2.95s; }
+.matrix-avatar__column--10 { left: 82%; animation-delay: -1.05s; animation-duration: 3.6s; opacity: 0.55; }
+.matrix-avatar__column--11 { left: 91%; animation-delay: -2.2s; animation-duration: 2.75s; }
+.matrix-avatar__column--12 { left: 97%; animation-delay: -0.4s; animation-duration: 3.35s; opacity: 0.48; }
+
+.matrix-avatar__grid {
+  z-index: 2;
+  opacity: 0.2;
+  background-image:
+    linear-gradient(rgba(66, 255, 119, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(66, 255, 119, 0.16) 1px, transparent 1px);
+  background-size: 9px 9px;
+  mix-blend-mode: screen;
+}
+
+.matrix-avatar__scanline {
+  z-index: 3;
+  top: -34%;
+  bottom: auto;
+  height: 28%;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(182, 255, 203, 0.1) 22%,
+    rgba(66, 255, 119, 0.68) 50%,
+    rgba(182, 255, 203, 0.1) 78%,
+    transparent
+  );
+  filter: blur(1px);
+  animation: matrixAvatarScan 2.6s ease-in-out infinite;
+}
+
+.matrix-avatar__vignette {
+  z-index: 4;
+  background: radial-gradient(circle, transparent 37%, rgba(0, 10, 4, 0.72) 100%);
+  box-shadow: inset 0 0 11px rgba(0, 0, 0, 0.82);
+}
+
+.matrix-avatar__label {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  display: block;
+  padding: 2px 3px;
+  color: #effff3;
+  background: rgba(0, 20, 8, 0.82);
+  border: 1px solid rgba(182, 255, 203, 0.74);
+  border-radius: 3px;
+  box-shadow: 0 0 5px rgba(66, 255, 119, 0.9), inset 0 0 5px rgba(66, 255, 119, 0.24);
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-shadow: 0 0 3px #ffffff, 0 0 8px #42ff77;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) scaleX(0.48);
+  transform-origin: center;
+  animation: matrixAvatarLabel 1.8s ease-in-out infinite;
+}
+
+@keyframes matrixAvatarRain {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 142%, 0);
+  }
+}
+
+@keyframes matrixAvatarScan {
+  0%, 100% {
+    opacity: 0;
+    transform: translateY(0);
+  }
+  18% {
+    opacity: 0.2;
+  }
+  52% {
+    opacity: 1;
+  }
+  86% {
+    opacity: 0.14;
+  }
+  100% {
+    transform: translateY(480%);
+  }
+}
+
+@keyframes matrixAvatarLabel {
+  0%, 100% {
+    filter: brightness(0.88);
+    text-shadow: 0 0 3px #ffffff, 0 0 7px #42ff77;
+  }
+  50% {
+    filter: brightness(1.24);
+    text-shadow: 0 0 4px #ffffff, 0 0 12px #42ff77, 0 0 20px rgba(66, 255, 119, 0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrix-avatar__column,
+  .matrix-avatar__scanline,
+  .matrix-avatar__label {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+.matrix-avatar-trigger {
+  cursor: pointer;
+  touch-action: manipulation;
+  outline: none;
+}
+
+.matrix-avatar-trigger:focus-visible {
+  border-radius: 0.85rem;
+  box-shadow: 0 0 0 2px rgba(66, 255, 119, 0.98), 0 0 22px rgba(66, 255, 119, 0.72);
+}
+
+.matrix-avatar__burst {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: inherit;
+  background: rgba(0, 25, 10, 0.32);
+  box-shadow: inset 0 0 12px rgba(66, 255, 119, 0.72), 0 0 16px rgba(66, 255, 119, 0.7);
+}
+
+.matrix-avatar__burst-line {
+  position: absolute;
+  left: -125%;
+  width: 350%;
+  color: #b6ffcb;
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  opacity: 0;
+  text-shadow: 0 0 4px #ffffff, 0 0 9px #42ff77;
+  white-space: nowrap;
+  animation: matrixAvatarBurstLine 1.65s cubic-bezier(0.2, 0.8, 0.25, 1) both;
+}
+
+.matrix-avatar__burst-line--1 { top: 18%; --matrix-line-tilt: -5deg; }
+.matrix-avatar__burst-line--2 { top: 37%; animation-delay: 80ms; --matrix-line-tilt: 3deg; }
+.matrix-avatar__burst-line--3 { top: 58%; animation-delay: 140ms; --matrix-line-tilt: -2deg; }
+.matrix-avatar__burst-line--4 { top: 77%; animation-delay: 220ms; --matrix-line-tilt: 4deg; }
+
+.matrix-avatar__burst-label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  color: #f0fff4;
+  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: 0 0 4px #ffffff, 0 0 11px #42ff77, 0 0 22px #18c964;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) scaleX(0.48);
+  transform-origin: center;
+  animation: matrixAvatarBurstLabel 1.85s ease-out both;
+}
+
+@keyframes matrixAvatarBurstLine {
+  0% {
+    opacity: 0;
+    transform: translateX(-16%) rotate(var(--matrix-line-tilt, 0deg));
+  }
+  18% {
+    opacity: 0.98;
+  }
+  56% {
+    opacity: 0.86;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(68%) rotate(var(--matrix-line-tilt, 0deg));
+  }
+}
+
+@keyframes matrixAvatarBurstLabel {
+  0% {
+    opacity: 0;
+    filter: blur(7px);
+    transform: translate(-50%, 30%) scaleX(0.34) scale(0.72);
+  }
+  22% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate(-50%, -50%) scaleX(0.48) scale(1.12);
+  }
+  66% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scaleX(0.48) scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate(-50%, -150%) scaleX(0.48) scale(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .matrix-avatar__burst-line,
+  .matrix-avatar__burst-label {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   v3.14: «Сигнал дня» должен быть заметным на мобильном экране. Активный
+   киберинцидент мягко пульсирует, подсвечивается и получает живую scanline,
+   но закрытый инцидент остаётся спокойным, чтобы не отвлекать игрока.
+   --------------------------------------------------------------------------- */
+.daily-incident-panel {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: rgba(244, 114, 182, 0.78);
+  box-shadow:
+    0 0 0 1px rgba(244, 114, 182, 0.24),
+    0 0 22px rgba(217, 70, 239, 0.34),
+    inset 0 0 24px rgba(217, 70, 239, 0.12);
+  animation: dailyIncidentPanelPulse 1.9s ease-in-out infinite;
+}
+
+.daily-incident-panel::before {
+  position: absolute;
+  inset: -35%;
+  z-index: 0;
+  pointer-events: none;
+  content: '';
+  background:
+    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.2), transparent 20%),
+    radial-gradient(circle at 82% 75%, rgba(217, 70, 239, 0.28), transparent 42%);
+  opacity: 0.5;
+  animation: dailyIncidentGlow 2.6s ease-in-out infinite;
+}
+
+.daily-incident-panel::after {
+  position: absolute;
+  top: -24%;
+  left: -15%;
+  z-index: 0;
+  width: 130%;
+  height: 18%;
+  pointer-events: none;
+  content: '';
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 255, 255, 0.34),
+    rgba(244, 114, 182, 0.18),
+    transparent
+  );
+  opacity: 0;
+  transform: rotate(-4deg);
+  animation: dailyIncidentScanline 3.1s linear infinite;
+}
+
+.daily-incident-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.daily-incident-panel__signal {
+  box-shadow:
+    0 0 0 1px rgba(244, 114, 182, 0.25),
+    0 0 14px rgba(244, 114, 182, 0.58),
+    inset 0 0 12px rgba(255, 255, 255, 0.1);
+  animation: dailyIncidentSignalPulse 1.15s ease-in-out infinite;
+}
+
+.daily-incident-panel__badge {
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.42);
+  animation: dailyIncidentBadgeBlink 1.45s steps(2, end) infinite;
+}
+
+.daily-incident-live-dot {
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 auto;
+  border-radius: 9999px;
+  background: #f9a8d4;
+  box-shadow: 0 0 6px #f9a8d4, 0 0 14px #e879f9;
+  animation: dailyIncidentDotBlink 0.95s ease-in-out infinite;
+}
+
+.daily-incident-panel--resolved {
+  border-color: rgba(110, 231, 183, 0.38);
+  box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.12), inset 0 0 18px rgba(16, 185, 129, 0.06);
+  animation: none;
+}
+
+.daily-incident-panel--resolved::before,
+.daily-incident-panel--resolved::after,
+.daily-incident-panel--resolved .daily-incident-panel__signal,
+.daily-incident-panel--resolved .daily-incident-panel__badge {
+  animation: none;
+}
+
+@keyframes dailyIncidentPanelPulse {
+  0%, 100% {
+    border-color: rgba(244, 114, 182, 0.58);
+    box-shadow:
+      0 0 0 1px rgba(244, 114, 182, 0.16),
+      0 0 16px rgba(217, 70, 239, 0.22),
+      inset 0 0 18px rgba(217, 70, 239, 0.08);
+  }
+  50% {
+    border-color: rgba(255, 255, 255, 0.94);
+    box-shadow:
+      0 0 0 1px rgba(244, 114, 182, 0.58),
+      0 0 34px rgba(217, 70, 239, 0.56),
+      inset 0 0 30px rgba(244, 114, 182, 0.2);
+  }
+}
+
+@keyframes dailyIncidentGlow {
+  0%, 100% {
+    opacity: 0.28;
+    transform: scale(0.92) rotate(0deg);
+  }
+  50% {
+    opacity: 0.72;
+    transform: scale(1.04) rotate(5deg);
+  }
+}
+
+@keyframes dailyIncidentScanline {
+  0% {
+    opacity: 0;
+    transform: translateY(-180%) rotate(-4deg);
+  }
+  16%, 70% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(760%) rotate(-4deg);
+  }
+}
+
+@keyframes dailyIncidentSignalPulse {
+  0%, 100% {
+    transform: scale(0.96);
+    filter: brightness(0.95);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.45);
+  }
+}
+
+@keyframes dailyIncidentBadgeBlink {
+  0%, 100% {
+    opacity: 0.72;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes dailyIncidentDotBlink {
+  0%, 100% {
+    opacity: 0.38;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daily-incident-panel,
+  .daily-incident-panel::before,
+  .daily-incident-panel::after,
+  .daily-incident-panel__signal,
+  .daily-incident-panel__badge,
+  .daily-incident-live-dot {
+    animation: none;
+  }
+}
+
+/* Lightweight replacement for the alert's simple slide/fade animation. */
+@keyframes alertDrop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.alert-drop {
+  animation: alertDrop 180ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-drop {
+    animation: none;
+  }
+}

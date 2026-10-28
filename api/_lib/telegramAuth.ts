@@ -122,7 +122,8 @@ export function verifyTelegramInitData(
 
     // start_param подписан вместе с остальными полями initData, поэтому код
     // приглашения доверенный: подставить чужой код из DevTools нельзя.
-    const rawStartParam = params.get('start_param') ?? params.get('startapp') ?? '';
+    const rawStartParam =
+      params.get('start_param') ?? params.get('startapp') ?? params.get('tgWebAppStartParam') ?? '';
     const startParam =
       rawStartParam && /^[a-z0-9_:-]{1,64}$/i.test(rawStartParam) ? rawStartParam : undefined;
 

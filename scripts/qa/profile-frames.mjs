@@ -26,6 +26,8 @@ const SEED = 'profile-frames-qa';
 const LOW_LEVEL_SEED = 'profile-frames-low-level-qa';
 const LOW_CRYPTO_SEED = 'profile-frames-low-crypto-qa';
 const STALE_EQUIPPED_SEED = 'profile-frames-stale-equipped-qa';
+const GIFTED_FRAME_SEED = 'profile-frames-gifted-qa';
+const STALE_GIFTED_FRAME_SEED = 'profile-frames-stale-gifted-qa';
 function demoTgId(seed) {
   return -(100_000_000 + crypto.createHash('sha256').update(`hk-guest-sandbox:${seed}`).digest().readUInt32BE(0) % 800_000_000);
 }
@@ -71,7 +73,23 @@ const tgId = demoTgId(SEED);
 const lowLevelId = demoTgId(LOW_LEVEL_SEED);
 const lowCryptoId = demoTgId(LOW_CRYPTO_SEED);
 const staleEquippedId = demoTgId(STALE_EQUIPPED_SEED);
+const giftedFrameId = demoTgId(GIFTED_FRAME_SEED);
+const staleGiftedFrameId = demoTgId(STALE_GIFTED_FRAME_SEED);
 const staleEquippedRecord = makeRecord(staleEquippedId, { username: 'StaleFrameTester' });
+const giftedFrameRecord = makeRecord(giftedFrameId, { username: 'GiftedFrameTester' });
+giftedFrameRecord.stats = {
+  unlockedProfileFrames: ['frame_rooster_red', 'frame_rainbow_fish'],
+  equippedProfileFrame: 'frame_rooster_red',
+  equippedProfileFrameExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+};
+const staleGiftedFrameRecord = makeRecord(staleGiftedFrameId, { username: 'StaleGiftedFrameTester' });
+staleGiftedFrameRecord.stats = {
+  // Legacy admin gift: an older write stored only the equipped key and a stale
+  // 24-hour field. Migration must reconstruct the permanent collection entry.
+  unlockedProfileFrames: [],
+  equippedProfileFrame: 'frame_rainbow_fish',
+  equippedProfileFrameExpiresAt: new Date(Date.now() - 1000).toISOString(),
+};
 staleEquippedRecord.stats = {
   unlockedProfileFrames: ['frame_neon_relay_master'],
   equippedProfileFrame: 'frame_neon_relay_master',
@@ -94,6 +112,8 @@ fs.writeFileSync(
       [String(lowLevelId)]: makeRecord(lowLevelId, { xp: 0 }),
       [String(lowCryptoId)]: makeRecord(lowCryptoId, { cryptoAmount: 10 }),
       [String(staleEquippedId)]: staleEquippedRecord,
+      [String(giftedFrameId)]: giftedFrameRecord,
+      [String(staleGiftedFrameId)]: staleGiftedFrameRecord,
     },
   })
 );
@@ -196,6 +216,34 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
 
   const eventFrame = await api('skin', { action: 'profile_frame', skinKey: 'frame_neon_relay' });
   check('event-рамку нельзя купить в магазине', eventFrame.ok === false && /событи/i.test(eventFrame.error ?? ''), eventFrame.error);
+
+  const giftOnlyFrame = await api('skin', { action: 'profile_frame', skinKey: 'frame_matrix_rain' });
+  check('персональную Matrix-рамку нельзя купить', giftOnlyFrame.ok === false && /персонально/i.test(giftOnlyFrame.error ?? ''), giftOnlyFrame.error);
+
+  const giftedFrame = await api('init', {}, GIFTED_FRAME_SEED);
+  check(
+    'подарочные рамки остаются навсегда и доступны для смены',
+    giftedFrame.player?.stats?.equippedProfileFrame === 'frame_rooster_red' &&
+      (giftedFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rooster_red') &&
+      (giftedFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rainbow_fish') &&
+      giftedFrame.player?.stats?.equippedProfileFrameExpiresAt === null
+  );
+  const staleGiftedFrame = await api('init', {}, STALE_GIFTED_FRAME_SEED);
+  check(
+    'старый expiry не снимает постоянный подарок',
+    staleGiftedFrame.player?.stats?.equippedProfileFrame === 'frame_rainbow_fish' &&
+      (staleGiftedFrame.player?.stats?.unlockedProfileFrames ?? []).includes('frame_rainbow_fish') &&
+      staleGiftedFrame.player?.stats?.equippedProfileFrameExpiresAt === null
+  );
+  const staleGiftCleared = await api('skin', { action: 'profile_frame', skinKey: 'default' }, STALE_GIFTED_FRAME_SEED);
+  const staleGiftReapplied = await api('skin', { action: 'profile_frame', skinKey: 'frame_rainbow_fish' }, STALE_GIFTED_FRAME_SEED);
+  check(
+    'унаследованный подарок можно снять и снова надеть',
+    staleGiftCleared.ok === true &&
+      staleGiftReapplied.ok === true &&
+      staleGiftReapplied.player?.stats?.equippedProfileFrame === 'frame_rainbow_fish',
+    staleGiftReapplied.error
+  );
 
   const leaderboard = await api('leaderboard', {}, SEED, 'GET');
   check('рейтинговый endpoint остаётся доступен после покупки рамок',

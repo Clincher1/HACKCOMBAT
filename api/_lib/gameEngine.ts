@@ -24,7 +24,10 @@ import {
   BASE_MAX_ENERGY,
   computeDerivedStats,
   getPetFeedPrice,
+  getPrestigeMultiplier,
   getPrestigeRequiredLevel,
+  getRankForLevel,
+  getSafePrestigeCount,
   HEAT_LOCKDOWN_SECONDS,
   HEAT_PENALTY_DATA_LOSS_PCT,
   HEAT_PENALTY_THRESHOLD,
@@ -66,6 +69,10 @@ import {
 } from '../../shared/dailyTasks.config';
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
+  FIRST_DONUT_ITEM_KEY,
+  getInventoryItemDefinition,
+} from '../../shared/inventory.config';
+import {
   ACTIVE_SEASON_EVENT,
   getSeasonEventDayNumber,
   getSeasonEventDayTasks,
@@ -75,6 +82,12 @@ import {
   SEASON_EVENT_TASKS_PER_DAY,
 } from '../../shared/seasonalEvent.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
+import {
+  ensureDailyIncident,
+  normalizeDailyIncidentState,
+  resolveDailyIncidentOutcome,
+} from './dailyIncident';
+import { getDailyIncidentDefinition } from '../../shared/incidents.config';
 import type {
   ActiveMissionInstance,
   ApiSyncResponse,
@@ -89,9 +102,14 @@ import type {
   LeaderboardSort,
   PlayerProgressStats,
   PlayerState,
+  PublicProfile,
+  PublicProfileItem,
+  PublicProfileResponse,
+  PlayerInventoryState,
   SkinCategory,
 } from '../../shared/types';
 import { getSupabaseAdmin } from './supabaseAdmin';
+import { ensurePermanentProfileFrameGifts } from './profileFrameGifts';
 import { attributeReferral, payoutReferrals, qualifyInvitee } from './referrals';
 import type { VerifiedTelegramUser } from './telegramAuth';
 
@@ -162,7 +180,12 @@ const EMPTY_STATS: PlayerProgressStats = {
   lastTapClaimAt: null,
   activeDayKey: null,
   activeSecondsToday: 0,
+  dailyIncident: undefined,
   missionRefreshSalt: 0,
+  lastMissionRefreshAt: null,
+  equippedProfileFrameExpiresAt: null,
+  inventoryOwned: [FIRST_DONUT_ITEM_KEY],
+  inventoryShowcase: [],
   lastQualifiedDayKey: null,
   lastActiveAt: null,
   offlineGraceUsed: false,
@@ -378,6 +401,20 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       .filter((x) => (allowed ? allowed.has(x) : true));
     return Array.from(new Set(out)).slice(0, 32);
   };
+  const keyArr = (v: unknown, max = 256) => {
+    if (!Array.isArray(v)) return [];
+    return Array.from(
+      new Set(
+        v
+          .map((x) => String(x).slice(0, 120))
+          .filter((x) => /^[a-z0-9:_-]{1,120}$/i.test(x))
+      )
+    ).slice(0, max);
+  };
+  const inventoryOwned = Array.from(
+    new Set([FIRST_DONUT_ITEM_KEY, ...keyArr(src.inventoryOwned)])
+  );
+  const inventoryShowcase = keyArr(src.inventoryShowcase);
   const seasonEvent = normalizeSeasonEventState(src.seasonEvent);
   const validEventFrameKeys = new Set<string>();
   if (seasonEvent?.participationClaimed && seasonEvent.completedDays.length > 0) {
@@ -389,12 +426,35 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
   ) {
     validEventFrameKeys.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
   }
-  const unlockedProfileFrames = strArr(src.unlockedProfileFrames).filter((key) => {
+  const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
+  const equippedFrameConfig = equippedProfileFrame
+    ? PROFILE_FRAMES.find((candidate) => candidate.key === equippedProfileFrame)
+    : undefined;
+  // Expiry is meaningful only for frames explicitly marked temporary. This
+  // also migrates old gifted-frame records that still carry a stale 24-hour
+  // timestamp: permanent gifts keep working and expose no expiry.
+  const temporaryFrameExpiry =
+    equippedFrameConfig?.temporary &&
+    typeof src.equippedProfileFrameExpiresAt === 'string' &&
+    !Number.isNaN(new Date(src.equippedProfileFrameExpiresAt).getTime())
+      ? src.equippedProfileFrameExpiresAt
+      : null;
+  const temporaryFrameActive =
+    temporaryFrameExpiry !== null && new Date(temporaryFrameExpiry).getTime() > Date.now();
+  // Ранние админские выдачи иногда записывали только equippedProfileFrame.
+  // Подарок не должен исчезнуть из коллекции из-за неполного старого JSONB.
+  const rawUnlockedProfileFrames = Array.from(
+    new Set([
+      ...strArr(src.unlockedProfileFrames),
+      ...(equippedFrameConfig?.giftOnly && equippedProfileFrame ? [equippedProfileFrame] : []),
+    ])
+  );
+  const unlockedProfileFrames = rawUnlockedProfileFrames.filter((key) => {
     const frame = PROFILE_FRAMES.find((candidate) => candidate.key === key);
     if (!frame || frame.key === 'default') return false;
+    if (frame.temporary && !temporaryFrameActive) return false;
     return !frame.eventKey || validEventFrameKeys.has(frame.key);
   });
-  const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
 
   return {
     tutorialTabs: strArr(src.tutorialTabs),
@@ -425,6 +485,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
+    dailyIncident: normalizeDailyIncidentState(src.dailyIncident),
     seasonEvent,
     unlockedProfileFrames,
     // Надетой может быть только реально открытая рамка. Это не даёт старому
@@ -433,12 +494,19 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       equippedProfileFrame && unlockedProfileFrames.includes(equippedProfileFrame)
         ? equippedProfileFrame
         : undefined,
+    equippedProfileFrameExpiresAt: temporaryFrameActive ? temporaryFrameExpiry : null,
+    inventoryOwned,
+    inventoryShowcase,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
     chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
     chipsToday: num(src.chipsToday, 100_000),
     chipsCapNotifiedDay:
       typeof src.chipsCapNotifiedDay === 'string' ? src.chipsCapNotifiedDay.slice(0, 10) : null,
     missionRefreshSalt: num(src.missionRefreshSalt, 1_000_000_000),
+    lastMissionRefreshAt:
+      typeof src.lastMissionRefreshAt === 'string' && !Number.isNaN(new Date(src.lastMissionRefreshAt).getTime())
+        ? src.lastMissionRefreshAt
+        : null,
     baseTheme:
       src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
@@ -453,6 +521,64 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     offlineGraceUsed: src.offlineGraceUsed === true,
   };
+}
+
+interface InventoryRecordLike {
+  equippedSkin: string;
+  unlockedSkins: string[];
+  stats: PlayerProgressStats;
+  achievements: string[];
+  pets: StoredPet[];
+}
+
+function getInventoryOwnedKeys(record: InventoryRecordLike): string[] {
+  const keys = new Set<string>([
+    FIRST_DONUT_ITEM_KEY,
+    ...(record.stats.inventoryOwned ?? []),
+    ...(record.stats.unlockedProfileFrames ?? []).map((key) => `frame:${key}`),
+    ...record.unlockedSkins
+      .filter((key) => key !== 'default')
+      .map((key) => `skin:${key}`),
+    ...record.achievements.map((key) => `achievement:${key}`),
+    ...record.pets.map((pet) => `companion:${pet.key}`),
+  ]);
+
+  return Array.from(keys).filter((key) => Boolean(getInventoryItemDefinition(key)));
+}
+
+function isInventoryItemEquipped(record: InventoryRecordLike, itemKey: string): boolean {
+  const item = getInventoryItemDefinition(itemKey);
+  if (!item?.equipKey) return false;
+  return (
+    record.stats.equippedProfileFrame === item.equipKey ||
+    record.equippedSkin === item.equipKey ||
+    record.stats.equippedUi === item.equipKey ||
+    record.stats.equippedAvatar === item.equipKey
+  );
+}
+
+function getInventoryState(record: InventoryRecordLike): PlayerInventoryState {
+  const ownedKeys = getInventoryOwnedKeys(record);
+  const owned = new Set(ownedKeys);
+  const showcaseKeys = Array.from(new Set(record.stats.inventoryShowcase ?? [])).filter(
+    (key) => owned.has(key) && Boolean(getInventoryItemDefinition(key))
+  );
+  return { ownedKeys, showcaseKeys };
+}
+
+function getPublicInventoryItems(record: InventoryRecordLike, keys: string[]): PublicProfileItem[] {
+  const owned = new Set(getInventoryOwnedKeys(record));
+  return Array.from(new Set(keys))
+    .filter((key) => owned.has(key))
+    .map((key) => {
+      const item = getInventoryItemDefinition(key);
+      if (!item) return null;
+      return {
+        ...item,
+        equipped: isInventoryItemEquipped(record, key),
+      } as PublicProfileItem;
+    })
+    .filter((item): item is PublicProfileItem => item !== null);
 }
 
 function ensureDailyTasks(record: StoredPlayerRecord, dayKey: string): DailyTaskState {
@@ -850,13 +976,15 @@ export function pickMissionOffer(unlockedGrey: boolean, seed = 0, playerLevel = 
   return selected;
 }
 
+const MISSION_REFRESH_COOLDOWN_MS = 15 * 60 * 1000;
+
 function computeOfferWindow(
   tgId: number,
   unlockedGrey: boolean,
   playerLevel = 99,
   refreshSalt = 0
 ): { keys: string[]; refreshedAt: string } {
-  const windowMs = 15 * 60 * 1000;
+  const windowMs = MISSION_REFRESH_COOLDOWN_MS;
   const windowIndex = Math.floor(Date.now() / windowMs);
   // Salt хранится в players.stats, а не в памяти Lambda: после холодного старта
   // и на другом Vercel-инстансе игрок получает тот же самый скан целей.
@@ -917,9 +1045,19 @@ function describeOdds(chance: number): string {
 
 const recentClickTimestamps = new Map<number, number>();
 
+const MAX_SAFE_DATA_BALANCE = Number.MAX_SAFE_INTEGER;
+
 function safeNonNeg(val: unknown, fallback = 0): number {
   const n = Number(val);
   return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+function safeDataBalance(val: unknown): number {
+  const n = Number(val);
+  if (Number.isNaN(n) || n < 0) return 0;
+  // Numeric 'Infinity' from an old/compromised row is capped, never allowed
+  // to become a zero/NaN reward or leak into JSON.
+  return Math.min(MAX_SAFE_DATA_BALANCE, n);
 }
 
 /**
@@ -964,12 +1102,15 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       rec.chips = Math.floor(safeNonNeg(rec.chips, 0));
       rec.xp = Math.floor(safeNonNeg(rec.xp, 0));
       rec.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(rec.cardTier, 1)) || 1));
+      rec.prestigeCount = getSafePrestigeCount(rec.prestigeCount);
       rec.pets = Array.isArray(rec.pets) ? rec.pets : [];
       rec.baseUpgrades = rec.baseUpgrades && typeof rec.baseUpgrades === 'object' ? rec.baseUpgrades : {};
       rec.stats = normalizeStats(rec.stats);
     }
-    migrateLegacyEquippedSkins(db.playersByTgId[key]);
-    return { record: db.playersByTgId[key], mode: 'memory-fallback' };
+    const localRecord = db.playersByTgId[key];
+    ensurePermanentProfileFrameGifts(localRecord.stats, localRecord.tgId);
+    migrateLegacyEquippedSkins(localRecord);
+    return { record: localRecord, mode: 'memory-fallback' };
   }
 
   const { data: playerRow, error: initErr } = await sb.rpc('init_player', {
@@ -1013,6 +1154,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   // serverless-инстансов. Раньше salt жил в памяти Lambda — из-за этого список
   // на экране и серверная проверка иногда расходились.
   const persistedStats = normalizeStats(playerRow.stats);
+  ensurePermanentProfileFrameGifts(persistedStats, Number(playerRow.tg_id));
   const offer = computeOfferWindow(
     user.tgId,
     hasAnalyst,
@@ -1050,7 +1192,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     id: pid,
     tgId: Number(playerRow.tg_id),
     username: String(playerRow.username),
-    data: safeNonNeg(playerRow.data, 0),
+    data: safeDataBalance(playerRow.data),
     crypto: Math.floor(safeNonNeg(playerRow.crypto, 5)),
     chips: Math.floor(safeNonNeg(playerRow.chips, 0)),
     xp: Math.floor(safeNonNeg(playerRow.xp, 0)),
@@ -1059,7 +1201,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     energyUpdated: energyUpdatedIso,
     heat: Math.floor(safeNonNeg(playerRow.heat, 0)),
     rep: Math.floor(safeNonNeg(playerRow.rep, 0)),
-    prestigeCount: Math.floor(safeNonNeg(playerRow.prestige_count, 0)),
+    prestigeCount: getSafePrestigeCount(safeNonNeg(playerRow.prestige_count, 0)),
     clickBlockedUntil: playerRow.click_blocked_until ?? null,
     dailyStreak: Math.floor(safeNonNeg(playerRow.daily_streak, 0)),
     lastDailyClaim: playerRow.last_daily_claim ?? null,
@@ -1083,7 +1225,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       targetType: m.target_type,
       startedAt: String(m.started_at),
       finishAt: String(m.finish_at),
-      reward: safeNonNeg(m.reward, 0),
+      reward: safeDataBalance(m.reward),
       repDelta: Number.isFinite(Number(m.rep_delta)) ? Math.trunc(Number(m.rep_delta)) : 0,
       heatDelta: Math.floor(safeNonNeg(m.heat_delta, 0)),
       cryptoReward: Math.floor(safeNonNeg(m.crypto_reward, 0)),
@@ -1107,11 +1249,13 @@ async function savePlayerCore(
   mode: 'supabase' | 'memory-fallback',
   expectedXp?: number,
   expectedData?: number,
-  expectedEnergy?: number
+  expectedEnergy?: number,
+  expectedRep?: number,
+  expectedHeat?: number
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
-  record.data = Math.max(0, Math.floor(safeNonNeg(record.data, 0) * 100) / 100);
+  record.data = Math.max(0, Math.min(MAX_SAFE_DATA_BALANCE, Math.floor(safeDataBalance(record.data) * 100) / 100));
   record.crypto = Math.max(0, Math.floor(safeNonNeg(record.crypto, 0)));
   record.rep = Math.max(0, Math.floor(safeNonNeg(record.rep, 0)));
   record.heat = Math.max(0, Math.floor(safeNonNeg(record.heat, 0)));
@@ -1119,6 +1263,7 @@ async function savePlayerCore(
   record.totalMissions = Math.max(0, Math.floor(safeNonNeg(record.totalMissions, 0)));
   record.chips = Math.max(0, Math.floor(safeNonNeg(record.chips, 0)));
   record.xp = Math.max(0, Math.floor(safeNonNeg(record.xp, 0)));
+  record.prestigeCount = getSafePrestigeCount(record.prestigeCount);
   record.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(record.cardTier, 1)) || 1));
   record.stats = normalizeStats(record.stats);
 
@@ -1237,6 +1382,14 @@ async function savePlayerCore(
     const normalizedExpectedEnergy = Math.max(0, Math.floor(safeNonNeg(expectedEnergy, 0)));
     updateQuery = updateQuery.eq('energy', normalizedExpectedEnergy);
   }
+  if (expectedRep !== undefined) {
+    const normalizedExpectedRep = Math.max(0, Math.floor(safeNonNeg(expectedRep, 0)));
+    updateQuery = updateQuery.eq('rep', normalizedExpectedRep);
+  }
+  if (expectedHeat !== undefined) {
+    const normalizedExpectedHeat = Math.max(0, Math.floor(safeNonNeg(expectedHeat, 0)));
+    updateQuery = updateQuery.eq('heat', normalizedExpectedHeat);
+  }
   const { data: updatedRows, error } = await updateQuery.select('id');
 
   if (error) {
@@ -1261,21 +1414,151 @@ async function savePlayerCore(
     throw new Error('Supabase update player affected no rows');
   }
 
-  // «База» живёт в отдельной таблице. Ошибка из-за ещё не применённой
-  // миграции 003 не должна ломать остальную игру.
-  try {
-    const baseRows = Object.entries(record.baseUpgrades)
-      .filter(([, lvl]) => Number.isFinite(lvl) && lvl > 0)
-      .map(([key, lvl]) => ({
-        player_id: record.id,
-        upgrade_key: key,
-        level: Math.max(1, Math.min(15, Math.floor(lvl))),
-      }));
-    if (baseRows.length > 0) {
-      await sb.from('base_upgrades').upsert(baseRows, { onConflict: 'player_id,upgrade_key' });
+  // «База» живёт в отдельной таблице и является частью player snapshot.
+  // Ошибка здесь больше не проглатывается: иначе Data/Chips уже списаны, а
+  // уровень улучшения исчезает после reload.
+  const baseRows = Object.entries(record.baseUpgrades)
+    .filter(([, lvl]) => Number.isFinite(lvl) && lvl > 0)
+    .map(([key, lvl]) => ({
+      player_id: record.id,
+      upgrade_key: key,
+      level: Math.max(1, Math.min(15, Math.floor(lvl))),
+    }));
+  if (baseRows.length > 0) {
+    const { error: baseError } = await sb
+      .from('base_upgrades')
+      .upsert(baseRows, { onConflict: 'player_id,upgrade_key' });
+    if (baseError) throw new Error(`Не удалось сохранить Базу: ${baseError.message}`);
+  }
+}
+
+type AtomicExpectedSnapshot = {
+  data: number;
+  energy: number;
+  crypto: number;
+  chips: number;
+  xp: number;
+  rep: number;
+  heat: number;
+  totalClicks: number;
+  totalMissions: number;
+  prestigeCount: number;
+  cardTier: number;
+};
+
+type AtomicPurchaseOperation = 'player' | 'card' | 'base' | 'team' | 'pet_buy' | 'pet_feed';
+
+type AtomicPurchasePayload = {
+  itemKey?: string;
+  itemLevel?: number;
+  hunger?: number;
+  lastFedAt?: string;
+  feedCount?: number;
+};
+
+function captureAtomicExpected(record: StoredPlayerRecord): AtomicExpectedSnapshot {
+  return {
+    data: record.data,
+    energy: record.energy,
+    crypto: record.crypto,
+    chips: record.chips,
+    xp: record.xp,
+    rep: record.rep,
+    heat: record.heat,
+    totalClicks: record.totalClicks,
+    totalMissions: record.totalMissions,
+    prestigeCount: record.prestigeCount,
+    cardTier: record.cardTier,
+  };
+}
+
+async function commitPurchaseAtomic(
+  record: StoredPlayerRecord,
+  mode: 'supabase' | 'memory-fallback',
+  expected: AtomicExpectedSnapshot,
+  operation: AtomicPurchaseOperation,
+  payload: AtomicPurchasePayload = {}
+): Promise<void> {
+  if (mode === 'memory-fallback') {
+    await savePlayerCore(record, mode);
+    return;
+  }
+
+  const sb = getSupabaseAdmin();
+  if (!sb) throw new Error('Supabase недоступен: покупка не подтверждена');
+
+  record.data = Math.max(0, Math.min(MAX_SAFE_DATA_BALANCE, Math.floor(safeDataBalance(record.data) * 100) / 100));
+  record.crypto = Math.max(0, Math.floor(safeNonNeg(record.crypto, 0)));
+  record.rep = Math.max(0, Math.floor(safeNonNeg(record.rep, 0)));
+  record.heat = Math.max(0, Math.floor(safeNonNeg(record.heat, 0)));
+  record.totalClicks = Math.max(0, Math.floor(safeNonNeg(record.totalClicks, 0)));
+  record.totalMissions = Math.max(0, Math.floor(safeNonNeg(record.totalMissions, 0)));
+  record.chips = Math.max(0, Math.floor(safeNonNeg(record.chips, 0)));
+  record.xp = Math.max(0, Math.floor(safeNonNeg(record.xp, 0)));
+  record.prestigeCount = getSafePrestigeCount(record.prestigeCount);
+  record.cardTier = Math.max(1, Math.min(4, Math.floor(safeNonNeg(record.cardTier, 1)) || 1));
+  record.stats = normalizeStats(record.stats);
+
+  const derived = deriveStats(record);
+  record.energy = Math.max(0, Math.min(derived.maxEnergy, Math.floor(safeNonNeg(record.energy, 0))));
+
+  const snapshot = {
+    username: record.username,
+    rank: derived.rankIndex,
+    data: record.data,
+    crypto: record.crypto,
+    energy: record.energy,
+    energy_updated: record.energyUpdated,
+    heat: record.heat,
+    rep: record.rep,
+    level: derived.level,
+    data_per_hour: derived.dataPerHour,
+    prestige_count: record.prestigeCount,
+    click_blocked_until: record.clickBlockedUntil,
+    daily_streak: record.dailyStreak,
+    last_daily_claim: record.lastDailyClaim,
+    equipped_skin: record.equippedSkin,
+    unlocked_skins: record.unlockedSkins,
+    total_clicks: record.totalClicks,
+    total_missions: record.totalMissions,
+    last_passive_claim: record.lastPassiveClaim,
+    chips: record.chips,
+    xp: record.xp,
+    card_tier: record.cardTier,
+    stats: record.stats,
+  };
+
+  const { error } = await sb.rpc('commit_purchase_atomic', {
+    p_player_id: record.id,
+    p_expected: {
+      data: expected.data,
+      energy: expected.energy,
+      crypto: expected.crypto,
+      chips: expected.chips,
+      xp: expected.xp,
+      rep: expected.rep,
+      heat: expected.heat,
+      total_clicks: expected.totalClicks,
+      total_missions: expected.totalMissions,
+      prestige_count: expected.prestigeCount,
+      card_tier: expected.cardTier,
+    },
+    p_snapshot: snapshot,
+    p_operation: operation,
+    p_item_key: payload.itemKey,
+    p_item_level: payload.itemLevel,
+    p_hunger: payload.hunger,
+    p_last_fed_at: payload.lastFedAt,
+    p_feed_count: payload.feedCount,
+  });
+  if (error) {
+    if (error.message.includes('PURCHASE_CONFLICT')) {
+      throw new Error('Баланс изменился в другой сессии — обновите экран');
     }
-  } catch {
-    // таблицы появятся после миграции 003
+    if (error.message.includes('ALREADY_PROCESSED')) {
+      throw new Error('Покупка уже подтверждена в другой сессии');
+    }
+    throw new Error(`Ошибка атомарной покупки: ${error.message}`);
   }
 }
 
@@ -1412,6 +1695,9 @@ async function syncTimeAndRules(
   // Ежедневные поручения используют те же московские сутки, что и активность
   // и лимит Чипов. Создание/сброс происходит только на сервере.
   ensureDailyTasks(record, nowDayKey);
+  // Один короткий киберинцидент в сутки добавляет выбор, но не новую валюту
+  // и не обязательный гринд. Сценарий фиксируется сервером до смены дня.
+  ensureDailyIncident(record.stats, record.tgId, nowDayKey);
   // Сезонная операция живёт ровно в согласованном окне 27.10 09:00 →
   // 03.11 09:00 по Москве; после окончания новый state не создаётся.
   if (isSeasonEventLive(nowMs)) ensureSeasonEvent(record, nowMs);
@@ -1446,7 +1732,7 @@ async function syncTimeAndRules(
 
   // 4. Авто-обновление витрины миссий каждые 15 минут
   const refreshedMs = new Date(record.missionsRefreshedAt).getTime();
-  if (Number.isNaN(refreshedMs) || nowMs - refreshedMs >= 15 * 60 * 1000) {
+  if (Number.isNaN(refreshedMs) || nowMs - refreshedMs >= MISSION_REFRESH_COOLDOWN_MS) {
     const nextOffer = computeOfferWindow(
       record.tgId,
       derived.unlockedGreyMissions,
@@ -1549,10 +1835,7 @@ async function syncTimeAndRules(
   tryUnlock('first_pet', record.pets.length >= 1);
   tryUnlock('first_feed', stats.petFeedings >= 1);
   tryUnlock('first_base', baseOwned >= 1);
-  tryUnlock(
-    'first_chip',
-    record.chips > 0 || baseOwned > 0 || record.cardTier > 1 || record.totalMissions >= 1
-  );
+  tryUnlock('first_chip', record.chips > 0);
 
   tryUnlock('desk_lvl_5', updatedDerived.level >= 5);
   tryUnlock('desk_lvl_10', updatedDerived.level >= 10);
@@ -1620,7 +1903,7 @@ async function syncTimeAndRules(
   tryUnlock('pet_max_affection', maxAffection >= 10);
 
   tryUnlock('base_all_bought', baseOwned >= BASE_UPGRADES_CONFIG.length);
-  tryUnlock('base_max_one', maxBaseLevel >= 10);
+  tryUnlock('base_max_one', maxBaseLevel >= 15);
   tryUnlock(
     'base_all_max',
     BASE_UPGRADES_CONFIG.every((u) => (record.baseUpgrades[u.key] ?? 0) >= u.maxLevel)
@@ -1659,18 +1942,23 @@ async function syncTimeAndRules(
       if (granted) {
         const cfg = ACHIEVEMENTS_BY_KEY[achKey];
         if (cfg) {
-          record.crypto += cfg.cryptoReward;
-          if (cfg.chipReward) record.chips += cfg.chipReward;
-          if (cfg.dataReward) record.data += cfg.dataReward;
+          const trustedTelemetry = !CLIENT_TELEMETRY_ACHIEVEMENTS.has(achKey);
+          const cryptoReward = trustedTelemetry ? cfg.cryptoReward : 0;
+          const chipReward = trustedTelemetry ? cfg.chipReward ?? 0 : 0;
+          const dataReward = trustedTelemetry ? cfg.dataReward ?? 0 : 0;
+          record.crypto += cryptoReward;
+          if (chipReward) record.chips += chipReward;
+          if (dataReward) record.data += dataReward;
           const extra: string[] = [];
-          if (cfg.chipReward) extra.push(`+${cfg.chipReward} ⚙️ Чипов`);
-          if (cfg.dataReward) extra.push(`+${cfg.dataReward.toLocaleString('ru-RU')} Data`);
+          if (chipReward) extra.push(`+${chipReward} ⚙️ Чипов`);
+          if (dataReward) extra.push(`+${dataReward.toLocaleString('ru-RU')} Data`);
+          if (!trustedTelemetry) extra.push('без ресурсной награды: событие пришло из client telemetry');
           alerts.push({
             id: crypto.randomUUID(),
             type: 'achievement',
             title: cfg.secret ? `🏆 Секретное достижение: ${cfg.title}` : `🏆 Достижение: ${cfg.title}`,
             message:
-              `+${cfg.cryptoReward} 💎 Crypto` +
+              (cryptoReward > 0 ? `+${cryptoReward} 💎 Crypto` : 'Бейдж отмечен') +
               (extra.length > 0 ? `, ${extra.join(', ')}` : '') +
               ' начислено на счёт!',
           });
@@ -1679,6 +1967,9 @@ async function syncTimeAndRules(
     }
   }
 
+  // Все пути синхронизации (включая atomic mission claim) выходят с конечным
+  // Data-снимком, а не надеются, что последующий savePlayerCore успеет clamp.
+  record.data = safeDataBalance(record.data);
   return { offlineEarned, offlineTaps };
 }
 
@@ -1735,6 +2026,7 @@ function buildResponse(
     availableMissionKeys: record.availableMissionKeys,
     missionsRefreshedAt: record.missionsRefreshedAt,
     achievements: record.achievements,
+    inventory: getInventoryState(record),
     derived,
   };
 
@@ -1777,6 +2069,141 @@ export async function handleInitPlayer(
  *
  * Возвращает, сколько кликов реально зачтено (клиент досылает остаток).
  */
+export async function handleInventoryAction(
+  user: VerifiedTelegramUser,
+  action: 'set_public',
+  itemKey: string,
+  visible: boolean,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const inventory = getInventoryState(record);
+    if (!inventory.ownedKeys.includes(itemKey)) {
+      throw new Error('Этого предмета нет в инвентаре');
+    }
+    if (!getInventoryItemDefinition(itemKey)) {
+      throw new Error('Неизвестный предмет инвентаря');
+    }
+
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    await syncTimeAndRules(record, mode, alerts);
+    const showcase = new Set(inventory.showcaseKeys);
+    if (visible) showcase.add(itemKey);
+    else showcase.delete(itemKey);
+    record.stats.inventoryShowcase = Array.from(showcase);
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+interface PublicInventoryRecord extends InventoryRecordLike {
+  id: string;
+  tgId: number;
+  username: string;
+  xp: number;
+  level: number;
+  rank: number;
+  prestigeCount: number;
+}
+
+function buildPublicProfile(
+  record: PublicInventoryRecord,
+  viewerTgId: number
+): PublicProfileResponse {
+  const inventory = getInventoryState(record);
+  const items = getPublicInventoryItems(record, inventory.showcaseKeys);
+  return {
+    ok: true,
+    profile: {
+      profileId: record.id,
+      username: record.username,
+      level: Math.max(1, Math.floor(record.level)),
+      rankTitle: RANK_TITLES[Math.max(0, Math.min(RANK_TITLES.length - 1, record.rank - 1))]?.title ?? 'Script Kiddie',
+      prestigeCount: Math.max(0, Math.floor(record.prestigeCount)),
+      avatarKey: record.stats.equippedAvatar,
+      profileFrameKey: record.stats.equippedProfileFrame,
+      items,
+      viewerIsOwner: record.tgId === viewerTgId,
+    },
+  };
+}
+
+export async function handleGetPublicProfile(
+  currentUser: VerifiedTelegramUser,
+  profileId: string
+): Promise<PublicProfileResponse> {
+  const normalizedId = String(profileId || '').trim().slice(0, 80);
+  if (!/^[0-9a-f-]{16,80}$/i.test(normalizedId)) {
+    throw new Error('Некорректный идентификатор профиля');
+  }
+
+  const sb = getSupabaseAdmin();
+  if (sb) {
+    const { data: row, error } = await sb
+      .from('players')
+      .select('id, tg_id, username, level, xp, rank, prestige_count, equipped_skin, unlocked_skins, stats')
+      .eq('id', normalizedId)
+      .maybeSingle();
+    if (error) throw new Error(`Не удалось открыть профиль: ${error.message}`);
+    if (!row) throw new Error('Профиль не найден');
+
+    const { data: achievements, error: achievementsError } = await sb
+      .from('achievements')
+      .select('key')
+      .eq('player_id', String(row.id));
+    if (achievementsError) throw new Error(`Не удалось открыть достижения профиля: ${achievementsError.message}`);
+
+    const stats = normalizeStats(row.stats);
+    ensurePermanentProfileFrameGifts(stats, Number(row.tg_id));
+    const level = Math.max(1, Number(row.level ?? getLevelProgress(Number(row.xp ?? 0)).level));
+    const rank = Math.max(1, Math.min(RANK_TITLES.length, Number(row.rank ?? getRankForLevel(level).rankIndex)));
+    return buildPublicProfile(
+      {
+        id: String(row.id),
+        tgId: Number(row.tg_id),
+        username: String(row.username),
+        xp: Math.max(0, Number(row.xp ?? 0)),
+        level,
+        rank,
+        prestigeCount: Math.max(0, Number(row.prestige_count ?? 0)),
+        equippedSkin: String(row.equipped_skin ?? 'default'),
+        unlockedSkins: Array.isArray(row.unlocked_skins) ? row.unlocked_skins.map(String) : ['default'],
+        stats,
+        achievements: (achievements ?? []).map((item) => String(item.key)),
+        pets: [],
+      },
+      currentUser.tgId
+    );
+  }
+
+  const db = getLocalDb();
+  const record = Object.values(db.playersByTgId).find((candidate) => candidate.id === normalizedId);
+  if (!record) throw new Error('Профиль не найден');
+  record.stats = normalizeStats(record.stats);
+  ensurePermanentProfileFrameGifts(record.stats, record.tgId);
+  const derived = deriveStats(record);
+  return buildPublicProfile(
+    {
+      id: record.id,
+      tgId: record.tgId,
+      username: record.username,
+      xp: record.xp,
+      level: derived.level,
+      rank: derived.rankIndex,
+      prestigeCount: record.prestigeCount,
+      equippedSkin: record.equippedSkin,
+      unlockedSkins: record.unlockedSkins,
+      stats: record.stats,
+      achievements: record.achievements,
+      pets: record.pets,
+    },
+    currentUser.tgId
+  );
+}
+
 async function applyPendingClicks(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
@@ -1883,12 +2310,25 @@ export async function handleBuyCard(
     }
 
     const { record, mode } = await loadPlayerRecord(user);
+    const baselineExpected = captureAtomicExpected(record);
+    let atomicExpected = baselineExpected;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
     // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
-    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    // Его total_clicks уже CAS-ится в applyPendingClicks, остальные поля
+    // войдут в одну атомарную покупку ниже.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    // Сохраняем синхронизацию/клики до валидации цены: отказ покупки не
+    // должен съедать уже честно применённые клики. Финальная покупка после
+    // этого использует свежий CAS-snapshot.
+    await savePlayerCore(
+      record,
+      mode,
+      undefined,
+      mode === 'supabase' ? baselineExpected.data : undefined,
+      mode === 'supabase' ? baselineExpected.energy : undefined
+    );
+    atomicExpected = captureAtomicExpected(record);
 
     const prevDerived = deriveStats(record);
 
@@ -1928,21 +2368,6 @@ export async function handleBuyCard(
       record.energy = Math.min(5000, record.energy + card.energyMaxPerLevel);
     }
 
-    if (mode === 'supabase') {
-      const sb = getSupabaseAdmin();
-      if (sb) {
-        const { error: cardErr } = await sb
-          .from('cards')
-          .upsert(
-            { player_id: record.id, card_key: card.key, level: nextLevel },
-            { onConflict: 'player_id,card_key' }
-          );
-        if (cardErr) {
-          throw new Error(`Ошибка сохранения карточки: ${cardErr.message}`);
-        }
-      }
-    }
-
     await syncTimeAndRules(record, mode, alerts);
 
     const newDerived = deriveStats(record);
@@ -1968,7 +2393,10 @@ export async function handleBuyCard(
       });
     }
 
-    await savePlayerCore(record, mode);
+    await commitPurchaseAtomic(record, mode, atomicExpected, 'card', {
+      itemKey: card.key,
+      itemLevel: nextLevel,
+    });
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -1979,12 +2407,25 @@ export async function handleUnlockTier(user: VerifiedTelegramUser,
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
+    const baselineExpected = captureAtomicExpected(record);
+    let atomicExpected = baselineExpected;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
     // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
-    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    // Его total_clicks уже CAS-ится в applyPendingClicks, остальные поля
+    // войдут в одну атомарную покупку ниже.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    // Сохраняем синхронизацию/клики до валидации цены: отказ покупки не
+    // должен съедать уже честно применённые клики. Финальная покупка после
+    // этого использует свежий CAS-snapshot.
+    await savePlayerCore(
+      record,
+      mode,
+      undefined,
+      mode === 'supabase' ? baselineExpected.data : undefined,
+      mode === 'supabase' ? baselineExpected.energy : undefined
+    );
+    atomicExpected = captureAtomicExpected(record);
 
     const nextTier = record.cardTier + 1;
     if (nextTier > CARD_TIERS.length) {
@@ -2019,7 +2460,7 @@ export async function handleUnlockTier(user: VerifiedTelegramUser,
     });
 
     await syncTimeAndRules(record, mode, alerts);
-    await savePlayerCore(record, mode);
+    await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2037,12 +2478,25 @@ export async function handleBuyBaseUpgrade(
     }
 
     const { record, mode } = await loadPlayerRecord(user);
+    const baselineExpected = captureAtomicExpected(record);
+    let atomicExpected = baselineExpected;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
     // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
-    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    // Его total_clicks уже CAS-ится в applyPendingClicks, остальные поля
+    // войдут в одну атомарную покупку ниже.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    // Сохраняем синхронизацию/клики до валидации цены: отказ покупки не
+    // должен съедать уже честно применённые клики. Финальная покупка после
+    // этого использует свежий CAS-snapshot.
+    await savePlayerCore(
+      record,
+      mode,
+      undefined,
+      mode === 'supabase' ? baselineExpected.data : undefined,
+      mode === 'supabase' ? baselineExpected.energy : undefined
+    );
+    atomicExpected = captureAtomicExpected(record);
 
     const currentLevel = record.baseUpgrades[cfg.key] ?? 0;
     if (currentLevel >= cfg.maxLevel) {
@@ -2079,7 +2533,10 @@ export async function handleBuyBaseUpgrade(
     }
 
     await syncTimeAndRules(record, mode, alerts);
-    await savePlayerCore(record, mode);
+    await commitPurchaseAtomic(record, mode, atomicExpected, 'base', {
+      itemKey: cfg.key,
+      itemLevel: currentLevel + 1,
+    });
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2096,12 +2553,25 @@ export async function handleHireNpc(
     }
 
     const { record, mode } = await loadPlayerRecord(user);
+    const baselineExpected = captureAtomicExpected(record);
+    let atomicExpected = baselineExpected;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
     // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
-    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    // Его total_clicks уже CAS-ится в applyPendingClicks, остальные поля
+    // войдут в одну атомарную покупку ниже.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    // Сохраняем синхронизацию/клики до валидации цены: отказ покупки не
+    // должен съедать уже честно применённые клики. Финальная покупка после
+    // этого использует свежий CAS-snapshot.
+    await savePlayerCore(
+      record,
+      mode,
+      undefined,
+      mode === 'supabase' ? baselineExpected.data : undefined,
+      mode === 'supabase' ? baselineExpected.energy : undefined
+    );
+    atomicExpected = captureAtomicExpected(record);
 
     if (record.team.includes(npc.key)) {
       throw new Error('Специалист уже в вашей команде');
@@ -2131,19 +2601,6 @@ export async function handleHireNpc(
       record.rep -= npc.costAmount;
     }
 
-    if (mode === 'supabase') {
-      const sb = getSupabaseAdmin();
-      if (sb) {
-        const { data: insertedTeam, error: hireErr } = await sb
-          .from('team')
-          .upsert({ player_id: record.id, npc_key: npc.key }, { onConflict: 'player_id,npc_key', ignoreDuplicates: true })
-          .select('id');
-        if (hireErr || !insertedTeam || insertedTeam.length === 0) {
-          throw new Error('Специалист уже нанят в параллельной сессии');
-        }
-      }
-    }
-
     record.team.push(npc.key);
 
     if (npc.unlocksGreyMissions) {
@@ -2165,7 +2622,9 @@ export async function handleHireNpc(
     }
 
     await syncTimeAndRules(record, mode, alerts);
-    await savePlayerCore(record, mode);
+    await commitPurchaseAtomic(record, mode, atomicExpected, 'team', {
+      itemKey: npc.key,
+    });
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2201,9 +2660,36 @@ export async function handleMissionAction(
       );
     }
 
+    // Claim/skip должен начинаться с сохранённого snapshot: offline Data,
+    // Energy regen, referral и achievements не должны затереться атомарной RPC.
+    if (mode === 'supabase' && (action === 'claim' || action === 'skip') && appliedClicks === 0) {
+      await savePlayerCore(record, mode, undefined, loadedDataBeforeSync, loadedEnergyBeforeSync);
+    }
+    const claimExpected = {
+      data: record.data,
+      energy: record.energy,
+      crypto: record.crypto,
+      chips: record.chips,
+      xp: record.xp,
+      rep: record.rep,
+      heat: record.heat,
+      totalMissions: record.totalMissions,
+    };
+
     const derived = deriveStats(record);
 
     if (action === 'refresh') {
+      // Auto-refresh обновляет текущую витрину по 15-минутному окну, но не
+      // должен давать бесплатный ручной reroll. Cooldown живёт в stats и
+      // поэтому одинаков на всех Vercel-инстансах.
+      const lastManualRefreshMs = new Date(record.stats.lastMissionRefreshAt ?? '').getTime();
+      const refreshWaitMs = Number.isFinite(lastManualRefreshMs)
+        ? Math.max(0, MISSION_REFRESH_COOLDOWN_MS - (Date.now() - lastManualRefreshMs))
+        : 0;
+      if (refreshWaitMs > 0) {
+        throw new Error(`Скан уже свежий. Следующее обновление через ~${Math.ceil(refreshWaitMs / 60_000)} мин.`);
+      }
+      record.stats.lastMissionRefreshAt = new Date().toISOString();
       record.stats.missionRefreshSalt = (record.stats.missionRefreshSalt ?? 0) + 1;
       const nextOffer = computeOfferWindow(
         user.tgId,
@@ -2261,12 +2747,18 @@ export async function handleMissionAction(
 
       // Денежная награда за успешный взлом. Растёт по уровню игрока, но решает всё-таки успех.
       const whiteHatBonus = derived.alignment === 'white_hat' && cfg.targetType === 'bad' ? 2 : 1;
-      const reward = Math.round(
-        cfg.baseDataReward *
-          getMissionRewardScale(derived.level) *
-          whiteHatBonus *
-          derived.prestigeMultiplier *
-          (1 + derived.missionRewardBonusPct)
+      const reward = Math.min(
+        MAX_SAFE_DATA_BALANCE,
+        Math.max(
+          0,
+          Math.round(
+            cfg.baseDataReward *
+              getMissionRewardScale(derived.level) *
+              whiteHatBonus *
+              derived.prestigeMultiplier *
+              (1 + derived.missionRewardBonusPct)
+          )
+        )
       );
       const repDelta = cfg.repDelta * (whiteHatBonus > 1 && cfg.repDelta > 0 ? 2 : 1);
       const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier);
@@ -2290,8 +2782,7 @@ export async function handleMissionAction(
       record.energy -= entryCost.energy;
       record.data -= entryCost.data;
       // «Талисман удачи» на Базе повышает шанс редкого дропа Crypto
-      const baseDropChance =
-        cfg.targetType === 'grey' ? 0.35 : cfg.cryptoDropChance ?? 0;
+      const baseDropChance = cfg.cryptoDropChance ?? (cfg.targetType === 'grey' ? 0.35 : 0);
       const cryptoReward =
         Math.random() < Math.min(0.9, baseDropChance + derived.cryptoDropBonusPct) ? 1 : 0;
       const xpReward = getMissionXpAward(cfg.xpReward ?? 10, cfg.tier ?? 1, derived.level);
@@ -2430,22 +2921,6 @@ export async function handleMissionAction(
         : rollHackOutcome(mission.successChance ?? 0.5);
     const outcomeMult = HACK_OUTCOME_REWARD[outcome];
 
-    if (mode === 'supabase') {
-      const sb = getSupabaseAdmin();
-      if (sb) {
-        const { data: claimedRows, error: claimErr } = await sb
-          .from('missions')
-          .update({ status: 'completed', outcome })
-          .eq('id', mission.id)
-          .eq('player_id', record.id)
-          .eq('status', 'active')
-          .select('id');
-        if (claimErr || !claimedRows || claimedRows.length === 0) {
-          throw new Error('Награда за эту миссию уже была получена');
-        }
-      }
-    }
-
     if (action === 'skip') {
       record.crypto -= 1;
     }
@@ -2453,10 +2928,16 @@ export async function handleMissionAction(
     record.activeMissions.splice(idx, 1);
 
     const levelBefore = deriveStats(record).level;
-    const dataGain = Math.round(mission.reward * outcomeMult.data);
+    const dataGain = Math.max(
+      0,
+      Math.min(MAX_SAFE_DATA_BALANCE, Math.round(safeDataBalance(mission.reward) * outcomeMult.data))
+    );
     const repGain = Math.round(mission.repDelta * outcomeMult.rep);
     const heatGain = Math.round(mission.heatDelta * outcomeMult.heat);
-    const xpGain = Math.max(1, Math.round((mission.xpReward || 0) * outcomeMult.xp));
+    const rawXpGain = Math.round((mission.xpReward || 0) * outcomeMult.xp);
+    // XP продолжает начисляться на любом уровне; мягкий штраф тира
+    // замедляет, но не закрывает карьерную прогрессию.
+    const xpGain = mission.xpReward > 0 ? Math.max(1, rawXpGain) : 0;
     const cryptoGain = outcome === 'success' ? mission.cryptoReward : 0;
 
     record.data += dataGain;
@@ -2572,7 +3053,60 @@ export async function handleMissionAction(
     }
 
     await syncTimeAndRules(record, mode, alerts);
-    await savePlayerCore(record, mode);
+
+    if (mode === 'supabase') {
+      const sb = getSupabaseAdmin();
+      if (!sb) throw new Error('Supabase недоступен: награда не подтверждена');
+      const { error: claimError } = await sb.rpc('claim_mission_atomic', {
+        p_player_id: record.id,
+        p_mission_id: mission.id,
+        p_expected_data: claimExpected.data,
+        p_expected_energy: claimExpected.energy,
+        p_expected_crypto: claimExpected.crypto,
+        p_expected_chips: claimExpected.chips,
+        p_expected_xp: claimExpected.xp,
+        p_expected_rep: claimExpected.rep,
+        p_expected_heat: claimExpected.heat,
+        p_expected_total_missions: claimExpected.totalMissions,
+        p_outcome: outcome,
+        p_data: record.data,
+        p_energy: record.energy,
+        p_energy_updated: record.energyUpdated,
+        p_crypto: record.crypto,
+        p_chips: record.chips,
+        p_xp: record.xp,
+        p_rep: record.rep,
+        p_heat: record.heat,
+        p_total_missions: record.totalMissions,
+        p_stats: record.stats,
+        p_last_passive_claim: record.lastPassiveClaim,
+      });
+      if (claimError) {
+        if (claimError.message.includes('MISSION_CLAIM_ALREADY_PROCESSED')) {
+          throw new Error('Награда за эту миссию уже была получена');
+        }
+        if (claimError.message.includes('MISSION_CLAIM_CONFLICT')) {
+          throw new Error('Баланс изменился в другой сессии — обновите экран');
+        }
+        throw new Error(`Ошибка атомарного получения награды: ${claimError.message}`);
+      }
+      try {
+        // RPC уже зафиксировала reward и mission status. Этот CAS сохраняет
+        // вторичные поля snapshot (rank, daily state, passive timestamp).
+        await savePlayerCore(record, mode, undefined, record.data, record.energy);
+      } catch {
+        const fresh = await loadPlayerRecord(user);
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'warning',
+          title: '📦 Награда сохранена, экран обновлён',
+          message: 'Контракт завершён в другой сессии — показан актуальный серверный баланс.',
+        });
+        return buildResponse(fresh.record, fresh.mode, alerts, 0, 0, appliedClicks);
+      }
+    } else {
+      await savePlayerCore(record, mode);
+    }
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2632,7 +3166,7 @@ export async function handleDailyBonus(user: VerifiedTelegramUser,
     const dataBonus =
       150 *
       record.dailyStreak *
-      Math.max(1, Math.pow(2, record.prestigeCount)) *
+      getPrestigeMultiplier(record.prestigeCount) *
       Math.max(1, Math.ceil(deriveStats(record).level / 3));
     const chipsBonus = grantChips(record, CHIP_REWARD_PER_DAILY, getGameDayKey(Date.now())).granted;
     record.crypto += cryptoBonus;
@@ -2696,6 +3230,71 @@ export async function handleDailyTaskAction(
     });
 
     await savePlayerCore(record, mode, expectedXp);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/**
+ * Ежедневный киберинцидент. Выбор одноразовый и серверный: клиент присылает
+ * только ключ кнопки, а исход вычисляется здесь и сохраняется через Data-CAS.
+ */
+export async function handleDailyIncidentAction(
+  user: VerifiedTelegramUser,
+  choiceKey: string,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    const state = ensureDailyIncident(record.stats, record.tgId, getGameDayKey(Date.now()));
+    if (state.choiceKey) {
+      throw new Error('Сегодняшний киберинцидент уже закрыт');
+    }
+
+    const definition = getDailyIncidentDefinition(state.incidentKey);
+    if (!definition || !definition.choices.some((choice) => choice.key === choiceKey)) {
+      throw new Error('Этот выбор не относится к сегодняшнему инциденту');
+    }
+
+    const expectedData = record.data;
+    const outcome = resolveDailyIncidentOutcome(
+      record.tgId,
+      state,
+      deriveStats(record).level,
+      choiceKey
+    );
+    const previousRep = record.rep;
+    const previousHeat = record.heat;
+
+    record.data = safeDataBalance(record.data + outcome.data);
+    record.crypto += outcome.crypto;
+    record.rep = Math.max(0, record.rep + outcome.rep);
+    record.heat = Math.max(0, record.heat + outcome.heat);
+    state.choiceKey = outcome.choiceKey;
+    state.resolvedAt = new Date().toISOString();
+    state.outcome = {
+      data: outcome.data,
+      crypto: outcome.crypto,
+      rep: record.rep - previousRep,
+      heat: record.heat - previousHeat,
+      summary: outcome.summary,
+    };
+
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: outcome.heat > 0 ? 'warning' : 'success',
+      title: `📡 ${definition.title} закрыт`,
+      message: outcome.summary,
+    });
+
+    // Data + Rep/Heat CAS защищают одноразовый выбор на разных serverless-инстансах.
+    // Это сохраняет guard даже если Data уже упёрся в конечный cap.
+    await savePlayerCore(record, mode, undefined, expectedData, undefined, previousRep, previousHeat);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2766,12 +3365,20 @@ export async function handleSkinAction(
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
+    const baselineExpected = captureAtomicExpected(record);
+    let atomicExpected = baselineExpected;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
-    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
-    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    // Сохраняем синхронизацию и честно применённые клики до проверки цены.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    await savePlayerCore(
+      record,
+      mode,
+      undefined,
+      mode === 'supabase' ? baselineExpected.data : undefined,
+      mode === 'supabase' ? baselineExpected.energy : undefined
+    );
+    atomicExpected = captureAtomicExpected(record);
 
     if (action === 'profile_frame') {
       const frameKey = typeof skinKey === 'string' && skinKey.length > 0 ? skinKey : 'default';
@@ -2791,6 +3398,12 @@ export async function handleSkinAction(
       } else {
         const unlocked = new Set(record.stats.unlockedProfileFrames ?? []);
         if (!unlocked.has(frame.key)) {
+          if (frame.temporary) {
+            throw new Error('Эта временная рамка выдаётся персонально и не продаётся');
+          }
+          if (frame.giftOnly) {
+            throw new Error('Эта рамка выдаётся персонально и не продаётся');
+          }
           if (frame.eventKey) {
             throw new Error('Эта рамка выдаётся только за успешное прохождение события');
           }
@@ -2822,7 +3435,7 @@ export async function handleSkinAction(
         record.stats.equippedProfileFrame = frame.key;
       }
 
-      await savePlayerCore(record, mode);
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
@@ -2841,7 +3454,7 @@ export async function handleSkinAction(
         title: '⚡ Блокировка снята!',
         message: 'Новый прокси-туннель активирован — терминал снова в строю!',
       });
-      await savePlayerCore(record, mode);
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
@@ -2862,7 +3475,7 @@ export async function handleSkinAction(
         title: `${theme.glyph} Тема «${theme.name}» включена`,
         message: 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
       });
-      await savePlayerCore(record, mode);
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
@@ -2915,7 +3528,7 @@ export async function handleSkinAction(
       });
     }
 
-    await savePlayerCore(record, mode);
+    await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2943,35 +3556,16 @@ export async function handleGlobalHackPrestige(
       );
     }
 
-    if (mode === 'supabase') {
-      const sb = getSupabaseAdmin();
-      if (sb) {
-        // Атомарная проверка prestige_count исключает двойную накрутку множителя параллельным POST!
-        const { data: lockedRows, error } = await sb
-          .from('players')
-          .update({ prestige_count: expectedPrestige + 1, data: 0 })
-          .eq('id', record.id)
-          .eq('prestige_count', expectedPrestige)
-          .select('id');
-        if (error || !lockedRows || lockedRows.length === 0) {
-          throw new Error('Global Hack Престиж уже был выполнен!');
-        }
-        await Promise.all([
-          sb.from('cards').delete().eq('player_id', record.id),
-          sb.from('team').delete().eq('player_id', record.id),
-          sb.from('missions').delete().eq('player_id', record.id).eq('status', 'active'),
-        ]);
-      }
-    }
-
     // ВАЖНО: сбрасываются только карточки, команда, активные миссии и Data/Heat.
     // Питомцы, «База», Чипы, Тир, скины, Crypto и достижения — сохраняются навсегда.
+    // Для Supabase все эти изменения и удаление owned rows проходят одной RPC.
     record.cards = {};
     record.team = [];
     record.activeMissions = [];
     record.data = 0;
     record.heat = 0;
     record.energy = BASE_MAX_ENERGY;
+    record.energyUpdated = new Date().toISOString();
     record.prestigeCount = expectedPrestige + 1;
 
     if (!record.unlockedSkins.includes('prestige_omega')) {
@@ -2979,15 +3573,42 @@ export async function handleGlobalHackPrestige(
     }
     record.equippedSkin = 'prestige_omega';
 
+    if (mode === 'supabase') {
+      const sb = getSupabaseAdmin();
+      if (!sb) throw new Error('Supabase недоступен: престиж не подтверждён');
+      const { error } = await sb.rpc('global_prestige_atomic', {
+        p_player_id: record.id,
+        p_expected_prestige: expectedPrestige,
+        p_new_prestige: record.prestigeCount,
+        p_energy: record.energy,
+        p_energy_updated: record.energyUpdated,
+        p_unlocked_skins: record.unlockedSkins,
+        p_equipped_skin: record.equippedSkin,
+        p_stats: record.stats,
+      });
+      if (error) {
+        if (error.message.includes('PRESTIGE_CONFLICT')) {
+          throw new Error('Global Hack Престиж уже был выполнен!');
+        }
+        throw new Error(`Ошибка атомарного престижа: ${error.message}`);
+      }
+    }
+
     alerts.push({
       id: crypto.randomUUID(),
       type: 'achievement',
       title: `🌐 GLOBAL HACK #${record.prestigeCount} ВЫПОЛНЕН!`,
-      message: `Постоянный множитель дохода теперь ×${Math.pow(2, record.prestigeCount)}! Crypto, достижения, скины, Rep, питомцы, База и Чипы сохранены!`,
+      message: `Постоянный множитель дохода теперь ×${getPrestigeMultiplier(record.prestigeCount)}! Цикл ${record.prestigeCount} завершён. Crypto, достижения, скины, Rep, питомцы, База и Чипы сохранены!`,
     });
 
     await syncTimeAndRules(record, mode, alerts);
-    await savePlayerCore(record, mode);
+    await savePlayerCore(
+      record,
+      mode,
+      undefined,
+      mode === 'supabase' ? 0 : undefined,
+      mode === 'supabase' ? BASE_MAX_ENERGY : undefined
+    );
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -3006,12 +3627,20 @@ export async function handlePetAction(
     }
 
     const { record, mode } = await loadPlayerRecord(user);
+    const baselineExpected = captureAtomicExpected(record);
+    let atomicExpected = baselineExpected;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
-    // v3.3: «хвост» ещё не отправленных кликов приезжает вместе с действием.
-    // Фиксируем его сразу, чтобы неудачная покупка не съела клики игрока.
+    // Сохраняем синхронизацию и честно применённые клики до проверки цены.
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    await savePlayerCore(
+      record,
+      mode,
+      undefined,
+      mode === 'supabase' ? baselineExpected.data : undefined,
+      mode === 'supabase' ? baselineExpected.energy : undefined
+    );
+    atomicExpected = captureAtomicExpected(record);
 
     const owned = record.pets.find((p) => p.key === cfg.key);
     const nowMs = Date.now();
@@ -3059,7 +3688,10 @@ export async function handlePetAction(
       });
 
       await syncTimeAndRules(record, mode, alerts);
-      await savePlayerCore(record, mode);
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'pet_buy', {
+        itemKey: cfg.key,
+        lastFedAt: nowIso,
+      });
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
@@ -3096,9 +3728,9 @@ export async function handlePetAction(
     record.stats.petFeedings += 1;
     record.stats.petHungrySeen = Math.max(0, record.stats.petHungrySeen);
 
-    const today = nowIso.slice(0, 10);
+    const today = getGameDayKey(nowMs);
     if (record.stats.lastPetFeedDay !== today) {
-      const yesterday = new Date(nowMs - 86_400_000).toISOString().slice(0, 10);
+      const yesterday = getGameDayKey(nowMs - 86_400_000);
       record.stats.petFeedingStreakDays =
         record.stats.lastPetFeedDay === yesterday ? record.stats.petFeedingStreakDays + 1 : 1;
       record.stats.lastPetFeedDay = today;
@@ -3114,7 +3746,12 @@ export async function handlePetAction(
     });
 
     await syncTimeAndRules(record, mode, alerts);
-    await savePlayerCore(record, mode);
+    await commitPurchaseAtomic(record, mode, atomicExpected, 'pet_feed', {
+      itemKey: cfg.key,
+      hunger: owned.hunger,
+      lastFedAt: owned.lastFedAt,
+      feedCount: owned.feedCount,
+    });
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -3122,10 +3759,26 @@ export async function handlePetAction(
 const TRACK_TUTORIAL_TABS = new Set(['currencies', 'upgrades', 'hacks', 'team', 'endgame']);
 const TRACK_APP_TABS = new Set(['/', '/upgrades', '/hacks', '/team', '/profile']);
 const MAX_TRACK_EVENTS_PER_DAY = 200;
+/**
+ * Эти достижения могут использовать клиентские telemetry-сигналы для UX-бейджа,
+ * но никогда не должны выдавать валюту: session/hour/idle/shop нельзя доказать
+ * одним POST из браузера.
+ */
+const CLIENT_TELEMETRY_ACHIEVEMENTS = new Set([
+  'tutorial_all_tabs',
+  'tutorial_reread_10',
+  'tabs_tourist',
+  'night_owl',
+  'early_bird',
+  'coffee_break',
+  'session_30m',
+  'shop_freeze_30',
+]);
 
 /**
- * Клиентская телеметрия ТОЛЬКО для «неочевидных» достижений (главы Академии, вкладки, ночная сессия).
- * Жёсткий whitelist событий, суточный кап и никакого влияния на экономику — начислить себе Data/Crypto этим нельзя.
+ * Клиентская телеметрия ограничена whitelist и дневным cap. Она может открыть
+ * badge, но перечисленные выше события не дают Crypto/Chips/Data без серверного
+ * подтверждения факта.
  */
 export async function handleTrackEvent(
   user: VerifiedTelegramUser,
@@ -3138,7 +3791,7 @@ export async function handleTrackEvent(
     await syncTimeAndRules(record, mode, alerts);
 
     const nowMs = Date.now();
-    const today = new Date(nowMs).toISOString().slice(0, 10);
+    const today = getGameDayKey(nowMs);
     if (record.stats.trackEventsDay !== today) {
       record.stats.trackEventsDay = today;
       record.stats.trackEventsToday = 0;
@@ -3339,7 +3992,7 @@ export async function handleGetLeaderboard(
     // не попадает в глобальный рейтинг!
     const { data, error } = await sb
       .from('players')
-      .select('tg_id, username, level, data, xp, rank, prestige_count, stats')
+      .select('id, tg_id, username, level, data, xp, rank, prestige_count, stats')
       .gt('tg_id', -10_000_000)
       .order(metric, { ascending: false })
       .order(metric === 'xp' ? 'data' : 'xp', { ascending: false })
@@ -3349,6 +4002,7 @@ export async function handleGetLeaderboard(
       const entries: LeaderboardEntry[] = data.map((row) => {
         const rankIdx = Math.max(1, Math.min(RANK_TITLES.length, Number(row.rank ?? 1)));
         return {
+          profileId: String(row.id),
           username: String(row.username),
           ...getLeaderboardCosmetics(row.stats),
           level: Math.max(1, Number(row.level ?? 1)),
@@ -3378,6 +4032,7 @@ export async function handleGetLeaderboard(
     .map((rec) => {
       const d = deriveStats(rec);
       return {
+        profileId: rec.id,
         username: rec.username,
         ...getLeaderboardCosmetics(rec.stats),
         level: d.level,

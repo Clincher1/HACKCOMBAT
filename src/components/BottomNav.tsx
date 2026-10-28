@@ -1,7 +1,9 @@
-import { Cpu, Crosshair, Monitor, UserCheck, Users } from 'lucide-react';
+import { Backpack, Cpu, Crosshair, Monitor, UserCheck, Users } from 'lucide-react';
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { CARDS_CONFIG, getCardPrice, MAX_CARD_LEVEL } from '../../shared/cards.config';
+import { getMissionEntryCost, getMissionRewardScale } from '../../shared/hack.config';
+import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import { useGame } from '../context/GameContext';
 import { triggerHapticSelection } from '../lib/telegram';
 
@@ -11,10 +13,14 @@ const TABS = [
   { to: '/hacks', label: 'Взломы', icon: Crosshair },
   { to: '/team', label: 'Команда', icon: Users },
   { to: '/profile', label: 'Профиль', icon: UserCheck },
+  { to: '/profile?tab=inventory', label: 'Инвентарь', icon: Backpack },
 ];
 
 export const BottomNav: React.FC = () => {
   const { player, nowMs } = useGame();
+  const location = useLocation();
+  const inventoryTabActive =
+    location.pathname === '/profile' && new URLSearchParams(location.search).get('tab') === 'inventory';
 
   const affordableCardsCount = React.useMemo(() => {
     if (!player) return 0;
@@ -29,20 +35,68 @@ export const BottomNav: React.FC = () => {
     }).length;
   }, [player]);
 
-  const readyMissionsCount = React.useMemo(() => {
+  const actionableMissionsCount = React.useMemo(() => {
     if (!player) return 0;
-    return player.activeMissions.filter((m) => new Date(m.finishAt).getTime() <= nowMs).length;
+
+    const readyToClaim = player.activeMissions.filter(
+      (mission) => new Date(mission.finishAt).getTime() <= nowMs
+    ).length;
+    const hasFreeSlot = player.activeMissions.length < player.derived.missionSlots;
+    if (!hasFreeSlot) return readyToClaim;
+
+    const refreshedAt = new Date(
+      player.stats.lastMissionRefreshAt ?? player.missionsRefreshedAt
+    ).getTime();
+    const scanFresh =
+      !Number.isFinite(refreshedAt) || nowMs - refreshedAt < 15 * 60 * 1000;
+    if (!scanFresh) return readyToClaim;
+
+    const runningKeys = new Set(player.activeMissions.map((mission) => mission.missionKey));
+    const rewardScale = getMissionRewardScale(player.derived.level);
+    let startable = 0;
+
+    for (const missionKey of player.availableMissionKeys) {
+      const mission = MISSIONS_CONFIG.find((candidate) => candidate.key === missionKey);
+      if (!mission || runningKeys.has(mission.key)) continue;
+      if ((mission.minLevel ?? 1) > player.derived.level) continue;
+      if (mission.targetType === 'grey' && !player.derived.unlockedGreyMissions) continue;
+
+      const whiteHatMultiplier =
+        player.derived.alignment === 'white_hat' && mission.targetType === 'bad' ? 2 : 1;
+      const estimatedReward = Math.round(
+        mission.baseDataReward *
+          rewardScale *
+          whiteHatMultiplier *
+          player.derived.prestigeMultiplier *
+          (1 + player.derived.missionRewardBonusPct)
+      );
+      const entryCost = getMissionEntryCost(mission, estimatedReward);
+      if (player.data >= entryCost.data && player.energy >= entryCost.energy) {
+        startable += 1;
+      }
+    }
+
+    // The badge covers both actions that need attention: claiming a completed
+    // contract and starting a currently available one.
+    return readyToClaim + startable;
   }, [player, nowMs]);
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.95)] border-t border-[rgba(var(--ui-primary-rgb),0.20)] pb-[env(safe-area-inset-bottom)]">
-      <div className="max-w-xl mx-auto grid grid-cols-5 px-1.5 py-1.5 gap-1">
+      <div className="max-w-xl mx-auto grid grid-cols-6 px-1 py-1.5 gap-1">
         {TABS.map(({ to, label, icon: Icon }) => {
+          const isInventoryTab = to.includes('?tab=inventory');
+          const isProfileTab = to === '/profile';
+          const tabActive = isInventoryTab
+            ? inventoryTabActive
+            : isProfileTab
+              ? location.pathname === '/profile' && !inventoryTabActive
+              : location.pathname === to;
           const badge =
             to === '/upgrades' && affordableCardsCount > 0
               ? affordableCardsCount
-              : to === '/hacks' && readyMissionsCount > 0
-                ? readyMissionsCount
+              : to === '/hacks' && actionableMissionsCount > 0
+                ? actionableMissionsCount
                 : 0;
 
           return (
@@ -51,9 +105,9 @@ export const BottomNav: React.FC = () => {
               to={to}
               end={to === '/'}
               onClick={() => triggerHapticSelection()}
-              className={({ isActive }) =>
+              className={() =>
                 `relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-[11px] font-semibold transition ${
-                  isActive
+                  tabActive
                     ? 'bg-[rgba(var(--ui-primary-rgb),0.14)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)] shadow-[0_0_15px_rgba(var(--ui-primary-rgb),0.16)]'
                     : 'text-slate-400 hover:text-slate-200 border border-transparent'
                 }`
