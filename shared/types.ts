@@ -403,6 +403,8 @@ export interface PlayerProgressStats {
   hackFailByType: Record<string, number>;
   /** Всего XP добыто (дублирует players.xp для статистики профиля). */
   totalXpEarned: number;
+  /** Доли Data от онлайн-пассива, ещё не достигшие точности хранения (0.01). */
+  onlinePassiveRemainder?: number;
   /** Когда последний раз начислялась «фоновая копилка тапов» (ISO). */
   lastTapClaimAt?: string | null;
   /** v3.2: игровой день (YYYY-MM-DD по Москве), за который считаем активность. */

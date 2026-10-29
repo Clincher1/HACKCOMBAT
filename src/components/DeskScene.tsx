@@ -458,6 +458,8 @@ export const OfflineBankNote: React.FC<{
     derived.clickPower * OFFLINE_TAP_RATE_PER_SEC * 3600 +
     derived.dataPerHour * OFFLINE_PASSIVE_RATE_MULT;
   const leftMin = Math.max(0, Math.ceil((requiredSec - activeSec) / 60));
+  const capMinutes = Math.floor(derived.offlineCapSeconds / 60);
+  const passiveCap = `${Math.floor(capMinutes / 60)} ч${capMinutes % 60 ? ` ${capMinutes % 60} мин` : ''}`;
 
   return (
     <div
@@ -469,12 +471,16 @@ export const OfflineBankNote: React.FC<{
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-slate-400">
-          Оффлайн-копилка (до {Math.round(OFFLINE_TAP_CAP_SECONDS / 3600)} ч)
+          Оффлайн-копилка
         </span>
         <span className="text-[11px] font-mono font-bold text-[#7dff00]">
           +{formatCompact(Math.round(perHour))} DATA/час
         </span>
       </div>
+      <p className="text-[10px] text-slate-400 leading-snug">
+        50% дохода + 6 фоновых тапов/мин. Пассив до {passiveCap},
+        тапы до {Math.round(OFFLINE_TAP_CAP_SECONDS / 3600)} ч. После 8 минут игры за сутки.
+      </p>
       <div className="flex items-center justify-between gap-2">
         <span className="text-[10px] text-slate-400">
           {qualified ? '✅ копилка активна' : `Активность сегодня: ${leftMin > 0 ? `${leftMin} мин осталось` : '—'}`}

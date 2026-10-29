@@ -499,6 +499,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     equippedProfileFrameExpiresAt: temporaryFrameActive ? temporaryFrameExpiry : null,
     inventoryOwned,
     inventoryShowcase,
+    onlinePassiveRemainder: typeof src.onlinePassiveRemainder === 'number' && Number.isFinite(src.onlinePassiveRemainder)
+      ? Math.max(0, Math.min(0.009999999, src.onlinePassiveRemainder))
+      : 0,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
     chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
     chipsToday: num(src.chipsToday, 100_000),
@@ -1597,6 +1600,13 @@ async function syncTimeAndRules(
   // ==========================================================================
   const prevDayKey = record.stats.activeDayKey ?? null;
   const qualifiedDayKey = record.stats.lastQualifiedDayKey ?? null;
+  // Онлайн определяется серверным пульсом: клиент синхронизируется каждые
+  // 30 секунд, а разрыв свыше 45 секунд считается отсутствием. На первом
+  // запросе после долгой паузы не выдаём полную ставку за всё отсутствие.
+  const prevActiveMs = record.stats.lastActiveAt ? new Date(record.stats.lastActiveAt).getTime() : 0;
+  const heartbeatGap = nowMs - prevActiveMs;
+  const activeHeartbeat = Number.isFinite(prevActiveMs) && prevActiveMs > 0 &&
+    heartbeatGap >= 0 && heartbeatGap <= ACTIVITY_HEARTBEAT_MAX_GAP_SEC * 1000;
   // Старым сейвам (играли до v3.2, счётчиков ещё нет) прощаем один раз,
   // чтобы не отнять уже накопленную копилку. Новый игрок права на оффлайн
   // не имеет, пока реально не наиграет свои 8 минут.
@@ -1620,44 +1630,60 @@ async function syncTimeAndRules(
     return to > from ? { from, to } : null;
   };
 
-  // 2.1. Пассивный доход с карточек: ставка ×0.5, кап — offlineCapSeconds.
+  // Непрерывный активный интервал оплачивается по полной ставке. Для
+  // старых/повреждённых сейвов не считаем онлайн длинный промежуток с
+  // устаревшим last_passive_claim, даже если lastActiveAt свежий.
   let offlineEarned = 0;
+  let offlineTaps = 0;
   const lastPassiveMs = new Date(record.lastPassiveClaim).getTime();
-  const passiveWindow =
-    Number.isNaN(lastPassiveMs) || derived.dataPerHour <= 0 ? null : paidWindow(lastPassiveMs);
-  if (passiveWindow) {
-    const elapsedSec = Math.min(derived.offlineCapSeconds, (passiveWindow.to - passiveWindow.from) / 1000);
-    if (elapsedSec >= 2) {
-      const ratePerHour = derived.dataPerHour * OFFLINE_PASSIVE_RATE_MULT;
-      const earned = Math.floor(((ratePerHour / 3600) * elapsedSec) * 10) / 10;
-      if (earned > 0) {
-        record.data += earned;
-        if (elapsedSec >= 45) offlineEarned += Math.round(earned);
+  const passiveGap = nowMs - lastPassiveMs;
+  const onlineInterval = activeHeartbeat && Number.isFinite(lastPassiveMs) &&
+    passiveGap >= 0 && passiveGap <= ACTIVITY_HEARTBEAT_MAX_GAP_SEC * 1000;
+
+  if (onlineInterval) {
+    // Храним доли ниже 0.01 Data: частые действия не должны обнулять доход
+    // и не могут создавать дополнительное начисление округлением.
+    const accrued = (derived.dataPerHour / 3600) * (passiveGap / 1000) +
+      (record.stats.onlinePassiveRemainder ?? 0);
+    const cents = Math.floor(accrued * 100 + 1e-8);
+    if (cents > 0) record.data = Math.round((record.data + cents / 100) * 100) / 100;
+    record.stats.onlinePassiveRemainder = Math.max(0, Math.min(0.009999999, accrued - cents / 100));
+  } else {
+    // Отсутствие: прежние правила — 50%, закрытые игровые сутки и лимит.
+    const passiveWindow =
+      Number.isNaN(lastPassiveMs) || derived.dataPerHour <= 0 ? null : paidWindow(lastPassiveMs);
+    if (passiveWindow) {
+      const elapsedSec = Math.min(derived.offlineCapSeconds, (passiveWindow.to - passiveWindow.from) / 1000);
+      if (elapsedSec >= 2) {
+        const ratePerHour = derived.dataPerHour * OFFLINE_PASSIVE_RATE_MULT;
+        const earned = Math.floor(((ratePerHour / 3600) * elapsedSec) * 10) / 10;
+        if (earned > 0) {
+          record.data += earned;
+          if (elapsedSec >= 45) offlineEarned += Math.round(earned);
+        }
       }
     }
-  }
-  // Точку отсчёта двигаем всегда: неоплаченные часы «в долг» не копятся.
-  record.lastPassiveClaim = nowIso;
 
-  // 2.2. «Фоновая копилка тапов»: 6 тапов/мин (0.1 в секунду) × сила клика, кап 8 часов.
-  let offlineTaps = 0;
-  const lastTapIso = record.stats.lastTapClaimAt ?? null;
-  const lastTapMs = lastTapIso ? new Date(lastTapIso).getTime() : nowMs;
-  const tapWindow = !lastTapIso || Number.isNaN(lastTapMs) ? null : paidWindow(lastTapMs);
-  if (tapWindow && derived.clickPower > 0) {
-    const tapSec = Math.min(OFFLINE_TAP_CAP_SECONDS, (tapWindow.to - tapWindow.from) / 1000);
-    const taps = Math.floor(tapSec * OFFLINE_TAP_RATE_PER_SEC);
-    if (taps > 0) {
-      const tapEarned = Math.floor(taps * derived.clickPower * 10) / 10;
-      if (tapEarned > 0) {
-        record.data += tapEarned;
-        if (tapSec >= 45) {
-          offlineTaps = taps;
-          offlineEarned += Math.round(tapEarned);
+    // Фоновые тапы начисляются только за отсутствие, не поверх онлайн-пассива.
+    const lastTapIso = record.stats.lastTapClaimAt ?? null;
+    const lastTapMs = lastTapIso ? new Date(lastTapIso).getTime() : nowMs;
+    const tapWindow = !lastTapIso || Number.isNaN(lastTapMs) ? null : paidWindow(lastTapMs);
+    if (tapWindow && derived.clickPower > 0) {
+      const tapSec = Math.min(OFFLINE_TAP_CAP_SECONDS, (tapWindow.to - tapWindow.from) / 1000);
+      const taps = Math.floor(tapSec * OFFLINE_TAP_RATE_PER_SEC);
+      if (taps > 0) {
+        const tapEarned = Math.floor(taps * derived.clickPower * 10) / 10;
+        if (tapEarned > 0) {
+          record.data += tapEarned;
+          if (tapSec >= 45) {
+            offlineTaps = taps;
+            offlineEarned += Math.round(tapEarned);
+          }
         }
       }
     }
   }
+  record.lastPassiveClaim = nowIso;
   record.stats.lastTapClaimAt = nowIso;
 
   // 2.3. Если оффлайн не заплатил из-за короткой игры — честно объясняем почему.
@@ -1685,7 +1711,6 @@ async function syncTimeAndRules(
   // Сутки считаем по Москве: смена дня обнуляет счётчик.
   // ==========================================================================
   const nowDayKey = getGameDayKey(nowMs);
-  const prevActiveMs = record.stats.lastActiveAt ? new Date(record.stats.lastActiveAt).getTime() : 0;
   if (prevDayKey !== nowDayKey) {
     record.stats.activeDayKey = nowDayKey;
     record.stats.activeSecondsToday = 0;

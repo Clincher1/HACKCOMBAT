@@ -543,12 +543,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (pendingClicksRef.current > 0) void flushClicks(true);
         return;
       }
-      // Вернулись после долгой паузы — сразу подтягиваем копилку и показываем «пока вас не было»
-      if (hiddenAtRef.current > 0 && Date.now() - hiddenAtRef.current >= 60_000) {
+      // При возвращении всегда сверяем баланс; окно копилки показываем только
+      // после длительного отсутствия, чтобы короткие переключения не мешали.
+      if (hiddenAtRef.current > 0) {
+        const showOffline = Date.now() - hiddenAtRef.current >= 60_000;
         hiddenAtRef.current = 0;
         void gameApi
           .init()
-          .then((res) => applyServerSync(res, true))
+          .then((res) => applyServerSync(res, showOffline))
           .catch(() => {});
       }
     };

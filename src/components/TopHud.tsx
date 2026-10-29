@@ -256,9 +256,9 @@ export const TopHud: React.FC = () => {
               <span
                 className="text-[9px] font-bold shrink-0 whitespace-nowrap"
                 style={{ color: baseTheme.ui.successHex }}
-                title="Скорость пассивного дохода: столько Data добавляется за час"
+                title="Полная ставка пассивного дохода за час активной игры"
               >
-                +{formatCompact(derived.dataPerHour)}/ч доход
+                +{formatCompact(derived.dataPerHour)}/ч в игре
               </span>
             </div>
             <div
