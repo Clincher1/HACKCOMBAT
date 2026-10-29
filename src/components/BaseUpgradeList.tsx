@@ -5,6 +5,7 @@ import {
   getBaseUpgradeChipCost,
   getBaseUpgradePrice,
 } from '../../shared/base.config';
+import { computeBaseUpgradeTotals, computeDerivedStats } from '../../shared/mechanics';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -28,7 +29,7 @@ export const BaseUpgradeList: React.FC = () => {
         </div>
         <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
           Пассивные покупки <strong className="text-[#7dff00]">не сбрасываются Престижем</strong>. Суммарно{' '}
-          {totalLevels}/{BASE_UPGRADES_CONFIG.length * 15} уровней. Стоят Data + ⚙️ Чипы.
+          {totalLevels}/{BASE_UPGRADES_CONFIG.length * 15} уровней. Каждый уровень также даёт +3 к силе железа для взломов. Стоят Data + ⚙️ Чипы.
         </p>
       </div>
 
@@ -42,6 +43,62 @@ export const BaseUpgradeList: React.FC = () => {
           const canBuy =
             !isMax && !levelLocked && player.data >= price && player.chips >= chipCost;
           const isBusy = busyKey === `base:${cfg.key}`;
+          const nextLevel = isMax ? level : level + 1;
+          const projected = isMax ? player.derived : computeDerivedStats({
+            cards: player.cards, team: player.team, rep: player.rep, heat: player.heat,
+            data: player.data, xp: player.xp, prestigeCount: player.prestigeCount,
+            equippedSkin: player.equippedSkin, equippedUi: player.stats.equippedUi,
+            equippedAvatar: player.stats.equippedAvatar, pets: player.pets,
+            baseUpgrades: { ...player.baseUpgrades, [cfg.key]: nextLevel }, cardTier: player.cardTier,
+          });
+          const currentTotals = computeBaseUpgradeTotals(player.baseUpgrades);
+          const nextTotals = computeBaseUpgradeTotals({ ...player.baseUpgrades, [cfg.key]: nextLevel });
+          const pct = (n: number) => `${(n * 100).toLocaleString('ru-RU', { maximumFractionDigits: 2 })}%`;
+          const rate = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 4 });
+          const change = (before: string, after: string) => isMax ? before : `${before} → ${after}`;
+          let detail = '';
+          let note = '';
+          switch (cfg.key) {
+            case 'coffee_machine':
+              detail = `Реген: ${change(`${rate(player.derived.energyRegenPerSec * 60)} ⚡/мин`, `${rate(projected.energyRegenPerSec * 60)} ⚡/мин`)}`;
+              break;
+            case 'standing_desk':
+              detail = `Бонус базы: ${change(`+${pct(currentTotals.clickBonusPct)}`, `+${pct(nextTotals.clickBonusPct)}`)} • тап: ${change(formatCompact(player.derived.clickPower), formatCompact(projected.clickPower))} Data`;
+              note = 'Сила тапа округляется до 0,1 Data, поэтому отдельный уровень может не изменить её сразу.';
+              break;
+            case 'vpn_router':
+              detail = `Снижение базы: ${change(pct(currentTotals.heatReductionPct), pct(nextTotals.heatReductionPct))}`;
+              note = 'Heat каждого действия округляется до целого; общий эффект снижения ограничен.';
+              break;
+            case 'ups_battery':
+              detail = `Лимит пассива: ${change(`${rate(player.derived.offlineCapSeconds / 3600)} ч`, `${rate(projected.offlineCapSeconds / 3600)} ч`)}`;
+              note = 'Не увеличивает отдельный лимит фоновых тапов; действуют правила допуска оффлайн-дохода.';
+              break;
+            case 'auto_script':
+              detail = `Всего авто-кликов: ${change(`${rate(player.derived.autoClickPerSec)}/с`, `${rate(projected.autoClickPerSec)}/с`)}`;
+              note = 'Общий предел с командой — 5 авто-кликов/с.';
+              break;
+            case 'analytics_desk':
+              detail = `Общий бонус награды: ${change(`+${pct(player.derived.missionRewardBonusPct)}`, `+${pct(projected.missionRewardBonusPct)}`)}`;
+              note = 'Общий бонус ограничен 50%; взнос на запуск также зависит от награды.';
+              break;
+            case 'storage_rack':
+              detail = `Бонус базы: ${change(`+${pct(currentTotals.passiveBonusPct)}`, `+${pct(nextTotals.passiveBonusPct)}`)} • доход: ${change(`${formatCompact(player.derived.dataPerHour)}/ч`, `${formatCompact(projected.dataPerHour)}/ч`)}`;
+              note = 'Бонус применяется к доходу карточек, не к части дохода от авто-кликов.';
+              break;
+            case 'thermal_paste':
+              detail = `Скидка на карточки: ${change(pct(player.derived.cardPriceDiscountPct), pct(projected.cardPriceDiscountPct))}`;
+              note = 'Итоговая цена округляется; на границах тиров могут потребоваться чипы.';
+              break;
+            case 'auto_feeder':
+              detail = `Скидка на корм: ${change(pct(player.derived.feedDiscountPct), pct(projected.feedDiscountPct))}`;
+              note = 'Корм покупается за Data при достаточном балансе; цена зависит от дохода.';
+              break;
+            case 'lucky_charm':
+              detail = `Бонус шанса: ${change(`+${pct(player.derived.cryptoDropBonusPct)} п.п.`, `+${pct(projected.cryptoDropBonusPct)} п.п.`)}`;
+              note = 'Шанс не выше 90%; Crypto выдаётся только при успешном контракте.';
+              break;
+          }
 
           return (
             <div
@@ -66,6 +123,8 @@ export const BaseUpgradeList: React.FC = () => {
                 <div className="text-[10px] font-bold px-2 py-1 rounded bg-[#7dff00]/10 text-[#7dff00] border border-[#7dff00]/25">
                   ⚡ {cfg.effectLabel}
                 </div>
+                <p className="text-[10px] text-slate-200 leading-relaxed">{detail}</p>
+                {note && <p className="text-[10px] text-slate-400 leading-relaxed">{note}</p>}
               </div>
 
               <div className="space-y-2">

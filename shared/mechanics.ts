@@ -620,6 +620,11 @@ export function syncEnergy(
   nowMs: number = Date.now(),
   regenPerSec: number = 1 / ENERGY_REGEN_SECONDS
 ): { energy: number; updatedAtIso: string } {
+  // На максимуме энергия не накапливает невидимую долю следующей единицы.
+  // Иначе расход вскоре после синхронизации мог восстановиться раньше срока.
+  if (storedEnergy >= maxEnergy) {
+    return { energy: maxEnergy, updatedAtIso: new Date(nowMs).toISOString() };
+  }
   const safeRegen = Math.max(0.05, Number(regenPerSec) || 1 / ENERGY_REGEN_SECONDS);
   const regenStepMs = 1000 / safeRegen;
   const lastMs = new Date(energyUpdatedIso).getTime();

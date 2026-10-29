@@ -2,7 +2,6 @@ import { BookOpen, Flame, Gift, Palette, Sparkles, Volume2, VolumeX, Zap } from 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resolveEquippedSkins } from '../../shared/skins.config';
-import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -349,7 +348,7 @@ export const TopHud: React.FC = () => {
           </div>
         </div>
 
-        {/* Шкала CPU Energy (восстановление 1 Energy / 2 сек) */}
+        {/* Шкала CPU Energy: фактическая скорость включает улучшения базы. */}
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[11px]">
             <span className="flex items-center gap-1 font-semibold text-[var(--ui-primary)]">
@@ -357,7 +356,7 @@ export const TopHud: React.FC = () => {
               CPU Charge: {player.energy} / {derived.maxEnergy}
             </span>
             <span className="text-slate-400 text-[10px]">
-              Тап: +{formatCompact(derived.clickPower)} Data • +1⚡/{ENERGY_REGEN_SECONDS}с
+              Тап: +{formatCompact(derived.clickPower)} Data • +{formatCompact(derived.energyRegenPerSec * 60)}⚡/мин
             </span>
           </div>
           <div className="h-2 w-full rounded-full bg-[#090d19] border border-slate-800 p-[1px] overflow-hidden">

@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CARDS_CONFIG, getCardPrice, getMaxCardLevel } from '../../shared/cards.config';
-import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
+import { syncEnergy } from '../../shared/mechanics';
 import type {
   ApiSyncResponse,
   GameAlert,
@@ -491,7 +491,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [retryInit]);
 
   // Живой секундный тик на клиенте: плавный прирост Data/hour, реген Energy по shared-модели и обновление таймеров
-  const energyTickCounter = useRef(0);
   useEffect(() => {
     const interval = window.setInterval(() => {
       // A hidden Telegram WebView is already throttled by the browser. Avoid
@@ -501,13 +500,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const t = Date.now();
       setNowMs(t);
-      energyTickCounter.current += 1;
-
       setPlayer((prev) => {
         if (!prev) return prev;
         const perSec = prev.derived.dataPerHour / 3600;
-        const regenGain = energyTickCounter.current % ENERGY_REGEN_SECONDS === 0 ? 1 : 0;
-        const nextEnergy = Math.min(prev.derived.maxEnergy, prev.energy + regenGain);
+        // Тот же таймер и та же скорость, что на сервере: кофемашина
+        // ускоряет реальный реген, а не только периодическую сверку.
+        const synced = syncEnergy(prev.energy, prev.energyUpdated, prev.derived.maxEnergy, t, prev.derived.energyRegenPerSec);
         const clearedLock =
           prev.clickBlockedUntil && new Date(prev.clickBlockedUntil).getTime() <= t
             ? null
@@ -516,7 +514,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...prev,
           data: Math.round((prev.data + perSec) * 10) / 10,
-          energy: nextEnergy,
+          energy: synced.energy,
+          energyUpdated: synced.updatedAtIso,
           clickBlockedUntil: clearedLock,
         };
       });
@@ -591,6 +590,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         data: Math.round((prev.data + prev.derived.clickPower) * 10) / 10,
         energy: Math.max(0, prev.energy - 1),
+        // На полном заряде отсчёт начинается с момента расхода энергии.
+        energyUpdated: prev.energy >= prev.derived.maxEnergy ? new Date().toISOString() : prev.energyUpdated,
         totalClicks: prev.totalClicks + 1,
         stats: incrementOptimisticTapProgress(prev.stats),
       };

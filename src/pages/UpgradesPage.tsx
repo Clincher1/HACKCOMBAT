@@ -41,7 +41,7 @@ export const UpgradesPage: React.FC = () => {
 
   const baseAffordable = BASE_UPGRADES_CONFIG.filter((cfg) => {
     const lvl = player.baseUpgrades[cfg.key] ?? 0;
-    if (lvl >= cfg.maxLevel) return false;
+    if (lvl >= cfg.maxLevel || (cfg.requiredLevel ?? 1) > player.derived.level) return false;
     return (
       player.data >= getBaseUpgradePrice(cfg, lvl) &&
       player.chips >= getBaseUpgradeChipCost(cfg, lvl)
@@ -58,7 +58,7 @@ export const UpgradesPage: React.FC = () => {
             <span>Мастерская Рабочего Стола (48 модулей)</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-            Каждые 5 уровней карточек = +1 Уровень игрока. Уровни всех модулей{' '}
+            Модули улучшают доход и силу. Уровень игрока растёт от XP за игру. Уровни всех модулей{' '}
             <strong className="text-[#00f0ff]">{totalLevels}</strong>.
           </p>
           <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">

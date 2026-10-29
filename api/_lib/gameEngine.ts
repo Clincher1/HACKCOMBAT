@@ -1571,14 +1571,15 @@ async function commitPurchaseAtomic(
 async function syncTimeAndRules(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
-  alerts: GameAlert[]
+  alerts: GameAlert[],
+  options: { skipAutoFeed?: boolean } = {}
 ): Promise<{ offlineEarned: number; offlineTaps: number }> {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
   const derived = deriveStats(record);
 
-  // 1. Восстановление энергии (базово 1 Energy / 3 сек, «Кофемашина» ускоряет)
+  // 1. Восстановление энергии (базово 1 Energy / 2 сек, «Кофемашина» ускоряет)
   const syncedEnergy = syncEnergy(
     record.energy,
     record.energyUpdated,
@@ -1802,7 +1803,7 @@ async function syncTimeAndRules(
 
   // 6. Авто-кормление питомцев (открывается покупкой «Авто-кормушки» на Базе)
   let autoFed = 0;
-  if (derived.autoFeedEnabled && record.pets.length > 0) {
+  if (!options.skipAutoFeed && derived.autoFeedEnabled && record.pets.length > 0) {
     for (const pet of record.pets) {
       const cfg = PETS_CONFIG.find((c) => c.key === pet.key);
       if (!cfg) continue;
@@ -2399,7 +2400,9 @@ export async function handleBuyCard(
       record.energy = Math.min(5000, record.energy + card.energyMaxPerLevel);
     }
 
-    await syncTimeAndRules(record, mode, alerts);
+    // RPC покупки не сохраняет изменения pets. Автокормление произойдёт
+    // при следующей синхронизации, где сохраняются и питомец, и расходы.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
 
     const newDerived = deriveStats(record);
 
@@ -2490,7 +2493,8 @@ export async function handleUnlockTier(user: VerifiedTelegramUser,
       message: `Потолок всех карточек поднят до ${tierCfg.maxLevel} уровня. Вперёд за железом!`,
     });
 
-    await syncTimeAndRules(record, mode, alerts);
+    // Состояние питомцев не входит в RPC покупки; кормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
@@ -2563,7 +2567,8 @@ export async function handleBuyBaseUpgrade(
       });
     }
 
-    await syncTimeAndRules(record, mode, alerts);
+    // Состояние питомцев не входит в RPC покупки; кормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'base', {
       itemKey: cfg.key,
       itemLevel: currentLevel + 1,
@@ -2652,7 +2657,8 @@ export async function handleHireNpc(
       });
     }
 
-    await syncTimeAndRules(record, mode, alerts);
+    // Состояние питомцев не входит в RPC покупки; кормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'team', {
       itemKey: npc.key,
     });
@@ -3744,7 +3750,8 @@ export async function handlePetAction(
         message: `${cfg.buffLabel}. Не забывай кормить — баф растёт от сытости и привязанности.`,
       });
 
-      await syncTimeAndRules(record, mode, alerts);
+      // В RPC сохраняется только купленный питомец, остальных покормим на следующем sync.
+      await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'pet_buy', {
         itemKey: cfg.key,
         lastFedAt: nowIso,
@@ -3802,7 +3809,8 @@ export async function handlePetAction(
       )}/10. Баф: ${cfg.buffLabel}.`,
     });
 
-    await syncTimeAndRules(record, mode, alerts);
+    // В RPC сохраняется только выбранный питомец, остальных покормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'pet_feed', {
       itemKey: cfg.key,
       hunger: owned.hunger,

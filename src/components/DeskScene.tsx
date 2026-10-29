@@ -2,7 +2,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Eye, Lock, Sparkles, Terminal, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ENERGY_REGEN_SECONDS,
   getDeskStageInfo,
   getGameDayKey,
   OFFLINE_PASSIVE_RATE_MULT,
@@ -406,7 +405,7 @@ export const DeskScene: React.FC = () => {
         </span>
         {player.energy <= 0 && (
           <span className="block text-[10px] font-mono text-[#0a0e1a] mt-0.5">
-            Нет энергии CPU — ждите регенерации (+1⚡/{ENERGY_REGEN_SECONDS}с)
+            Нет энергии CPU — восстановление +{formatCompact(derived.energyRegenPerSec * 60)}⚡/мин
           </span>
         )}
       </motion.button>

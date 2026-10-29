@@ -15,7 +15,7 @@
     "qa:offline": "node scripts/qa/offline-v32.mjs",
     "qa:online-income": "node scripts/qa/online-income.mjs",
     "qa:integrity": "npx esbuild scripts/qa/integrity.ts --bundle --platform=node --format=cjs --outfile=/tmp/hk-integrity.cjs --log-level=warning && node /tmp/hk-integrity.cjs",
-    "qa:all": "npm run build && npm run qa:integrity && npm run qa:offline && npm run qa:online-income && npm run qa:daily-incident && npm run qa:profile-frame-gifts && npm run qa:profile-inventory-gifts && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:daily && npm run qa:season && npm run qa:mission-costs && npm run qa:pets && npm run qa:profile-frames && npm run qa:leaderboard && npm run qa:themes && npm run qa:cosmetics && npm run qa:profile-inventory && npm run qa:inventory-standalone && npm run qa:inventory-categories",
+    "qa:all": "npm run build && npm run qa:integrity && npm run qa:base && npm run qa:offline && npm run qa:online-income && npm run qa:daily-incident && npm run qa:profile-frame-gifts && npm run qa:profile-inventory-gifts && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:daily && npm run qa:season && npm run qa:mission-costs && npm run qa:pets && npm run qa:profile-frames && npm run qa:leaderboard && npm run qa:themes && npm run qa:cosmetics && npm run qa:profile-inventory && npm run qa:inventory-standalone && npm run qa:inventory-categories",
     "qa:buy": "node scripts/qa/buy-fast.mjs",
     "qa:donate": "node scripts/qa/donates.mjs",
     "qa:referral": "node scripts/qa/referral.mjs",
@@ -34,7 +34,8 @@
     "qa:cosmetics": "node scripts/qa/cosmetics.mjs",
     "qa:profile-inventory": "node scripts/qa/profile-inventory.mjs",
     "qa:inventory-standalone": "node scripts/qa/inventory-standalone.mjs",
-    "qa:inventory-categories": "npx esbuild scripts/qa/inventory-categories.ts --bundle --platform=node --format=cjs --outfile=/tmp/hk-inventory-categories.cjs --log-level=warning && node /tmp/hk-inventory-categories.cjs"
+    "qa:inventory-categories": "npx esbuild scripts/qa/inventory-categories.ts --bundle --platform=node --format=cjs --outfile=/tmp/hk-inventory-categories.cjs --log-level=warning && node /tmp/hk-inventory-categories.cjs",
+    "qa:base": "node scripts/qa/base-upgrades.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
