@@ -22,6 +22,7 @@ export const ModalsAndOverlays: React.FC = () => {
     dismissOfflineModal,
     claimDailyBonus,
     buyOrEquipSkin,
+    unequipSkin,
     baseTheme,
     setBaseTheme,
     busyKey,
@@ -310,6 +311,7 @@ export const ModalsAndOverlays: React.FC = () => {
                 <ProfileFramesShop />
               ) : (
                 <div className="space-y-2.5">
+                  <p className="text-[11px] text-slate-400">Активные скины можно снять и снова надеть бесплатно. Бонус действует только пока скин надет.</p>
                   {SKINS_CONFIG.filter(
                     (skin) => skinFilter === 'all' || skin.category === skinFilter
                   ).map((skin) => {
@@ -326,6 +328,8 @@ export const ModalsAndOverlays: React.FC = () => {
                     const levelLocked = (skin.requiredLevel ?? 1) > player.derived.level;
                     const prestigeLocked = Boolean(skin.prestigeRequired && player.prestigeCount < 1);
                     const eliteCosmetic = skin.prestigeRequired || skin.cryptoCost >= 160;
+                    const canUnequip = equipped && skin.key !== 'default';
+                    const locked = !unlocked && (levelLocked || prestigeLocked);
                     return (
                       <div
                         key={skin.key}
@@ -343,6 +347,9 @@ export const ModalsAndOverlays: React.FC = () => {
                               {skin.avatarGlyph ? `${skin.avatarGlyph} ` : ''}
                               {skin.name}
                             </span>
+                            {equipped && (
+                              <span className="text-[9px] font-bold text-[var(--ui-primary)] shrink-0">✓ Активен</span>
+                            )}
                             {levelLocked && !unlocked && (
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 shrink-0">
                                 <Lock className="w-2.5 h-2.5" /> Ур. {skin.requiredLevel}
@@ -359,12 +366,13 @@ export const ModalsAndOverlays: React.FC = () => {
 
                         <button
                           type="button"
-                          disabled={equipped || levelLocked || prestigeLocked || busyKey === `skin:${skin.key}`}
-                          onClick={() => void buyOrEquipSkin(skin.key)}
+                          disabled={(equipped && !canUnequip) || locked || busyKey === `skin:${skin.key}`}
+                          onClick={() => void (canUnequip ? unequipSkin(skin.key) : buyOrEquipSkin(skin.key))}
+                          aria-label={`${canUnequip ? 'Снять' : unlocked ? 'Надеть' : 'Купить'} ${skin.name}`}
                           className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
                             equipped
                               ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)]'
-                              : levelLocked || prestigeLocked
+                              : locked
                                 ? 'bg-[var(--ui-panel-deep)] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
                                 : unlocked
                                   ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
@@ -375,11 +383,11 @@ export const ModalsAndOverlays: React.FC = () => {
                         >
                           {equipped ? (
                             <span className="flex items-center gap-1">
-                              <Check className="w-3.5 h-3.5" /> Активен
+                              <Check className="w-3.5 h-3.5" /> {canUnequip ? 'Снять' : 'Стандарт'}
                             </span>
-                          ) : levelLocked ? (
+                          ) : levelLocked && !unlocked ? (
                             `Ур. ${skin.requiredLevel}`
-                          ) : prestigeLocked ? (
+                          ) : prestigeLocked && !unlocked ? (
                             'После Престижа'
                           ) : unlocked ? (
                             'Надеть'

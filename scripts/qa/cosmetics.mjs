@@ -294,6 +294,36 @@ const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKe
     `${beforeCrypto} → ${r.player.crypto}`
   );
 
+  // Снимаем каждую категорию отдельно, не теряя покупки и чужие слоты.
+  const unequip = (key) => call(TG, 'skin', { action: 'unequip', skinKey: key });
+  const initialSlots = r.player;
+  const uiOff = await unequip('ui_mint');
+  r = await call(TG, 'init');
+  check('интерфейс снят и остаётся снятым после перезагрузки', uiOff.ok && !r.player.stats.equippedUi);
+  check('снятие интерфейса не трогает стол, аватар и тему', r.player.equippedSkin === 'sakura' &&
+    r.player.stats.equippedAvatar === 'avatar_ghost' && r.player.stats.baseTheme === 'classic');
+  check('купленный интерфейс и баланс сохранены', r.player.unlockedSkins.includes('ui_mint') && r.player.crypto === beforeCrypto);
+  const stale = await unequip('ui_amber');
+  check('нельзя снять другой, ненадетый скин', stale._status === 400);
+  const deskOff = await unequip('sakura');
+  r = await call(TG, 'init');
+  check('снятие стола возвращает стандартный вид', deskOff.ok && r.player.equippedSkin === 'default');
+  check('снятие стола не снимает аватар и не удаляет покупку', r.player.stats.equippedAvatar === 'avatar_ghost' && r.player.unlockedSkins.includes('sakura'));
+  const avatarOff = await unequip('avatar_ghost');
+  r = await call(TG, 'init');
+  check('аватар можно снять, все три слота теперь стандартные', avatarOff.ok && !r.player.stats.equippedAvatar &&
+    !r.player.stats.equippedUi && r.player.equippedSkin === 'default');
+  check('снятые скины сохраняются, бонус к тапу отключается', r.player.unlockedSkins.includes('avatar_ghost') &&
+    r.player.derived.clickPower < initialSlots.derived.clickPower);
+  check('стандартный стол нельзя снять', (await unequip('default'))._status === 400);
+  await equip(TG, 'sakura');
+  await equip(TG, 'ui_mint');
+  await equip(TG, 'avatar_ghost');
+  r = await call(TG, 'init');
+  check('все три скина можно повторно надеть без оплаты', r.player.equippedSkin === 'sakura' &&
+    r.player.stats.equippedUi === 'ui_mint' && r.player.stats.equippedAvatar === 'avatar_ghost' &&
+    r.player.crypto === beforeCrypto && r.player.derived.clickPower === initialSlots.derived.clickPower);
+
   // ── 6. Чужая категория не подсовывается в слот ───────────────────────────
   check('UI-ключ не попал в слот стола', r.player.equippedSkin !== 'ui_mint', r.player.equippedSkin);
   check('стол не попал в слот интерфейса', r.player.stats.equippedUi !== 'sakura', r.player.stats.equippedUi);

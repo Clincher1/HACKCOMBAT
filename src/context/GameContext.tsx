@@ -73,6 +73,7 @@ interface GameContextValue {
   claimDailyTask: (taskKey: string) => Promise<void>;
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery') => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
+  unequipSkin: (skinKey: string) => Promise<void>;
   buyOrEquipProfileFrame: (frameKey: string) => Promise<void>;
   setInventoryVisibility: (itemKey: string, visible: boolean) => Promise<void>;
   /** Выбранная бесплатная базовая тема (v3.6.1). */
@@ -857,6 +858,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const unequipSkin = useCallback(
+    (skinKey: string) =>
+      runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('unequip', skinKey, clicks), true, 'light'),
+    [runAction]
+  );
+
   const buyOrEquipProfileFrame = useCallback(
     (frameKey: string) =>
       runAction(
@@ -1100,6 +1107,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyTask,
       claimSeasonEvent,
       buyOrEquipSkin,
+      unequipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
       baseTheme,
@@ -1154,6 +1162,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyTask,
       claimSeasonEvent,
       buyOrEquipSkin,
+      unequipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
       baseTheme,

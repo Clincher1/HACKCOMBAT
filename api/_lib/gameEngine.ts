@@ -3365,7 +3365,7 @@ export async function handleSeasonEventAction(
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+  action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
   skinKey?: string,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
@@ -3490,6 +3490,30 @@ export async function handleSkinAction(
     const skin = SKINS_CONFIG.find((s) => s.key === skinKey);
     if (!skin) {
       throw new Error('Скин не найден');
+    }
+
+    if (action === 'unequip') {
+      // Проверяем именно текущий скин, чтобы устаревший запрос не снял
+      // другую косметику, выбранную в другой вкладке.
+      const equipped = skin.category === 'ui'
+        ? record.stats.equippedUi === skin.key
+        : skin.category === 'avatar'
+          ? record.stats.equippedAvatar === skin.key
+          : record.equippedSkin === skin.key && skin.key !== 'default';
+      if (!equipped) throw new Error('Этот скин сейчас не надет');
+
+      if (skin.category === 'ui') record.stats.equippedUi = undefined;
+      else if (skin.category === 'avatar') record.stats.equippedAvatar = undefined;
+      else record.equippedSkin = 'default';
+
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `🎨 Скин «${skin.name}» снят`,
+        message: 'Скин сохранён в коллекции. Его бонус действует только пока он надет.',
+      });
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
     // v3.6.5: у каждой категории свой слот. Раньше все три писались в
