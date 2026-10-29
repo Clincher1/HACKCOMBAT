@@ -205,7 +205,7 @@ export const ModalsAndOverlays: React.FC = () => {
                       Бесплатные темы интерфейса
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      {BASE_THEMES.map((theme) => {
+                      {BASE_THEMES.filter((theme) => !theme.hiddenFromSelection).map((theme) => {
                         const active = baseTheme.key === theme.key;
                         const pending = busyKey === `theme:${theme.key}`;
                         return (
@@ -266,7 +266,7 @@ export const ModalsAndOverlays: React.FC = () => {
                       })}
                     </div>
                     <p className="text-[9px] text-slate-500 leading-snug">
-                      Светлые темы приглушают яркость интерфейса. Тёмный скин интерфейса сохраняется и снова появится при возврате к тёмной теме.
+                      Новогодняя тема временно использует свою палитру: надетый UI-скин и его бонус сохраняются и вернутся при выборе другой тёмной темы.
                     </p>
                   </div>
                 </>
@@ -333,7 +333,7 @@ export const ModalsAndOverlays: React.FC = () => {
                     return (
                       <div
                         key={skin.key}
-                        className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 p-3 flex items-center justify-between gap-3"
+                        className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 p-2.5 flex items-center justify-between gap-2"
                       >
                         <div className="space-y-1 min-w-0">
                           <div className="flex items-center gap-2">

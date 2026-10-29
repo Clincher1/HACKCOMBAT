@@ -968,9 +968,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       equippedSkin: player?.equippedSkin,
       stats: player?.stats,
     });
-    // Светлые темы должны оставаться читаемыми даже с надетым тёмным UI-скином.
-    // Слот скина при этом не снимается и возвращается при выборе тёмной темы.
-    const uiSkin = theme.colorScheme === 'light' ? undefined : equipped.ui;
+    // Тема может временно сохранять свою палитру; надетый скин и его бонус остаются.
+    const uiSkin = theme.colorScheme === 'light' || theme.overrideUiSkinPalette ? undefined : equipped.ui;
     const root = document.documentElement.style;
     const accent = uiSkin?.uiTokens?.accent ?? theme.palette.cyan;
     const accent2 = uiSkin?.uiTokens?.accent2 ?? theme.palette.magenta;

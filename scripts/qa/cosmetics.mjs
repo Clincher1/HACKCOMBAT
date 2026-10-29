@@ -280,6 +280,12 @@ const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKe
   check('скины остаются полученными, балансы и бонус не меняются',
     lightReload.player.unlockedSkins.includes('ui_mint') && lightReload.player.crypto === beforeTheme.crypto &&
     lightReload.player.derived.clickPower === beforeTheme.derived.clickPower);
+  const winterResult = await call(TG, 'skin', { action: 'set_theme', skinKey: 'new_year' });
+  const winterReload = await call(TG, 'init');
+  check('новогодняя тема сохраняет все скины и выбранный интерфейс', winterResult.ok &&
+    winterReload.player.stats.baseTheme === 'new_year' && winterReload.player.equippedSkin === 'sakura' &&
+    winterReload.player.stats.equippedUi === 'ui_mint' && winterReload.player.stats.equippedAvatar === 'avatar_ghost');
+  check('в новогодней теме прежний бонус скина и баланс сохраняются', winterReload.player.derived.clickPower === beforeTheme.derived.clickPower && winterReload.player.crypto === beforeTheme.crypto && winterReload.player.unlockedSkins.includes('ui_mint'));
   await call(TG, 'skin', { action: 'set_theme', skinKey: 'classic' });
   r = await call(TG, 'init');
   check('после возврата к классике UI-скин всё ещё надет', r.player.stats.baseTheme === 'classic' && r.player.stats.equippedUi === 'ui_mint');

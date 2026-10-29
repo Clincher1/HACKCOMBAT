@@ -5,8 +5,8 @@
 // (радиусы, ушки на кнопке, цвет «плюсов»), поверх которого накладываются
 // обычные скины (они остаются платными и с бонусами к тапу).
 //
-// Обе темы БЕСПЛАТНЫ и НЕ ДАЮТ бонусов к клику: это чистая косметика, чтобы
-// выбор «классика / женская» не превращался в pay-to-win.
+// Все темы БЕСПЛАТНЫ и НЕ ДАЮТ бонусов к клику: это чистая косметика.
+// Старые скрытые темы сохраняются для совместимости с выбором игроков.
 //
 // Почему отдельный слой, а не ещё один SkinConfig:
 //   скин поверх темы задаёт hue-rotate, и если у базы уже своя палитра,
@@ -14,16 +14,20 @@
 //   поправка, которая компенсирует базу и возвращает скину его задуманный вид.
 // ============================================================================
 
-export type BaseThemeKey = 'classic' | 'femme' | 'light_mist' | 'light_sand';
+export type BaseThemeKey = 'classic' | 'femme' | 'light_mist' | 'light_sand' | 'new_year';
 
 export interface BaseThemeConfig {
   key: BaseThemeKey;
   name: string;
   tagline: string;
-  /** Бесплатна ли тема (обе бесплатные — поле на будущее, если появятся платные). */
+  /** Бесплатна ли тема (поле на будущее, если появятся платные). */
   free: boolean;
   /** Светлая схема интерфейса (существующие тёмные темы не меняются). */
   colorScheme?: 'light';
+  /** Прятать тему из выбора, сохраняя существующий выбор на сервере. */
+  hiddenFromSelection?: boolean;
+  /** Использовать палитру темы, временно не перекрашивая её UI-скином. */
+  overrideUiSkinPalette?: boolean;
   /** Глиф для превью-карточки в модалке скинов. */
   glyph: string;
   /** Цвета превью (градиент карточки). */
@@ -145,7 +149,27 @@ export const BASE_THEMES: BaseThemeConfig[] = [
     themeOffset: 0,
   },
   {
+    key: 'new_year',
+    name: 'Новогодний интерфейс',
+    tagline: 'Зимний неон, хвоя и ёлочные игрушки над рабочим столом.',
+    free: true,
+    overrideUiSkinPalette: true,
+    glyph: '🎄',
+    previewFrom: '#5de0ba',
+    previewTo: '#f4c96b',
+    previewImage: '/assets/themes/new-year/preview.svg',
+    palette: {
+      cyan: '#73e5c2', magenta: '#ffc676', green: '#8ae5a4', purple: '#e8a2a9',
+      panel: '#10271f', panelDeep: '#091c17', bg: '#081b17',
+      text: '#f4fff8', textMuted: '#a6c8b8',
+    },
+    sceneVignette: 'rgba(68, 212, 150, 0.16)',
+    ui: { radiusBoost: 2, catEars: false, buttonGradient: ['#6be2b3', '#f5c56b'], successHex: '#8ae5a4' },
+    themeOffset: 0,
+  },
+  {
     key: 'light_mist',
+    hiddenFromSelection: true,
     name: 'Тихий свет',
     tagline: 'Прохладный светлый интерфейс без резкого неона.',
     free: true,
@@ -164,6 +188,7 @@ export const BASE_THEMES: BaseThemeConfig[] = [
   },
   {
     key: 'light_sand',
+    hiddenFromSelection: true,
     name: 'Тёплый свет',
     tagline: 'Мягкие песочные оттенки и спокойные тёплые акценты.',
     free: true,

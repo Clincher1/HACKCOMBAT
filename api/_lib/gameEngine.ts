@@ -3514,7 +3514,9 @@ export async function handleSkinAction(
         title: `${theme.glyph} Тема «${theme.name}» включена`,
         message: theme.colorScheme === 'light'
           ? 'Светлый интерфейс включён. Тёмный скин интерфейса сохранён.'
-          : 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
+          : theme.overrideUiSkinPalette
+            ? 'Праздничная палитра включена. Надетый UI-скин и его бонус сохранены.'
+            : 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
       });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);

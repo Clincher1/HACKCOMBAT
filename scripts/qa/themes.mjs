@@ -179,7 +179,18 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
   check('из светлой темы можно вернуться к классике', res.ok && (await call(TG, 'init')).player.stats.baseTheme === 'classic');
 
   // ── 6. Чистая функция композиции фильтра ─────────────────────────────────
-  check('в конфиге две тёмные и две светлые темы', themes.BASE_THEMES.length === 4, themes.BASE_THEMES.length);
+  check('конфиг сохраняет прежние темы и добавляет новогоднюю', themes.BASE_THEMES.length === 5 && themes.getBaseTheme('new_year').key === 'new_year', themes.BASE_THEMES.length);
+  check('светлые темы скрыты из выбора, но сохранены', ['light_mist','light_sand'].every(key => themes.getBaseTheme(key).hiddenFromSelection === true));
+  check('новогодняя тема доступна и бесплатна', !themes.getBaseTheme('new_year').hiddenFromSelection && themes.getBaseTheme('new_year').free);
+  const beforeHoliday = (await call(TG, 'init')).player;
+  const chosenHoliday = await setTheme(TG, 'new_year');
+  const afterHoliday = (await call(TG, 'init')).player;
+  check('новогодняя тема включается и сохраняется', chosenHoliday.ok && afterHoliday.stats.baseTheme === 'new_year');
+  check('новогодняя тема не меняет экономику и экипировку', beforeHoliday.data === afterHoliday.data && beforeHoliday.crypto === afterHoliday.crypto && beforeHoliday.chips === afterHoliday.chips && beforeHoliday.derived.clickPower === afterHoliday.derived.clickPower && beforeHoliday.stats.equippedUi === afterHoliday.stats.equippedUi && beforeHoliday.equippedSkin === afterHoliday.equippedSkin);
+  check('новогодняя тема не заменяет сцены эволюции', themes.getThemeScene(themes.getBaseTheme('new_year'), 1) === undefined);
+  check('новогодняя тема сохраняет свою палитру при надетом UI-скине', themes.getBaseTheme('new_year').overrideUiSkinPalette === true);
+  for (const asset of ['preview.svg', 'ornaments.svg']) check(`праздничный ассет ${asset} включён в сборку`, fs.existsSync(path.join(REPO, 'dist/assets/themes/new-year', asset)));
+  check('после праздника можно вернуться к прежней теме', (await setTheme(TG, 'femme')).player?.stats?.baseTheme === 'femme');
   check('обе темы бесплатные', themes.BASE_THEMES.every((t) => t.free === true));
   check(
     'у тем нет поля бонуса к тапу (чистая косметика)',

@@ -272,6 +272,12 @@ export const DeskScene: React.FC = () => {
         <div className="scanline-overlay absolute inset-0" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-transparent to-[#0a0e1a]/45 pointer-events-none" />
 
+        {/* Праздничный декор не перехватывает нажатия и не заменяет сцену/скин. */}
+        {baseTheme.key === 'new_year' && (
+          <img src="/assets/themes/new-year/ornaments.svg" alt="" aria-hidden="true"
+            className="absolute inset-x-0 top-0 w-full h-auto pointer-events-none" />
+        )}
+
         {/* Верхние бейджи трёх направлений и автоклика Botmaster */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 pointer-events-none">
           <div className="flex flex-wrap items-center gap-1.5">

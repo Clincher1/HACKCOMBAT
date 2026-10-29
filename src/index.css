@@ -987,3 +987,11 @@ body[data-color-scheme='light'] :is([class~="bg-[#00f0ff]"], [class~="bg-[#7dff0
   background-color: color-mix(in srgb, var(--ui-primary) 25%, var(--ui-panel)) !important;
   color: var(--ui-text) !important;
 }
+
+/* Новогодняя тема: спокойный хвойный фон без анимаций и перегрузки интерфейса. */
+body[data-theme='new_year'] .cyber-grid-bg {
+  background-image: radial-gradient(circle at 15% 0%, rgba(62, 190, 133, .15), transparent 42%),
+    radial-gradient(circle at 90% 12%, rgba(238, 169, 79, .10), transparent 40%),
+    linear-gradient(rgba(132, 230, 179, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(132, 230, 179, .035) 1px, transparent 1px);
+}

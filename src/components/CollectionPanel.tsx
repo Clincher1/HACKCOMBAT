@@ -107,7 +107,7 @@ export const CollectionPanel: React.FC = () => {
         icon: theme.glyph,
         unlocked: true,
         status: active ? 'Активна' : 'Бесплатно',
-        reward: active ? 'Надето сейчас' : 'Можно включить в настройках темы',
+        reward: active ? 'Надето сейчас' : theme.hiddenFromSelection ? 'Тема скрыта из выбора' : 'Можно включить в настройках темы',
         source: 'Бесплатная тема оформления',
         accent: theme.previewFrom,
       };

@@ -37,7 +37,7 @@ export const ThemeOnboardingModal: React.FC = () => {
 
   const themeBusy = busyKey?.startsWith('theme:') ?? false;
   // Порядок BASE_THEMES — часть UX: классика слева, женская тема справа.
-  const themes = BASE_THEMES;
+  const themes = BASE_THEMES.filter((theme) => !theme.hiddenFromSelection);
 
   const chooseTheme = (theme: BaseThemeConfig) => {
     if (themeBusy) return;
@@ -84,7 +84,7 @@ export const ThemeOnboardingModal: React.FC = () => {
 
           <div className="p-3.5 sm:p-5">
             <div className="mb-2.5 flex items-center justify-between gap-2 text-[10px] text-slate-500">
-              <span>Тёмные и светлые темы</span>
+              <span>Темы оформления</span>
               <span>Все бесплатно</span>
             </div>
 
