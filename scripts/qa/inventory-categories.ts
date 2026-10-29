@@ -14,7 +14,8 @@ check('обычные достижения и косметика не входя
   !isCollectibleInventoryItem('companion:hamster'));
 check('подарки и призы относятся к разным разделам',
   getInventoryItemDefinition('reward:gift_snus')?.inventoryCategory === 'gift' &&
-  getInventoryItemDefinition('reward:first_donut')?.inventoryCategory === 'prize');
+  getInventoryItemDefinition('reward:first_donut')?.inventoryCategory === 'prize' &&
+  getInventoryItemDefinition('reward:gift_python_book')?.inventoryCategory === 'gift');
 
 // Будущие ивентовые достижения должны отмечаться явно, без включения обычного прогресса.
 ACHIEVEMENTS_BY_KEY.qa_event_reward = {

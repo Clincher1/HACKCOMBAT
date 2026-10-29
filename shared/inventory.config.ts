@@ -6,6 +6,8 @@ import type { InventoryItemDefinition } from './types';
 
 /** Первый постоянный приз профиля. Он намеренно не имеет игрового эффекта. */
 export const FIRST_DONUT_ITEM_KEY = 'reward:first_donut';
+/** Памятный коллекционный подарок всем игрокам, без игрового эффекта. */
+export const GIFT_PYTHON_BOOK_ITEM_KEY = 'reward:gift_python_book';
 
 /** Постоянные персональные подарки: только показать или скрыть, без игровых эффектов. */
 export const GIFT_COLA_ITEM_KEY = 'reward:gift_cola';
@@ -22,6 +24,19 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     source: 'Подарок всем игрокам',
     inventoryCategory: 'prize',
     accent: '#f9a8d4',
+    usable: false,
+    equipAction: null,
+  },
+  [GIFT_PYTHON_BOOK_ITEM_KEY]: {
+    key: GIFT_PYTHON_BOOK_ITEM_KEY,
+    kind: 'reward',
+    name: 'Учебник по Python',
+    description: 'Памятный подарок всем игрокам. Выставь его в витрине, чтобы показать другим.',
+    icon: '📘',
+    imageUrl: '/assets/inventory/python-book.svg',
+    source: 'Подарок всем игрокам',
+    inventoryCategory: 'gift',
+    accent: '#60a5fa',
     usable: false,
     equipAction: null,
   },

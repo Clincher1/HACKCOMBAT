@@ -43,7 +43,7 @@ function check(name, value) {
   if (value) pass++; else fail++;
 }
 const init = await api('init');
-check('инвентарь содержит только памятные предметы', init.ok && JSON.stringify([...init.player.inventory.ownedKeys].sort()) === JSON.stringify(['reward:first_donut', 'reward:gift_snus']));
+check('инвентарь содержит только памятные предметы', init.ok && JSON.stringify([...init.player.inventory.ownedKeys].sort()) === JSON.stringify(['reward:first_donut', 'reward:gift_python_book', 'reward:gift_snus']));
 check('прежние рамки и достижения сохранены', init.player.stats.unlockedProfileFrames.includes('frame_rooster_red') && init.player.stats.equippedProfileFrame === 'frame_rooster_red' && init.player.achievements.includes('first_mission'));
 check('старые типы не отображаются в витрине инвентаря', init.player.inventory.showcaseKeys.length === 0);
 const refused = await api('inventory', { action: 'set_public', itemKey: 'achievement:first_mission', visible: true });
@@ -61,6 +61,27 @@ const hide = await api('inventory', { action: 'set_public', itemKey: 'reward:gif
 const reload = await api('init');
 const publicAfter = await api(`profile?profileId=${profileId}`, {}, 'GET', 'inventory-viewer');
 check('скрытие сохраняется после перезагрузки', hide.ok && reload.player.inventory.ownedKeys.includes('reward:gift_snus') && !reload.player.inventory.showcaseKeys.includes('reward:gift_snus') && publicAfter.profile?.items.length === 0);
+const book = 'reward:gift_python_book';
+const newPlayer = await api('init', {}, 'POST', 'python-book-new-player');
+const newAgain = await api('init', {}, 'POST', 'python-book-new-player');
+check('новый игрок получает учебник без автоматической публикации', newPlayer.ok && newPlayer.player.inventory.ownedKeys.includes(book) && !newPlayer.player.inventory.showcaseKeys.includes(book));
+check('повторный вход не дублирует учебник у нового игрока', newAgain.player.inventory.ownedKeys.filter((key) => key === book).length === 1);
+check('старый игрок получил учебник без публикации', reload.player.inventory.ownedKeys.includes(book) && !reload.player.inventory.showcaseKeys.includes(book));
+const snackAgain = await api('inventory', { action: 'set_public', itemKey: 'reward:gift_snus', visible: true });
+const bookShow = await api('inventory', { action: 'set_public', itemKey: book, visible: true });
+const bookReload = await api('init');
+const bookPublic = await api(`profile?profileId=${profileId}`, {}, 'GET', 'python-book-viewer');
+const visibleBook = (bookPublic.profile?.items ?? []).find((item) => item.key === book);
+check('учебник можно выставить и сохранить рядом с другими предметами', snackAgain.ok && bookShow.ok && bookReload.player.inventory.showcaseKeys.includes(book) && bookReload.player.inventory.showcaseKeys.includes('reward:gift_snus'));
+check('другой игрок видит учебник и его изображение', visibleBook?.name === 'Учебник по Python' && visibleBook?.imageUrl === '/assets/inventory/python-book.svg');
+check('учебник остаётся подарком без использования или экипировки', visibleBook?.inventoryCategory === 'gift' && visibleBook?.usable === false && visibleBook?.equipAction === null);
+check('у публичного профиля нет приватного баланса или Telegram ID', !('data' in bookPublic.profile) && !('tgId' in bookPublic.profile) && !('stats' in bookPublic.profile));
+const bookHide = await api('inventory', { action: 'set_public', itemKey: book, visible: false });
+const bookHiddenProfile = await api(`profile?profileId=${profileId}`, {}, 'GET', 'python-book-viewer');
+check('скрытие учебника сохраняет его в инвентаре и не скрывает другой подарок', bookHide.ok && bookHide.player.inventory.ownedKeys.includes(book) && !(bookHiddenProfile.profile?.items ?? []).some((item) => item.key === book) && (bookHiddenProfile.profile?.items ?? []).some((item) => item.key === 'reward:gift_snus'));
+const invalidUse = await api('inventory', { action: 'use', itemKey: book });
+check('учебник нельзя использовать или расходовать', !invalidUse.ok);
+check('изображение учебника включено в сборку', fs.existsSync(path.join(root, 'dist/assets/inventory/python-book.svg')));
 check('исходное фото включено в сборку', fs.existsSync(path.join(root, 'dist/assets/inventory/snus-packed.jpg')));
 fs.rmSync(sandbox, { recursive: true, force: true });
 console.log(`\nИтог: ${pass} pass / ${fail} fail`);

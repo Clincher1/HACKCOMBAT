@@ -7,7 +7,7 @@ import { useGame } from '../context/GameContext';
 const CATEGORIES: { key: InventoryCategory; label: string; description: string }[] = [
   { key: 'event', label: 'События', description: 'Достижения и награды событий' },
   { key: 'prize', label: 'Призы', description: 'Памятные и выигранные предметы' },
-  { key: 'gift', label: 'Подарки', description: 'Персональные подарки' },
+  { key: 'gift', label: 'Подарки', description: 'Общие и персональные подарки' },
 ];
 
 /** Only server-owned collectibles are displayed; cosmetics remain in Cyber-Cosmetics. */

@@ -70,6 +70,7 @@ import {
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
   FIRST_DONUT_ITEM_KEY,
+  GIFT_PYTHON_BOOK_ITEM_KEY,
   getInventoryItemDefinition,
   isCollectibleInventoryItem,
 } from '../../shared/inventory.config';
@@ -186,7 +187,7 @@ const EMPTY_STATS: PlayerProgressStats = {
   missionRefreshSalt: 0,
   lastMissionRefreshAt: null,
   equippedProfileFrameExpiresAt: null,
-  inventoryOwned: [FIRST_DONUT_ITEM_KEY],
+  inventoryOwned: [FIRST_DONUT_ITEM_KEY, GIFT_PYTHON_BOOK_ITEM_KEY],
   inventoryShowcase: [],
   lastQualifiedDayKey: null,
   lastActiveAt: null,
@@ -414,7 +415,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     ).slice(0, max);
   };
   const inventoryOwned = Array.from(
-    new Set([FIRST_DONUT_ITEM_KEY, ...keyArr(src.inventoryOwned)])
+    new Set([FIRST_DONUT_ITEM_KEY, GIFT_PYTHON_BOOK_ITEM_KEY, ...keyArr(src.inventoryOwned)])
   );
   const inventoryShowcase = keyArr(src.inventoryShowcase);
   const seasonEvent = normalizeSeasonEventState(src.seasonEvent);
@@ -541,6 +542,7 @@ interface InventoryRecordLike {
 function getInventoryOwnedKeys(record: InventoryRecordLike): string[] {
   const keys = new Set<string>([
     FIRST_DONUT_ITEM_KEY,
+    GIFT_PYTHON_BOOK_ITEM_KEY,
     ...(record.stats.inventoryOwned ?? []).filter((key) => getInventoryItemDefinition(key)?.kind === 'reward'),
     ...record.achievements.map((key) => `achievement:${key}`),
   ]);
