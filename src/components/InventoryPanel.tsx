@@ -1,6 +1,7 @@
 import { Backpack, Eye, EyeOff } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { getInventoryItemDefinition, isCollectibleInventoryItem } from '../../shared/inventory.config';
+import { NEW_YEAR_CANDY_KEY, NEW_YEAR_CANDY_MAX_USES } from '../../shared/newYearCandy';
 import type { InventoryCategory, InventoryItemDefinition } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 
@@ -12,7 +13,7 @@ const CATEGORIES: { key: InventoryCategory; label: string; description: string }
 
 /** Only server-owned collectibles are displayed; cosmetics remain in Cyber-Cosmetics. */
 export const InventoryPanel: React.FC = () => {
-  const { player, busyKey, setInventoryVisibility } = useGame();
+  const { player, busyKey, setInventoryVisibility, useNewYearCandy, nowMs } = useGame();
   const groups = useMemo(() => {
     const items = (player?.inventory.ownedKeys ?? [])
       .filter(isCollectibleInventoryItem)
@@ -76,6 +77,21 @@ export const InventoryPanel: React.FC = () => {
                     <div className="theme-accent-text mt-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ color: item.accent }}>{item.source}</div>
                     <p className="mt-1 text-[10px] leading-relaxed text-slate-400">{item.description}</p>
                   </div>
+                  {item.key === NEW_YEAR_CANDY_KEY && (() => {
+                    const candy = player.newYearCandy;
+                    const active = candy.boostUntil && Date.parse(candy.boostUntil) > nowMs;
+                    const seconds = active ? Math.ceil((Date.parse(candy.boostUntil!) - nowMs) / 1000) : 0;
+                    const time = `${Math.floor(seconds / 3600)} ч ${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')} мин`;
+                    return <div className="mt-2 space-y-1">
+                      <div className="text-center text-[10px] font-bold text-rose-200">Осталось укусов: {candy.usesRemaining}/{NEW_YEAR_CANDY_MAX_USES}</div>
+                      {active && <div className="text-center text-[10px] font-bold text-emerald-300">×2 на тапы ещё {time}</div>}
+                      <button type="button" onClick={() => void useNewYearCandy()}
+                        disabled={candy.usesRemaining <= 0 || busyKey === 'inventory:new-year-candy:use'}
+                        className="w-full rounded-lg bg-rose-500 px-2 py-2 text-[11px] font-extrabold text-white disabled:opacity-50 disabled:cursor-not-allowed">
+                        {busyKey === 'inventory:new-year-candy:use' ? 'Сохраняем…' : candy.usesRemaining > 0 ? '🍬 Откусить · ×2 на 1 час' : 'Леденец съеден'}
+                      </button>
+                    </div>;
+                  })()}
                   <button
                     type="button"
                     aria-label={isPublic ? `Скрыть ${item.name} из витрины` : `Выставить ${item.name} в витрину`}

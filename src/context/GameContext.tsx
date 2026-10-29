@@ -10,6 +10,7 @@ import React, {
 import { useLocation } from 'react-router-dom';
 import { CARDS_CONFIG, getCardPrice, getMaxCardLevel } from '../../shared/cards.config';
 import { syncEnergy } from '../../shared/mechanics';
+import { getManualTapMultiplier } from '../../shared/newYearCandy';
 import type {
   ApiSyncResponse,
   GameAlert,
@@ -76,6 +77,7 @@ interface GameContextValue {
   unequipSkin: (skinKey: string) => Promise<void>;
   buyOrEquipProfileFrame: (frameKey: string) => Promise<void>;
   setInventoryVisibility: (itemKey: string, visible: boolean) => Promise<void>;
+  useNewYearCandy: () => Promise<void>;
   /** Выбранная бесплатная базовая тема (v3.6.1). */
   baseTheme: BaseThemeConfig;
   setBaseTheme: (key: BaseThemeKey) => Promise<void>;
@@ -281,7 +283,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsent > 0
           ? {
               ...res.player,
-              data: res.player.data + unsent * res.player.derived.clickPower,
+              data: res.player.data + unsent * res.player.derived.clickPower * getManualTapMultiplier(res.player.newYearCandy, Date.now()),
               energy: Math.max(0, res.player.energy - unsent),
               totalClicks: res.player.totalClicks + unsent,
               // Показатели тап-поручения и сезонной цели тоже двигаются сразу,
@@ -588,7 +590,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!prev || prev.energy <= 0) return prev;
       return {
         ...prev,
-        data: Math.round((prev.data + prev.derived.clickPower) * 10) / 10,
+        data: Math.round((prev.data + prev.derived.clickPower * getManualTapMultiplier(prev.newYearCandy, Date.now())) * 10) / 10,
         energy: Math.max(0, prev.energy - 1),
         // На полном заряде отсчёт начинается с момента расхода энергии.
         energyUpdated: prev.energy >= prev.derived.maxEnergy ? new Date().toISOString() : prev.energyUpdated,
@@ -889,6 +891,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const useNewYearCandy = useCallback(() => {
+    // A fresh operation id ensures duplicate delivery of one request is harmless.
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, (v) => v.toString(16).padStart(2, '0')).join('');
+    const requestId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    return runAction('inventory:new-year-candy:use', (clicks) => gameApi.useNewYearCandy(requestId, clicks), true, 'light');
+  }, [runAction]);
+
   const setBaseTheme = useCallback(
     (key: BaseThemeKey) =>
       runAction(`theme:${key}`, (clicks) => gameApi.skinAction('set_theme', key, clicks), true, 'light'),
@@ -1112,6 +1125,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unequipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
+      useNewYearCandy,
       baseTheme,
       setBaseTheme,
       clearHeatLockdown,
@@ -1167,6 +1181,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       unequipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
+      useNewYearCandy,
       baseTheme,
       setBaseTheme,
       clearHeatLockdown,

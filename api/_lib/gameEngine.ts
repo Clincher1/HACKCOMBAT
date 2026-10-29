@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { NEW_YEAR_CANDY_KEY, NEW_YEAR_CANDY_MAX_USES, NEW_YEAR_CANDY_DURATION_MS, getManualTapMultiplier, type NewYearCandyState } from '../../shared/newYearCandy';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
@@ -151,6 +152,8 @@ export interface StoredPlayerRecord {
   pets: StoredPet[];
   baseUpgrades: Record<string, number>;
   stats: PlayerProgressStats;
+  newYearCandy: NewYearCandyState;
+  candyRequestIds?: string[]; // local demo idempotency only
   activeMissions: ActiveMissionInstance[];
   availableMissionKeys: string[];
   missionsRefreshedAt: string;
@@ -543,6 +546,7 @@ function getInventoryOwnedKeys(record: InventoryRecordLike): string[] {
   const keys = new Set<string>([
     FIRST_DONUT_ITEM_KEY,
     GIFT_PYTHON_BOOK_ITEM_KEY,
+    NEW_YEAR_CANDY_KEY,
     ...(record.stats.inventoryOwned ?? []).filter((key) => getInventoryItemDefinition(key)?.kind === 'reward'),
     ...record.achievements.map((key) => `achievement:${key}`),
   ]);
@@ -1033,6 +1037,7 @@ function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
     pets: [],
     baseUpgrades: {},
     stats: { ...EMPTY_STATS, tutorialTabs: [], tabsVisited: [], missionTypes: [] },
+    newYearCandy: { usesRemaining: NEW_YEAR_CANDY_MAX_USES, boostUntil: null },
     activeMissions: [],
     availableMissionKeys: offer.keys,
     missionsRefreshedAt: offer.refreshedAt,
@@ -1112,6 +1117,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       rec.stats = normalizeStats(rec.stats);
     }
     const localRecord = db.playersByTgId[key];
+    localRecord.newYearCandy ??= { usesRemaining: NEW_YEAR_CANDY_MAX_USES, boostUntil: null };
     ensurePermanentProfileFrameGifts(localRecord.stats, localRecord.tgId);
     ensurePermanentProfileInventoryGifts(localRecord.stats, localRecord.tgId);
     migrateLegacyEquippedSkins(localRecord);
@@ -1127,7 +1133,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   }
 
   const pid = playerRow.id as string;
-  const [cardsRes, teamRes, missionsRes, achRes, petsRes, baseRes] = await Promise.all([
+  const [cardsRes, teamRes, missionsRes, achRes, petsRes, baseRes, candyRes] = await Promise.all([
     sb.from('cards').select('card_key, level').eq('player_id', pid),
     sb.from('team').select('npc_key').eq('player_id', pid),
     sb
@@ -1141,7 +1147,9 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     // Если миграция 003 ещё не применена — просто получим пустой список, игра не упадёт
     sb.from('pets').select('pet_key, hunger, last_fed_at, feed_count').eq('player_id', pid),
     sb.from('base_upgrades').select('upgrade_key, level').eq('player_id', pid),
+    sb.from('new_year_candy').select('uses_remaining, boost_until').eq('player_id', pid).maybeSingle(),
   ]);
+  if (candyRes.error || !candyRes.data) throw new Error('Не удалось загрузить новогодний подарок');
 
   const cardsMap: Record<string, number> = {};
   for (const row of cardsRes.data ?? []) {
@@ -1224,6 +1232,10 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     pets: petsList,
     baseUpgrades: baseUpgradesMap,
     stats: persistedStats,
+    newYearCandy: {
+      usesRemaining: Math.max(0, Math.min(NEW_YEAR_CANDY_MAX_USES, Math.floor(Number(candyRes.data.uses_remaining)))),
+      boostUntil: candyRes.data.boost_until ? String(candyRes.data.boost_until) : null,
+    },
     activeMissions: (missionsRes.data ?? []).map((m) => ({
       id: String(m.id),
       missionKey: String(m.mission_key),
@@ -2058,6 +2070,7 @@ function buildResponse(
     missionsRefreshedAt: record.missionsRefreshedAt,
     achievements: record.achievements,
     inventory: getInventoryState(record),
+    newYearCandy: record.newYearCandy,
     derived,
   };
 
@@ -2127,6 +2140,53 @@ export async function handleInventoryAction(
     else showcase.delete(itemKey);
     record.stats.inventoryShowcase = Array.from(showcase);
     await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/** Consume exactly one bite; charge state is independent of player snapshots. */
+export async function handleUseNewYearCandy(
+  user: VerifiedTelegramUser, requestId: string, pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new Error('Некорректный идентификатор действия');
+  }
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+    // Taps made before activation must use the previous multiplier.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    if (mode === 'supabase') {
+      const sb = getSupabaseAdmin();
+      if (!sb) throw new Error('Подарок временно недоступен');
+      const { data, error } = await sb.rpc('use_new_year_candy', {
+        p_player_id: record.id, p_request_id: requestId,
+      });
+      if (error) {
+        if (error.message.includes('CANDY_EXHAUSTED')) throw new Error('Все три укуса леденца уже использованы');
+        throw new Error('Не удалось использовать леденец');
+      }
+      const candy = Array.isArray(data) ? data[0] : data;
+      if (!candy) throw new Error('Не удалось подтвердить использование леденца');
+      record.newYearCandy = { usesRemaining: Number(candy.uses_remaining), boostUntil: String(candy.boost_until) };
+    } else {
+      record.candyRequestIds ??= [];
+      if (!record.candyRequestIds.includes(requestId)) {
+        if (record.newYearCandy.usesRemaining <= 0) throw new Error('Все три укуса леденца уже использованы');
+        const nowMs = Date.now();
+        const oldUntil = Date.parse(record.newYearCandy.boostUntil ?? '');
+        record.newYearCandy = {
+          usesRemaining: record.newYearCandy.usesRemaining - 1,
+          boostUntil: new Date(Math.max(nowMs, Number.isFinite(oldUntil) ? oldUntil : nowMs) + NEW_YEAR_CANDY_DURATION_MS).toISOString(),
+        };
+        record.candyRequestIds.push(requestId);
+        persistLocalDb();
+      }
+    }
+    alerts.push({ id: crypto.randomUUID(), type: 'success', title: '🍬 Новогодний леденец',
+      message: '×2 Data за ручные тапы на час. Повторный укус продлевает действие.' });
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2301,7 +2361,7 @@ async function applyPendingClicks(
 
   record.energy = Math.max(0, record.energy - validClicks);
   record.energyUpdated = nowIso;
-  record.data += validClicks * derived.clickPower;
+  record.data += validClicks * derived.clickPower * getManualTapMultiplier(record.newYearCandy, nowMs);
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
   incrementDailyTaskProgress(record, 'tap', validClicks);

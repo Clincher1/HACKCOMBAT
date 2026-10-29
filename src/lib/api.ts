@@ -94,6 +94,8 @@ export const gameApi = {
       visible,
       clicks,
     }),
+  useNewYearCandy: (requestId: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/inventory', 'POST', { action: 'use', itemKey: 'reward:new_year_candy', requestId, clicks }),
   publicProfile: (profileId: string) =>
     apiRequest<PublicProfileResponse>(`/api/profile?profileId=${encodeURIComponent(profileId)}`, 'GET'),
   prestige: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/prestige', 'POST', { clicks }),

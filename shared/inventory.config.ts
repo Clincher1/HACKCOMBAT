@@ -1,3 +1,4 @@
+import { NEW_YEAR_CANDY_KEY } from './newYearCandy';
 import { ACHIEVEMENTS_BY_KEY } from './achievements.config';
 import { getProfileFrame } from './profileFrames.config';
 import { PETS_CONFIG } from './pets.config';
@@ -15,6 +16,18 @@ export const GIFT_WHISKEY_ITEM_KEY = 'reward:gift_whiskey';
 export const GIFT_SNUS_ITEM_KEY = 'reward:gift_snus';
 
 const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
+  [NEW_YEAR_CANDY_KEY]: {
+    key: NEW_YEAR_CANDY_KEY,
+    kind: 'reward',
+    name: 'Новогодний леденец',
+    description: 'Три укуса: каждый даёт ×2 Data за ручные тапы на час. Укусы продлевают время.',
+    icon: '🍬',
+    source: 'Подарок всем игрокам',
+    inventoryCategory: 'gift',
+    accent: '#fb7185',
+    usable: true,
+    equipAction: null,
+  },
   [FIRST_DONUT_ITEM_KEY]: {
     key: FIRST_DONUT_ITEM_KEY,
     kind: 'reward',

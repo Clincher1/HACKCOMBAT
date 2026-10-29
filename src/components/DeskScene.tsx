@@ -9,6 +9,7 @@ import {
   OFFLINE_TAP_CAP_SECONDS,
   OFFLINE_TAP_RATE_PER_SEC,
 } from '../../shared/mechanics';
+import { getManualTapMultiplier } from '../../shared/newYearCandy';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
@@ -36,6 +37,7 @@ export const DeskScene: React.FC = () => {
     clearHeatLockdown,
     busyKey,
     baseTheme,
+    nowMs,
   } = useGame();
 
   const [particles, setParticles] = useState<ByteParticle[]>([]);
@@ -84,6 +86,9 @@ export const DeskScene: React.FC = () => {
   if (!player) return null;
 
   const { derived } = player;
+  const tapMultiplier = getManualTapMultiplier(player.newYearCandy, nowMs);
+  const manualTapPower = derived.clickPower * tapMultiplier;
+  const boostSeconds = tapMultiplier > 1 ? Math.max(0, Math.ceil((Date.parse(player.newYearCandy.boostUntil!) - nowMs) / 1000)) : 0;
   const activeStage = previewStage ?? derived.deskStage;
   const stageInfo = getDeskStageInfo(activeStage);
   // v3.6.5: арт стола реагирует ТОЛЬКО на скин категории «рабочий стол».
@@ -128,7 +133,7 @@ export const DeskScene: React.FC = () => {
         id,
         x,
         y,
-        text: `+${formatCompact(derived.clickPower)} • ${tag}`,
+        text: `+${formatCompact(manualTapPower)} • ${tag}`,
       },
     ]);
 
@@ -406,7 +411,7 @@ export const DeskScene: React.FC = () => {
             className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-[#0a0e1a]/85"
             style={{ color: baseTheme.palette.cyan }}
           >
-            +{formatCompact(derived.clickPower)} DATA
+            +{formatCompact(manualTapPower)} DATA
           </span>
         </span>
         {player.energy <= 0 && (
@@ -416,12 +421,15 @@ export const DeskScene: React.FC = () => {
         )}
       </motion.button>
 
+      {tapMultiplier > 1 && <div className="rounded-xl border border-rose-400/50 bg-rose-500/10 px-3 py-2 text-center text-xs font-bold text-rose-200">
+        🍬 ×2 Data за ручные тапы · {Math.floor(boostSeconds / 3600)}:{String(Math.floor(boostSeconds % 3600 / 60)).padStart(2, '0')}:{String(boostSeconds % 60).padStart(2, '0')}
+      </div>}
       {/* Быстрая сводка бустов под кнопкой HACK */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-[#10172e]/85 border border-slate-800/90 p-2">
           <div className="text-[10px] text-slate-400">Сила тапа</div>
           <div className="text-xs font-bold text-[var(--ui-primary)] flex items-center justify-center gap-1 mt-0.5">
-            <Zap className="w-3 h-3" /> +{formatCompact(derived.clickPower)}
+            <Zap className="w-3 h-3" /> +{formatCompact(manualTapPower)}
           </div>
         </div>
         <div className="rounded-xl bg-[#10172e]/85 border border-slate-800/90 p-2">

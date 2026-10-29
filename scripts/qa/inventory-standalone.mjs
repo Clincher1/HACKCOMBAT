@@ -43,7 +43,7 @@ function check(name, value) {
   if (value) pass++; else fail++;
 }
 const init = await api('init');
-check('инвентарь содержит только памятные предметы', init.ok && JSON.stringify([...init.player.inventory.ownedKeys].sort()) === JSON.stringify(['reward:first_donut', 'reward:gift_python_book', 'reward:gift_snus']));
+check('инвентарь содержит только памятные предметы', init.ok && JSON.stringify([...init.player.inventory.ownedKeys].sort()) === JSON.stringify(['reward:first_donut', 'reward:gift_python_book', 'reward:gift_snus', 'reward:new_year_candy']));
 check('прежние рамки и достижения сохранены', init.player.stats.unlockedProfileFrames.includes('frame_rooster_red') && init.player.stats.equippedProfileFrame === 'frame_rooster_red' && init.player.achievements.includes('first_mission'));
 check('старые типы не отображаются в витрине инвентаря', init.player.inventory.showcaseKeys.length === 0);
 const refused = await api('inventory', { action: 'set_public', itemKey: 'achievement:first_mission', visible: true });

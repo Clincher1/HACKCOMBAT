@@ -1,6 +1,7 @@
 import { BookOpen, Flame, Gift, Palette, Sparkles, Volume2, VolumeX, Zap } from 'lucide-react';
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getManualTapMultiplier } from '../../shared/newYearCandy';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -356,7 +357,7 @@ export const TopHud: React.FC = () => {
               CPU Charge: {player.energy} / {derived.maxEnergy}
             </span>
             <span className="text-slate-400 text-[10px]">
-              Тап: +{formatCompact(derived.clickPower)} Data • +{formatCompact(derived.energyRegenPerSec * 60)}⚡/мин
+              Тап: +{formatCompact(derived.clickPower * getManualTapMultiplier(player.newYearCandy, nowMs))} Data • +{formatCompact(derived.energyRegenPerSec * 60)}⚡/мин
             </span>
           </div>
           <div className="h-2 w-full rounded-full bg-[#090d19] border border-slate-800 p-[1px] overflow-hidden">

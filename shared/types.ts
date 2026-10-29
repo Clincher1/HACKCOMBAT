@@ -517,6 +517,7 @@ export interface PlayerState {
   missionsRefreshedAt: string;
   achievements: string[];
   inventory: PlayerInventoryState;
+  newYearCandy: import('./newYearCandy').NewYearCandyState;
   derived: DerivedStats;
 }
 
