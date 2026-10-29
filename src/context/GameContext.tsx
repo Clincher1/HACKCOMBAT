@@ -178,6 +178,10 @@ const CLICK_QUEUE_LIMIT = 600;
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
   const [player, setPlayer] = useState<PlayerState | null>(null);
+  // React batches simultaneous touch events; reserve energy synchronously so
+  // multiple fingers cannot queue more taps than the displayed available CPU.
+  const tapEnergyRef = useRef(0);
+  tapEnergyRef.current = player?.energy ?? 0;
   // Базовая тема — производная от player.stats.baseTheme (сервер — источник истины).
   const baseTheme = useMemo<BaseThemeConfig>(
     () => getBaseTheme(player?.stats.baseTheme),
@@ -409,6 +413,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (leftover > 0) {
           pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
         }
+        // Do not defer unfunded taps until later regeneration.
+        pendingClicksRef.current = Math.min(pendingClicksRef.current, res.player.energy);
         applyServerSync(res);
       } catch (err) {
         const status = err instanceof ApiError ? err.status : 0;
@@ -574,7 +580,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       triggerHapticNotification('error');
       return false;
     }
-    if (player.energy <= 0) {
+    if (tapEnergyRef.current <= 0) {
       triggerHapticNotification('warning');
       return false;
     }
@@ -584,6 +590,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastActivityAtRef.current = Date.now();
     idleReportedRef.current = false;
 
+    tapEnergyRef.current -= 1;
     pendingClicksRef.current += 1;
 
     setPlayer((prev) => {
@@ -669,8 +676,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const leftover = clicksToSend - applied;
           if (leftover > 0) {
             pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
-            scheduleFlush(CLICK_MIN_GAP_MS);
           }
+          pendingClicksRef.current = Math.min(pendingClicksRef.current, res.player.energy);
+          if (pendingClicksRef.current > 0) scheduleFlush(CLICK_MIN_GAP_MS);
           applyServerSync(res);
         } catch (err) {
           if (clicksToSend > 0) {

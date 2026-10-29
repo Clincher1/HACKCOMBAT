@@ -40,6 +40,10 @@ export const DeskScene: React.FC = () => {
     nowMs,
   } = useGame();
 
+  // Touch identifiers belong to individual fingers, including simultaneous taps.
+  // Keep gestures that became scrolling separate from real taps.
+  const touchesRef = useRef(new Map<number, { x: number; y: number; moved: boolean; target: HTMLElement }>());
+  const suppressTouchClickUntilRef = useRef(0);
   const [particles, setParticles] = useState<ByteParticle[]>([]);
   const [pulseActive, setPulseActive] = useState(false);
   const [previewStage, setPreviewStage] = useState<1 | 5 | 10 | 15 | 20 | 25 | 30 | null>(null);
@@ -111,10 +115,10 @@ export const DeskScene: React.FC = () => {
   const sceneUrl = getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
   const sceneFilter = composeSceneFilter(activeSkin.cssFilter, baseTheme);
 
-  const handleTap = (e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relX = ((e.clientX - rect.left) / rect.width) * 100;
-    const relY = ((e.clientY - rect.top) / rect.height) * 100;
+  const performTap = (target: HTMLElement, clientX: number, clientY: number) => {
+    const rect = target.getBoundingClientRect();
+    const relX = ((clientX - rect.left) / rect.width) * 100;
+    const relY = ((clientY - rect.top) / rect.height) * 100;
 
     const ok = tapHack();
     if (!ok) return;
@@ -141,6 +145,52 @@ export const DeskScene: React.FC = () => {
       setParticles((prev) => prev.filter((p) => p.id !== id));
     }, 850);
   };
+
+
+  // Do not disable native scrolling: count a touch only on release if the finger
+  // has not moved substantially. touchcancel never creates a tap.
+  const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
+    if (lockdownRemainingSec > 0) return;
+    // The lockdown overlay has its own interactive button; never count it as a tap.
+    const innerButton = (e.target as Element).closest('button');
+    if (innerButton && innerButton !== e.currentTarget) return;
+    for (const touch of Array.from(e.changedTouches)) {
+      touchesRef.current.set(touch.identifier, { x: touch.clientX, y: touch.clientY, moved: false, target: e.currentTarget });
+    }
+  };
+  const handleTouchMove = (e: React.TouchEvent<HTMLElement>) => {
+    for (const touch of Array.from(e.changedTouches)) {
+      const start = touchesRef.current.get(touch.identifier);
+      if (start && Math.hypot(touch.clientX - start.x, touch.clientY - start.y) > 12) start.moved = true;
+    }
+  };
+  const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
+    let handled = false;
+    for (const touch of Array.from(e.changedTouches)) {
+      const start = touchesRef.current.get(touch.identifier);
+      if (!start || start.target !== e.currentTarget) continue;
+      touchesRef.current.delete(touch.identifier);
+      handled = true;
+      if (!start.moved && Math.hypot(touch.clientX - start.x, touch.clientY - start.y) <= 12) {
+        performTap(start.target, touch.clientX, touch.clientY);
+      }
+    }
+    if (handled) {
+      // iOS/Android can emit a compatibility click after touchend. A keyboard
+      // click (detail=0) remains available, including to assistive technology.
+      suppressTouchClickUntilRef.current = Date.now() + 800;
+      if (e.cancelable) e.preventDefault();
+    }
+  };
+  const handleTouchCancel = (e: React.TouchEvent<HTMLElement>) => {
+    for (const touch of Array.from(e.changedTouches)) touchesRef.current.delete(touch.identifier);
+  };
+  const handleClick = (e: React.MouseEvent<HTMLElement>) => {
+    if (e.detail !== 0 && Date.now() < suppressTouchClickUntilRef.current) return;
+    performTap(e.currentTarget, e.clientX, e.clientY);
+  };
+  const tapHandlers = { onClick: handleClick, onTouchStart: handleTouchStart, onTouchMove: handleTouchMove,
+    onTouchEnd: handleTouchEnd, onTouchCancel: handleTouchCancel };
 
   return (
     <div className="space-y-3">
@@ -215,7 +265,7 @@ export const DeskScene: React.FC = () => {
 
       {/* Центральная интерактивная сцена рабочего стола хакера */}
       <div
-        onClick={handleTap}
+        {...tapHandlers}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
@@ -370,7 +420,7 @@ export const DeskScene: React.FC = () => {
       <motion.button
         type="button"
         whileTap={{ scale: 0.96 }}
-        onClick={handleTap}
+        {...tapHandlers}
         disabled={lockdownRemainingSec > 0}
         className="relative w-full py-4 px-6 rounded-2xl font-display font-black tracking-widest uppercase text-lg sm:text-xl text-[#061018] transition overflow-hidden cursor-pointer disabled:opacity-45"
         style={{
