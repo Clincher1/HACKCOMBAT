@@ -44,7 +44,7 @@ export const ProfileFramesShop: React.FC = () => {
           const requiredLevel = frame.requiredLevel ?? 30;
           const levelLocked = player.derived.level < requiredLevel;
           const price = frame.cryptoCost ?? 0;
-          const canBuy = !levelLocked && (frameUnlocked || player.crypto >= price);
+          const canBuy = frameUnlocked || (!levelLocked && player.crypto >= price);
           const busy = busyKey === `profile-frame:${frame.key}`;
 
           return (
@@ -79,7 +79,7 @@ export const ProfileFramesShop: React.FC = () => {
 
               <div className="mt-2 flex flex-col items-stretch gap-1.5 text-[10px]">
                 <span className={levelLocked ? 'text-amber-300' : 'text-slate-400'}>
-                  {levelLocked ? `🔒 Ур. ${requiredLevel}` : `${formatCompact(price)} 💎 Crypto`}
+                  {frameUnlocked ? 'В коллекции навсегда' : levelLocked ? `🔒 Ур. ${requiredLevel} · ${formatCompact(price)} 💎` : `${formatCompact(price)} 💎 Crypto`}
                 </span>
                 <button
                   type="button"

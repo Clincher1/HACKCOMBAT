@@ -21,6 +21,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       action?: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage';
       skinKey?: string;
       clicks?: number;
+      expectedPrice?: number;
       initData?: string;
     }>(req);
     const user = authenticateRequest(req, body);
@@ -32,7 +33,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       user,
       action,
       typeof body.skinKey === 'string' ? body.skinKey.slice(0, 64) : undefined,
-      sanitizeClicks(body.clicks)
+      sanitizeClicks(body.clicks),
+      typeof body.expectedPrice === 'number' && Number.isSafeInteger(body.expectedPrice) ? body.expectedPrice : undefined
     );
     return sendJson(res, 200, result);
   } catch (err) {

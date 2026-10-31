@@ -3462,7 +3462,8 @@ export async function handleSkinAction(
   user: VerifiedTelegramUser,
   action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage',
   skinKey?: string,
-  pendingClicks = 0
+  pendingClicks = 0,
+  expectedPrice?: number
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
@@ -3592,7 +3593,7 @@ export async function handleSkinAction(
         message: theme.colorScheme === 'light'
           ? 'Светлый интерфейс включён. Тёмный скин интерфейса сохранён.'
           : theme.overrideUiSkinPalette
-            ? 'Праздничная палитра включена. Надетый UI-скин и его бонус сохранены.'
+            ? 'Праздничная палитра включена. Надетый UI-скин сохранён.'
             : 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
       });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
@@ -3622,7 +3623,7 @@ export async function handleSkinAction(
         id: crypto.randomUUID(),
         type: 'success',
         title: `🎨 Скин «${skin.name}» снят`,
-        message: 'Скин сохранён в коллекции. Его бонус действует только пока он надет.',
+        message: 'Скин сохранён в коллекции. Он меняет только внешний вид.',
       });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
@@ -3652,6 +3653,11 @@ export async function handleSkinAction(
         throw new Error(
           `Скин «${skin.name}» открывается на ${skin.requiredLevel} уровне (ты — ${skinLevel}).`
         );
+      }
+      // Old clients must not silently charge a price higher than they displayed.
+      // A client price is confirmation only: the server still sets the actual price.
+      if (skin.cryptoCost > 0 && expectedPrice !== skin.cryptoCost) {
+        throw new Error('Цены магазина обновились. Закройте и заново откройте игру перед покупкой.');
       }
       if (record.crypto < skin.cryptoCost) {
         throw new Error(`Недостаточно Crypto (нужно ${skin.cryptoCost} 💎)`);

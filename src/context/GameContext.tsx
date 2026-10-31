@@ -22,7 +22,7 @@ import type {
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
-import { resolveEquippedSkins } from '../../shared/skins.config';
+import { resolveEquippedSkins, SKINS_CONFIG } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
 import {
   initTelegramMiniApp,
@@ -868,7 +868,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const buyOrEquipSkin = useCallback(
     (skinKey: string) =>
-      runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('buy_or_equip', skinKey, clicks), true, 'light'),
+      runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('buy_or_equip', skinKey, clicks, SKINS_CONFIG.find((skin) => skin.key === skinKey)?.cryptoCost), true, 'light'),
     [runAction]
   );
 
@@ -996,7 +996,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       equippedSkin: player?.equippedSkin,
       stats: player?.stats,
     });
-    // Тема может временно сохранять свою палитру; надетый скин и его бонус остаются.
+    // Тема может временно сохранять свою палитру; надетый скин остаётся.
     const uiSkin = theme.colorScheme === 'light' || theme.overrideUiSkinPalette ? undefined : equipped.ui;
     const root = document.documentElement.style;
     const accent = uiSkin?.uiTokens?.accent ?? theme.palette.cyan;

@@ -266,7 +266,7 @@ export const ModalsAndOverlays: React.FC = () => {
                       })}
                     </div>
                     <p className="text-[9px] text-slate-500 leading-snug">
-                      Новогодняя тема временно использует свою палитру: надетый UI-скин и его бонус сохраняются и вернутся при выборе другой тёмной темы.
+                      Новогодняя тема временно использует свою палитру: надетый UI-скин сохраняется и вернётся при выборе другой тёмной темы.
                     </p>
                   </div>
                 </>
@@ -311,7 +311,7 @@ export const ModalsAndOverlays: React.FC = () => {
                 <ProfileFramesShop />
               ) : (
                 <div className="space-y-2.5">
-                  <p className="text-[11px] text-slate-400">Активные скины можно снять и снова надеть бесплатно. Бонус действует только пока скин надет.</p>
+                  <p className="text-[11px] text-slate-400">Уровень открывает покупку. Купленные скины остаются навсегда — снять и снова надеть их можно бесплатно. Скины меняют только внешний вид и не дают игровых бонусов.</p>
                   {SKINS_CONFIG.filter(
                     (skin) => skinFilter === 'all' || skin.category === skinFilter
                   ).map((skin) => {
@@ -362,6 +362,9 @@ export const ModalsAndOverlays: React.FC = () => {
                             )}
                           </div>
                           <p className="text-[11px] text-slate-400">{skin.description}</p>
+                          {!unlocked && skin.cryptoCost > 0 && (
+                            <p className="text-[10px] font-bold text-amber-200/90">Цена: {skin.cryptoCost.toLocaleString('ru-RU')} 💎 Crypto · покупка навсегда</p>
+                          )}
                         </div>
 
                         <button

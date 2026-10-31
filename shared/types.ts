@@ -154,7 +154,7 @@ export interface SkinConfig {
   secondaryHex: string;
   accentHex: string;
   cssFilter: string;
-  clickBonusPct: number; // DEFAULT: небольшой косметический бонус к стилю/клику
+  clickBonusPct: 0; // Зарезервировано для совместимости; косметика не даёт бонусов.
   /** Эмодзи-аватар для категории 'avatar' (0 = не аватар). */
   avatarGlyph?: string;
   /**

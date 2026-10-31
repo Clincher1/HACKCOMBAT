@@ -83,8 +83,9 @@ export const gameApi = {
   skinAction: (
     action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage',
     skinKey?: string,
-    clicks = 0
-  ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
+    clicks = 0,
+    expectedPrice?: number
+  ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks, expectedPrice }),
   profileFrameAction: (frameKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action: 'profile_frame', skinKey: frameKey, clicks }),
   inventoryVisibility: (itemKey: string, visible: boolean, clicks = 0) =>
