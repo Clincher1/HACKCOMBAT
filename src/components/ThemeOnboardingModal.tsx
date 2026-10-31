@@ -37,7 +37,7 @@ export const ThemeOnboardingModal: React.FC = () => {
 
   const themeBusy = busyKey?.startsWith('theme:') ?? false;
   // Порядок BASE_THEMES — часть UX: классика слева, женская тема справа.
-  const themes = BASE_THEMES;
+  const themes = BASE_THEMES.filter((theme) => !theme.hiddenFromSelection);
 
   const chooseTheme = (theme: BaseThemeConfig) => {
     if (themeBusy) return;
@@ -60,7 +60,7 @@ export const ThemeOnboardingModal: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 18, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
-          className="w-full max-w-lg overflow-hidden rounded-3xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[var(--ui-panel)] shadow-[0_0_55px_rgba(var(--ui-primary-rgb),0.2)]"
+          className="w-full max-w-lg max-h-[90dvh] overflow-y-auto rounded-3xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[var(--ui-panel)] shadow-[0_0_55px_rgba(var(--ui-primary-rgb),0.2)]"
         >
           <div className="border-b border-slate-800/90 bg-gradient-to-r from-[#111c3a] to-[#1d1230] px-4 py-4 text-center sm:px-5">
             <div className="mx-auto mb-2 flex w-fit items-center gap-2 rounded-xl border border-[rgba(var(--ui-primary-rgb),0.35)] bg-black/20 px-3 py-1.5">
@@ -75,7 +75,7 @@ export const ThemeOnboardingModal: React.FC = () => {
               <Sparkles className="h-3.5 w-3.5" /> Первый запуск
             </div>
             <h1 id="theme-onboarding-title" className="font-display text-lg font-extrabold text-white sm:text-xl">
-              Выбери базовую тему терминала
+              Выбери свой стиль
             </h1>
             <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-slate-300">
               Это визуальный стиль игры. Выбор бесплатный и не меняет Data, XP, шанс успеха или награды.
@@ -84,8 +84,8 @@ export const ThemeOnboardingModal: React.FC = () => {
 
           <div className="p-3.5 sm:p-5">
             <div className="mb-2.5 flex items-center justify-between gap-2 text-[10px] text-slate-500">
-              <span>Классика слева</span>
-              <span>Женская тема справа</span>
+              <span>Темы оформления</span>
+              <span>Все бесплатно</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
@@ -98,7 +98,7 @@ export const ThemeOnboardingModal: React.FC = () => {
                     type="button"
                     disabled={themeBusy}
                     onClick={() => chooseTheme(theme)}
-                    className={`group relative min-h-[238px] overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-[255px] sm:p-3 ${
+                    className={`theme-art group relative min-h-[170px] overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-[190px] sm:p-3 ${
                       selecting
                         ? 'border-white ring-2 ring-white/30'
                         : 'border-slate-700/80 hover:border-white/70'
@@ -157,7 +157,7 @@ export const ThemeOnboardingModal: React.FC = () => {
                       <div className="mt-auto pt-3">
                         <div className="flex items-center gap-1.5 font-display text-sm font-extrabold text-white">
                           <Palette className="h-3.5 w-3.5" style={{ color: theme.previewFrom }} />
-                          {theme.key === 'femme' ? 'Женская · Neon Muse' : theme.name}
+                          {theme.key === 'femme' ? 'Женская · Современная' : theme.name}
                         </div>
                         <div className="mt-1 text-[10px] leading-snug text-slate-200/85">
                           {theme.tagline}
@@ -176,7 +176,7 @@ export const ThemeOnboardingModal: React.FC = () => {
             <div className="mt-3 rounded-xl border border-slate-800 bg-[var(--ui-panel-deep)] px-3 py-2.5 text-[10px] leading-relaxed text-slate-400">
               <strong className="text-slate-200">Можно поменять позже:</strong> открой кнопку{' '}
               <span className="font-bold text-[var(--ui-secondary)]">«Скины»</span> в верхней панели и выбери{' '}
-              <span className="font-bold text-slate-200">«Базовая тема»</span>. Обе темы остаются бесплатными.
+              <span className="font-bold text-slate-200">«Базовая тема»</span>. Все темы остаются бесплатными.
             </div>
           </div>
         </motion.div>

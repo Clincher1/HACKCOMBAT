@@ -9,7 +9,8 @@ import React, {
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { CARDS_CONFIG, getCardPrice, getMaxCardLevel } from '../../shared/cards.config';
-import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
+import { syncEnergy } from '../../shared/mechanics';
+import { getManualTapMultiplier } from '../../shared/newYearCandy';
 import type {
   ApiSyncResponse,
   GameAlert,
@@ -21,7 +22,7 @@ import type {
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
-import { resolveEquippedSkins } from '../../shared/skins.config';
+import { resolveEquippedSkins, SKINS_CONFIG } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
 import {
   initTelegramMiniApp,
@@ -73,11 +74,14 @@ interface GameContextValue {
   claimDailyTask: (taskKey: string) => Promise<void>;
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery') => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
+  unequipSkin: (skinKey: string) => Promise<void>;
   buyOrEquipProfileFrame: (frameKey: string) => Promise<void>;
   setInventoryVisibility: (itemKey: string, visible: boolean) => Promise<void>;
+  useNewYearCandy: () => Promise<void>;
   /** Выбранная бесплатная базовая тема (v3.6.1). */
   baseTheme: BaseThemeConfig;
   setBaseTheme: (key: BaseThemeKey) => Promise<void>;
+  setDeskStage: (stage: number | 'auto') => Promise<void>;
   clearHeatLockdown: () => Promise<void>;
   triggerPrestige: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
@@ -175,6 +179,10 @@ const CLICK_QUEUE_LIMIT = 600;
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
   const [player, setPlayer] = useState<PlayerState | null>(null);
+  // React batches simultaneous touch events; reserve energy synchronously so
+  // multiple fingers cannot queue more taps than the displayed available CPU.
+  const tapEnergyRef = useRef(0);
+  tapEnergyRef.current = player?.energy ?? 0;
   // Базовая тема — производная от player.stats.baseTheme (сервер — источник истины).
   const baseTheme = useMemo<BaseThemeConfig>(
     () => getBaseTheme(player?.stats.baseTheme),
@@ -280,7 +288,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsent > 0
           ? {
               ...res.player,
-              data: res.player.data + unsent * res.player.derived.clickPower,
+              data: res.player.data + unsent * res.player.derived.clickPower * getManualTapMultiplier(res.player.newYearCandy, Date.now()),
               energy: Math.max(0, res.player.energy - unsent),
               totalClicks: res.player.totalClicks + unsent,
               // Показатели тап-поручения и сезонной цели тоже двигаются сразу,
@@ -406,6 +414,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (leftover > 0) {
           pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
         }
+        // Do not defer unfunded taps until later regeneration.
+        pendingClicksRef.current = Math.min(pendingClicksRef.current, res.player.energy);
         applyServerSync(res);
       } catch (err) {
         const status = err instanceof ApiError ? err.status : 0;
@@ -490,7 +500,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [retryInit]);
 
   // Живой секундный тик на клиенте: плавный прирост Data/hour, реген Energy по shared-модели и обновление таймеров
-  const energyTickCounter = useRef(0);
   useEffect(() => {
     const interval = window.setInterval(() => {
       // A hidden Telegram WebView is already throttled by the browser. Avoid
@@ -500,13 +509,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const t = Date.now();
       setNowMs(t);
-      energyTickCounter.current += 1;
-
       setPlayer((prev) => {
         if (!prev) return prev;
         const perSec = prev.derived.dataPerHour / 3600;
-        const regenGain = energyTickCounter.current % ENERGY_REGEN_SECONDS === 0 ? 1 : 0;
-        const nextEnergy = Math.min(prev.derived.maxEnergy, prev.energy + regenGain);
+        // Тот же таймер и та же скорость, что на сервере: кофемашина
+        // ускоряет реальный реген, а не только периодическую сверку.
+        const synced = syncEnergy(prev.energy, prev.energyUpdated, prev.derived.maxEnergy, t, prev.derived.energyRegenPerSec);
         const clearedLock =
           prev.clickBlockedUntil && new Date(prev.clickBlockedUntil).getTime() <= t
             ? null
@@ -515,7 +523,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return {
           ...prev,
           data: Math.round((prev.data + perSec) * 10) / 10,
-          energy: nextEnergy,
+          energy: synced.energy,
+          energyUpdated: synced.updatedAtIso,
           clickBlockedUntil: clearedLock,
         };
       });
@@ -542,12 +551,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (pendingClicksRef.current > 0) void flushClicks(true);
         return;
       }
-      // Вернулись после долгой паузы — сразу подтягиваем копилку и показываем «пока вас не было»
-      if (hiddenAtRef.current > 0 && Date.now() - hiddenAtRef.current >= 60_000) {
+      // При возвращении всегда сверяем баланс; окно копилки показываем только
+      // после длительного отсутствия, чтобы короткие переключения не мешали.
+      if (hiddenAtRef.current > 0) {
+        const showOffline = Date.now() - hiddenAtRef.current >= 60_000;
         hiddenAtRef.current = 0;
         void gameApi
           .init()
-          .then((res) => applyServerSync(res, true))
+          .then((res) => applyServerSync(res, showOffline))
           .catch(() => {});
       }
     };
@@ -570,7 +581,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       triggerHapticNotification('error');
       return false;
     }
-    if (player.energy <= 0) {
+    if (tapEnergyRef.current <= 0) {
       triggerHapticNotification('warning');
       return false;
     }
@@ -580,14 +591,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     lastActivityAtRef.current = Date.now();
     idleReportedRef.current = false;
 
+    tapEnergyRef.current -= 1;
     pendingClicksRef.current += 1;
 
     setPlayer((prev) => {
       if (!prev || prev.energy <= 0) return prev;
       return {
         ...prev,
-        data: Math.round((prev.data + prev.derived.clickPower) * 10) / 10,
+        data: Math.round((prev.data + prev.derived.clickPower * getManualTapMultiplier(prev.newYearCandy, Date.now())) * 10) / 10,
         energy: Math.max(0, prev.energy - 1),
+        // На полном заряде отсчёт начинается с момента расхода энергии.
+        energyUpdated: prev.energy >= prev.derived.maxEnergy ? new Date().toISOString() : prev.energyUpdated,
         totalClicks: prev.totalClicks + 1,
         stats: incrementOptimisticTapProgress(prev.stats),
       };
@@ -663,8 +677,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const leftover = clicksToSend - applied;
           if (leftover > 0) {
             pendingClicksRef.current = Math.min(pendingClicksRef.current + leftover, CLICK_QUEUE_LIMIT);
-            scheduleFlush(CLICK_MIN_GAP_MS);
           }
+          pendingClicksRef.current = Math.min(pendingClicksRef.current, res.player.energy);
+          if (pendingClicksRef.current > 0) scheduleFlush(CLICK_MIN_GAP_MS);
           applyServerSync(res);
         } catch (err) {
           if (clicksToSend > 0) {
@@ -853,7 +868,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const buyOrEquipSkin = useCallback(
     (skinKey: string) =>
-      runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('buy_or_equip', skinKey, clicks), true, 'light'),
+      runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('buy_or_equip', skinKey, clicks, SKINS_CONFIG.find((skin) => skin.key === skinKey)?.cryptoCost), true, 'light'),
+    [runAction]
+  );
+
+  const unequipSkin = useCallback(
+    (skinKey: string) =>
+      runAction(`skin:${skinKey}`, (clicks) => gameApi.skinAction('unequip', skinKey, clicks), true, 'light'),
     [runAction]
   );
 
@@ -879,9 +900,26 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const useNewYearCandy = useCallback(() => {
+    // A fresh operation id ensures duplicate delivery of one request is harmless.
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, (v) => v.toString(16).padStart(2, '0')).join('');
+    const requestId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    return runAction('inventory:new-year-candy:use', (clicks) => gameApi.useNewYearCandy(requestId, clicks), true, 'light');
+  }, [runAction]);
+
   const setBaseTheme = useCallback(
     (key: BaseThemeKey) =>
       runAction(`theme:${key}`, (clicks) => gameApi.skinAction('set_theme', key, clicks), true, 'light'),
+    [runAction]
+  );
+
+  const setDeskStage = useCallback(
+    (stage: number | 'auto') =>
+      runAction(`desk-stage:${stage}`, (clicks) => gameApi.skinAction('set_desk_stage', String(stage), clicks), true, 'light'),
     [runAction]
   );
 
@@ -944,6 +982,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--cyber-panel-deep', theme.palette.panelDeep);
     root.setProperty('--theme-vignette', theme.sceneVignette);
     document.body.dataset.theme = theme.key;
+    if (theme.colorScheme === 'light') document.body.dataset.colorScheme = 'light';
+    else delete document.body.dataset.colorScheme;
   }, [player?.stats.baseTheme]);
 
   // v3.6.5: скин интерфейса наконец красит интерфейс.
@@ -956,7 +996,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       equippedSkin: player?.equippedSkin,
       stats: player?.stats,
     });
-    const uiSkin = equipped.ui;
+    // Тема может временно сохранять свою палитру; надетый скин остаётся.
+    const uiSkin = theme.colorScheme === 'light' || theme.overrideUiSkinPalette ? undefined : equipped.ui;
     const root = document.documentElement.style;
     const accent = uiSkin?.uiTokens?.accent ?? theme.palette.cyan;
     const accent2 = uiSkin?.uiTokens?.accent2 ?? theme.palette.magenta;
@@ -971,6 +1012,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--ui-panel-deep', panelDeep);
     root.setProperty('--ui-panel-deep-rgb', hexToRgbTriplet(panelDeep));
     root.setProperty('--ui-text', uiSkin?.uiTokens?.text ?? theme.palette.text);
+    root.setProperty('--ui-text-muted', theme.palette.textMuted);
     if (uiSkin) {
       document.body.dataset.uiSkin = uiSkin.key;
     } else {
@@ -1095,10 +1137,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyTask,
       claimSeasonEvent,
       buyOrEquipSkin,
+      unequipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
+      useNewYearCandy,
       baseTheme,
       setBaseTheme,
+      setDeskStage,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,
@@ -1149,10 +1194,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyTask,
       claimSeasonEvent,
       buyOrEquipSkin,
+      unequipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
+      useNewYearCandy,
       baseTheme,
       setBaseTheme,
+      setDeskStage,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,

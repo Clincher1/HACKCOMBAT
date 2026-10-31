@@ -162,8 +162,35 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
   check('тема не слетела от смены скина', r.player.stats.baseTheme === 'femme', r.player.stats.baseTheme);
   check('скин применился', r.player.equippedSkin === 'default', r.player.equippedSkin);
 
+  // Светлые темы бесплатны, сохраняются между серверными загрузками и не меняют экономику.
+  for (const key of ['light_mist', 'light_sand']) {
+    const before = (await call(TG, 'init')).player;
+    const chosen = await setTheme(TG, key);
+    const after = (await call(TG, 'init')).player;
+    check(`${key}: включается и сохраняется`, chosen.ok && after.stats.baseTheme === key);
+    check(`${key}: балансы и сила тапа не меняются`,
+      before.data === after.data && before.crypto === after.crypto && before.chips === after.chips &&
+      before.derived.clickPower === after.derived.clickPower);
+    check(`${key}: сохранение после повторной смены`, (await setTheme(TG, key)).player?.stats?.baseTheme === key);
+    check(`${key}: светлая тема и нет замены эволюции стола`,
+      themes.getBaseTheme(key).colorScheme === 'light' && themes.getThemeScene(themes.getBaseTheme(key), 1) === undefined);
+  }
+  res = await setTheme(TG, 'classic');
+  check('из светлой темы можно вернуться к классике', res.ok && (await call(TG, 'init')).player.stats.baseTheme === 'classic');
+
   // ── 6. Чистая функция композиции фильтра ─────────────────────────────────
-  check('в конфиге две темы', themes.BASE_THEMES.length === 2, themes.BASE_THEMES.length);
+  check('конфиг сохраняет прежние темы и добавляет новогоднюю', themes.BASE_THEMES.length === 5 && themes.getBaseTheme('new_year').key === 'new_year', themes.BASE_THEMES.length);
+  check('светлые темы скрыты из выбора, но сохранены', ['light_mist','light_sand'].every(key => themes.getBaseTheme(key).hiddenFromSelection === true));
+  check('новогодняя тема доступна и бесплатна', !themes.getBaseTheme('new_year').hiddenFromSelection && themes.getBaseTheme('new_year').free);
+  const beforeHoliday = (await call(TG, 'init')).player;
+  const chosenHoliday = await setTheme(TG, 'new_year');
+  const afterHoliday = (await call(TG, 'init')).player;
+  check('новогодняя тема включается и сохраняется', chosenHoliday.ok && afterHoliday.stats.baseTheme === 'new_year');
+  check('новогодняя тема не меняет экономику и экипировку', beforeHoliday.data === afterHoliday.data && beforeHoliday.crypto === afterHoliday.crypto && beforeHoliday.chips === afterHoliday.chips && beforeHoliday.derived.clickPower === afterHoliday.derived.clickPower && beforeHoliday.stats.equippedUi === afterHoliday.stats.equippedUi && beforeHoliday.equippedSkin === afterHoliday.equippedSkin);
+  check('новогодняя тема не заменяет сцены эволюции', themes.getThemeScene(themes.getBaseTheme('new_year'), 1) === undefined);
+  check('новогодняя тема сохраняет свою палитру при надетом UI-скине', themes.getBaseTheme('new_year').overrideUiSkinPalette === true);
+  for (const asset of ['preview.svg', 'ornaments.svg']) check(`праздничный ассет ${asset} включён в сборку`, fs.existsSync(path.join(REPO, 'dist/assets/themes/new-year', asset)));
+  check('после праздника можно вернуться к прежней теме', (await setTheme(TG, 'femme')).player?.stats?.baseTheme === 'femme');
   check('обе темы бесплатные', themes.BASE_THEMES.every((t) => t.free === true));
   check(
     'у тем нет поля бонуса к тапу (чистая косметика)',
@@ -205,7 +232,8 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
     femme.ui.radiusBoost > classic.ui.radiusBoost,
     `${classic.ui.radiusBoost} → ${femme.ui.radiusBoost}`
   );
-  check('ушки на кнопке HACK только у женской', femme.ui.catEars === true && classic.ui.catEars === false);
+  // Realistic redesign intentionally removes decorative cat ears from both themes.
+  check('в реалистичном оформлении обе темы без декоративных ушек', femme.ui.catEars === false && classic.ui.catEars === false);
   check(
     'градиент кнопки берётся из темы и различается',
     femme.ui.buttonGradient.join() !== classic.ui.buttonGradient.join(),

@@ -1,3 +1,4 @@
+import { NEW_YEAR_CANDY_KEY } from './newYearCandy';
 import { ACHIEVEMENTS_BY_KEY } from './achievements.config';
 import { getProfileFrame } from './profileFrames.config';
 import { PETS_CONFIG } from './pets.config';
@@ -6,6 +7,8 @@ import type { InventoryItemDefinition } from './types';
 
 /** Первый постоянный приз профиля. Он намеренно не имеет игрового эффекта. */
 export const FIRST_DONUT_ITEM_KEY = 'reward:first_donut';
+/** Памятный коллекционный подарок всем игрокам, без игрового эффекта. */
+export const GIFT_PYTHON_BOOK_ITEM_KEY = 'reward:gift_python_book';
 
 /** Постоянные персональные подарки: только показать или скрыть, без игровых эффектов. */
 export const GIFT_COLA_ITEM_KEY = 'reward:gift_cola';
@@ -13,6 +16,18 @@ export const GIFT_WHISKEY_ITEM_KEY = 'reward:gift_whiskey';
 export const GIFT_SNUS_ITEM_KEY = 'reward:gift_snus';
 
 const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
+  [NEW_YEAR_CANDY_KEY]: {
+    key: NEW_YEAR_CANDY_KEY,
+    kind: 'reward',
+    name: 'Новогодний леденец',
+    description: 'Три укуса: каждый даёт ×2 Data за ручные тапы на час. Укусы продлевают время.',
+    icon: '🍬',
+    source: 'Подарок всем игрокам',
+    inventoryCategory: 'gift',
+    accent: '#fb7185',
+    usable: true,
+    equipAction: null,
+  },
   [FIRST_DONUT_ITEM_KEY]: {
     key: FIRST_DONUT_ITEM_KEY,
     kind: 'reward',
@@ -20,7 +35,21 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     description: 'Памятный первый приз профиля. Его можно только выставить или скрыть.',
     icon: '🍩',
     source: 'Подарок всем игрокам',
+    inventoryCategory: 'prize',
     accent: '#f9a8d4',
+    usable: false,
+    equipAction: null,
+  },
+  [GIFT_PYTHON_BOOK_ITEM_KEY]: {
+    key: GIFT_PYTHON_BOOK_ITEM_KEY,
+    kind: 'reward',
+    name: 'Учебник по Python',
+    description: 'Памятный подарок всем игрокам. Выставь его в витрине, чтобы показать другим.',
+    icon: '📘',
+    imageUrl: '/assets/inventory/python-book.svg',
+    source: 'Подарок всем игрокам',
+    inventoryCategory: 'gift',
+    accent: '#60a5fa',
     usable: false,
     equipAction: null,
   },
@@ -31,6 +60,7 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
     icon: '🥤',
     source: 'Персональный подарок',
+    inventoryCategory: 'gift',
     accent: '#60a5fa',
     usable: false,
     equipAction: null,
@@ -42,6 +72,7 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
     icon: '🥃',
     source: 'Персональный подарок',
+    inventoryCategory: 'gift',
     accent: '#f59e0b',
     usable: false,
     equipAction: null,
@@ -52,7 +83,9 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     name: 'Шайба снюса',
     description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
     icon: '🟤',
+    imageUrl: '/assets/inventory/snus-packed.jpg',
     source: 'Персональный подарок',
+    inventoryCategory: 'gift',
     accent: '#a3a3a3',
     usable: false,
     equipAction: null,
@@ -113,7 +146,8 @@ export function getInventoryItemDefinition(key: string): InventoryItemDefinition
       name: achievement.title,
       description: achievement.description,
       icon: achievement.icon,
-      source: 'Награда за достижение',
+      source: achievement.inventoryEventReward ? 'Достижение события' : 'Награда за достижение',
+      inventoryCategory: achievement.inventoryEventReward ? 'event' : undefined,
       accent:
         achievement.rarity === 'legendary'
           ? '#ffb703'
@@ -148,4 +182,10 @@ export function getInventoryItemDefinition(key: string): InventoryItemDefinition
 
 export function isInventoryItemKey(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 120 && Boolean(getInventoryItemDefinition(value));
+}
+
+/** Only explicitly classified prizes and event achievements belong in the inventory. */
+export function isCollectibleInventoryItem(key: string): boolean {
+  const item = getInventoryItemDefinition(key);
+  return Boolean(item?.inventoryCategory && (item.kind === 'reward' || item.kind === 'achievement'));
 }

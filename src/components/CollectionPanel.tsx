@@ -107,7 +107,7 @@ export const CollectionPanel: React.FC = () => {
         icon: theme.glyph,
         unlocked: true,
         status: active ? 'Активна' : 'Бесплатно',
-        reward: active ? 'Надето сейчас' : 'Можно включить в настройках темы',
+        reward: active ? 'Надето сейчас' : theme.hiddenFromSelection ? 'Тема скрыта из выбора' : 'Можно включить в настройках темы',
         source: 'Бесплатная тема оформления',
         accent: theme.previewFrom,
       };
@@ -366,7 +366,7 @@ export const CollectionPanel: React.FC = () => {
                   <div className="flex items-center gap-1 shrink-0">
                     {item.rarity && !lockedSecret && (
                       <span
-                        className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/20"
+                        className="theme-accent-text text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/20"
                         style={{ color: item.rarityColor }}
                       >
                         {item.rarity}

@@ -146,7 +146,7 @@ export const AchievementsPanel: React.FC = () => {
                     </span>
                   ) : (
                     <span
-                      className="text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded"
+                      className="theme-accent-text text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded"
                       style={{ color: meta.color, backgroundColor: `${meta.color}15` }}
                     >
                       {hidden ? 'СЕКРЕТ' : meta.label}
@@ -159,7 +159,7 @@ export const AchievementsPanel: React.FC = () => {
                     : ach.description}
                 </p>
                 {unlocked && (
-                  <div className="text-[9px] font-bold mt-1 uppercase tracking-wide" style={{ color: meta.color }}>
+                  <div className="theme-accent-text text-[9px] font-bold mt-1 uppercase tracking-wide" style={{ color: meta.color }}>
                     ✓ Получено
                   </div>
                 )}

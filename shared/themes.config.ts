@@ -3,10 +3,10 @@
 // ----------------------------------------------------------------------------
 // Тема — это фундамент интерфейса: палитра, фон сцены, свечение И форма
 // (радиусы, ушки на кнопке, цвет «плюсов»), поверх которого накладываются
-// обычные скины (они остаются платными и с бонусами к тапу).
+// обычные скины (они остаются платными и меняют только внешний вид).
 //
-// Обе темы БЕСПЛАТНЫ и НЕ ДАЮТ бонусов к клику: это чистая косметика, чтобы
-// выбор «классика / женская» не превращался в pay-to-win.
+// Все темы БЕСПЛАТНЫ и НЕ ДАЮТ бонусов к клику: это чистая косметика.
+// Старые скрытые темы сохраняются для совместимости с выбором игроков.
 //
 // Почему отдельный слой, а не ещё один SkinConfig:
 //   скин поверх темы задаёт hue-rotate, и если у базы уже своя палитра,
@@ -14,14 +14,20 @@
 //   поправка, которая компенсирует базу и возвращает скину его задуманный вид.
 // ============================================================================
 
-export type BaseThemeKey = 'classic' | 'femme';
+export type BaseThemeKey = 'classic' | 'femme' | 'light_mist' | 'light_sand' | 'new_year';
 
 export interface BaseThemeConfig {
   key: BaseThemeKey;
   name: string;
   tagline: string;
-  /** Бесплатна ли тема (обе бесплатные — поле на будущее, если появятся платные). */
+  /** Бесплатна ли тема (поле на будущее, если появятся платные). */
   free: boolean;
+  /** Светлая схема интерфейса (существующие тёмные темы не меняются). */
+  colorScheme?: 'light';
+  /** Прятать тему из выбора, сохраняя существующий выбор на сервере. */
+  hiddenFromSelection?: boolean;
+  /** Использовать палитру темы, временно не перекрашивая её UI-скином. */
+  overrideUiSkinPalette?: boolean;
   /** Глиф для превью-карточки в модалке скинов. */
   glyph: string;
   /** Цвета превью (градиент карточки). */
@@ -76,53 +82,54 @@ export const BASE_THEMES: BaseThemeConfig[] = [
   {
     key: 'classic',
     name: 'Классика',
-    tagline: 'Тот самый кибер-неон: циан, маджента и ночной мегаполис.',
+    tagline: 'Реалистичный терминал, городской вид и живой свет.',
+    previewImage: '/assets/visual-demo/classic-01-day.webp',
     free: true,
     glyph: '🕶️',
-    previewFrom: '#00f0ff',
-    previewTo: '#ff00a0',
+    previewFrom: '#b9c9ce',
+    previewTo: '#c9ae8e',
     palette: {
-      cyan: '#00f0ff',
-      magenta: '#ff00a0',
-      green: '#7dff00',
-      purple: '#c084fc',
-      panel: '#10172e',
-      panelDeep: '#0a0e1a',
-      bg: '#0a0e1a',
+      cyan: '#b9c9ce',
+      magenta: '#c9ae8e',
+      green: '#a7c4aa',
+      purple: '#b4b5c6',
+      panel: '#272d31',
+      panelDeep: '#171c20',
+      bg: '#171c20',
       text: '#ffffff',
-      textMuted: '#94a3b8',
+      textMuted: '#abb5b9',
     },
-    sceneVignette: 'rgba(0, 240, 255, 0.10)',
+    sceneVignette: 'rgba(122, 137, 144, 0.05)',
     ui: {
       radiusBoost: 0,
       catEars: false,
-      buttonGradient: ['#00f0ff', '#ff00a0'],
-      successHex: '#7dff00',
+      buttonGradient: ['#b9c9ce', '#c9ae8e'],
+      successHex: '#a7c4aa',
     },
     themeOffset: 0,
   },
   {
     key: 'femme',
-    name: 'Neon Muse',
-    tagline: 'Розово-лавандовый неон, тёплая комнатная подсветка и Муза за столом.',
+    name: 'Современная',
+    tagline: 'Тёплые материалы, мягкий свет и спокойные оттенки.',
     free: true,
     glyph: '🌸',
-    previewFrom: '#ff6fb5',
-    previewTo: '#b06bff',
+    previewFrom: '#e0c0ba',
+    previewTo: '#c9a89a',
     palette: {
-      cyan: '#ff6fb5', // основной акцент темы (кнопки, рамки, свечение)
-      magenta: '#b06bff',
-      green: '#7cf5c8', // «денёк» — мягкий мятный вместо кислотного лайма
-      purple: '#e0a7ff',
-      panel: '#171029',
-      panelDeep: '#0d0918',
-      bg: '#0d0918',
+      cyan: '#e0c0ba', // основной акцент темы (кнопки, рамки, свечение)
+      magenta: '#c9a89a',
+      green: '#aac5ac', // «денёк» — мягкий мятный вместо кислотного лайма
+      purple: '#cfbbbc',
+      panel: '#3a3030',
+      panelDeep: '#211b1c',
+      bg: '#211b1c',
       text: '#ffffff',
-      textMuted: '#b8a8cc',
+      textMuted: '#c9b9b3',
     },
-    sceneVignette: 'rgba(255, 111, 181, 0.14)',
+    sceneVignette: 'rgba(166, 132, 119, 0.06)',
     sceneUrl: '/assets/themes/femme/stage-01.webp',
-    previewImage: '/assets/themes/femme/stage-01.webp',
+    previewImage: '/assets/visual-demo/femme-01-day.webp',
     stageScenes: {
       '1': '/assets/themes/femme/stage-01.webp',
       '5': '/assets/themes/femme/stage-05.webp',
@@ -134,12 +141,69 @@ export const BASE_THEMES: BaseThemeConfig[] = [
     },
     ui: {
       radiusBoost: 6,
-      catEars: true,
-      buttonGradient: ['#ff8cc6', '#b06bff'],
-      successHex: '#7cf5c8',
+      catEars: false,
+      buttonGradient: ['#e0c0ba', '#c9a89a'],
+      successHex: '#aac5ac',
     },
     // База уже смещена в розово-фиолетовый диапазон; при появлении платных
     // тем-баз здесь будет компенсация, чтобы скины не уезжали.
+    themeOffset: 0,
+  },
+  {
+    key: 'new_year',
+    name: 'Новогодний интерфейс',
+    tagline: 'Зимний неон, хвоя и ёлочные игрушки над рабочим столом.',
+    free: true,
+    overrideUiSkinPalette: true,
+    glyph: '🎄',
+    previewFrom: '#5de0ba',
+    previewTo: '#f4c96b',
+    previewImage: '/assets/themes/new-year/preview.svg',
+    palette: {
+      cyan: '#73e5c2', magenta: '#ffc676', green: '#8ae5a4', purple: '#e8a2a9',
+      panel: '#10271f', panelDeep: '#091c17', bg: '#081b17',
+      text: '#f4fff8', textMuted: '#a6c8b8',
+    },
+    sceneVignette: 'rgba(68, 212, 150, 0.16)',
+    ui: { radiusBoost: 2, catEars: false, buttonGradient: ['#6be2b3', '#f5c56b'], successHex: '#8ae5a4' },
+    themeOffset: 0,
+  },
+  {
+    key: 'light_mist',
+    hiddenFromSelection: true,
+    name: 'Тихий свет',
+    tagline: 'Прохладный светлый интерфейс без резкого неона.',
+    free: true,
+    colorScheme: 'light',
+    glyph: '☁️',
+    previewFrom: '#477b89',
+    previewTo: '#7785ad',
+    palette: {
+      cyan: '#245f70', magenta: '#71518d', green: '#296d53', purple: '#674991',
+      panel: '#f5f7f8', panelDeep: '#e6edf0', bg: '#edf2f4',
+      text: '#1c3340', textMuted: '#526976',
+    },
+    sceneVignette: 'rgba(95, 150, 175, 0.08)',
+    ui: { radiusBoost: 2, catEars: false, buttonGradient: ['#b8d4db', '#cfcae2'], successHex: '#296d53' },
+    themeOffset: 0,
+  },
+  {
+    key: 'light_sand',
+    hiddenFromSelection: true,
+    name: 'Тёплый свет',
+    tagline: 'Мягкие песочные оттенки и спокойные тёплые акценты.',
+    free: true,
+    colorScheme: 'light',
+    glyph: '☀️',
+    previewFrom: '#a87955',
+    previewTo: '#a56d7c',
+    palette: {
+      cyan: '#805332', magenta: '#88485f', green: '#42683f', purple: '#755782',
+      panel: '#faf6ee', panelDeep: '#ece4d6', bg: '#f3ede2',
+      text: '#3d3028', textMuted: '#716052',
+    },
+    sceneVignette: 'rgba(185, 139, 95, 0.07)',
+    ui: { radiusBoost: 2, catEars: false, buttonGradient: ['#e2c8aa', '#d7b9bc'], successHex: '#42683f' },
     themeOffset: 0,
   },
 ];

@@ -9,7 +9,7 @@ import {
   type ApiResponse,
 } from '../_lib/http';
 
-const ALLOWED_SKIN_ACTIONS = new Set(['buy_or_equip', 'clear_lockdown', 'set_theme', 'profile_frame']);
+const ALLOWED_SKIN_ACTIONS = new Set(['buy_or_equip', 'unequip', 'clear_lockdown', 'set_theme', 'profile_frame', 'set_desk_stage']);
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
@@ -18,9 +18,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
   try {
     const body = await readJsonBody<{
-      action?: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame';
+      action?: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage';
       skinKey?: string;
       clicks?: number;
+      expectedPrice?: number;
       initData?: string;
     }>(req);
     const user = authenticateRequest(req, body);
@@ -32,7 +33,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       user,
       action,
       typeof body.skinKey === 'string' ? body.skinKey.slice(0, 64) : undefined,
-      sanitizeClicks(body.clicks)
+      sanitizeClicks(body.clicks),
+      typeof body.expectedPrice === 'number' && Number.isSafeInteger(body.expectedPrice) ? body.expectedPrice : undefined
     );
     return sendJson(res, 200, result);
   } catch (err) {

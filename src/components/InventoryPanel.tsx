@@ -1,166 +1,117 @@
-import { Check, Eye, EyeOff, Lock, Sparkles } from 'lucide-react';
+import { Backpack, Eye, EyeOff } from 'lucide-react';
 import React, { useMemo } from 'react';
-import { getInventoryItemDefinition } from '../../shared/inventory.config';
+import { getInventoryItemDefinition, isCollectibleInventoryItem } from '../../shared/inventory.config';
+import { NEW_YEAR_CANDY_KEY, NEW_YEAR_CANDY_MAX_USES } from '../../shared/newYearCandy';
+import type { InventoryCategory, InventoryItemDefinition } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 
-function isEquipped(player: NonNullable<ReturnType<typeof useGame>['player']>, itemKey: string): boolean {
-  const item = getInventoryItemDefinition(itemKey);
-  if (!item?.equipKey) return false;
-  return (
-    player.stats.equippedProfileFrame === item.equipKey ||
-    player.equippedSkin === item.equipKey ||
-    player.stats.equippedUi === item.equipKey ||
-    player.stats.equippedAvatar === item.equipKey
-  );
-}
+const CATEGORIES: { key: InventoryCategory; label: string; description: string }[] = [
+  { key: 'event', label: 'События', description: 'Достижения и награды событий' },
+  { key: 'prize', label: 'Призы', description: 'Памятные и выигранные предметы' },
+  { key: 'gift', label: 'Подарки', description: 'Общие и персональные подарки' },
+];
 
-/** Постоянный инвентарь профиля: сервер возвращает owned/showcase, UI только управляет ими. */
+/** Only server-owned collectibles are displayed; cosmetics remain in Cyber-Cosmetics. */
 export const InventoryPanel: React.FC = () => {
-  const {
-    player,
-    busyKey,
-    setInventoryVisibility,
-    buyOrEquipProfileFrame,
-    buyOrEquipSkin,
-  } = useGame();
-
-  const items = useMemo(
-    () =>
-      (player?.inventory.ownedKeys ?? [])
-        .map((key) => getInventoryItemDefinition(key))
-        .filter((item): item is NonNullable<typeof item> => item !== null),
-    [player?.inventory.ownedKeys]
-  );
+  const { player, busyKey, setInventoryVisibility, useNewYearCandy, nowMs } = useGame();
+  const groups = useMemo(() => {
+    const items = (player?.inventory.ownedKeys ?? [])
+      .filter(isCollectibleInventoryItem)
+      .map(getInventoryItemDefinition)
+      .filter((item): item is InventoryItemDefinition => item !== null)
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru') || a.key.localeCompare(b.key));
+    return CATEGORIES.map((category) => ({
+      ...category,
+      items: items.filter((item) => item.inventoryCategory === category.key),
+    })).filter((category) => category.items.length > 0);
+  }, [player?.inventory.ownedKeys]);
 
   if (!player) return null;
 
   const showcase = new Set(player.inventory.showcaseKeys);
-
-  const equip = (item: NonNullable<ReturnType<typeof getInventoryItemDefinition>>) => {
-    if (!item.equipKey || item.equipAction === null) return;
-    if (item.equipAction === 'profile_frame') {
-      void buyOrEquipProfileFrame(item.equipKey);
-    } else {
-      void buyOrEquipSkin(item.equipKey);
-    }
-  };
+  const total = groups.reduce((count, group) => count + group.items.length, 0);
+  const shown = groups.reduce((count, group) => count + group.items.filter((item) => showcase.has(item.key)).length, 0);
 
   return (
-    <section className="space-y-3" aria-labelledby="inventory-title">
+    <section className="space-y-4 pb-6" aria-labelledby="inventory-title">
       <div className="rounded-2xl border border-[var(--ui-primary)]/35 bg-[var(--ui-panel)] p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[var(--ui-primary)]" />
-              <h2 id="inventory-title" className="font-display text-sm font-extrabold text-white">
-                Инвентарь профиля
-              </h2>
+              <Backpack className="h-5 w-5 text-[var(--ui-primary)]" />
+              <h1 id="inventory-title" className="font-display text-base font-extrabold text-white">Инвентарь</h1>
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
-              Здесь навсегда остаются полученные рамки, награды и будущие призы. Открой глаз у предмета,
-              чтобы добавить его в публичную витрину.
+              Здесь хранятся награды событий, призы и подарки. Выстави предмет, чтобы его увидели другие игроки.
+              Рамки и другая косметика находятся в «Кибер-Косметике».
             </p>
           </div>
           <div className="shrink-0 rounded-lg border border-[var(--ui-primary)]/30 bg-black/20 px-2 py-1 text-right text-[10px] font-bold text-[var(--ui-primary)]">
-            <div>{items.length} предметов</div>
-            <div className="text-slate-400">{showcase.size} открыто</div>
+            <div>{total} предметов</div>
+            <div className="text-slate-400">{shown} выставлено</div>
           </div>
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {total === 0 ? (
         <div className="rounded-2xl border border-slate-800 bg-[#10172e] p-5 text-center text-xs text-slate-400">
-          Инвентарь синхронизируется…
+          Пока здесь пусто. Предметы появятся после получения призов и подарков.
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-          {items.map((item) => {
-            const isPublic = showcase.has(item.key);
-            const equipped = isEquipped(player, item.key);
-            const visibilityKey = `inventory:${item.key}:${isPublic ? 'hide' : 'show'}`;
-            const equipKey = item.equipKey
-              ? item.equipAction === 'profile_frame'
-                ? `profile-frame:${item.equipKey}`
-                : `skin:${item.equipKey}`
-              : '';
-            const visibilityBusy = busyKey === visibilityKey;
-            const equipBusy = equipKey !== '' && busyKey === equipKey;
-
-            return (
-              <article
-                key={item.key}
-                className={`relative flex min-h-[190px] flex-col overflow-hidden rounded-2xl border bg-[#10172e] p-2.5 transition ${
-                  isPublic ? 'border-[var(--ui-primary)]/70 shadow-[0_0_18px_rgba(var(--ui-primary-rgb),0.12)]' : 'border-slate-800'
-                }`}
-              >
-                <button
-                  type="button"
-                  aria-label={isPublic ? `Скрыть ${item.name} из витрины` : `Выставить ${item.name}`}
-                  aria-pressed={isPublic}
-                  disabled={visibilityBusy}
-                  onClick={() => void setInventoryVisibility(item.key, !isPublic)}
-                  className={`absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg border transition cursor-pointer disabled:cursor-wait disabled:opacity-60 ${
-                    isPublic
-                      ? 'border-[var(--ui-primary)] bg-[rgba(var(--ui-primary-rgb),0.22)] text-[var(--ui-primary)]'
-                      : 'border-slate-700 bg-[#0a0e1a]/90 text-slate-500 hover:border-slate-500 hover:text-slate-200'
-                  }`}
-                  title={isPublic ? 'Убрать из публичной витрины' : 'Выставить в публичную витрину'}
-                >
-                  {isPublic ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-
-                <div
-                  className="mt-0.5 flex h-20 items-center justify-center rounded-xl border bg-black/20 text-4xl"
-                  style={{ borderColor: `${item.accent}66`, boxShadow: `inset 0 0 20px ${item.accent}12` }}
-                >
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt="" loading="lazy" className="h-16 w-16 object-contain" />
-                  ) : (
-                    <span aria-hidden="true">{item.icon}</span>
-                  )}
-                </div>
-
-                <div className="mt-2 min-w-0 flex-1">
-                  <div className="truncate text-xs font-extrabold text-white" title={item.name}>
-                    {item.name}
+      ) : groups.map((group) => (
+        <section key={group.key} aria-labelledby={`inventory-${group.key}`} className="space-y-2">
+          <div>
+            <h2 id={`inventory-${group.key}`} className="text-xs font-extrabold text-white">{group.label} <span className="text-slate-500">· {group.items.length}</span></h2>
+            <p className="text-[10px] text-slate-500">{group.description}</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+            {group.items.map((item) => {
+              const isPublic = showcase.has(item.key);
+              const visibilityBusy = busyKey === `inventory:${item.key}:${isPublic ? 'hide' : 'show'}`;
+              return (
+                <article key={item.key} className={`flex min-h-[190px] flex-col overflow-hidden rounded-2xl border bg-[#10172e] p-2.5 ${isPublic ? 'border-[var(--ui-primary)]/70 shadow-[0_0_18px_rgba(var(--ui-primary-rgb),0.12)]' : 'border-slate-800'}`}>
+                  <div className="flex h-20 items-center justify-center overflow-hidden rounded-xl border bg-black/20 text-4xl" style={{ borderColor: `${item.accent}66`, boxShadow: `inset 0 0 20px ${item.accent}12` }}>
+                    {item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" className="h-full w-full object-contain" /> : <span aria-hidden="true">{item.icon}</span>}
                   </div>
-                  <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ color: item.accent }}>
-                    {item.kind === 'reward' ? 'Памятный приз' : item.kind === 'frame' ? 'Рамка профиля' : item.kind === 'skin' ? 'Косметика' : item.kind === 'achievement' ? 'Достижение' : 'Союзник'}
+                  <div className="mt-2 min-w-0 flex-1">
+                    <div className="text-xs font-extrabold text-white" title={item.name}>{item.name}</div>
+                    <div className="theme-accent-text mt-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ color: item.accent }}>{item.source}</div>
+                    <p className="mt-1 text-[10px] leading-relaxed text-slate-400">{item.description}</p>
                   </div>
-                  <p className="mt-1 line-clamp-2 min-h-[25px] text-[10px] leading-relaxed text-slate-400">
-                    {item.description}
-                  </p>
-                </div>
-
-                <div className="mt-2 space-y-1.5">
-                  {item.usable && item.equipAction !== null && item.equipKey ? (
-                    <button
-                      type="button"
-                      disabled={equipped || equipBusy || visibilityBusy}
-                      onClick={() => equip(item)}
-                      className={`flex w-full items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer disabled:cursor-not-allowed ${
-                        equipped
-                          ? 'border border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-                          : 'bg-[var(--ui-primary)] text-[#061018] hover:brightness-110'
-                      }`}
-                    >
-                      {equipped ? <Check className="h-3 w-3" /> : null}
-                      {equipBusy ? 'Надевание…' : equipped ? 'Надето' : 'Одеть'}
-                    </button>
-                  ) : (
-                    <div className="flex items-center justify-center gap-1 rounded-lg border border-slate-800 bg-[#0a0e1a] px-2 py-1.5 text-[10px] font-bold text-slate-500">
-                      <Lock className="h-3 w-3" /> Только показать
-                    </div>
-                  )}
-                  <div className={`text-center text-[9px] font-bold ${isPublic ? 'text-[var(--ui-primary)]' : 'text-slate-600'}`}>
-                    {isPublic ? 'Открыто другим игрокам' : 'Скрыто от других игроков'}
+                  {item.key === NEW_YEAR_CANDY_KEY && (() => {
+                    const candy = player.newYearCandy;
+                    const active = candy.boostUntil && Date.parse(candy.boostUntil) > nowMs;
+                    const seconds = active ? Math.ceil((Date.parse(candy.boostUntil!) - nowMs) / 1000) : 0;
+                    const time = `${Math.floor(seconds / 3600)} ч ${String(Math.floor((seconds % 3600) / 60)).padStart(2, '0')} мин`;
+                    return <div className="mt-2 space-y-1">
+                      <div className="text-center text-[10px] font-bold text-rose-200">Осталось укусов: {candy.usesRemaining}/{NEW_YEAR_CANDY_MAX_USES}</div>
+                      {active && <div className="text-center text-[10px] font-bold text-emerald-300">×2 на тапы ещё {time}</div>}
+                      <button type="button" onClick={() => void useNewYearCandy()}
+                        disabled={candy.usesRemaining <= 0 || busyKey === 'inventory:new-year-candy:use'}
+                        className="w-full rounded-lg bg-rose-500 px-2 py-2 text-[11px] font-extrabold text-white disabled:opacity-50 disabled:cursor-not-allowed">
+                        {busyKey === 'inventory:new-year-candy:use' ? 'Сохраняем…' : candy.usesRemaining > 0 ? '🍬 Откусить · ×2 на 1 час' : 'Леденец съеден'}
+                      </button>
+                    </div>;
+                  })()}
+                  <button
+                    type="button"
+                    aria-label={isPublic ? `Скрыть ${item.name} из витрины` : `Выставить ${item.name} в витрину`}
+                    aria-pressed={isPublic}
+                    disabled={visibilityBusy}
+                    onClick={() => void setInventoryVisibility(item.key, !isPublic)}
+                    className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer disabled:cursor-wait disabled:opacity-60 ${isPublic ? 'border-[var(--ui-primary)]/50 bg-[rgba(var(--ui-primary-rgb),0.12)] text-[var(--ui-primary)]' : 'border-slate-700 bg-[#0a0e1a] text-slate-300 hover:border-[var(--ui-primary)]'}`}
+                  >
+                    {isPublic ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    {visibilityBusy ? 'Сохранение…' : isPublic ? 'Скрыть' : 'Выставить'}
+                  </button>
+                  <div className={`mt-1 text-center text-[9px] font-bold ${isPublic ? 'text-[var(--ui-primary)]' : 'text-slate-500'}`}>
+                    {isPublic ? 'Видно другим игрокам' : 'Скрыто от других игроков'}
                   </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      ))}
     </section>
   );
 };

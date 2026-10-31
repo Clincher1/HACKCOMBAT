@@ -1,4 +1,6 @@
+import { isDeskStage } from '../../shared/deskStage';
 import crypto from 'node:crypto';
+import { NEW_YEAR_CANDY_KEY, NEW_YEAR_CANDY_MAX_USES, NEW_YEAR_CANDY_DURATION_MS, getManualTapMultiplier, type NewYearCandyState } from '../../shared/newYearCandy';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
@@ -70,7 +72,9 @@ import {
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
   FIRST_DONUT_ITEM_KEY,
+  GIFT_PYTHON_BOOK_ITEM_KEY,
   getInventoryItemDefinition,
+  isCollectibleInventoryItem,
 } from '../../shared/inventory.config';
 import {
   ACTIVE_SEASON_EVENT,
@@ -149,6 +153,8 @@ export interface StoredPlayerRecord {
   pets: StoredPet[];
   baseUpgrades: Record<string, number>;
   stats: PlayerProgressStats;
+  newYearCandy: NewYearCandyState;
+  candyRequestIds?: string[]; // local demo idempotency only
   activeMissions: ActiveMissionInstance[];
   availableMissionKeys: string[];
   missionsRefreshedAt: string;
@@ -185,7 +191,7 @@ const EMPTY_STATS: PlayerProgressStats = {
   missionRefreshSalt: 0,
   lastMissionRefreshAt: null,
   equippedProfileFrameExpiresAt: null,
-  inventoryOwned: [FIRST_DONUT_ITEM_KEY],
+  inventoryOwned: [FIRST_DONUT_ITEM_KEY, GIFT_PYTHON_BOOK_ITEM_KEY],
   inventoryShowcase: [],
   lastQualifiedDayKey: null,
   lastActiveAt: null,
@@ -413,7 +419,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     ).slice(0, max);
   };
   const inventoryOwned = Array.from(
-    new Set([FIRST_DONUT_ITEM_KEY, ...keyArr(src.inventoryOwned)])
+    new Set([FIRST_DONUT_ITEM_KEY, GIFT_PYTHON_BOOK_ITEM_KEY, ...keyArr(src.inventoryOwned)])
   );
   const inventoryShowcase = keyArr(src.inventoryShowcase);
   const seasonEvent = normalizeSeasonEventState(src.seasonEvent);
@@ -498,6 +504,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     equippedProfileFrameExpiresAt: temporaryFrameActive ? temporaryFrameExpiry : null,
     inventoryOwned,
     inventoryShowcase,
+    onlinePassiveRemainder: typeof src.onlinePassiveRemainder === 'number' && Number.isFinite(src.onlinePassiveRemainder)
+      ? Math.max(0, Math.min(0.009999999, src.onlinePassiveRemainder))
+      : 0,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
     chipsDayKey: typeof src.chipsDayKey === 'string' ? src.chipsDayKey.slice(0, 10) : null,
     chipsToday: num(src.chipsToday, 100_000),
@@ -509,7 +518,10 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         ? src.lastMissionRefreshAt
         : null,
     baseTheme:
-      src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
+      typeof src.baseTheme === 'string' && BASE_THEMES.some((theme) => theme.key === src.baseTheme)
+        ? src.baseTheme
+        : undefined,
+    deskStagePreference: isDeskStage(src.deskStagePreference) ? src.deskStagePreference : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
     // категории — мусор из jsonb не должен попадать в экипировку.
     equippedUi: pickSkinKey(src.equippedUi, 'ui'),
@@ -535,16 +547,13 @@ interface InventoryRecordLike {
 function getInventoryOwnedKeys(record: InventoryRecordLike): string[] {
   const keys = new Set<string>([
     FIRST_DONUT_ITEM_KEY,
-    ...(record.stats.inventoryOwned ?? []),
-    ...(record.stats.unlockedProfileFrames ?? []).map((key) => `frame:${key}`),
-    ...record.unlockedSkins
-      .filter((key) => key !== 'default')
-      .map((key) => `skin:${key}`),
+    GIFT_PYTHON_BOOK_ITEM_KEY,
+    NEW_YEAR_CANDY_KEY,
+    ...(record.stats.inventoryOwned ?? []).filter((key) => getInventoryItemDefinition(key)?.kind === 'reward'),
     ...record.achievements.map((key) => `achievement:${key}`),
-    ...record.pets.map((pet) => `companion:${pet.key}`),
   ]);
 
-  return Array.from(keys).filter((key) => Boolean(getInventoryItemDefinition(key)));
+  return Array.from(keys).filter(isCollectibleInventoryItem);
 }
 
 function isInventoryItemEquipped(record: InventoryRecordLike, itemKey: string): boolean {
@@ -1030,6 +1039,7 @@ function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
     pets: [],
     baseUpgrades: {},
     stats: { ...EMPTY_STATS, tutorialTabs: [], tabsVisited: [], missionTypes: [] },
+    newYearCandy: { usesRemaining: NEW_YEAR_CANDY_MAX_USES, boostUntil: null },
     activeMissions: [],
     availableMissionKeys: offer.keys,
     missionsRefreshedAt: offer.refreshedAt,
@@ -1086,6 +1096,7 @@ function migrateLegacyEquippedSkins(record: StoredPlayerRecord): void {
 async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   record: StoredPlayerRecord;
   mode: 'supabase' | 'memory-fallback';
+  rawStats?: unknown;
 }> {
   const sb = getSupabaseAdmin();
   if (!sb) {
@@ -1109,6 +1120,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       rec.stats = normalizeStats(rec.stats);
     }
     const localRecord = db.playersByTgId[key];
+    localRecord.newYearCandy ??= { usesRemaining: NEW_YEAR_CANDY_MAX_USES, boostUntil: null };
     ensurePermanentProfileFrameGifts(localRecord.stats, localRecord.tgId);
     ensurePermanentProfileInventoryGifts(localRecord.stats, localRecord.tgId);
     migrateLegacyEquippedSkins(localRecord);
@@ -1124,7 +1136,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   }
 
   const pid = playerRow.id as string;
-  const [cardsRes, teamRes, missionsRes, achRes, petsRes, baseRes] = await Promise.all([
+  const [cardsRes, teamRes, missionsRes, achRes, petsRes, baseRes, candyRes] = await Promise.all([
     sb.from('cards').select('card_key, level').eq('player_id', pid),
     sb.from('team').select('npc_key').eq('player_id', pid),
     sb
@@ -1138,7 +1150,9 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     // Если миграция 003 ещё не применена — просто получим пустой список, игра не упадёт
     sb.from('pets').select('pet_key, hunger, last_fed_at, feed_count').eq('player_id', pid),
     sb.from('base_upgrades').select('upgrade_key, level').eq('player_id', pid),
+    sb.from('new_year_candy').select('uses_remaining, boost_until').eq('player_id', pid).maybeSingle(),
   ]);
+  if (candyRes.error || !candyRes.data) throw new Error('Не удалось загрузить новогодний подарок');
 
   const cardsMap: Record<string, number> = {};
   for (const row of cardsRes.data ?? []) {
@@ -1221,6 +1235,10 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     pets: petsList,
     baseUpgrades: baseUpgradesMap,
     stats: persistedStats,
+    newYearCandy: {
+      usesRemaining: Math.max(0, Math.min(NEW_YEAR_CANDY_MAX_USES, Math.floor(Number(candyRes.data.uses_remaining)))),
+      boostUntil: candyRes.data.boost_until ? String(candyRes.data.boost_until) : null,
+    },
     activeMissions: (missionsRes.data ?? []).map((m) => ({
       id: String(m.id),
       missionKey: String(m.mission_key),
@@ -1244,7 +1262,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   };
 
   migrateLegacyEquippedSkins(record);
-  return { record, mode: 'supabase' };
+  return { record, mode: 'supabase', rawStats: playerRow.stats };
 }
 
 async function savePlayerCore(
@@ -1254,7 +1272,8 @@ async function savePlayerCore(
   expectedData?: number,
   expectedEnergy?: number,
   expectedRep?: number,
-  expectedHeat?: number
+  expectedHeat?: number,
+  expectedStats?: unknown
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
@@ -1394,6 +1413,22 @@ async function savePlayerCore(
     const normalizedExpectedHeat = Math.max(0, Math.floor(safeNonNeg(expectedHeat, 0)));
     updateQuery = updateQuery.eq('heat', normalizedExpectedHeat);
   }
+  // Guard the previous incident even when balances are capped, and protect
+  // important collections/preferences from a concurrent sync. Filtering selected
+  // JSONB fields keeps PostgREST URLs bounded for large, long-lived player saves.
+  if (expectedStats !== undefined) {
+    const saved = expectedStats && typeof expectedStats === 'object' && !Array.isArray(expectedStats)
+      ? expectedStats as Record<string, unknown> : {};
+    for (const key of [
+      'dailyIncident', 'lastActiveAt', 'inventoryOwned', 'inventoryShowcase',
+      'unlockedProfileFrames', 'equippedProfileFrame', 'deskStagePreference', 'equippedUi', 'equippedAvatar',
+    ]) {
+      const field = `stats->${key}`;
+      updateQuery = Object.hasOwn(saved, key)
+        ? updateQuery.eq(field, JSON.stringify(saved[key]))
+        : updateQuery.is(field, null);
+    }
+  }
   const { data: updatedRows, error } = await updateQuery.select('id');
 
   if (error) {
@@ -1414,6 +1449,9 @@ async function savePlayerCore(
     }
     if (expectedXp !== undefined) {
       throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
+    }
+    if (expectedStats !== undefined) {
+      throw new Error('Игра обновилась во время выбора. Попробуй ещё раз.');
     }
     throw new Error('Supabase update player affected no rows');
   }
@@ -1570,14 +1608,15 @@ async function commitPurchaseAtomic(
 async function syncTimeAndRules(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
-  alerts: GameAlert[]
+  alerts: GameAlert[],
+  options: { skipAutoFeed?: boolean } = {}
 ): Promise<{ offlineEarned: number; offlineTaps: number }> {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
 
   const derived = deriveStats(record);
 
-  // 1. Восстановление энергии (базово 1 Energy / 3 сек, «Кофемашина» ускоряет)
+  // 1. Восстановление энергии (базово 1 Energy / 2 сек, «Кофемашина» ускоряет)
   const syncedEnergy = syncEnergy(
     record.energy,
     record.energyUpdated,
@@ -1599,6 +1638,13 @@ async function syncTimeAndRules(
   // ==========================================================================
   const prevDayKey = record.stats.activeDayKey ?? null;
   const qualifiedDayKey = record.stats.lastQualifiedDayKey ?? null;
+  // Онлайн определяется серверным пульсом: клиент синхронизируется каждые
+  // 30 секунд, а разрыв свыше 45 секунд считается отсутствием. На первом
+  // запросе после долгой паузы не выдаём полную ставку за всё отсутствие.
+  const prevActiveMs = record.stats.lastActiveAt ? new Date(record.stats.lastActiveAt).getTime() : 0;
+  const heartbeatGap = nowMs - prevActiveMs;
+  const activeHeartbeat = Number.isFinite(prevActiveMs) && prevActiveMs > 0 &&
+    heartbeatGap >= 0 && heartbeatGap <= ACTIVITY_HEARTBEAT_MAX_GAP_SEC * 1000;
   // Старым сейвам (играли до v3.2, счётчиков ещё нет) прощаем один раз,
   // чтобы не отнять уже накопленную копилку. Новый игрок права на оффлайн
   // не имеет, пока реально не наиграет свои 8 минут.
@@ -1622,44 +1668,60 @@ async function syncTimeAndRules(
     return to > from ? { from, to } : null;
   };
 
-  // 2.1. Пассивный доход с карточек: ставка ×0.5, кап — offlineCapSeconds.
+  // Непрерывный активный интервал оплачивается по полной ставке. Для
+  // старых/повреждённых сейвов не считаем онлайн длинный промежуток с
+  // устаревшим last_passive_claim, даже если lastActiveAt свежий.
   let offlineEarned = 0;
+  let offlineTaps = 0;
   const lastPassiveMs = new Date(record.lastPassiveClaim).getTime();
-  const passiveWindow =
-    Number.isNaN(lastPassiveMs) || derived.dataPerHour <= 0 ? null : paidWindow(lastPassiveMs);
-  if (passiveWindow) {
-    const elapsedSec = Math.min(derived.offlineCapSeconds, (passiveWindow.to - passiveWindow.from) / 1000);
-    if (elapsedSec >= 2) {
-      const ratePerHour = derived.dataPerHour * OFFLINE_PASSIVE_RATE_MULT;
-      const earned = Math.floor(((ratePerHour / 3600) * elapsedSec) * 10) / 10;
-      if (earned > 0) {
-        record.data += earned;
-        if (elapsedSec >= 45) offlineEarned += Math.round(earned);
+  const passiveGap = nowMs - lastPassiveMs;
+  const onlineInterval = activeHeartbeat && Number.isFinite(lastPassiveMs) &&
+    passiveGap >= 0 && passiveGap <= ACTIVITY_HEARTBEAT_MAX_GAP_SEC * 1000;
+
+  if (onlineInterval) {
+    // Храним доли ниже 0.01 Data: частые действия не должны обнулять доход
+    // и не могут создавать дополнительное начисление округлением.
+    const accrued = (derived.dataPerHour / 3600) * (passiveGap / 1000) +
+      (record.stats.onlinePassiveRemainder ?? 0);
+    const cents = Math.floor(accrued * 100 + 1e-8);
+    if (cents > 0) record.data = Math.round((record.data + cents / 100) * 100) / 100;
+    record.stats.onlinePassiveRemainder = Math.max(0, Math.min(0.009999999, accrued - cents / 100));
+  } else {
+    // Отсутствие: прежние правила — 50%, закрытые игровые сутки и лимит.
+    const passiveWindow =
+      Number.isNaN(lastPassiveMs) || derived.dataPerHour <= 0 ? null : paidWindow(lastPassiveMs);
+    if (passiveWindow) {
+      const elapsedSec = Math.min(derived.offlineCapSeconds, (passiveWindow.to - passiveWindow.from) / 1000);
+      if (elapsedSec >= 2) {
+        const ratePerHour = derived.dataPerHour * OFFLINE_PASSIVE_RATE_MULT;
+        const earned = Math.floor(((ratePerHour / 3600) * elapsedSec) * 10) / 10;
+        if (earned > 0) {
+          record.data += earned;
+          if (elapsedSec >= 45) offlineEarned += Math.round(earned);
+        }
       }
     }
-  }
-  // Точку отсчёта двигаем всегда: неоплаченные часы «в долг» не копятся.
-  record.lastPassiveClaim = nowIso;
 
-  // 2.2. «Фоновая копилка тапов»: 6 тапов/мин (0.1 в секунду) × сила клика, кап 8 часов.
-  let offlineTaps = 0;
-  const lastTapIso = record.stats.lastTapClaimAt ?? null;
-  const lastTapMs = lastTapIso ? new Date(lastTapIso).getTime() : nowMs;
-  const tapWindow = !lastTapIso || Number.isNaN(lastTapMs) ? null : paidWindow(lastTapMs);
-  if (tapWindow && derived.clickPower > 0) {
-    const tapSec = Math.min(OFFLINE_TAP_CAP_SECONDS, (tapWindow.to - tapWindow.from) / 1000);
-    const taps = Math.floor(tapSec * OFFLINE_TAP_RATE_PER_SEC);
-    if (taps > 0) {
-      const tapEarned = Math.floor(taps * derived.clickPower * 10) / 10;
-      if (tapEarned > 0) {
-        record.data += tapEarned;
-        if (tapSec >= 45) {
-          offlineTaps = taps;
-          offlineEarned += Math.round(tapEarned);
+    // Фоновые тапы начисляются только за отсутствие, не поверх онлайн-пассива.
+    const lastTapIso = record.stats.lastTapClaimAt ?? null;
+    const lastTapMs = lastTapIso ? new Date(lastTapIso).getTime() : nowMs;
+    const tapWindow = !lastTapIso || Number.isNaN(lastTapMs) ? null : paidWindow(lastTapMs);
+    if (tapWindow && derived.clickPower > 0) {
+      const tapSec = Math.min(OFFLINE_TAP_CAP_SECONDS, (tapWindow.to - tapWindow.from) / 1000);
+      const taps = Math.floor(tapSec * OFFLINE_TAP_RATE_PER_SEC);
+      if (taps > 0) {
+        const tapEarned = Math.floor(taps * derived.clickPower * 10) / 10;
+        if (tapEarned > 0) {
+          record.data += tapEarned;
+          if (tapSec >= 45) {
+            offlineTaps = taps;
+            offlineEarned += Math.round(tapEarned);
+          }
         }
       }
     }
   }
+  record.lastPassiveClaim = nowIso;
   record.stats.lastTapClaimAt = nowIso;
 
   // 2.3. Если оффлайн не заплатил из-за короткой игры — честно объясняем почему.
@@ -1687,7 +1749,6 @@ async function syncTimeAndRules(
   // Сутки считаем по Москве: смена дня обнуляет счётчик.
   // ==========================================================================
   const nowDayKey = getGameDayKey(nowMs);
-  const prevActiveMs = record.stats.lastActiveAt ? new Date(record.stats.lastActiveAt).getTime() : 0;
   if (prevDayKey !== nowDayKey) {
     record.stats.activeDayKey = nowDayKey;
     record.stats.activeSecondsToday = 0;
@@ -1779,7 +1840,7 @@ async function syncTimeAndRules(
 
   // 6. Авто-кормление питомцев (открывается покупкой «Авто-кормушки» на Базе)
   let autoFed = 0;
-  if (derived.autoFeedEnabled && record.pets.length > 0) {
+  if (!options.skipAutoFeed && derived.autoFeedEnabled && record.pets.length > 0) {
     for (const pet of record.pets) {
       const cfg = PETS_CONFIG.find((c) => c.key === pet.key);
       if (!cfg) continue;
@@ -2032,6 +2093,7 @@ function buildResponse(
     missionsRefreshedAt: record.missionsRefreshedAt,
     achievements: record.achievements,
     inventory: getInventoryState(record),
+    newYearCandy: record.newYearCandy,
     derived,
   };
 
@@ -2095,11 +2157,59 @@ export async function handleInventoryAction(
     await syncTimeAndRules(record, mode, alerts);
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
     await syncTimeAndRules(record, mode, alerts);
-    const showcase = new Set(inventory.showcaseKeys);
+    // Keep legacy showcase preferences even though non-collectibles are no longer displayed.
+    const showcase = new Set(record.stats.inventoryShowcase ?? []);
     if (visible) showcase.add(itemKey);
     else showcase.delete(itemKey);
     record.stats.inventoryShowcase = Array.from(showcase);
     await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/** Consume exactly one bite; charge state is independent of player snapshots. */
+export async function handleUseNewYearCandy(
+  user: VerifiedTelegramUser, requestId: string, pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    throw new Error('Некорректный идентификатор действия');
+  }
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+    // Taps made before activation must use the previous multiplier.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    if (mode === 'supabase') {
+      const sb = getSupabaseAdmin();
+      if (!sb) throw new Error('Подарок временно недоступен');
+      const { data, error } = await sb.rpc('use_new_year_candy', {
+        p_player_id: record.id, p_request_id: requestId,
+      });
+      if (error) {
+        if (error.message.includes('CANDY_EXHAUSTED')) throw new Error('Все три укуса леденца уже использованы');
+        throw new Error('Не удалось использовать леденец');
+      }
+      const candy = Array.isArray(data) ? data[0] : data;
+      if (!candy) throw new Error('Не удалось подтвердить использование леденца');
+      record.newYearCandy = { usesRemaining: Number(candy.uses_remaining), boostUntil: String(candy.boost_until) };
+    } else {
+      record.candyRequestIds ??= [];
+      if (!record.candyRequestIds.includes(requestId)) {
+        if (record.newYearCandy.usesRemaining <= 0) throw new Error('Все три укуса леденца уже использованы');
+        const nowMs = Date.now();
+        const oldUntil = Date.parse(record.newYearCandy.boostUntil ?? '');
+        record.newYearCandy = {
+          usesRemaining: record.newYearCandy.usesRemaining - 1,
+          boostUntil: new Date(Math.max(nowMs, Number.isFinite(oldUntil) ? oldUntil : nowMs) + NEW_YEAR_CANDY_DURATION_MS).toISOString(),
+        };
+        record.candyRequestIds.push(requestId);
+        persistLocalDb();
+      }
+    }
+    alerts.push({ id: crypto.randomUUID(), type: 'success', title: '🍬 Новогодний леденец',
+      message: '×2 Data за ручные тапы на час. Повторный укус продлевает действие.' });
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -2274,7 +2384,7 @@ async function applyPendingClicks(
 
   record.energy = Math.max(0, record.energy - validClicks);
   record.energyUpdated = nowIso;
-  record.data += validClicks * derived.clickPower;
+  record.data += validClicks * derived.clickPower * getManualTapMultiplier(record.newYearCandy, nowMs);
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
   incrementDailyTaskProgress(record, 'tap', validClicks);
@@ -2375,7 +2485,9 @@ export async function handleBuyCard(
       record.energy = Math.min(5000, record.energy + card.energyMaxPerLevel);
     }
 
-    await syncTimeAndRules(record, mode, alerts);
+    // RPC покупки не сохраняет изменения pets. Автокормление произойдёт
+    // при следующей синхронизации, где сохраняются и питомец, и расходы.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
 
     const newDerived = deriveStats(record);
 
@@ -2466,7 +2578,8 @@ export async function handleUnlockTier(user: VerifiedTelegramUser,
       message: `Потолок всех карточек поднят до ${tierCfg.maxLevel} уровня. Вперёд за железом!`,
     });
 
-    await syncTimeAndRules(record, mode, alerts);
+    // Состояние питомцев не входит в RPC покупки; кормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
@@ -2539,7 +2652,8 @@ export async function handleBuyBaseUpgrade(
       });
     }
 
-    await syncTimeAndRules(record, mode, alerts);
+    // Состояние питомцев не входит в RPC покупки; кормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'base', {
       itemKey: cfg.key,
       itemLevel: currentLevel + 1,
@@ -2628,7 +2742,8 @@ export async function handleHireNpc(
       });
     }
 
-    await syncTimeAndRules(record, mode, alerts);
+    // Состояние питомцев не входит в RPC покупки; кормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'team', {
       itemKey: npc.key,
     });
@@ -2868,7 +2983,7 @@ export async function handleMissionAction(
         type: 'info',
         title: `🛰️ Взлом ${cfg.targetName} запущен`,
         message:
-          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data · −${entryCost.energy} Energy. ` +
+          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data; Energy не расходуется. ` +
           `Шанс успеха ${Math.round(successChance * 100)}% · ` +
           `до ${xpReward.toLocaleString('ru-RU')} XP · ` +
           `чистыми при успехе +${Math.max(0, reward - entryCost.data).toLocaleString('ru-RU')} Data. ` +
@@ -3251,12 +3366,24 @@ export async function handleDailyIncidentAction(
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
-    const { record, mode } = await loadPlayerRecord(user);
+    const { record, mode, rawStats } = await loadPlayerRecord(user);
+    // Compare against what was actually read from PostgreSQL, before passive
+    // income, heat decay, achievements or other sync rules mutate the record.
+    let expectedData = record.data;
+    let expectedRep = record.rep;
+    let expectedHeat = record.heat;
+    let expectedStats = rawStats;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
 
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    if (appliedClicks > 0) {
+      await savePlayerCore(record, mode);
+      expectedData = record.data;
+      expectedRep = record.rep;
+      expectedHeat = record.heat;
+      expectedStats = JSON.parse(JSON.stringify(record.stats));
+    }
 
     const state = ensureDailyIncident(record.stats, record.tgId, getGameDayKey(Date.now()));
     if (state.choiceKey) {
@@ -3268,7 +3395,6 @@ export async function handleDailyIncidentAction(
       throw new Error('Этот выбор не относится к сегодняшнему инциденту');
     }
 
-    const expectedData = record.data;
     const outcome = resolveDailyIncidentOutcome(
       record.tgId,
       state,
@@ -3299,9 +3425,9 @@ export async function handleDailyIncidentAction(
       message: outcome.summary,
     });
 
-    // Data + Rep/Heat CAS защищают одноразовый выбор на разных serverless-инстансах.
-    // Это сохраняет guard даже если Data уже упёрся в конечный cap.
-    await savePlayerCore(record, mode, undefined, expectedData, undefined, previousRep, previousHeat);
+    // Compare the persisted snapshot, not the post-sync balance. The JSONB
+    // guard also protects one-time choices when a reward is capped.
+    await savePlayerCore(record, mode, undefined, expectedData, undefined, expectedRep, expectedHeat, expectedStats);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
@@ -3366,9 +3492,10 @@ export async function handleSeasonEventAction(
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+  action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage',
   skinKey?: string,
-  pendingClicks = 0
+  pendingClicks = 0,
+  expectedPrice?: number
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
@@ -3465,6 +3592,21 @@ export async function handleSkinAction(
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
+    // Only already-unlocked desk stages may be selected. No economy changes.
+    if (action === 'set_desk_stage') {
+      if (skinKey === 'auto') {
+        record.stats.deskStagePreference = undefined;
+      } else {
+        const stage = Number(skinKey);
+        if (!isDeskStage(stage) || String(stage) !== skinKey || stage > deriveStats(record).deskStage) {
+          throw new Error('Этот рабочий стол ещё недоступен');
+        }
+        record.stats.deskStagePreference = stage;
+      }
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
     // v3.6.1: выбор бесплатной базовой темы. Это косметика, поэтому ни Data,
     // ни Crypto не списываются — но и бонусов к тапу тема не даёт.
     if (action === 'set_theme') {
@@ -3480,7 +3622,11 @@ export async function handleSkinAction(
         id: crypto.randomUUID(),
         type: 'success',
         title: `${theme.glyph} Тема «${theme.name}» включена`,
-        message: 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
+        message: theme.colorScheme === 'light'
+          ? 'Светлый интерфейс включён. Тёмный скин интерфейса сохранён.'
+          : theme.overrideUiSkinPalette
+            ? 'Праздничная палитра включена. Надетый UI-скин сохранён.'
+            : 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
       });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
@@ -3489,6 +3635,30 @@ export async function handleSkinAction(
     const skin = SKINS_CONFIG.find((s) => s.key === skinKey);
     if (!skin) {
       throw new Error('Скин не найден');
+    }
+
+    if (action === 'unequip') {
+      // Проверяем именно текущий скин, чтобы устаревший запрос не снял
+      // другую косметику, выбранную в другой вкладке.
+      const equipped = skin.category === 'ui'
+        ? record.stats.equippedUi === skin.key
+        : skin.category === 'avatar'
+          ? record.stats.equippedAvatar === skin.key
+          : record.equippedSkin === skin.key && skin.key !== 'default';
+      if (!equipped) throw new Error('Этот скин сейчас не надет');
+
+      if (skin.category === 'ui') record.stats.equippedUi = undefined;
+      else if (skin.category === 'avatar') record.stats.equippedAvatar = undefined;
+      else record.equippedSkin = 'default';
+
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `🎨 Скин «${skin.name}» снят`,
+        message: 'Скин сохранён в коллекции. Он меняет только внешний вид.',
+      });
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
 
     // v3.6.5: у каждой категории свой слот. Раньше все три писались в
@@ -3515,6 +3685,11 @@ export async function handleSkinAction(
         throw new Error(
           `Скин «${skin.name}» открывается на ${skin.requiredLevel} уровне (ты — ${skinLevel}).`
         );
+      }
+      // Old clients must not silently charge a price higher than they displayed.
+      // A client price is confirmation only: the server still sets the actual price.
+      if (skin.cryptoCost > 0 && expectedPrice !== skin.cryptoCost) {
+        throw new Error('Цены магазина обновились. Закройте и заново откройте игру перед покупкой.');
       }
       if (record.crypto < skin.cryptoCost) {
         throw new Error(`Недостаточно Crypto (нужно ${skin.cryptoCost} 💎)`);
@@ -3694,7 +3869,8 @@ export async function handlePetAction(
         message: `${cfg.buffLabel}. Не забывай кормить — баф растёт от сытости и привязанности.`,
       });
 
-      await syncTimeAndRules(record, mode, alerts);
+      // В RPC сохраняется только купленный питомец, остальных покормим на следующем sync.
+      await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'pet_buy', {
         itemKey: cfg.key,
         lastFedAt: nowIso,
@@ -3752,7 +3928,8 @@ export async function handlePetAction(
       )}/10. Баф: ${cfg.buffLabel}.`,
     });
 
-    await syncTimeAndRules(record, mode, alerts);
+    // В RPC сохраняется только выбранный питомец, остальных покормим на следующем sync.
+    await syncTimeAndRules(record, mode, alerts, { skipAutoFeed: true });
     await commitPurchaseAtomic(record, mode, atomicExpected, 'pet_feed', {
       itemKey: cfg.key,
       hunger: owned.hunger,

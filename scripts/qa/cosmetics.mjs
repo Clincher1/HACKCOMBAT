@@ -5,7 +5,7 @@
  *   1) три слота НЕЗАВИСИМЫ: надел интерфейс — стол и аватар остались;
  *   2) слоты переживают перезагрузку (уходят в stats и возвращаются);
  *   3) старые сейвы раскладываются по слотам (миграция equipped_skin);
- *   4) суммарный бонус к тапу режется потолком 22% (иначе три скина = +49%);
+ *   4) косметика не влияет на игровые характеристики;
  *   5) скин интерфейса больше НЕ влияет на арт стола (фильтр берётся только
  *      из категории «рабочий стол»);
  *   6) у всех UI-скинов есть токены цвета, иначе снова «ничего не меняется».
@@ -229,7 +229,7 @@ async function call(tgId, route, body = undefined) {
   }
 }
 
-const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKey: key });
+const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKey: key, expectedPrice: skins.SKINS_CONFIG.find((skin) => skin.key === key)?.cryptoCost });
 
 (async () => {
   console.log('=== HACKER KOMBAT — QA v3.6.5: слоты косметики ===\n');
@@ -270,6 +270,26 @@ const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKe
   check('стол при этом цел', r.player.equippedSkin === 'sakura', r.player.equippedSkin);
   check('аватар при этом цел', r.player.stats.equippedAvatar === 'avatar_ghost', r.player.stats.equippedAvatar);
 
+  // Светлая тема меняет только внешний вид: надетые скины и баланс остаются.
+  const beforeTheme = r.player;
+  const lightResult = await call(TG, 'skin', { action: 'set_theme', skinKey: 'light_mist' });
+  const lightReload = await call(TG, 'init');
+  check('светлая тема сохраняется со всеми тремя слотами', lightResult.ok &&
+    lightReload.player.stats.baseTheme === 'light_mist' && lightReload.player.equippedSkin === 'sakura' &&
+    lightReload.player.stats.equippedUi === 'ui_mint' && lightReload.player.stats.equippedAvatar === 'avatar_ghost');
+  check('скины остаются полученными, баланс и сила тапа не меняются',
+    lightReload.player.unlockedSkins.includes('ui_mint') && lightReload.player.crypto === beforeTheme.crypto &&
+    lightReload.player.derived.clickPower === beforeTheme.derived.clickPower);
+  const winterResult = await call(TG, 'skin', { action: 'set_theme', skinKey: 'new_year' });
+  const winterReload = await call(TG, 'init');
+  check('новогодняя тема сохраняет все скины и выбранный интерфейс', winterResult.ok &&
+    winterReload.player.stats.baseTheme === 'new_year' && winterReload.player.equippedSkin === 'sakura' &&
+    winterReload.player.stats.equippedUi === 'ui_mint' && winterReload.player.stats.equippedAvatar === 'avatar_ghost');
+  check('в новогодней теме сила тапа и баланс сохраняются', winterReload.player.derived.clickPower === beforeTheme.derived.clickPower && winterReload.player.crypto === beforeTheme.crypto && winterReload.player.unlockedSkins.includes('ui_mint'));
+  await call(TG, 'skin', { action: 'set_theme', skinKey: 'classic' });
+  r = await call(TG, 'init');
+  check('после возврата к классике UI-скин всё ещё надет', r.player.stats.baseTheme === 'classic' && r.player.stats.equippedUi === 'ui_mint');
+
   // ── 5. Повторная экипировка не списывает Crypto ──────────────────────────
   const beforeCrypto = r.player.crypto;
   await equip(TG, 'ui_mint');
@@ -279,6 +299,36 @@ const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKe
     r.player.crypto === beforeCrypto,
     `${beforeCrypto} → ${r.player.crypto}`
   );
+
+  // Снимаем каждую категорию отдельно, не теряя покупки и чужие слоты.
+  const unequip = (key) => call(TG, 'skin', { action: 'unequip', skinKey: key });
+  const initialSlots = r.player;
+  const uiOff = await unequip('ui_mint');
+  r = await call(TG, 'init');
+  check('интерфейс снят и остаётся снятым после перезагрузки', uiOff.ok && !r.player.stats.equippedUi);
+  check('снятие интерфейса не трогает стол, аватар и тему', r.player.equippedSkin === 'sakura' &&
+    r.player.stats.equippedAvatar === 'avatar_ghost' && r.player.stats.baseTheme === 'classic');
+  check('купленный интерфейс и баланс сохранены', r.player.unlockedSkins.includes('ui_mint') && r.player.crypto === beforeCrypto);
+  const stale = await unequip('ui_amber');
+  check('нельзя снять другой, ненадетый скин', stale._status === 400);
+  const deskOff = await unequip('sakura');
+  r = await call(TG, 'init');
+  check('снятие стола возвращает стандартный вид', deskOff.ok && r.player.equippedSkin === 'default');
+  check('снятие стола не снимает аватар и не удаляет покупку', r.player.stats.equippedAvatar === 'avatar_ghost' && r.player.unlockedSkins.includes('sakura'));
+  const avatarOff = await unequip('avatar_ghost');
+  r = await call(TG, 'init');
+  check('аватар можно снять, все три слота теперь стандартные', avatarOff.ok && !r.player.stats.equippedAvatar &&
+    !r.player.stats.equippedUi && r.player.equippedSkin === 'default');
+  check('снятые скины сохраняются, сила тапа не меняется', r.player.unlockedSkins.includes('avatar_ghost') &&
+    r.player.derived.clickPower === initialSlots.derived.clickPower && r.player.derived.dataPerHour === initialSlots.derived.dataPerHour);
+  check('стандартный стол нельзя снять', (await unequip('default'))._status === 400);
+  await equip(TG, 'sakura');
+  await equip(TG, 'ui_mint');
+  await equip(TG, 'avatar_ghost');
+  r = await call(TG, 'init');
+  check('все три скина можно повторно надеть без оплаты', r.player.equippedSkin === 'sakura' &&
+    r.player.stats.equippedUi === 'ui_mint' && r.player.stats.equippedAvatar === 'avatar_ghost' &&
+    r.player.crypto === beforeCrypto && r.player.derived.clickPower === initialSlots.derived.clickPower);
 
   // ── 6. Чужая категория не подсовывается в слот ───────────────────────────
   check('UI-ключ не попал в слот стола', r.player.equippedSkin !== 'ui_mint', r.player.equippedSkin);
@@ -310,43 +360,31 @@ const equip = (tgId, key) => call(tgId, 'skin', { action: 'buy_or_equip', skinKe
     legacy.player.equippedSkin
   );
 
-  // ── 8. Потолок бонуса к тапу ─────────────────────────────────────────────
+  // ── 8. Украшательства не меняют игровые характеристики ───────────────────
   const base = {
-    cards: {},
-    team: [],
-    rep: 0,
-    heat: 0,
-    data: 0,
-    xp: 0,
-    prestigeCount: 0,
-    pets: [],
-    baseUpgrades: {},
-    cardTier: 1,
+    cards: {}, team: [], rep: 0, heat: 0, data: 0, xp: 0,
+    prestigeCount: 0, pets: [], baseUpgrades: {}, cardTier: 1,
+    nowMs: Date.parse('2026-10-31T12:00:00Z'),
   };
-  const one = mechanics.computeDerivedStats({ ...base, equippedSkin: 'prestige_omega' });
-  const three = mechanics.computeDerivedStats({
-    ...base,
-    equippedSkin: 'void_phantom', // +18%
-    equippedUi: 'ui_crimson', //    +12%
-    equippedAvatar: 'avatar_zero', // +15%  → сумма 45%
-  });
-  check('потолок бонуса равен 22%', skins.SKIN_CLICK_BONUS_CAP === 0.22, String(skins.SKIN_CLICK_BONUS_CAP));
-  check(
-    'три скина не пробивают потолок одного',
-    three.clickPower === one.clickPower,
-    `${three.clickPower} против ${one.clickPower}`
-  );
-  const solarOnly = mechanics.computeDerivedStats({ ...base, equippedSkin: 'solar' }); // +12%
-  const solarPlusUi = mechanics.computeDerivedStats({
-    ...base,
-    equippedSkin: 'solar', //      +12%
-    equippedUi: 'ui_crimson', //   +12%  → 24%, режется до 22%
-  });
-  check(
-    'бонусы слотов складываются',
-    solarPlusUi.clickPower > solarOnly.clickPower,
-    `${solarOnly.clickPower} → ${solarPlusUi.clickPower}`
-  );
+  const enriched = { ...base, cards: { keyboard: 5 }, team: ['social_engineer', 'botmaster'],
+    baseUpgrades: { standing_desk: 4 }, prestigeCount: 2 };
+  check('конфиг всех скинов не содержит игровых бонусов', skins.SKINS_CONFIG.every(s => s.clickBonusPct === 0));
+  for (const [label, state] of [['обычный игрок', base], ['игрок с улучшениями', enriched]]) {
+    const baseline = mechanics.computeDerivedStats({ ...state, equippedSkin: 'default' });
+    for (const skin of skins.SKINS_CONFIG) {
+      const slots = skin.category === 'desk' ? { equippedSkin: skin.key }
+        : skin.category === 'ui' ? { equippedSkin: 'default', equippedUi: skin.key }
+        : { equippedSkin: 'default', equippedAvatar: skin.key };
+      const dressed = mechanics.computeDerivedStats({ ...state, ...slots });
+      check(`${label}: ${skin.key} не изменяет характеристики`, JSON.stringify(dressed) === JSON.stringify(baseline));
+    }
+    const all = mechanics.computeDerivedStats({ ...state, equippedSkin: 'prestige_omega', equippedUi: 'ui_crimson', equippedAvatar: 'avatar_zero' });
+    check(`${label}: все три слота вместе не влияют на характеристики`, JSON.stringify(all) === JSON.stringify(baseline));
+  }
+  const basicStats = mechanics.computeDerivedStats({ ...base, equippedSkin: 'default' });
+  const gameplayStats = mechanics.computeDerivedStats({ ...enriched, equippedSkin: 'default' });
+  check('настоящие усиления команды, базы и престижа продолжают работать',
+    gameplayStats.clickPower > basicStats.clickPower && gameplayStats.dataPerHour > basicStats.dataPerHour && gameplayStats.autoClickPerSec > 0);
 
   // ── 9. Фильтр сцены берётся только из «рабочего стола» ───────────────────
   const onlyUi = skins.resolveEquippedSkins({ equippedSkin: 'default', stats: { equippedUi: 'ui_amber' } });
