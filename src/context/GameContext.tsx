@@ -81,6 +81,7 @@ interface GameContextValue {
   /** Выбранная бесплатная базовая тема (v3.6.1). */
   baseTheme: BaseThemeConfig;
   setBaseTheme: (key: BaseThemeKey) => Promise<void>;
+  setDeskStage: (stage: number | 'auto') => Promise<void>;
   clearHeatLockdown: () => Promise<void>;
   triggerPrestige: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
@@ -916,6 +917,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  const setDeskStage = useCallback(
+    (stage: number | 'auto') =>
+      runAction(`desk-stage:${stage}`, (clicks) => gameApi.skinAction('set_desk_stage', String(stage), clicks), true, 'light'),
+    [runAction]
+  );
+
   const clearHeatLockdown = useCallback(
     () => runAction('clear_lockdown', (clicks) => gameApi.skinAction('clear_lockdown', undefined, clicks), true, 'light'),
     [runAction]
@@ -1136,6 +1143,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       useNewYearCandy,
       baseTheme,
       setBaseTheme,
+      setDeskStage,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,
@@ -1192,6 +1200,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       useNewYearCandy,
       baseTheme,
       setBaseTheme,
+      setDeskStage,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,

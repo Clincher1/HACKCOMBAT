@@ -435,6 +435,8 @@ export interface PlayerProgressStats {
   equippedProfileFrameExpiresAt?: string | null;
   /** Выбранная базовая тема оформления; проверяется серверным реестром. */
   baseTheme?: string;
+  /** Не задано — автоматически самый новый открытый стол. */
+  deskStagePreference?: 1 | 5 | 10 | 15 | 20 | 25 | 30;
   /**
    * v3.6.5: отдельные слоты косметики.
    * Раньше все три категории писались в players.equipped_skin, поэтому

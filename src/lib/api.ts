@@ -81,7 +81,7 @@ export const gameApi = {
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/season-event', 'POST', { action, clicks }),
   skinAction: (
-    action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+    action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage',
     skinKey?: string,
     clicks = 0
   ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),

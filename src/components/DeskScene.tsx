@@ -9,6 +9,7 @@ import {
   OFFLINE_TAP_CAP_SECONDS,
   OFFLINE_TAP_RATE_PER_SEC,
 } from '../../shared/mechanics';
+import { DESK_STAGES, resolveDeskStage } from '../../shared/deskStage';
 import { getManualTapMultiplier } from '../../shared/newYearCandy';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
@@ -46,6 +47,7 @@ export const DeskScene: React.FC = () => {
     clearHeatLockdown,
     busyKey,
     baseTheme,
+    setDeskStage,
     nowMs,
   } = useGame();
 
@@ -92,8 +94,8 @@ export const DeskScene: React.FC = () => {
   const tapMultiplier = getManualTapMultiplier(player.newYearCandy, nowMs);
   const manualTapPower = derived.clickPower * tapMultiplier;
   const boostSeconds = tapMultiplier > 1 ? Math.max(0, Math.ceil((Date.parse(player.newYearCandy.boostUntil!) - nowMs) / 1000)) : 0;
-  // The server-derived stage is the only scene that can be displayed.
-  const activeStage = derived.deskStage;
+  // The server-approved preference may only select an already-unlocked stage.
+  const activeStage = resolveDeskStage(player.stats.deskStagePreference, derived.deskStage);
   const isModernDemo = baseTheme.key === 'classic' || baseTheme.key === 'femme';
   const sceneTitles: Record<number, [string, string]> = {
     1: ['Рабочий уголок', 'Первая техника и личное пространство'],
@@ -212,13 +214,29 @@ export const DeskScene: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {/* Only the player's current, server-derived stage is visible. */}
+      {/* No unavailable stages or their artwork are shown. */}
       <div className="bg-[#252b2e]/90 border border-slate-800 rounded-xl px-3 py-2">
         <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--ui-primary)]">
           <Sparkles className="w-3.5 h-3.5 shrink-0" />
           <span className="truncate">{stageInfo.title}</span>
         </div>
         <p className="text-[11px] text-slate-400 truncate">{stageInfo.subtitle}</p>
+        {derived.deskStage > 1 && (
+          <details className="mt-2 text-[11px] text-slate-300">
+            <summary className="cursor-pointer font-bold text-[var(--ui-primary)]">Выбрать рабочий стол</summary>
+            <p className="mt-2 text-slate-400">Доступны все открытые столы. Выбор не влияет на игру.</p>
+            <div className="mt-2 flex flex-wrap gap-2" aria-label="Открытые рабочие столы">
+              <button type="button" onClick={() => void setDeskStage('auto')} disabled={!!busyKey}
+                aria-pressed={player.stats.deskStagePreference === undefined}
+                className="rounded-lg border border-slate-600 px-3 py-2 aria-pressed:border-[var(--ui-primary)] aria-pressed:text-[var(--ui-primary)] disabled:opacity-50">Авто</button>
+              {DESK_STAGES.filter(stage => stage <= derived.deskStage).map(stage => (
+                <button key={stage} type="button" onClick={() => void setDeskStage(stage)} disabled={!!busyKey}
+                  aria-pressed={player.stats.deskStagePreference === stage}
+                  className="rounded-lg border border-slate-600 px-3 py-2 aria-pressed:border-[var(--ui-primary)] aria-pressed:text-[var(--ui-primary)] disabled:opacity-50">Ур. {stage}</button>
+              ))}
+            </div>
+          </details>
+        )}
       </div>
 
       {/* Центральная интерактивная сцена рабочего стола хакера */}
@@ -338,11 +356,11 @@ export const DeskScene: React.FC = () => {
               {Math.round(derived.xpToNext).toLocaleString('ru-RU')} XP
             </strong>
           </span>
-          {isModernDemo && activeStage === 30 ? (
+          {isModernDemo && derived.deskStage === 30 ? (
             <span className="bg-[#171d20]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">Последний этап стола</span>
-          ) : stageInfo.nextLevel ? (
+          ) : getDeskStageInfo(derived.deskStage).nextLevel ? (
             <span className="bg-[#171d20]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">
-              След. сцена: Ур. {stageInfo.nextLevel}
+              След. сцена: Ур. {getDeskStageInfo(derived.deskStage).nextLevel}
             </span>
           ) : null}
         </div>

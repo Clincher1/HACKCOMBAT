@@ -9,7 +9,7 @@ import {
   type ApiResponse,
 } from '../_lib/http';
 
-const ALLOWED_SKIN_ACTIONS = new Set(['buy_or_equip', 'unequip', 'clear_lockdown', 'set_theme', 'profile_frame']);
+const ALLOWED_SKIN_ACTIONS = new Set(['buy_or_equip', 'unequip', 'clear_lockdown', 'set_theme', 'profile_frame', 'set_desk_stage']);
 
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
@@ -18,7 +18,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
   }
   try {
     const body = await readJsonBody<{
-      action?: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame';
+      action?: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage';
       skinKey?: string;
       clicks?: number;
       initData?: string;

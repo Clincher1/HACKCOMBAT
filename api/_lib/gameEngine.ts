@@ -1,3 +1,4 @@
+import { isDeskStage } from '../../shared/deskStage';
 import crypto from 'node:crypto';
 import { NEW_YEAR_CANDY_KEY, NEW_YEAR_CANDY_MAX_USES, NEW_YEAR_CANDY_DURATION_MS, getManualTapMultiplier, type NewYearCandyState } from '../../shared/newYearCandy';
 import fs from 'node:fs';
@@ -520,6 +521,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       typeof src.baseTheme === 'string' && BASE_THEMES.some((theme) => theme.key === src.baseTheme)
         ? src.baseTheme
         : undefined,
+    deskStagePreference: isDeskStage(src.deskStagePreference) ? src.deskStagePreference : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
     // категории — мусор из jsonb не должен попадать в экипировку.
     equippedUi: pickSkinKey(src.equippedUi, 'ui'),
@@ -3458,7 +3460,7 @@ export async function handleSeasonEventAction(
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+  action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage',
   skinKey?: string,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
@@ -3553,6 +3555,21 @@ export async function handleSkinAction(
         title: '⚡ Блокировка снята!',
         message: 'Новый прокси-туннель активирован — терминал снова в строю!',
       });
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    // Only already-unlocked desk stages may be selected. No economy changes.
+    if (action === 'set_desk_stage') {
+      if (skinKey === 'auto') {
+        record.stats.deskStagePreference = undefined;
+      } else {
+        const stage = Number(skinKey);
+        if (!isDeskStage(stage) || String(stage) !== skinKey || stage > deriveStats(record).deskStage) {
+          throw new Error('Этот рабочий стол ещё недоступен');
+        }
+        record.stats.deskStagePreference = stage;
+      }
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
     }
