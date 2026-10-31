@@ -1096,6 +1096,7 @@ function migrateLegacyEquippedSkins(record: StoredPlayerRecord): void {
 async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   record: StoredPlayerRecord;
   mode: 'supabase' | 'memory-fallback';
+  rawStats?: unknown;
 }> {
   const sb = getSupabaseAdmin();
   if (!sb) {
@@ -1261,7 +1262,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
   };
 
   migrateLegacyEquippedSkins(record);
-  return { record, mode: 'supabase' };
+  return { record, mode: 'supabase', rawStats: playerRow.stats };
 }
 
 async function savePlayerCore(
@@ -1271,7 +1272,8 @@ async function savePlayerCore(
   expectedData?: number,
   expectedEnergy?: number,
   expectedRep?: number,
-  expectedHeat?: number
+  expectedHeat?: number,
+  expectedStats?: unknown
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
@@ -1411,6 +1413,22 @@ async function savePlayerCore(
     const normalizedExpectedHeat = Math.max(0, Math.floor(safeNonNeg(expectedHeat, 0)));
     updateQuery = updateQuery.eq('heat', normalizedExpectedHeat);
   }
+  // Guard the previous incident even when balances are capped, and protect
+  // important collections/preferences from a concurrent sync. Filtering selected
+  // JSONB fields keeps PostgREST URLs bounded for large, long-lived player saves.
+  if (expectedStats !== undefined) {
+    const saved = expectedStats && typeof expectedStats === 'object' && !Array.isArray(expectedStats)
+      ? expectedStats as Record<string, unknown> : {};
+    for (const key of [
+      'dailyIncident', 'lastActiveAt', 'inventoryOwned', 'inventoryShowcase',
+      'unlockedProfileFrames', 'equippedProfileFrame', 'deskStagePreference', 'equippedUi', 'equippedAvatar',
+    ]) {
+      const field = `stats->${key}`;
+      updateQuery = Object.hasOwn(saved, key)
+        ? updateQuery.eq(field, JSON.stringify(saved[key]))
+        : updateQuery.is(field, null);
+    }
+  }
   const { data: updatedRows, error } = await updateQuery.select('id');
 
   if (error) {
@@ -1431,6 +1449,9 @@ async function savePlayerCore(
     }
     if (expectedXp !== undefined) {
       throw new Error('Ежедневное поручение уже обрабатывается в другой сессии — обнови экран');
+    }
+    if (expectedStats !== undefined) {
+      throw new Error('Игра обновилась во время выбора. Попробуй ещё раз.');
     }
     throw new Error('Supabase update player affected no rows');
   }
@@ -3345,12 +3366,24 @@ export async function handleDailyIncidentAction(
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
-    const { record, mode } = await loadPlayerRecord(user);
+    const { record, mode, rawStats } = await loadPlayerRecord(user);
+    // Compare against what was actually read from PostgreSQL, before passive
+    // income, heat decay, achievements or other sync rules mutate the record.
+    let expectedData = record.data;
+    let expectedRep = record.rep;
+    let expectedHeat = record.heat;
+    let expectedStats = rawStats;
     const alerts: GameAlert[] = [];
     await syncTimeAndRules(record, mode, alerts);
 
     const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
-    if (appliedClicks > 0) await savePlayerCore(record, mode);
+    if (appliedClicks > 0) {
+      await savePlayerCore(record, mode);
+      expectedData = record.data;
+      expectedRep = record.rep;
+      expectedHeat = record.heat;
+      expectedStats = JSON.parse(JSON.stringify(record.stats));
+    }
 
     const state = ensureDailyIncident(record.stats, record.tgId, getGameDayKey(Date.now()));
     if (state.choiceKey) {
@@ -3362,7 +3395,6 @@ export async function handleDailyIncidentAction(
       throw new Error('Этот выбор не относится к сегодняшнему инциденту');
     }
 
-    const expectedData = record.data;
     const outcome = resolveDailyIncidentOutcome(
       record.tgId,
       state,
@@ -3393,9 +3425,9 @@ export async function handleDailyIncidentAction(
       message: outcome.summary,
     });
 
-    // Data + Rep/Heat CAS защищают одноразовый выбор на разных serverless-инстансах.
-    // Это сохраняет guard даже если Data уже упёрся в конечный cap.
-    await savePlayerCore(record, mode, undefined, expectedData, undefined, previousRep, previousHeat);
+    // Compare the persisted snapshot, not the post-sync balance. The JSONB
+    // guard also protects one-time choices when a reward is capped.
+    await savePlayerCore(record, mode, undefined, expectedData, undefined, expectedRep, expectedHeat, expectedStats);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }
