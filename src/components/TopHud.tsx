@@ -13,10 +13,10 @@ import { formatCompact } from '../lib/format';
  */
 const CURRENCY_COLORS = {
   data: 'var(--ui-primary)',
-  crypto: '#c084fc',
-  chips: '#7dff00',
-  rep: '#34d399',
-  heat: '#fb7185',
+  crypto: '#c2bfd4',
+  chips: '#adcaad',
+  rep: '#98bfa9',
+  heat: '#dc9d92',
 } as const;
 
 interface CurrencyTileProps {
@@ -68,7 +68,7 @@ const CurrencyTile: React.FC<CurrencyTileProps> = ({
     </>
   );
 
-  const className = `rounded-xl bg-gradient-to-b from-[#141d3a] to-[#0d1428] border px-2 py-1.5 text-left min-w-0 transition ${
+  const className = `visual-demo-currency rounded-xl bg-gradient-to-b from-[#333b3e] to-[#23292c] border px-2 py-1.5 text-left min-w-0 transition ${
     onClick ? 'hover:from-[#1a2548] hover:to-[#101a33] active:scale-[0.98] cursor-pointer' : ''
   }`;
   const style = {
@@ -136,7 +136,7 @@ export const TopHud: React.FC = () => {
   const heatRisk = player.heat >= 75;
 
   return (
-    <header className="sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.92)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2.5 pb-2">
+    <header className="visual-demo-hud sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.92)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2.5 pb-2">
       <div className="max-w-xl mx-auto space-y-2">
         {/* Верхняя строка: Уровень/Ранг + быстрые кнопки Бонуса, Скинов и Звука */}
         <div className="flex items-center justify-between gap-2">
@@ -168,7 +168,7 @@ export const TopHud: React.FC = () => {
               type="button"
               onClick={openTutorial}
               aria-label="Открыть обучение"
-              className="hud-action relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-primary-rgb),0.45)] text-[var(--ui-primary)] text-xs font-semibold transition cursor-pointer"
+              className="hud-action relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[#252c30] hover:bg-[#1a2548] border border-[rgba(var(--ui-primary-rgb),0.45)] text-[var(--ui-primary)] text-xs font-semibold transition cursor-pointer"
               title="Обучение: что качать и как играть"
             >
               <BookOpen className="w-3.5 h-3.5" />
@@ -182,13 +182,13 @@ export const TopHud: React.FC = () => {
               type="button"
               onClick={() => setDailyModalOpen(true)}
               aria-label="Открыть ежедневный бонус Crypto"
-              className="hud-action relative flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[#7dff00]/35 text-[#7dff00] text-xs font-semibold transition cursor-pointer"
+              className="hud-action relative flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#252c30] hover:bg-[#1a2548] border border-[#adc8ac]/35 text-[#adc8ac] text-xs font-semibold transition cursor-pointer"
               title="Ежедневный бонус Crypto"
             >
               <Gift className="w-3.5 h-3.5" />
               <span className="hud-action-label">Бонус</span>
               {dailyAvailable && (
-                <span className="w-2 h-2 rounded-full bg-[#7dff00] animate-ping absolute -top-0.5 -right-0.5" />
+                <span className="w-2 h-2 rounded-full bg-[#adc8ac] animate-ping absolute -top-0.5 -right-0.5" />
               )}
             </button>
 
@@ -196,7 +196,7 @@ export const TopHud: React.FC = () => {
               type="button"
               onClick={() => setSkinModalOpen(true)}
               aria-label="Открыть магазин скинов"
-              className="hud-action flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-[rgba(var(--ui-secondary-rgb),0.35)] text-[var(--ui-secondary)] text-xs font-semibold transition cursor-pointer"
+              className="hud-action flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#252c30] hover:bg-[#1a2548] border border-[rgba(var(--ui-secondary-rgb),0.35)] text-[var(--ui-secondary)] text-xs font-semibold transition cursor-pointer"
               title="Эксклюзивные скины за Crypto"
             >
               <Palette className="w-3.5 h-3.5" />
@@ -207,7 +207,7 @@ export const TopHud: React.FC = () => {
               type="button"
               onClick={toggleSound}
               aria-label={soundMuted ? 'Включить звук' : 'Выключить звук'}
-              className="hud-action p-1.5 rounded-lg bg-[#131b36] hover:bg-[#1a2548] border border-slate-700/70 text-slate-300 transition cursor-pointer"
+              className="hud-action p-1.5 rounded-lg bg-[#252c30] hover:bg-[#1a2548] border border-slate-700/70 text-slate-300 transition cursor-pointer"
               title={soundMuted ? 'Включить звук' : 'Выключить звук'}
             >
               {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-500" /> : <Volume2 className="w-3.5 h-3.5 text-[var(--ui-primary)]" />}
@@ -218,7 +218,7 @@ export const TopHud: React.FC = () => {
         {/* Опыт: уровень качается только взломами */}
         <div className="space-y-0.5">
           <div className="flex items-center justify-between text-[10px]">
-            <span className="font-bold text-[#c084fc] uppercase tracking-wider">
+            <span className="font-bold text-[#bbb7c9] uppercase tracking-wider">
               XP {formatCompact(derived.xpIntoLevel)} / {formatCompact(derived.xpToNext)}
             </span>
             <span className="text-slate-400">
@@ -241,7 +241,7 @@ export const TopHud: React.FC = () => {
             клетка, как в обучении: сразу видно и значок, и количество. */}
         <div className="grid grid-cols-4 gap-1.5">
           <div
-            className="col-span-2 rounded-xl bg-gradient-to-b from-[#141d3a] to-[#0d1428] border px-2 py-1.5 min-w-0"
+            className="col-span-2 rounded-xl bg-gradient-to-b from-[#333b3e] to-[#23292c] border px-2 py-1.5 min-w-0"
             style={{
               borderColor: `${CURRENCY_COLORS.data}55`,
               boxShadow: `inset 0 0 18px ${CURRENCY_COLORS.data}14`,
@@ -365,7 +365,7 @@ export const TopHud: React.FC = () => {
               className="h-full rounded-full transition-all duration-200"
               style={{
                 width: `${energyPct}%`,
-                background: 'linear-gradient(90deg, var(--ui-primary) 0%, #7dff00 100%)',
+                background: 'linear-gradient(90deg, var(--ui-primary) 0%, #adc8ac 100%)',
                 boxShadow: '0 0 10px rgba(var(--ui-primary-rgb),0.55)',
               }}
             />

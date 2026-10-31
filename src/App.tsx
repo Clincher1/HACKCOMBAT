@@ -55,12 +55,22 @@ const ProfileRoute: React.FC = () => {
 
 const AppShell: React.FC = () => {
   const { loading, player, initError, retryInit } = useGame();
+  const location = useLocation();
+  const sectionLabels: Record<string, [string, string]> = {
+    '/': ['РАБОЧЕЕ ПРОСТРАНСТВО', 'Личный терминал'],
+    '/upgrades': ['ОБОРУДОВАНИЕ', 'Мастерская'],
+    '/hacks': ['ОПЕРАЦИИ', 'Взломы и контракты'],
+    '/team': ['СОТРУДНИКИ', 'Команда'],
+    '/profile': ['АККАУНТ', 'Профиль и достижения'],
+    '/inventory': ['КОЛЛЕКЦИЯ', 'Инвентарь'],
+  };
+  const section = sectionLabels[location.pathname] ?? sectionLabels['/'];
 
   if (loading) {
     return (
       <div className="min-h-screen cyber-grid-bg flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 rounded-2xl border-2 border-[#00f0ff] border-t-transparent animate-spin mb-4" />
-        <div className="font-display text-lg font-extrabold text-[#00f0ff] tracking-widest">
+        <div className="w-12 h-12 rounded-2xl border-2 border-[#bdccd0] border-t-transparent animate-spin mb-4" />
+        <div className="font-display text-lg font-extrabold text-[#bdccd0] tracking-widest">
           HACKER KOMBAT
         </div>
         <p className="text-xs text-slate-400 mt-1">Загрузка кибер-терминала...</p>
@@ -99,10 +109,11 @@ const AppShell: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen cyber-grid-bg flex flex-col">
+    <div className="min-h-screen cyber-grid-bg flex flex-col visual-demo-shell">
       <TopHud />
       <AlertStack />
-      <main className="flex-1 w-full max-w-xl mx-auto px-3 pt-3 pb-24">
+      <main className="visual-demo-main flex-1 w-full max-w-xl mx-auto px-3 pt-3 pb-24">
+        <div className="modern-section-title"><div><span>{section[0]}</span><h1>{section[1]}</h1></div><div className="modern-section-indicator" aria-hidden="true">●</div></div>
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<DeskPage />} />

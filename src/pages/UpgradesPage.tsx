@@ -51,31 +51,31 @@ export const UpgradesPage: React.FC = () => {
   return (
     <div className="space-y-3.5 pb-4">
       {/* Шапка: уровень, чипы, тир */}
-      <div className="rounded-2xl bg-[#10172e] border border-[#00f0ff]/25 p-3.5 flex items-center justify-between gap-3">
+      <div className="rounded-2xl bg-[#252b2e] border border-[#bdccd0]/25 p-3.5 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-bold text-white flex items-center gap-1.5">
-            <Sparkles className="w-4 h-4 text-[#00f0ff] shrink-0" />
+            <Sparkles className="w-4 h-4 text-[#bdccd0] shrink-0" />
             <span>Мастерская Рабочего Стола (48 модулей)</span>
           </div>
           <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
             Модули улучшают доход и силу. Уровень игрока растёт от XP за игру. Уровни всех модулей{' '}
-            <strong className="text-[#00f0ff]">{totalLevels}</strong>.
+            <strong className="text-[#bdccd0]">{totalLevels}</strong>.
           </p>
           <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
             Зелёная цифра — прибавка к доходу после следующего уровня. «Итого» — скорость до → после; баланс Data сверху — отдельно.
           </p>
         </div>
         <div className="text-right shrink-0 space-y-1">
-          <div className="font-display text-sm font-extrabold text-[#00f0ff]">
+          <div className="font-display text-sm font-extrabold text-[#bdccd0]">
             УР. {player.derived.level}
           </div>
-          <div className="text-[10px] font-bold text-[#7dff00] flex items-center justify-end gap-1">
+          <div className="text-[10px] font-bold text-[#adc8ac] flex items-center justify-end gap-1">
             ⚙️ {player.chips}
           </div>
           <button
             type="button"
             onClick={openTutorial}
-            className="inline-flex items-center gap-1 text-[10px] font-bold text-[#7dff00] hover:underline cursor-pointer"
+            className="inline-flex items-center gap-1 text-[10px] font-bold text-[#adc8ac] hover:underline cursor-pointer"
           >
             <BookOpen className="w-3 h-3" /> Что качать?
           </button>
@@ -92,8 +92,8 @@ export const UpgradesPage: React.FC = () => {
           }}
           className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
             tab === 'cards'
-              ? 'bg-[#00f0ff]/18 border-[#00f0ff] text-[#00f0ff]'
-              : 'bg-[#10172e] border-slate-800 text-slate-400'
+              ? 'bg-[#bdccd0]/18 border-[#bdccd0] text-[#bdccd0]'
+              : 'bg-[#252b2e] border-slate-800 text-slate-400'
           }`}
         >
           <Cpu className="w-4 h-4" /> Модули (48)
@@ -106,13 +106,13 @@ export const UpgradesPage: React.FC = () => {
           }}
           className={`relative py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
             tab === 'base'
-              ? 'bg-[#7dff00]/18 border-[#7dff00] text-[#7dff00]'
-              : 'bg-[#10172e] border-slate-800 text-slate-400'
+              ? 'bg-[#adc8ac]/18 border-[#adc8ac] text-[#adc8ac]'
+              : 'bg-[#252b2e] border-slate-800 text-slate-400'
           }`}
         >
           <Layers className="w-4 h-4" /> База (10)
           {baseAffordable > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#ff00a0] text-white text-[9px] font-extrabold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[#d1b290] text-white text-[9px] font-extrabold flex items-center justify-center">
               {baseAffordable}
             </span>
           )}
@@ -124,13 +124,13 @@ export const UpgradesPage: React.FC = () => {
       ) : (
         <>
           {/* Блок Тира: потолок уровней и разблокировка */}
-          <div className="rounded-2xl bg-[#0f1730] border border-[#ff00a0]/30 p-3.5 space-y-2">
+          <div className="rounded-2xl bg-[#0f1730] border border-[#d1b290]/30 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                <Lock className="w-3.5 h-3.5 text-[#ff00a0]" />
+                <Lock className="w-3.5 h-3.5 text-[#d1b290]" />
                 {tierCfg.title}
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#ff00a0]/15 border border-[#ff00a0]/35 text-[#ff00a0] shrink-0">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#d1b290]/15 border border-[#d1b290]/35 text-[#d1b290] shrink-0">
                 макс. Ур. {maxLevel}
               </span>
             </div>
@@ -149,21 +149,21 @@ export const UpgradesPage: React.FC = () => {
                     <div className="flex flex-wrap gap-1">
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          levelOk ? 'bg-[#7dff00]/12 text-[#7dff00]' : 'bg-slate-800/80 text-amber-300'
+                          levelOk ? 'bg-[#adc8ac]/12 text-[#adc8ac]' : 'bg-slate-800/80 text-amber-300'
                         }`}
                       >
                         Ур. {nextTierCfg.requiredPlayerLevel}+
                       </span>
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          chipsOk ? 'bg-[#7dff00]/12 text-[#7dff00]' : 'bg-slate-800/80 text-amber-300'
+                          chipsOk ? 'bg-[#adc8ac]/12 text-[#adc8ac]' : 'bg-slate-800/80 text-amber-300'
                         }`}
                       >
                         {nextTierCfg.chipCost} ⚙️
                       </span>
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                          dataOk ? 'bg-[#7dff00]/12 text-[#7dff00]' : 'bg-slate-800/80 text-amber-300'
+                          dataOk ? 'bg-[#adc8ac]/12 text-[#adc8ac]' : 'bg-slate-800/80 text-amber-300'
                         }`}
                       >
                         {formatCompact(nextTierCfg.dataCost)} Data
@@ -175,8 +175,8 @@ export const UpgradesPage: React.FC = () => {
                       onClick={() => void unlockTier()}
                       className={`w-full py-2 rounded-xl font-display text-xs font-bold transition cursor-pointer ${
                         canUnlock
-                          ? 'bg-gradient-to-r from-[#ff00a0] to-purple-500 text-white shadow-[0_0_16px_rgba(255,0,160,0.35)]'
-                          : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
+                          ? 'bg-gradient-to-r from-[#d1b290] to-purple-500 text-white shadow-[0_0_16px_rgba(255,0,160,0.35)]'
+                          : 'bg-[#171d20] text-slate-500 border border-slate-800 cursor-not-allowed'
                       }`}
                     >
                       {canUnlock
@@ -190,7 +190,7 @@ export const UpgradesPage: React.FC = () => {
                 );
               })()
             ) : (
-              <p className="text-[10px] text-[#7dff00] font-bold">
+              <p className="text-[10px] text-[#adc8ac] font-bold">
                 ✅ Тир IV открыт — все 48 модулей доступны до 60 уровня!
               </p>
             )}
@@ -213,13 +213,13 @@ export const UpgradesPage: React.FC = () => {
                       ? 'bg-[#152042] text-white'
                       : 'bg-[#0d1326] border-slate-800/90 text-slate-400 hover:text-slate-200'
                   }`}
-                  style={active ? { borderColor: cat.accentColor } : undefined}
+                  style={active ? { borderColor: 'var(--ui-primary)' } : undefined}
                 >
                   <img
                     src={cat.iconUrl}
                     alt={cat.label}
                     loading="lazy"
-                    className="w-6 h-6 mx-auto mb-1"
+                    className="modern-category-icon w-6 h-6 mx-auto mb-1"
                   />
                   <div className="text-[11px] font-bold truncate">{cat.label}</div>
                 </button>
@@ -228,7 +228,7 @@ export const UpgradesPage: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between px-1 gap-2">
-            <span className="theme-accent-text text-[11px] font-bold" style={{ color: activeCategoryMeta.accentColor }}>
+            <span className="theme-accent-text text-[11px] font-bold" style={{ color: 'var(--ui-primary)' }}>
               {activeCategoryMeta.label} — {activeCategoryMeta.subtitle}
             </span>
           </div>
@@ -280,11 +280,11 @@ export const UpgradesPage: React.FC = () => {
               const dataGainClass =
                 dataGain < 0
                   ? 'bg-rose-500/12 text-rose-300'
-                  : 'bg-[#7dff00]/12 text-[#7dff00]';
+                  : 'bg-[#adc8ac]/12 text-[#adc8ac]';
               const tapGainClass =
                 tapGain < 0
                   ? 'bg-rose-500/12 text-rose-300'
-                  : 'bg-[#00f0ff]/12 text-[#00f0ff]';
+                  : 'bg-[#bdccd0]/12 text-[#bdccd0]';
 
               return (
                 <motion.div
@@ -293,12 +293,12 @@ export const UpgradesPage: React.FC = () => {
                   className={`rounded-2xl border p-3 flex flex-col justify-between gap-2.5 ${
                     lockedByLevel
                       ? 'bg-[#0b1021]/90 border-slate-800/60 opacity-80'
-                      : 'bg-[#10172e]/95 border-slate-800/90'
+                      : 'bg-[#252b2e]/95 border-slate-800/90'
                   }`}
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-start justify-between gap-1.5">
-                      <div className="w-9 h-9 rounded-xl bg-[#0a0e1a] border border-slate-800 flex items-center justify-center text-lg shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#171d20] border border-slate-800 flex items-center justify-center text-lg shrink-0">
                         {lockedByLevel ? <Lock className="w-4 h-4 text-slate-500" /> : card.iconGlyph}
                       </div>
                       {lockedByLevel ? (
@@ -307,10 +307,10 @@ export const UpgradesPage: React.FC = () => {
                         </span>
                       ) : (
                         <span
-                          className={`px-2 py-0.5 rounded-md bg-[#0a0e1a] border text-[10px] font-bold ${
+                          className={`px-2 py-0.5 rounded-md bg-[#171d20] border text-[10px] font-bold ${
                             isMax
-                              ? 'border-[#7dff00]/45 text-[#7dff00]'
-                              : 'border-slate-700/80 text-[#00f0ff]'
+                              ? 'border-[#adc8ac]/45 text-[#adc8ac]'
+                              : 'border-slate-700/80 text-[#bdccd0]'
                           }`}
                         >
                           Ур. {level}/{maxLevel}
@@ -364,7 +364,7 @@ export const UpgradesPage: React.FC = () => {
                         </span>
                       )}
                       {indexMultiplier > 1.05 && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ff00a0]/12 text-[#ff00a0]">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#d1b290]/12 text-[#d1b290]">
                           индекс цен ×{indexMultiplier.toFixed(1)}
                         </span>
                       )}
@@ -377,7 +377,7 @@ export const UpgradesPage: React.FC = () => {
                         <div
                           key={idx}
                           className={`h-1 flex-1 rounded-full ${
-                            idx < level ? 'bg-[#00f0ff]' : idx === level ? 'bg-[#00f0ff]/35' : 'bg-slate-800'
+                            idx < level ? 'bg-[#bdccd0]' : idx === level ? 'bg-[#bdccd0]/35' : 'bg-slate-800'
                           }`}
                         />
                       ))}
@@ -389,12 +389,12 @@ export const UpgradesPage: React.FC = () => {
                       onClick={() => void buyCard(card.key)}
                       className={`w-full py-2 px-2.5 rounded-xl text-xs font-display font-bold transition cursor-pointer ${
                         isMax
-                          ? 'bg-[#7dff00]/15 text-[#7dff00] border border-[#7dff00]/35 cursor-default'
+                          ? 'bg-[#adc8ac]/15 text-[#adc8ac] border border-[#adc8ac]/35 cursor-default'
                           : lockedByLevel
-                            ? 'bg-[#0a0e1a] text-amber-300/75 border border-amber-500/25 cursor-not-allowed'
+                            ? 'bg-[#171d20] text-amber-300/75 border border-amber-500/25 cursor-not-allowed'
                             : canAfford
-                              ? 'bg-[#00f0ff] hover:bg-[#00f0ff]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
-                              : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
+                              ? 'bg-[#bdccd0] hover:bg-[#bdccd0]/90 text-[#061018] shadow-[0_0_16px_rgba(0,240,255,0.28)]'
+                              : 'bg-[#171d20] text-slate-500 border border-slate-800 cursor-not-allowed'
                       }`}
                     >
                       {isMax

@@ -80,7 +80,7 @@ export const BottomNav: React.FC = () => {
   }, [player, nowMs]);
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.95)] border-t border-[rgba(var(--ui-primary-rgb),0.20)] pb-[env(safe-area-inset-bottom)]">
+    <nav className="visual-demo-nav fixed bottom-0 inset-x-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.95)] border-t border-[rgba(var(--ui-primary-rgb),0.20)] pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-xl mx-auto grid grid-cols-6 px-1 py-1.5 gap-1">
         {TABS.map(({ to, label, icon: Icon }) => {
           const tabActive = location.pathname === to;

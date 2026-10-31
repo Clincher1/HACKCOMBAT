@@ -232,7 +232,8 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
     femme.ui.radiusBoost > classic.ui.radiusBoost,
     `${classic.ui.radiusBoost} → ${femme.ui.radiusBoost}`
   );
-  check('ушки на кнопке HACK только у женской', femme.ui.catEars === true && classic.ui.catEars === false);
+  // Realistic redesign intentionally removes decorative cat ears from both themes.
+  check('в реалистичном оформлении обе темы без декоративных ушек', femme.ui.catEars === false && classic.ui.catEars === false);
   check(
     'градиент кнопки берётся из темы и различается',
     femme.ui.buttonGradient.join() !== classic.ui.buttonGradient.join(),

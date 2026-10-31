@@ -75,7 +75,7 @@ export const ThemeOnboardingModal: React.FC = () => {
               <Sparkles className="h-3.5 w-3.5" /> Первый запуск
             </div>
             <h1 id="theme-onboarding-title" className="font-display text-lg font-extrabold text-white sm:text-xl">
-              Выбери базовую тему терминала
+              Выбери свой стиль
             </h1>
             <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-slate-300">
               Это визуальный стиль игры. Выбор бесплатный и не меняет Data, XP, шанс успеха или награды.
@@ -157,7 +157,7 @@ export const ThemeOnboardingModal: React.FC = () => {
                       <div className="mt-auto pt-3">
                         <div className="flex items-center gap-1.5 font-display text-sm font-extrabold text-white">
                           <Palette className="h-3.5 w-3.5" style={{ color: theme.previewFrom }} />
-                          {theme.key === 'femme' ? 'Женская · Neon Muse' : theme.name}
+                          {theme.key === 'femme' ? 'Женская · Современная' : theme.name}
                         </div>
                         <div className="mt-1 text-[10px] leading-snug text-slate-200/85">
                           {theme.tagline}

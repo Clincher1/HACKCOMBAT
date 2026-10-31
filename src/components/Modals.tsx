@@ -250,7 +250,7 @@ export const ModalsAndOverlays: React.FC = () => {
                               )}
                             </div>
                             <div className="relative font-display font-bold text-xs text-white mt-1.5 leading-tight">
-                              {theme.name}
+                              {theme.key === 'femme' ? 'Женская · Современная' : theme.name}
                             </div>
                             <div className="relative text-[9px] text-slate-300/90 mt-0.5 leading-snug">
                               {theme.tagline}
