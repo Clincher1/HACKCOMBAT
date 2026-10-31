@@ -63,8 +63,8 @@ export const ModalsAndOverlays: React.FC = () => {
               </h3>
               <p className="text-xs text-slate-300 mt-1">
                 Пока вы были оффлайн, ваши серверы и команда заработали. Только Data — опыт, Crypto
-                и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те
-                сутки, где вы наиграли 8 минут.
+                и чипы падают лишь за игру. Базовый лимит пассива — 8 часов; улучшения базы могут
+                его увеличить. Копилка работает за сутки, в которые вы наиграли 8 минут.
               </p>
               <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[#7dff00]/35 font-display text-2xl font-black text-[#7dff00]">
                 +{formatCompact(offlineModalEarned)} DATA

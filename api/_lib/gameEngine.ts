@@ -2960,7 +2960,7 @@ export async function handleMissionAction(
         type: 'info',
         title: `🛰️ Взлом ${cfg.targetName} запущен`,
         message:
-          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data · −${entryCost.energy} Energy. ` +
+          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data; Energy не расходуется. ` +
           `Шанс успеха ${Math.round(successChance * 100)}% · ` +
           `до ${xpReward.toLocaleString('ru-RU')} XP · ` +
           `чистыми при успехе +${Math.max(0, reward - entryCost.data).toLocaleString('ru-RU')} Data. ` +

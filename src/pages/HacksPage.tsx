@@ -191,7 +191,7 @@ export const HacksPage: React.FC = () => {
           </span>
         </div>
         <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 px-2.5 py-1.5 text-[10px] leading-snug text-amber-200">
-          Запуск платный: контракт списывает Data и Energy сразу. При успехе награда возвращает вложение с прибылью; при провале взнос не возвращается.
+          Запуск контракта требует Data и свободный слот, но не расходует Energy. При успехе награда возвращает вложение с прибылью; при провале взнос не возвращается.
         </div>
       </div>
 
@@ -303,7 +303,7 @@ export const HacksPage: React.FC = () => {
                     </div>
                     <div className="text-[10px] text-amber-300 mt-0.5">
                       {(active.entryDataCost ?? 0) > 0 || (active.entryEnergyCost ?? 0) > 0
-                        ? `Взнос уже списан: −${formatCompact(active.entryDataCost ?? 0)} Data · −${formatCompact(active.entryEnergyCost ?? 0)} Energy`
+                        ? `Взнос уже списан: −${formatCompact(active.entryDataCost ?? 0)} Data${(active.entryEnergyCost ?? 0) > 0 ? ` · −${formatCompact(active.entryEnergyCost ?? 0)} Energy` : ''}`
                         : 'Старый контракт: входной взнос не зафиксирован'}
                     </div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
@@ -554,9 +554,7 @@ export const HacksPage: React.FC = () => {
                   <span className={dataLocked ? 'text-rose-300' : 'text-amber-300'}>
                     Вход: −{formatCompact(entryCost.data)} Data
                   </span>
-                  <span className={energyLocked ? 'text-rose-300' : 'text-amber-300'}>
-                    −{formatCompact(entryCost.energy)} Energy
-                  </span>
+                  <span className="text-slate-300">Без расхода Energy</span>
                   <span className="text-[#7dff00]">
                     Чистыми при успехе: +{formatCompact(netSuccessData)} Data
                   </span>
