@@ -58,6 +58,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
   const activeIndex = chapter.steps.findIndex((step) => step.active);
   const defaultIndex = activeIndex >= 0 ? activeIndex : Math.max(0, chapter.steps.length - 1);
   const [selectedIndex, setSelectedIndex] = useState(defaultIndex);
+  const [showCompletedSteps, setShowCompletedSteps] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const selectedStep = chapter.steps[selectedIndex] ?? chapter.steps[defaultIndex];
 
@@ -84,6 +85,24 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
   };
 
   if (!selectedStep) return null;
+  // A finished introduction has no next chapter yet. Keep the history accessible
+  // without leaving a large, misleading task permanently on the desk.
+  if (chapter.complete && !showCompletedSteps) {
+    return (
+      <section aria-label="Задания оператора" className="rounded-2xl bg-[#252b2e]/85 border border-slate-700/80 p-3.5">
+        <div className="flex items-start gap-2.5">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#adc8ac]" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xs font-bold text-[#adc8ac]">Глава 1 завершена · {chapter.completedCount}/{chapter.steps.length}</h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-300">Это вводные задания. Продолжения сюжета пока нет.</p>
+            <button type="button" onClick={() => setShowCompletedSteps(true)} className="mt-2 text-xs font-semibold text-[var(--ui-secondary)] underline underline-offset-2">
+              Посмотреть выполненные задания
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
   const selectedIsComplete = selectedStep.complete;
   const selectedIsActive = selectedStep.active;
 
@@ -154,7 +173,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
         )}
         {selectedIsComplete && (
           <div className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-[#adc8ac]/25 bg-[#adc8ac]/8 px-3 py-2.5 text-xs font-bold text-[#adc8ac]">
-            <CheckCircle2 className="h-4 w-4" /> Выполнено — можно листать дальше
+            <CheckCircle2 className="h-4 w-4" /> {chapter.complete && selectedIndex === chapter.steps.length - 1 ? 'Глава пройдена' : 'Выполнено'}
           </div>
         )}
       </div>
@@ -180,8 +199,13 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
         ))}
       </div>
       <div className="mt-1 text-center text-[10px] text-slate-500">
-        Свайпай карточку, чтобы посмотреть завершённые шаги
+        Свайпай карточку, чтобы посмотреть шаги главы
       </div>
+      {chapter.complete && (
+        <button type="button" onClick={() => setShowCompletedSteps(false)} className="mt-2 w-full rounded-lg border border-slate-700 py-2 text-xs text-slate-300">
+          Свернуть выполненную главу
+        </button>
+      )}
     </section>
   );
 };
