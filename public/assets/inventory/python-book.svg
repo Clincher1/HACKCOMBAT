@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 160" role="img" aria-label="Учебник по Python">
+  <defs>
+    <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2760a0"/><stop offset="1" stop-color="#112c58"/></linearGradient>
+    <linearGradient id="spine" x1="0" x2="1"><stop stop-color="#0b1c39"/><stop offset="1" stop-color="#174074"/></linearGradient>
+  </defs>
+  <ellipse cx="121" cy="142" rx="66" ry="7" fill="#020817" opacity=".45"/>
+  <rect x="66" y="16" width="110" height="127" rx="7" fill="#cbd5e1"/>
+  <rect x="64" y="13" width="110" height="127" rx="7" fill="url(#cover)" stroke="#73b9eb" stroke-opacity=".7"/>
+  <path d="M71 13h11v127H71a7 7 0 0 1-7-7V20a7 7 0 0 1 7-7Z" fill="url(#spine)"/>
+  <path d="M85 24h75M85 28h75" stroke="#8dc9ed" stroke-opacity=".2"/>
+  <text x="125" y="50" text-anchor="middle" fill="#f1f8ff" font-family="Arial,sans-serif" font-size="14" font-weight="bold" letter-spacing="2">PYTHON</text>
+  <text x="125" y="64" text-anchor="middle" fill="#a9cfea" font-family="Arial,sans-serif" font-size="7" letter-spacing="1.5">LEARN • CODE</text>
+  <path d="M107 91c0-9 7-14 17-14h10c5 0 8 3 8 8v4h-15c-5 0-8 3-8 8v5h-7c-4 0-5-4-5-11Z" fill="#82cafa"/>
+  <circle cx="135" cy="82" r="2" fill="#18345b"/>
+  <path d="M151 102c0 9-7 14-17 14h-10c-5 0-8-3-8-8v-4h15c5 0 8-3 8-8v-5h7c4 0 5 4 5 11Z" fill="#ffd76a"/>
+  <circle cx="123" cy="111" r="2" fill="#765314"/>
+  <path d="M89 128h68" stroke="#8dc9ed" stroke-opacity=".4"/>
+</svg>

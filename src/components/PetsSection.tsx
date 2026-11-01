@@ -120,7 +120,7 @@ export const PetsSection: React.FC = () => {
                   {/* Шкала сытости */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between text-[10px]">
-                      <span className="font-bold" style={{ color: hungerColor(hunger) }}>
+                      <span className="theme-accent-text font-bold" style={{ color: hungerColor(hunger) }}>
                         Сытость {Math.round(hunger)}%
                       </span>
                       <span className="text-slate-500">{hungerStatus(hunger)}</span>

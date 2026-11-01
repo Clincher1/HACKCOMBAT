@@ -58,6 +58,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
   const activeIndex = chapter.steps.findIndex((step) => step.active);
   const defaultIndex = activeIndex >= 0 ? activeIndex : Math.max(0, chapter.steps.length - 1);
   const [selectedIndex, setSelectedIndex] = useState(defaultIndex);
+  const [showCompletedSteps, setShowCompletedSteps] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const selectedStep = chapter.steps[selectedIndex] ?? chapter.steps[defaultIndex];
 
@@ -84,13 +85,31 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
   };
 
   if (!selectedStep) return null;
+  // A finished introduction has no next chapter yet. Keep the history accessible
+  // without leaving a large, misleading task permanently on the desk.
+  if (chapter.complete && !showCompletedSteps) {
+    return (
+      <section aria-label="Задания оператора" className="rounded-2xl bg-[#252b2e]/85 border border-slate-700/80 p-3.5">
+        <div className="flex items-start gap-2.5">
+          <CheckCircle2 className="h-5 w-5 shrink-0 text-[#adc8ac]" />
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xs font-bold text-[#adc8ac]">Глава 1 завершена · {chapter.completedCount}/{chapter.steps.length}</h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-300">Это вводные задания. Продолжения сюжета пока нет.</p>
+            <button type="button" onClick={() => setShowCompletedSteps(true)} className="mt-2 text-xs font-semibold text-[var(--ui-secondary)] underline underline-offset-2">
+              Посмотреть выполненные задания
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
   const selectedIsComplete = selectedStep.complete;
   const selectedIsActive = selectedStep.active;
 
   return (
     <section
       aria-label="Задания оператора"
-      className="rounded-2xl bg-gradient-to-br from-purple-950/55 via-[#141634] to-[#10172e] border border-[rgba(var(--ui-secondary-rgb),0.68)] p-3.5 shadow-[0_0_28px_rgba(var(--ui-secondary-rgb),0.16)]"
+      className="rounded-2xl bg-gradient-to-br from-purple-950/55 via-[#141634] to-[#252b2e] border border-[rgba(var(--ui-secondary-rgb),0.68)] p-3.5 shadow-[0_0_28px_rgba(var(--ui-secondary-rgb),0.16)]"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       style={{ touchAction: 'pan-y' }}
@@ -109,7 +128,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
             </span>
           </div>
           <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-bold">
-            <span className={selectedIsComplete ? 'text-[#7dff00]' : selectedIsActive ? 'text-[var(--ui-secondary)]' : 'text-slate-500'}>
+            <span className={selectedIsComplete ? 'text-[#adc8ac]' : selectedIsActive ? 'text-[var(--ui-secondary)]' : 'text-slate-500'}>
               {selectedIsComplete ? '✓ Выполнено' : selectedIsActive ? '● Текущее задание' : '🔒 Откроется дальше'}
             </span>
             <span className="text-slate-600">· шаг {selectedIndex + 1}</span>
@@ -117,14 +136,14 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-[rgba(var(--ui-secondary-rgb),0.30)] bg-[#0a0e1a]/45 p-3">
+      <div className="mt-3 rounded-xl border border-[rgba(var(--ui-secondary-rgb),0.30)] bg-[#171d20]/45 p-3">
         <div className="flex items-start gap-2">
           <button
             type="button"
             aria-label="Предыдущее задание главы"
             disabled={selectedIndex === 0}
             onClick={() => goToStep(selectedIndex - 1)}
-            className="mt-0.5 shrink-0 rounded-lg border border-slate-700 bg-[#10172e] p-1.5 text-slate-300 transition hover:border-[var(--ui-secondary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+            className="mt-0.5 shrink-0 rounded-lg border border-slate-700 bg-[#252b2e] p-1.5 text-slate-300 transition hover:border-[var(--ui-secondary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -137,7 +156,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
             aria-label="Следующее задание главы"
             disabled={selectedIndex === chapter.steps.length - 1}
             onClick={() => goToStep(selectedIndex + 1)}
-            className="mt-0.5 shrink-0 rounded-lg border border-slate-700 bg-[#10172e] p-1.5 text-slate-300 transition hover:border-[var(--ui-secondary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
+            className="mt-0.5 shrink-0 rounded-lg border border-slate-700 bg-[#252b2e] p-1.5 text-slate-300 transition hover:border-[var(--ui-secondary)] hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -153,8 +172,8 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
           </Link>
         )}
         {selectedIsComplete && (
-          <div className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-[#7dff00]/25 bg-[#7dff00]/8 px-3 py-2.5 text-xs font-bold text-[#7dff00]">
-            <CheckCircle2 className="h-4 w-4" /> Выполнено — можно листать дальше
+          <div className="mt-3 flex items-center justify-center gap-1.5 rounded-xl border border-[#adc8ac]/25 bg-[#adc8ac]/8 px-3 py-2.5 text-xs font-bold text-[#adc8ac]">
+            <CheckCircle2 className="h-4 w-4" /> {chapter.complete && selectedIndex === chapter.steps.length - 1 ? 'Глава пройдена' : 'Выполнено'}
           </div>
         )}
       </div>
@@ -171,7 +190,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
               index === selectedIndex
                 ? 'w-7 bg-[var(--ui-secondary)] shadow-[0_0_10px_rgba(var(--ui-secondary-rgb),0.55)]'
                 : step.complete
-                  ? 'w-2 bg-[#7dff00]'
+                  ? 'w-2 bg-[#adc8ac]'
                   : step.active
                     ? 'w-2 bg-purple-300'
                     : 'w-2 bg-slate-700'
@@ -180,8 +199,13 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
         ))}
       </div>
       <div className="mt-1 text-center text-[10px] text-slate-500">
-        Свайпай карточку, чтобы посмотреть завершённые шаги
+        Свайпай карточку, чтобы посмотреть шаги главы
       </div>
+      {chapter.complete && (
+        <button type="button" onClick={() => setShowCompletedSteps(false)} className="mt-2 w-full rounded-lg border border-slate-700 py-2 text-xs text-slate-300">
+          Свернуть выполненную главу
+        </button>
+      )}
     </section>
   );
 };

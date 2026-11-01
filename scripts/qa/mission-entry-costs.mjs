@@ -9,7 +9,7 @@
  *   5) быстрый пропуск даёт частичный результат, но не возвращает взнос;
  *   6) fail тоже не возвращает взнос, а claim нельзя повторить;
  *   7) параллельный double-start даёт ровно одну миссию и одно списание;
- *   8) нехватка Energy блокирует запуск на сервере.
+ *   8) нехватка Energy не блокирует контракт: энергия нужна только для тапов.
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -156,6 +156,24 @@ async function earnTaps(seed, batches = 3) {
   check('legacy active-миссия без costs загружается', legacyStart.ok === true && Boolean(legacyActive), legacyClaim.error);
   check('legacy active-миссия без costs завершается', legacyClaim.ok === true && legacyClaim.player?.activeMissions?.length === 0, legacyClaim.error);
 
+  // Сохранённые старые контракты, которые уже списали энергию до обновления,
+  // не переписываются и не получают повторного списания или возврата.
+  const oldCostSeed = 'mission-old-energy-cost';
+  const oldCostBefore = (await api('init', {}, oldCostSeed)).player;
+  const oldCostStart = await api('missions', { action: 'start', missionKey: oldCostBefore.availableMissionKeys[0] }, oldCostSeed);
+  const oldCostId = oldCostStart.player.activeMissions[0].id;
+  const oldCostFile = JSON.parse(fs.readFileSync('.local-db.json', 'utf8'));
+  const oldCostRecord = Object.values(oldCostFile.playersByTgId).find((item) => item.activeMissions?.some((m) => m.id === oldCostId));
+  oldCostRecord.activeMissions.find((m) => m.id === oldCostId).entryEnergyCost = 60;
+  oldCostRecord.energy -= 60;
+  fs.writeFileSync('.local-db.json', JSON.stringify(oldCostFile));
+  delete require.cache[require.resolve(CORE)];
+  runtime = require(CORE);
+  const oldCostReload = await api('init', {}, oldCostSeed);
+  check('активный контракт со старым расходом Energy загружается без изменений', oldCostReload.player.activeMissions[0].entryEnergyCost === 60 && oldCostReload.player.energy === oldCostStart.player.energy - 60);
+  const oldCostEnd = await api('missions', { action: 'skip', missionId: oldCostId }, oldCostSeed);
+  check('старый контракт завершается без повторного списания или возврата Energy', oldCostEnd.ok && oldCostEnd.player.energy === oldCostReload.player.energy && oldCostEnd.player.activeMissions.length === 0);
+
   let player = (await api('init', {}, 'mission-paid')).player;
   const paidMissionKey = player.availableMissionKeys[0];
   const beforeTaps = { data: player.data, energy: player.energy, xp: player.xp };
@@ -166,15 +184,15 @@ async function earnTaps(seed, batches = 3) {
   const active = started.player?.activeMissions?.[0];
   check('контракт запускается после накопления Data', started.ok === true && Boolean(active), started.error);
   check('в активной миссии зафиксирован Data-взнос', Number(active?.entryDataCost ?? 0) >= 25, active?.entryDataCost);
-  check('в активной миссии зафиксирован Energy-взнос', Number(active?.entryEnergyCost ?? 0) > 0, active?.entryEnergyCost);
+  check('Energy-взнос в активной миссии равен нулю', Number(active?.entryEnergyCost) === 0, active?.entryEnergyCost);
   check(
     'Data-взнос совпадает с shared-формулой 12% / минимум 25',
     Number(active?.entryDataCost) === Math.max(25, Math.ceil(Number(active?.reward ?? 0) * 0.12)),
     `${active?.reward} → ${active?.entryDataCost}`
   );
   check(
-    'Energy-взнос совпадает с длительностью контракта',
-    Number(active?.entryEnergyCost) === Math.max(10, Math.ceil((Date.parse(active?.finishAt) - Date.parse(active?.startedAt)) / 1000)),
+    'Energy не расходуется независимо от длительности контракта',
+    Number(active?.entryEnergyCost) === 0,
     `${active?.startedAt} → ${active?.entryEnergyCost}`
   );
   check(
@@ -248,8 +266,7 @@ async function earnTaps(seed, batches = 3) {
     await api('missions', { action: 'skip', missionId: parallelActive.id }, parallelSeed);
   }
 
-  // Отдельный игрок: даже при достаточном Data сервер не даёт начать цель,
-  // если весь Energy уже потрачен тапами.
+  // Отдельный игрок: контракт доступен и при нуле энергии, если хватает Data.
   let energyPlayer = (await api('init', {}, 'mission-energy')).player;
   const energyMissionKey = energyPlayer.availableMissionKeys[0];
   for (let index = 0; index < 32; index += 1) {
@@ -259,8 +276,9 @@ async function earnTaps(seed, batches = 3) {
   }
   const energyStart = await api('missions', { action: 'start', missionKey: energyMissionKey }, 'mission-energy');
   const energyReload = await api('init', {}, 'mission-energy');
-  check('нехватка Energy блокирует запуск на сервере', energyStart.ok === false && /Energy/.test(energyStart.error ?? ''), energyStart.error);
-  check('нехватка Energy не создаёт активную миссию', energyReload.player?.activeMissions?.length === 0);
+  check('перед запуском Energy полностью потрачена', energyPlayer.energy === 0, energyPlayer.energy);
+  check('при нуле Energy контракт запускается без расхода энергии', energyStart.ok === true && energyStart.player?.energy === 0 && energyStart.player?.activeMissions?.[0]?.entryEnergyCost === 0, energyStart.error);
+  check('контракт при нуле Energy сохраняется', energyReload.player?.activeMissions?.length === 1 && energyReload.player.activeMissions[0].entryEnergyCost === 0);
 
   Date.now = realNow;
   console.log(`\nИтог: ${pass} pass / ${fail} fail`);
