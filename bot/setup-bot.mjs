@@ -16,7 +16,7 @@ const token = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
 const webAppUrl = (process.env.PUBLIC_WEBAPP_URL || '').replace(/\/$/, '');
 const webhookSecret =
   process.env.TELEGRAM_WEBHOOK_SECRET ||
-  (token ? crypto.createHmac('sha256', 'hk-webhook-v1').update(token).digest('hex').slice(0, 48) : '');
+  (token ? crypto.createHmac('sha256', 'hk-webhook-v2').update(token).digest('hex').slice(0, 48) : '');
 
 if (!token || !webAppUrl) {
   console.error(
@@ -61,6 +61,19 @@ async function main() {
   await tgCall('setMyCommands', {
     commands: [
       { command: 'start', description: 'Запустить HACKER KOMBAT' },
+      { command: 'play', description: 'Открыть игру' },
+      { command: 'menu', description: 'Где главное меню' },
+      { command: 'story', description: 'Задания оператора' },
+      { command: 'characters', description: 'Где найти команду' },
+      { command: 'hack', description: 'Где найти контракты' },
+      { command: 'events', description: 'Ежедневные задания и события' },
+      { command: 'stats', description: 'Профиль и рейтинг' },
+      { command: 'shop', description: 'Где найти косметику' },
+      { command: 'upgrade', description: 'Где улучшить оборудование' },
+      { command: 'save', description: 'Как сохраняется прогресс' },
+      { command: 'load', description: 'Как загрузить прогресс' },
+      { command: 'settings', description: 'Настройки игры' },
+      { command: 'accessibility', description: 'Доступность игры' },
       { command: 'invite', description: 'Пригласи друга и получи бонус' },
       { command: 'help', description: 'Как играть и механики' },
       { command: 'legal', description: 'Правовая информация (12+)' },

@@ -41,7 +41,7 @@ export const MatrixAvatar: React.FC<MatrixAvatarProps> = ({
   burstId = 0,
 }) => (
   <div
-    className={`matrix-avatar ${className}`.trim()}
+    className={`theme-art matrix-avatar ${className}`.trim()}
     style={style}
     role="img"
     aria-label={`Матричный аватар ${label}`}

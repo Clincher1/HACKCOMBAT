@@ -136,6 +136,8 @@ export interface AchievementConfig {
   // Необязательная награда Чипами/Data за особенно «душные» достижения
   chipReward?: number;
   dataReward?: number;
+  /** Отмечаются только специальные достижения за события, не обычный прогресс. */
+  inventoryEventReward?: boolean;
 }
 
 export type SkinCategory = 'desk' | 'ui' | 'avatar';
@@ -152,7 +154,7 @@ export interface SkinConfig {
   secondaryHex: string;
   accentHex: string;
   cssFilter: string;
-  clickBonusPct: number; // DEFAULT: небольшой косметический бонус к стилю/клику
+  clickBonusPct: 0; // Зарезервировано для совместимости; косметика не даёт бонусов.
   /** Эмодзи-аватар для категории 'avatar' (0 = не аватар). */
   avatarGlyph?: string;
   /**
@@ -177,6 +179,7 @@ export type AlignmentBranch = 'neutral' | 'white_hat' | 'black_hat';
 /** Предметы постоянного профиля: всё, что игрок получил и может показать. */
 export type InventoryItemKind = 'reward' | 'frame' | 'skin' | 'achievement' | 'companion';
 export type InventoryEquipAction = 'profile_frame' | 'skin' | null;
+export type InventoryCategory = 'event' | 'prize' | 'gift';
 
 export interface InventoryItemDefinition {
   key: string;
@@ -191,6 +194,7 @@ export interface InventoryItemDefinition {
   equipAction: InventoryEquipAction;
   equipKey?: string;
   imageUrl?: string;
+  inventoryCategory?: InventoryCategory;
 }
 
 export interface PlayerInventoryState {
@@ -399,6 +403,8 @@ export interface PlayerProgressStats {
   hackFailByType: Record<string, number>;
   /** Всего XP добыто (дублирует players.xp для статистики профиля). */
   totalXpEarned: number;
+  /** Доли Data от онлайн-пассива, ещё не достигшие точности хранения (0.01). */
+  onlinePassiveRemainder?: number;
   /** Когда последний раз начислялась «фоновая копилка тапов» (ISO). */
   lastTapClaimAt?: string | null;
   /** v3.2: игровой день (YYYY-MM-DD по Москве), за который считаем активность. */
@@ -427,8 +433,10 @@ export interface PlayerProgressStats {
   lastMissionRefreshAt?: string | null;
   /** v3.12: временная рамка-подарок автоматически исчезает после этого ISO-времени. */
   equippedProfileFrameExpiresAt?: string | null;
-  /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
+  /** Выбранная базовая тема оформления; проверяется серверным реестром. */
   baseTheme?: string;
+  /** Не задано — автоматически самый новый открытый стол. */
+  deskStagePreference?: 1 | 5 | 10 | 15 | 20 | 25 | 30;
   /**
    * v3.6.5: отдельные слоты косметики.
    * Раньше все три категории писались в players.equipped_skin, поэтому
@@ -511,6 +519,7 @@ export interface PlayerState {
   missionsRefreshedAt: string;
   achievements: string[];
   inventory: PlayerInventoryState;
+  newYearCandy: import('./newYearCandy').NewYearCandyState;
   derived: DerivedStats;
 }
 

@@ -81,10 +81,11 @@ export const gameApi = {
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/season-event', 'POST', { action, clicks }),
   skinAction: (
-    action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+    action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage',
     skinKey?: string,
-    clicks = 0
-  ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
+    clicks = 0,
+    expectedPrice?: number
+  ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks, expectedPrice }),
   profileFrameAction: (frameKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action: 'profile_frame', skinKey: frameKey, clicks }),
   inventoryVisibility: (itemKey: string, visible: boolean, clicks = 0) =>
@@ -94,6 +95,8 @@ export const gameApi = {
       visible,
       clicks,
     }),
+  useNewYearCandy: (requestId: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/inventory', 'POST', { action: 'use', itemKey: 'reward:new_year_candy', requestId, clicks }),
   publicProfile: (profileId: string) =>
     apiRequest<PublicProfileResponse>(`/api/profile?profileId=${encodeURIComponent(profileId)}`, 'GET'),
   prestige: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/prestige', 'POST', { clicks }),
