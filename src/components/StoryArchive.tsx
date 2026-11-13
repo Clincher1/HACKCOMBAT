@@ -12,7 +12,8 @@ export const StoryArchive: React.FC<{ player: PlayerState }> = ({ player }) => {
   useEffect(() => { setIndex(current => Math.min(current, Math.max(0, unlocked.length - 1))); }, [unlocked.length]);
   const episode = unlocked[index];
   return (
-    <section aria-label="Сюжетный архив" className="rounded-2xl border border-slate-600 bg-[#252b2e]/90 p-3.5 text-slate-100">
+    <section aria-label="Сюжетный архив" className={`rounded-2xl border p-3.5 text-slate-100 ${unlocked.length > 0 ? 'border-[rgba(var(--ui-secondary-rgb),0.65)] bg-gradient-to-br from-purple-950/55 to-[#252b2e] shadow-[0_0_22px_rgba(var(--ui-secondary-rgb),0.18)]' : 'border-slate-600 bg-[#252b2e]/90'}`}>
+      {unlocked.length > 0 && <div className="mb-2 text-[10px] font-black uppercase tracking-[0.12em] text-[var(--ui-secondary)]">● Сюжет доступен</div>}
       <div className="flex items-start gap-2.5">
         <BookOpen className="h-5 w-5 shrink-0 text-[#adc8ac]" aria-hidden="true" />
         <div className="min-w-0 flex-1">
