@@ -423,16 +423,6 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
   );
   const inventoryShowcase = keyArr(src.inventoryShowcase);
   const seasonEvent = normalizeSeasonEventState(src.seasonEvent);
-  const validEventFrameKeys = new Set<string>();
-  if (seasonEvent?.participationClaimed && seasonEvent.completedDays.length > 0) {
-    validEventFrameKeys.add(ACTIVE_SEASON_EVENT.participationFrameKey);
-  }
-  if (
-    seasonEvent?.masteryClaimed &&
-    seasonEvent.completedDays.length === SEASON_EVENT_DAY_COUNT
-  ) {
-    validEventFrameKeys.add(ACTIVE_SEASON_EVENT.masteryFrameKey);
-  }
   const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
   const equippedFrameConfig = equippedProfileFrame
     ? PROFILE_FRAMES.find((candidate) => candidate.key === equippedProfileFrame)
@@ -452,7 +442,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
   // Подарок не должен исчезнуть из коллекции из-за неполного старого JSONB.
   const rawUnlockedProfileFrames = Array.from(
     new Set([
-      ...strArr(src.unlockedProfileFrames),
+      ...keyArr(src.unlockedProfileFrames),
       ...(equippedFrameConfig?.giftOnly && equippedProfileFrame ? [equippedProfileFrame] : []),
     ])
   );
@@ -460,7 +450,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     const frame = PROFILE_FRAMES.find((candidate) => candidate.key === key);
     if (!frame || frame.key === 'default') return false;
     if (frame.temporary && !temporaryFrameActive) return false;
-    return !frame.eventKey || validEventFrameKeys.has(frame.key);
+    // Ownership is stored server-side and may be a permanent gift, including
+    // when the event history is absent in a legacy save.
+    return true;
   });
 
   return {
@@ -495,8 +487,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     dailyIncident: normalizeDailyIncidentState(src.dailyIncident),
     seasonEvent,
     unlockedProfileFrames,
-    // Надетой может быть только реально открытая рамка. Это не даёт старому
-    // или повреждённому JSON самовольно показать золотую рамку в рейтинге.
+    // Надетой может быть только рамка из серверной коллекции.
     equippedProfileFrame:
       equippedProfileFrame && unlockedProfileFrames.includes(equippedProfileFrame)
         ? equippedProfileFrame
@@ -1152,6 +1143,15 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     sb.from('base_upgrades').select('upgrade_key, level').eq('player_id', pid),
     sb.from('new_year_candy').select('uses_remaining, boost_until').eq('player_id', pid).maybeSingle(),
   ]);
+  // A failed child read is not an empty collection: do not save a partial snapshot.
+  for (const [label, result] of [
+    ['карточки', cardsRes], ['команду', teamRes], ['контракты', missionsRes],
+    ['достижения', achRes], ['питомцев', petsRes], ['Базу', baseRes],
+  ] as const) {
+    if (result.error || !Array.isArray(result.data)) {
+      throw new Error(`Не удалось загрузить ${label}. Попробуй ещё раз.`);
+    }
+  }
   if (candyRes.error || !candyRes.data) throw new Error('Не удалось загрузить новогодний подарок');
 
   const cardsMap: Record<string, number> = {};
