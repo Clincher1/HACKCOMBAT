@@ -138,7 +138,7 @@ check(
   'новые скины имеют дорогой вход и уникальные ключи',
   newShopSkins.length === 9 &&
     new Set(newShopSkins.map((skin) => skin.key)).size === newShopSkins.length &&
-    newShopSkins.every((skin) => skin.cryptoCost >= 160 && Number.isFinite(skin.clickBonusPct))
+    newShopSkins.every((skin) => skin.cryptoCost >= 160 && skin.clickBonusPct === 0)
 );
 
 const deskSource = readFileSync('src/components/DeskScene.tsx', 'utf8');

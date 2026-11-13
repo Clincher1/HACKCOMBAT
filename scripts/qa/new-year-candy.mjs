@@ -1,0 +1,51 @@
+/** Deterministic local server tests. No real players or database are touched. */
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+const root=process.cwd(), sandbox=fs.mkdtempSync(path.join(os.tmpdir(),'hk-candy-'));
+process.chdir(sandbox);
+delete process.env.SUPABASE_URL; delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+const {dispatchApiRequest}=createRequire(import.meta.url)(path.join(root,'api/_core.cjs'));
+let clock=Date.now(); const oldNow=Date.now; Date.now=()=>clock;
+const seed='candy-qa';
+async function api(route, body={}, who=seed, method='POST') {
+  const req={url:`/api/${route}`,method,headers:{host:'localhost:5173','x-demo-user-id':who,'x-demo-username':'CandyQA'},body,socket:{remoteAddress:'127.0.0.1'},on(){}};
+  const res={statusCode:200,setHeader(){},end(s){this.payload=s}};
+  await dispatchApiRequest(req,res);return JSON.parse(res.payload);
+}
+let ok=0,bad=0;
+function check(label,pass){console.log(`${pass?'PASS':'FAIL'} — ${label}`);pass?ok++:bad++;}
+const item='reward:new_year_candy';
+const init=await api('init');
+check('подарок выдан новому игроку, три укуса и витрина закрыта', init.player.inventory.ownedKeys.includes(item)&&!init.player.inventory.showcaseKeys.includes(item)&&init.player.newYearCandy.usesRemaining===3);
+const before=await api('click',{clicks:1});
+check('первый ручной клик без бонуса',before.player.data===init.player.data+init.player.derived.clickPower);
+const id1=crypto.randomUUID();
+const first=await api('inventory',{action:'use',itemKey:item,requestId:id1});
+check('первый укус включает час ×2 и расходует один заряд',first.ok&&first.player.newYearCandy.usesRemaining===2&&Date.parse(first.player.newYearCandy.boostUntil)===clock+3600000);
+check('пассивный доход и базовая сила не изменились',first.player.derived.clickPower===init.player.derived.clickPower&&first.player.derived.dataPerHour===init.player.derived.dataPerHour);
+const retry=await api('inventory',{action:'use',itemKey:item,requestId:id1});
+check('повтор одного и того же запроса не расходует второй укус',retry.ok&&retry.player.newYearCandy.usesRemaining===2&&retry.player.newYearCandy.boostUntil===first.player.newYearCandy.boostUntil);
+clock+=2000;
+const boosted=await api('click',{clicks:1});
+check('ручной клик зачисляется ровно ×2',boosted.player.data===first.player.data+2*first.player.derived.clickPower);
+const second=await api('inventory',{action:'use',itemKey:item,requestId:crypto.randomUUID()});
+const third=await api('inventory',{action:'use',itemKey:item,requestId:crypto.randomUUID()});
+check('второй и третий укусы продлевают действие, не увеличивая множитель', second.player.newYearCandy.usesRemaining===1&&third.player.newYearCandy.usesRemaining===0&&Date.parse(third.player.newYearCandy.boostUntil)===Date.parse(first.player.newYearCandy.boostUntil)+7200000);
+const fourth=await api('inventory',{action:'use',itemKey:item,requestId:crypto.randomUUID()});
+check('четвёртый укус запрещён',fourth.ok===false);
+const reload=await api('init');
+check('состояние сохраняется после повторного входа',reload.player.newYearCandy.usesRemaining===0&&reload.player.newYearCandy.boostUntil===third.player.newYearCandy.boostUntil);
+check('пончик и учебник остаются нетронуты',reload.player.inventory.ownedKeys.includes('reward:first_donut')&&reload.player.inventory.ownedKeys.includes('reward:gift_python_book'));
+const badItem=await api('inventory',{action:'use',itemKey:'reward:first_donut',requestId:crypto.randomUUID()});
+check('другие подарки нельзя съесть',badItem.ok===false);
+const other=await api('init',{},'another-candy-player');
+check('у другого игрока отдельные три укуса',other.player.newYearCandy.usesRemaining===3&&!other.player.newYearCandy.boostUntil);
+clock=Date.parse(third.player.newYearCandy.boostUntil)+1000;
+const expiredInit=await api('init');
+const expired=await api('click',{clicks:1});
+check('после окончания таймера начисляется обычный тап',expired.player.data===expiredInit.player.data+expiredInit.player.derived.clickPower);
+Date.now=oldNow;fs.rmSync(sandbox,{recursive:true,force:true});
+console.log(`\nИтого: ${ok} pass / ${bad} fail`);if(bad)process.exitCode=1;
