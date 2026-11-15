@@ -29,13 +29,15 @@ export const DeskPage: React.FC = () => {
 
   return (
     <div className="space-y-3.5 pb-4">
+      {/* Once unlocked, put the story before the desk so it is easy to discover. */}
+      {chapter.complete && <StoryArchive player={player} />}
       <DeskScene />
 
       {/* Главные активности Desk: ивент и задания оператора видны сразу после сцены. */}
       <SeasonEventPanel state={player.stats.seasonEvent} />
       <DailyTasksPanel state={player.stats.dailyTasks} />
       <ChapterBrief chapter={chapter} />
-      <StoryArchive player={player} />
+      {!chapter.complete && <StoryArchive player={player} />}
       <OfflineBankNote derived={player.derived} stats={player.stats} />
 
       {/* Индикатор риска при высоком Heat */}
@@ -96,7 +98,7 @@ const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => 
           <CheckCircle2 className="h-5 w-5 shrink-0 text-[#adc8ac]" />
           <div className="min-w-0 flex-1">
             <h2 className="text-xs font-bold text-[#adc8ac]">Глава 1 завершена · {chapter.completedCount}/{chapter.steps.length}</h2>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-300">Это вводные задания. Историю можно читать в сюжетном архиве ниже.</p>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-300">Это вводные задания. Историю можно читать в сюжетном архиве вверху.</p>
             <button type="button" onClick={() => setShowCompletedSteps(true)} className="mt-2 text-xs font-semibold text-[var(--ui-secondary)] underline underline-offset-2">
               Посмотреть выполненные задания
             </button>
