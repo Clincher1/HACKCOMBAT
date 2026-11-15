@@ -23,6 +23,7 @@ import { getFirstChapterState } from '../../shared/chapter.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { MissionTargetType } from '../../shared/types';
 import { DailyIncidentPanel } from '../components/DailyIncidentPanel';
+import { FieldReportPanel } from '../components/FieldReportPanel';
 import { useGame } from '../context/GameContext';
 import { formatCompact, formatCountdown } from '../lib/format';
 
@@ -195,6 +196,11 @@ export const HacksPage: React.FC = () => {
         </div>
       </div>
 
+      <FieldReportPanel player={player} nowMs={nowMs} onGoToContracts={(target) => {
+        if (target === 'available') setFilter('all');
+        document.getElementById(target === 'active' ? 'active-contracts' : 'available-contracts')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }} />
+
       <DailyIncidentPanel />
 
       {/* Короткая легенда риска: помогает новичку читать шанс без отдельного туториала. */}
@@ -273,7 +279,7 @@ export const HacksPage: React.FC = () => {
 
       {/* Секция текущих запущенных миссий с живыми прогресс-барами */}
       {player.activeMissions.length > 0 && (
-        <div className="space-y-2">
+        <div id="active-contracts" className="space-y-2 scroll-mt-4">
           <div className="text-xs font-bold text-[#adc8ac] px-1">⚡ В процессе взлома</div>
           {player.activeMissions.map((active) => {
             const startMs = new Date(active.startedAt).getTime();
@@ -411,7 +417,7 @@ export const HacksPage: React.FC = () => {
       )}
 
       {/* Три понятных направления хакинга. Отдельной кнопки «Витрина» больше нет. */}
-      <div className="rounded-xl bg-[#171d20]/70 border border-slate-800/80 px-2.5 py-2">
+      <div id="available-contracts" className="scroll-mt-4 rounded-xl bg-[#171d20]/70 border border-slate-800/80 px-2.5 py-2">
         <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 px-0.5">
           Направление хакинга · можно выбрать одно
         </div>

@@ -9,6 +9,7 @@ import {
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getFirstChapterState, type FirstChapterState } from '../../shared/chapter.config';
+import { getFieldReport } from '../../shared/fieldReports.config';
 import { DailyTasksPanel } from '../components/DailyTasksPanel';
 import { DeskScene, OfflineBankNote } from '../components/DeskScene';
 import { SeasonEventPanel } from '../components/SeasonEventPanel';
@@ -22,7 +23,7 @@ import { useGame } from '../context/GameContext';
  * рабочий стол не дублирует её дополнительной промо-карточкой.
  */
 export const DeskPage: React.FC = () => {
-  const { player } = useGame();
+  const { player, nowMs } = useGame();
   if (!player) return null;
 
   const chapter = getFirstChapterState(player);
@@ -32,6 +33,11 @@ export const DeskPage: React.FC = () => {
       {/* Once unlocked, put the story before the desk so it is easy to discover. */}
       {chapter.complete && <StoryArchive player={player} />}
       <DeskScene />
+
+      <Link to="/hacks" aria-label="Открыть городскую смену" className="flex min-h-[54px] items-center gap-2 rounded-xl border border-[rgba(var(--ui-secondary-rgb),0.55)] bg-[#20253b] px-3 py-2 text-slate-100 shadow-[0_0_18px_rgba(var(--ui-secondary-rgb),0.12)]">
+        <span className="flex-1 text-xs"><strong className="text-[var(--ui-secondary)]">● Городская смена</strong><br />{getFieldReport(nowMs).report.title} · новое сообщение во «Взломах»</span>
+        <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+      </Link>
 
       {/* Главные активности Desk: ивент и задания оператора видны сразу после сцены. */}
       <SeasonEventPanel state={player.stats.seasonEvent} />
