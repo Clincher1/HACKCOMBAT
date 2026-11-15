@@ -7,7 +7,7 @@ const browser = await playwright.launch({ executablePath: await chromium.executa
 let count = 0;
 const check = (value, name) => { if (!value) throw Error(`FAIL ${name}`); console.log(`PASS ${name}`); count++; };
 try {
-  for (const missions of [0, 2, 4, 48]) {
+  for (const missions of [0, 2, 4, 48, 50, 72]) {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     await context.addInitScript(() => localStorage.setItem('hk_tutorial_seen_v1', '1'));
     const page = await context.newPage(); page.setDefaultTimeout(12000);
@@ -25,8 +25,19 @@ try {
     });
     await page.goto(base, { waitUntil: 'domcontentloaded' });
     const archive = page.getByRole('region', { name: 'Сюжетный архив' }); await archive.waitFor();
-    const expected = Math.min(24, missions / 2);
-    check((await archive.innerText()).includes(`${expected}/24`), `${missions} missions show correct unlocked count`);
+    const expected = Math.min(36, missions / 2);
+    check((await archive.innerText()).includes(`${expected}/36`), `${missions} missions show correct unlocked count`);
+    const newEntries = archive.getByRole('button', { name: 'Читать новые записи' });
+    if (missions < 50) check(await newEntries.count() === 0, 'new entries stay locked before 50 contracts');
+    else {
+      check(await newEntries.isVisible(), 'new continuation is highlighted');
+      await newEntries.click();
+      check(await archive.getByText('Молчащий ретранслятор', { exact: true }).isVisible(), 'jump opens first new entry');
+      await archive.getByRole('button', { name: 'Свернуть историю' }).click();
+      await archive.getByRole('button', { name: 'Читать историю' }).click();
+      for (let i = 0; i < 24; i++) await archive.getByRole('button', { name: 'Предыдущая запись' }).click();
+      await archive.getByRole('button', { name: 'Свернуть историю' }).click();
+    }
     if (missions === 0) {
       check((await archive.innerText()).includes('Пройди вводные задания'), 'new player sees introduction requirement');
       check(await archive.getByRole('button', { name: 'Читать историю' }).count() === 0, 'locked archive has no read button');
@@ -45,6 +56,12 @@ try {
         check(await archive.getByText('Неполный журнал').count() === 1, 'unlocked episode navigation works');
         await previous.click();
         check(await archive.getByText('Посторонний сигнал').count() === 1, 'back navigation works');
+      }
+      if (missions === 50 || missions === 72) {
+        const lastIndex = missions === 50 ? 24 : 35;
+        for (let i = 0; i < lastIndex; i++) await next.click();
+        check(await archive.getByText(missions === 50 ? 'Молчащий ретранслятор' : 'Нулевой час', { exact: true }).isVisible(), 'new season entry is readable');
+        check(await next.isDisabled(), 'cannot navigate past the latest unlocked episode');
       }
       await archive.getByRole('button', { name: 'Свернуть историю' }).click();
       check(await archive.getByText('Посторонний сигнал').count() === 0, 'history collapses');

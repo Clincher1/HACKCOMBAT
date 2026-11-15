@@ -26,6 +26,12 @@ export const StoryArchive: React.FC<{ player: PlayerState }> = ({ player }) => {
                 {next ? `Следующая запись: ${totalMissions}/${next.missions} закрытых контрактов.` : 'Все записи истории открыты. Контракты и развитие продолжаются.'}
               </p>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Открываются за общее число закрытых контрактов, включая прежние. Дополнительных наград нет.</p>
+              {unlocked.length > 24 && (
+                <div className="mt-2 rounded-lg border border-[rgba(var(--ui-secondary-rgb),0.55)] bg-black/20 p-2">
+                  <p className="text-[11px] font-bold text-[var(--ui-secondary)]">● Продолжение истории · открыто {unlocked.length - 24} из {STORY_EPISODES.length - 24}</p>
+                  <button type="button" onClick={() => { setIndex(24); setOpen(true); }} className="mt-1 min-h-[36px] text-xs font-semibold text-slate-100 underline underline-offset-2">Читать новые записи</button>
+                </div>
+              )}
               {unlocked.length > 0 && <button type="button" aria-expanded={open} onClick={() => setOpen(value => !value)} className="mt-2 text-xs font-semibold text-[var(--ui-secondary)] underline underline-offset-2">{open ? 'Свернуть историю' : 'Читать историю'}</button>}
               {next && <Link to="/hacks" className="ml-4 inline-block text-xs text-slate-200 underline underline-offset-2">К контрактам</Link>}
             </>

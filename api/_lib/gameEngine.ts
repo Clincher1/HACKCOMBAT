@@ -1273,7 +1273,8 @@ async function savePlayerCore(
   expectedEnergy?: number,
   expectedRep?: number,
   expectedHeat?: number,
-  expectedStats?: unknown
+  expectedStats?: unknown,
+  expectedDataAlreadyStored = false
 ): Promise<void> {
   recentClickTimestamps.set(record.tgId, record.lastClickBatchAt);
   // Защита от переполнения и отрицательных значений перед записью в БД
@@ -1398,7 +1399,11 @@ async function savePlayerCore(
     updateQuery = updateQuery.eq('xp', expectedXp);
   }
   if (expectedData !== undefined) {
-    const normalizedExpectedData = Math.max(0, Math.floor(safeNonNeg(expectedData, 0) * 100) / 100);
+    // Incident CAS uses a value read from, or just committed to, the database.
+    // Flooring it twice can turn 10013.21 into 10013.20 due to binary floats.
+    const normalizedExpectedData = expectedDataAlreadyStored
+      ? safeNonNeg(expectedData, 0)
+      : Math.max(0, Math.floor(safeNonNeg(expectedData, 0) * 100) / 100);
     updateQuery = updateQuery.eq('data', normalizedExpectedData);
   }
   if (expectedEnergy !== undefined) {
@@ -3427,7 +3432,7 @@ export async function handleDailyIncidentAction(
 
     // Compare the persisted snapshot, not the post-sync balance. The JSONB
     // guard also protects one-time choices when a reward is capped.
-    await savePlayerCore(record, mode, undefined, expectedData, undefined, expectedRep, expectedHeat, expectedStats);
+    await savePlayerCore(record, mode, undefined, expectedData, undefined, expectedRep, expectedHeat, expectedStats, true);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }

@@ -76,6 +76,11 @@ try {
  let patch=requests.find(x=>x.table==='players'&&x.body?.stats?.dailyIncident?.choiceKey);
  check('CAS uses original Data and original stats',new URL(patch.url).searchParams.get('data')==='eq.10000' && JSON.parse(new URL(patch.url).searchParams.get('stats->dailyIncident').slice(3)).choiceKey===null);
  r=await incident('mock-regression-1');check('same incident cannot pay twice',!r.ok && row.rep===53);
+ reset();requests.length=0;row.data=10013.21;
+ r=await incident('mock-regression-cents', 'close_session', 0);
+ check('persisted decimal Data compares exactly rather than losing a cent',r.ok && row.stats.dailyIncident.choiceKey==='close_session');
+ const centsPatch=requests.find(x=>x.table==='players' && x.body?.stats?.dailyIncident?.choiceKey);
+ check('CAS matches the precise stored balance',new URL(centsPatch.url).searchParams.get('data')==='eq.10013.21');
  reset();requests.length=0;
  r=await incident('mock-regression-click', 'close_session', 3);
  check('pending taps and choice succeed together',r.ok && row.total_clicks===3 && row.stats.dailyIncident.choiceKey==='close_session');
