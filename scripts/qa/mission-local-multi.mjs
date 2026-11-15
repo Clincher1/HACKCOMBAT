@@ -39,7 +39,7 @@ if(process.argv[2]==='worker') {
  try{
    const initial=await api('init');check('local PostgREST init',initial.ok&&initial.player?.id,initial.error);playerId=initial.player.id;
    const original=(await row('players','stats',{id:playerId}))[0];
-   const stats={...original.stats,inventoryOwned:['reward:first_donut','reward:gift_cola','reward:gift_whiskey','reward:gift_snus','reward:gift_python_book'],inventoryShowcase:['reward:gift_cola'],unlockedProfileFrames:['frame_rooster_red'],equippedProfileFrame:'frame_rooster_red'};
+   const stats={...original.stats,inventoryOwned:['reward:first_donut','reward:gift_cola','reward:gift_whiskey','reward:gift_python_book'],inventoryShowcase:['reward:gift_cola'],unlockedProfileFrames:['frame_rooster_red'],equippedProfileFrame:'frame_rooster_red'};
    const {error:updateError}=await admin.from('players').update({energy:0,energy_updated:new Date().toISOString(),stats}).eq('id',playerId);if(updateError)throw updateError;
    const state=await api('init');check('synthetic player remains at 0 Energy',state.ok&&state.player.energy===0,`energy=${state.player?.energy}`);
    const missionKey=state.player.availableMissionKeys[0]; await initWorkers();

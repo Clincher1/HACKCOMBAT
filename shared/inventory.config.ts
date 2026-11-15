@@ -13,7 +13,6 @@ export const GIFT_PYTHON_BOOK_ITEM_KEY = 'reward:gift_python_book';
 /** Постоянные персональные подарки: только показать или скрыть, без игровых эффектов. */
 export const GIFT_COLA_ITEM_KEY = 'reward:gift_cola';
 export const GIFT_WHISKEY_ITEM_KEY = 'reward:gift_whiskey';
-export const GIFT_SNUS_ITEM_KEY = 'reward:gift_snus';
 
 const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
   [NEW_YEAR_CANDY_KEY]: {
@@ -77,19 +76,7 @@ const REWARD_ITEMS: Record<string, InventoryItemDefinition> = {
     usable: false,
     equipAction: null,
   },
-  [GIFT_SNUS_ITEM_KEY]: {
-    key: GIFT_SNUS_ITEM_KEY,
-    kind: 'reward',
-    name: 'Шайба снюса',
-    description: 'Персональный подарок администратора. Его можно только выставить или скрыть.',
-    icon: '🟤',
-    imageUrl: '/assets/inventory/snus-packed.jpg',
-    source: 'Персональный подарок',
-    inventoryCategory: 'gift',
-    accent: '#a3a3a3',
-    usable: false,
-    equipAction: null,
-  },
+
 };
 
 export function getInventoryItemDefinition(key: string): InventoryItemDefinition | null {

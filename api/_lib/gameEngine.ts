@@ -419,9 +419,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     ).slice(0, max);
   };
   const inventoryOwned = Array.from(
-    new Set([FIRST_DONUT_ITEM_KEY, GIFT_PYTHON_BOOK_ITEM_KEY, ...keyArr(src.inventoryOwned)])
+    new Set([FIRST_DONUT_ITEM_KEY, GIFT_PYTHON_BOOK_ITEM_KEY, ...keyArr(src.inventoryOwned).filter(key => key !== 'reward:gift_snus')])
   );
-  const inventoryShowcase = keyArr(src.inventoryShowcase);
+  const inventoryShowcase = keyArr(src.inventoryShowcase).filter(key => key !== 'reward:gift_snus');
   const seasonEvent = normalizeSeasonEventState(src.seasonEvent);
   const equippedProfileFrame = pickProfileFrameKey(src.equippedProfileFrame);
   const equippedFrameConfig = equippedProfileFrame

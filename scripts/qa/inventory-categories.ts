@@ -13,7 +13,7 @@ check('обычные достижения и косметика не входя
   !isCollectibleInventoryItem('frame:frame_rooster_red') &&
   !isCollectibleInventoryItem('companion:hamster'));
 check('подарки и призы относятся к разным разделам',
-  getInventoryItemDefinition('reward:gift_snus')?.inventoryCategory === 'gift' &&
+  getInventoryItemDefinition('reward:gift_cola')?.inventoryCategory === 'gift' &&
   getInventoryItemDefinition('reward:first_donut')?.inventoryCategory === 'prize' &&
   getInventoryItemDefinition('reward:gift_python_book')?.inventoryCategory === 'gift');
 
