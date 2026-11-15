@@ -1,3 +1,4 @@
+import type { ArchiveEntry, ArchiveReply, ArchiveResponse } from '../../shared/operatorArchive';
 import type {
   ApiSyncResponse,
   LeaderboardResponse,
@@ -51,6 +52,9 @@ async function apiRequest<T>(path: string, method: 'GET' | 'POST' = 'POST', body
 // тапов уезжает вместе с покупкой. Один сетевой круг вместо двух: покупка
 // ощущается мгновенной, и сервер уже видит свежий баланс.
 export const gameApi = {
+  archiveSync: () => apiRequest<ArchiveResponse>('/api/operator-archive', 'POST', { action: 'sync' }),
+  archiveRead: (key: string) => apiRequest<{ ok: true; entry: ArchiveEntry }>('/api/operator-archive', 'POST', { action: 'read', key }),
+  archiveReply: (key: string, reply: ArchiveReply) => apiRequest<{ ok: true; entry: ArchiveEntry }>('/api/operator-archive', 'POST', { action: 'reply', key, reply }),
   /**
    * Для direct-link Mini Apps Telegram иногда кладёт startapp только в
    * tgWebAppStartParam внешнего launch payload, а не в подписанный tgWebAppData.

@@ -2,6 +2,7 @@ import { RefreshCw, WifiOff } from 'lucide-react';
 import React, { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
+import { ArchiveSync } from './components/ArchiveSync';
 import { BottomNav } from './components/BottomNav';
 import { TopHud } from './components/TopHud';
 import { GameProvider, useGame } from './context/GameContext';
@@ -9,6 +10,10 @@ import { GameProvider, useGame } from './context/GameContext';
 // The shell and the first API request stay small. Pages and the modal bundle are
 // fetched only when the authenticated shell is ready, which keeps the Telegram
 // WebView's first paint free of every tab's UI and tutorial code.
+const ArchivePage = React.lazy(async () => {
+  const module = await import('./pages/ArchivePage');
+  return { default: module.ArchivePage };
+});
 const DeskPage = React.lazy(async () => {
   const module = await import('./pages/DeskPage');
   return { default: module.DeskPage };
@@ -58,6 +63,7 @@ const AppShell: React.FC = () => {
   const location = useLocation();
   const sectionLabels: Record<string, [string, string]> = {
     '/': ['РАБОЧЕЕ ПРОСТРАНСТВО', 'Личный терминал'],
+    '/archive': ['ИСТОРИЯ', 'Архив оператора'],
     '/upgrades': ['ОБОРУДОВАНИЕ', 'Мастерская'],
     '/hacks': ['ОПЕРАЦИИ', 'Взломы и контракты'],
     '/team': ['СОТРУДНИКИ', 'Команда'],
@@ -110,6 +116,7 @@ const AppShell: React.FC = () => {
 
   return (
     <div className="min-h-screen cyber-grid-bg flex flex-col visual-demo-shell">
+      <ArchiveSync />
       <TopHud />
       <AlertStack />
       <main className="visual-demo-main flex-1 w-full max-w-xl mx-auto px-3 pt-3 pb-24">
@@ -117,6 +124,7 @@ const AppShell: React.FC = () => {
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<DeskPage />} />
+            <Route path="/archive" element={<ArchivePage />} />
             <Route path="/upgrades" element={<UpgradesPage />} />
             <Route path="/hacks" element={<HacksPage />} />
             <Route path="/team" element={<TeamPage />} />

@@ -11,6 +11,7 @@ import init from './_routes/init';
 import inventory from './_routes/inventory';
 import leaderboard from './_routes/leaderboard';
 import missions from './_routes/missions';
+import operatorArchive from './_routes/operator-archive';
 import pets from './_routes/pets';
 import ping from './_routes/ping';
 import profile from './_routes/profile';
@@ -48,6 +49,7 @@ const routes: Record<string, Handler> = {
   inventory,
   leaderboard,
   missions,
+  'operator-archive': operatorArchive,
   pets,
   ping,
   profile,

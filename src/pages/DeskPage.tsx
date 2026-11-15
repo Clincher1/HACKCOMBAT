@@ -10,10 +10,12 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getFirstChapterState, type FirstChapterState } from '../../shared/chapter.config';
 import { getFieldReport } from '../../shared/fieldReports.config';
+import { getStoryState } from '../../shared/story.config';
+import { gameApi } from '../lib/api';
+import type { PlayerState } from '../../shared/types';
 import { DailyTasksPanel } from '../components/DailyTasksPanel';
 import { DeskScene, OfflineBankNote } from '../components/DeskScene';
 import { SeasonEventPanel } from '../components/SeasonEventPanel';
-import { StoryArchive } from '../components/StoryArchive';
 import { useGame } from '../context/GameContext';
 
 /**
@@ -31,7 +33,7 @@ export const DeskPage: React.FC = () => {
   return (
     <div className="space-y-3.5 pb-4">
       {/* Once unlocked, put the story before the desk so it is easy to discover. */}
-      {chapter.complete && <StoryArchive player={player} />}
+      <ArchiveLink player={player} />
       <DeskScene />
 
       <Link to="/hacks" aria-label="Открыть городскую смену" className="flex min-h-[54px] items-center gap-2 rounded-xl border border-[rgba(var(--ui-secondary-rgb),0.55)] bg-[#20253b] px-3 py-2 text-slate-100 shadow-[0_0_18px_rgba(var(--ui-secondary-rgb),0.12)]">
@@ -43,7 +45,6 @@ export const DeskPage: React.FC = () => {
       <SeasonEventPanel state={player.stats.seasonEvent} />
       <DailyTasksPanel state={player.stats.dailyTasks} />
       <ChapterBrief chapter={chapter} />
-      {!chapter.complete && <StoryArchive player={player} />}
       <OfflineBankNote derived={player.derived} stats={player.stats} />
 
       {/* Индикатор риска при высоком Heat */}
@@ -62,6 +63,24 @@ export const DeskPage: React.FC = () => {
       )}
     </div>
   );
+};
+
+const ArchiveLink: React.FC<{ player: PlayerState }> = ({ player }) => {
+  const [unread, setUnread] = useState<number | null>(null);
+  const [unreadCity, setUnreadCity] = useState(false);
+  const { nowMs } = useGame();
+  const day = getFieldReport(nowMs).index;
+  const count = getStoryState(player).unlocked.length;
+  useEffect(() => {
+    let alive = true;
+    void gameApi.archiveSync().then(result => {
+      if (alive) { setUnread(result.entries.filter(entry => entry.category === 'story' && !entry.read_at).length); setUnreadCity(result.entries.some(entry => entry.entry_key === `city:${day + 1}` && !entry.read_at)); }
+    }).catch(() => { if (alive) { setUnread(null); setUnreadCity(false); } });
+    return () => { alive = false; };
+  }, [count, day]);
+  return <Link to="/archive" className="flex min-h-[54px] items-center gap-2 rounded-xl border border-[rgba(var(--ui-secondary-rgb),0.7)] bg-[#20253b] px-3 py-2 text-slate-100 shadow-[0_0_18px_rgba(var(--ui-secondary-rgb),0.18)]">
+    <BookOpen className="h-5 w-5 shrink-0 text-[var(--ui-secondary)]" aria-hidden="true" /><span className="flex-1 text-xs"><strong className="text-[var(--ui-secondary)]">Архив оператора</strong><br />{unread ? `● Непрочитанные главы: ${unread}` : unreadCity ? '● Новое сообщение городской смены' : 'Главы истории и сообщения городской смены'}</span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+  </Link>;
 };
 
 const ChapterBrief: React.FC<{ chapter: FirstChapterState }> = ({ chapter }) => {
