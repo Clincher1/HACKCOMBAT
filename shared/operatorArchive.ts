@@ -5,6 +5,7 @@ export interface ArchiveContent {
   text: string;
   sender?: string;
   season?: number;
+  sourceMission?: string;
   carefulReply?: string;
   focusedReply?: string;
 }
@@ -17,4 +18,4 @@ export interface ArchiveEntry {
   read_at: string | null;
   reply: ArchiveReply | null;
 }
-export interface ArchiveResponse { ok: true; entries: ArchiveEntry[] }
+export interface ArchiveResponse { ok: true; entries: ArchiveEntry[]; caseAvailable?: boolean; caseAttempted?: boolean }

@@ -21,6 +21,8 @@ import {
 } from '../../shared/hack.config';
 import { getFirstChapterState } from '../../shared/chapter.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
+import { RETURN_CASE_NAME, getReturnCaseProgress } from '../../shared/returnTrace.config';
+import { gameApi } from '../lib/api';
 import type { MissionTargetType } from '../../shared/types';
 import { DailyIncidentPanel } from '../components/DailyIncidentPanel';
 import { FieldReportPanel } from '../components/FieldReportPanel';
@@ -96,6 +98,17 @@ export const HacksPage: React.FC = () => {
     missionHistory,
   } = useGame();
   const [filter, setFilter] = useState<FilterType>('all');
+  const [caseKeys, setCaseKeys] = useState<string[] | null>(null);
+  const [caseAttempted, setCaseAttempted] = useState(false);
+  const missionCount = player?.totalMissions ?? -1;
+  useEffect(() => {
+    if (missionCount < 0) return;
+    let alive = true;
+    void gameApi.archiveSync().then(result => {
+      if (alive) { setCaseKeys(result.caseAvailable ? result.entries.map(entry => entry.entry_key) : null); setCaseAttempted(!!result.caseAttempted); }
+    }).catch(() => { if (alive) setCaseKeys(null); });
+    return () => { alive = false; };
+  }, [missionCount]);
   const autoRefreshRequestedRef = useRef(false);
   const refreshLeftSec = player
     ? Math.max(
@@ -147,6 +160,11 @@ export const HacksPage: React.FC = () => {
   const rewardScale = getMissionRewardScale(derived.level);
   const chapter = getFirstChapterState(player);
   const storyMissionKeys = new Set(chapter.activeStep?.missionKeys ?? []);
+  const returnProgress = caseKeys ? getReturnCaseProgress(new Set(caseKeys)) : null;
+  const returnTargets = returnProgress?.next?.missions ?? [];
+  const returnVisible = player.availableMissionKeys.some(key => (returnTargets as readonly string[]).includes(key));
+  const returnInProgress = player.activeMissions.some(mission => (returnTargets as readonly string[]).includes(mission.missionKey));
+  const returnMinLevel = Math.min(...MISSIONS_CONFIG.filter(m => (returnTargets as readonly string[]).includes(m.key)).map(m => m.minLevel ?? 1));
 
   return (
     <div className="space-y-3.5 pb-4">
@@ -196,6 +214,18 @@ export const HacksPage: React.FC = () => {
         </div>
       </div>
 
+      {returnProgress && <section aria-label="Текущее расследование" className="rounded-2xl border border-[rgba(var(--ui-secondary-rgb),0.65)] bg-[#20253b] p-3.5 text-slate-100">
+        <p className="text-[10px] font-black uppercase tracking-wider text-[var(--ui-secondary)]">● Дело «{RETURN_CASE_NAME}» · {returnProgress.completed}/3 улики</p>
+        {returnProgress.next ? <>
+          <p className="mt-1 text-xs font-bold">{returnProgress.next.goal}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-slate-300">Нужен успешный результат: {MISSIONS_CONFIG.filter(m => (returnTargets as readonly string[]).includes(m.key)).map(m => m.targetName).join(' или ')}. Обычные награды и правила контрактов не меняются.</p>
+          {caseAttempted && <p className="mt-1 text-[10px] text-amber-300">Есть частичная или неудачная попытка — нужна успешная. Пропуск таймера даёт частичный результат.</p>}
+          {returnInProgress && <p className="mt-1 text-[10px] font-bold text-[var(--ui-secondary)]">Подходящий контракт уже выполняется — не забудь забрать результат.</p>}
+          {!returnVisible && !returnInProgress && <p className="mt-1 text-[10px] text-slate-400">{derived.level < returnMinLevel ? `Контракты этого этапа откроются с ${returnMinLevel} уровня.` : 'Подходящих целей сейчас нет в скане: проверь после его обновления.'}</p>}
+          {(returnVisible || returnInProgress) && <button type="button" onClick={() => {setFilter('all'); document.getElementById(returnInProgress ? 'active-contracts' : 'available-contracts')?.scrollIntoView({ behavior: 'smooth', block: 'start' });}} className="mt-2 min-h-[36px] rounded-lg border border-[var(--ui-secondary)] px-2.5 text-xs font-bold">{returnInProgress ? 'Посмотреть контракт' : 'Посмотреть цели'}</button>}
+        </> : <p className="mt-1 text-xs text-slate-300">Дело раскрыто. История сохранена в архиве.</p>}
+        <Link to="/archive" className="mt-2 block text-xs text-[var(--ui-secondary)] underline">Читать дело в архиве</Link>
+      </section>}
       <FieldReportPanel player={player} nowMs={nowMs} onGoToContracts={(target) => {
         if (target === 'available') setFilter('all');
         document.getElementById(target === 'active' ? 'active-contracts' : 'available-contracts')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -468,6 +498,7 @@ export const HacksPage: React.FC = () => {
         {visibleMissions.map((m) => {
           const meta = TYPE_META[m.targetType];
           const storyMission = storyMissionKeys.has(m.key);
+          const caseMission = (returnTargets as readonly string[]).includes(m.key);
           const whiteHatMult =
             derived.alignment === 'white_hat' && m.targetType === 'bad' ? 2 : 1;
           const estReward = Math.round(
@@ -519,6 +550,7 @@ export const HacksPage: React.FC = () => {
                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${meta.bg}`}>
                     {meta.badge}
                   </span>
+                  {caseMission && <span className="rounded-md border border-[var(--ui-secondary)] bg-[rgba(var(--ui-secondary-rgb),0.18)] px-2 py-0.5 text-[10px] font-bold text-white">● След возврата</span>}
                   {storyMission && (
                     <span className="rounded-md border border-purple-300/35 bg-purple-300/10 px-2 py-0.5 text-[10px] font-bold text-purple-200">
                       📖 Глава 1
