@@ -113,7 +113,10 @@ async function api(seed, route, body = {}, method = 'POST', headers = {}) {
 
 /** Прямой вызов вебхука Telegram (как будто пришёл апдейт от Telegram). */
 const webhook = (update, ip = '10.55.0.9') =>
-  api('wh', 'telegram', update, 'POST', { 'x-forwarded-for': ip });
+  api('wh', 'telegram', update, 'POST', {
+    'x-forwarded-for': ip,
+    'x-telegram-bot-api-secret-token': crypto.createHmac('sha256', 'hk-webhook-v2').update(process.env.BOT_TOKEN).digest('hex').slice(0, 48),
+  });
 
 const donatePayload = (tgId, stars, nonce = 'abc12345') => `d1:${tgId}:${stars}:${nonce}`;
 

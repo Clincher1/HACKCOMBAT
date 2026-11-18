@@ -26,6 +26,7 @@ const SEED = 'profile-frames-qa';
 const LOW_LEVEL_SEED = 'profile-frames-low-level-qa';
 const LOW_CRYPTO_SEED = 'profile-frames-low-crypto-qa';
 const STALE_EQUIPPED_SEED = 'profile-frames-stale-equipped-qa';
+const UNOWNED_EVENT_SEED = 'profile-frames-unowned-event-qa';
 const GIFTED_FRAME_SEED = 'profile-frames-gifted-qa';
 const STALE_GIFTED_FRAME_SEED = 'profile-frames-stale-gifted-qa';
 function demoTgId(seed) {
@@ -73,10 +74,13 @@ const tgId = demoTgId(SEED);
 const lowLevelId = demoTgId(LOW_LEVEL_SEED);
 const lowCryptoId = demoTgId(LOW_CRYPTO_SEED);
 const staleEquippedId = demoTgId(STALE_EQUIPPED_SEED);
+const unownedEventId = demoTgId(UNOWNED_EVENT_SEED);
 const giftedFrameId = demoTgId(GIFTED_FRAME_SEED);
 const staleGiftedFrameId = demoTgId(STALE_GIFTED_FRAME_SEED);
 const staleEquippedRecord = makeRecord(staleEquippedId, { username: 'StaleFrameTester' });
 const giftedFrameRecord = makeRecord(giftedFrameId, { username: 'GiftedFrameTester' });
+const unownedEventRecord = makeRecord(unownedEventId, { username: 'UnownedEventTester' });
+unownedEventRecord.stats = { unlockedProfileFrames: [], equippedProfileFrame: 'frame_neon_relay_master' };
 giftedFrameRecord.stats = {
   unlockedProfileFrames: ['frame_rooster_red', 'frame_rainbow_fish'],
   equippedProfileFrame: 'frame_rooster_red',
@@ -112,6 +116,7 @@ fs.writeFileSync(
       [String(lowLevelId)]: makeRecord(lowLevelId, { xp: 0 }),
       [String(lowCryptoId)]: makeRecord(lowCryptoId, { cryptoAmount: 10 }),
       [String(staleEquippedId)]: staleEquippedRecord,
+      [String(unownedEventId)]: unownedEventRecord,
       [String(giftedFrameId)]: giftedFrameRecord,
       [String(staleGiftedFrameId)]: staleGiftedFrameRecord,
     },
@@ -151,7 +156,7 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
     headers: {
       host: 'localhost:5173',
       'x-demo-user-id': seed,
-      'x-demo-username': 'FrameTester',
+      'x-demo-username': seed === STALE_EQUIPPED_SEED ? 'StaleFrameTester' : 'FrameTester',
       'x-forwarded-for': '10.41.0.1',
     },
     body,
@@ -245,11 +250,22 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
     staleGiftReapplied.error
   );
 
+  const unownedEvent = await api('init', {}, UNOWNED_EVENT_SEED);
+  const unownedAttempt = await api('skin', {action:'profile_frame',skinKey:'frame_neon_relay_master'}, UNOWNED_EVENT_SEED);
+  check('event-рамку нельзя получить или надеть без серверного владения', !unownedEvent.player?.stats?.equippedProfileFrame && !unownedEvent.player?.stats?.unlockedProfileFrames.includes('frame_neon_relay_master') && !unownedAttempt.ok);
+
+  const savedEventFrame = await api('init', {}, STALE_EQUIPPED_SEED);
+  check('записанная на сервере event-рамка не зависит от истории завершённого события', savedEventFrame.player?.stats?.unlockedProfileFrames.includes('frame_neon_relay_master') && savedEventFrame.player?.stats?.equippedProfileFrame === 'frame_neon_relay_master');
+  const eventUnequip = await api('skin', {action:'profile_frame',skinKey:'default'}, STALE_EQUIPPED_SEED);
+  const eventAgain = await api('skin', {action:'profile_frame',skinKey:'frame_neon_relay_master'}, STALE_EQUIPPED_SEED);
+  check('серверную event-рамку можно снять и снова надеть без прогресса события', eventUnequip.ok && eventAgain.ok && eventAgain.player?.stats?.equippedProfileFrame === 'frame_neon_relay_master', eventAgain.error);
+
   const leaderboard = await api('leaderboard', {}, SEED, 'GET');
   check('рейтинговый endpoint остаётся доступен после покупки рамок',
     leaderboard.ok === true && Array.isArray(leaderboard.entries));
-  const staleEntry = leaderboard.entries?.find((entry) => entry.username === 'StaleFrameTester');
-  check('неоткрытая рамка не показывается в рейтинге', staleEntry?.profileFrameKey === undefined, staleEntry?.profileFrameKey);
+  const eventLeaderboard = await api('leaderboard', {}, STALE_EQUIPPED_SEED, 'GET');
+  const staleEntry = eventLeaderboard.entries?.find((entry) => entry.isCurrentUser);
+  check('серверная коллекция сохраняет подаренную event-рамку в рейтинге даже без истории', staleEntry?.profileFrameKey === 'frame_neon_relay_master', staleEntry?.profileFrameKey);
 
   console.log(`\nИтог: ${pass} pass / ${fail} fail`);
   if (fail > 0) {

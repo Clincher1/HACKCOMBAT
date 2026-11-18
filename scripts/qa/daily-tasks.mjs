@@ -169,10 +169,10 @@ function taskByPrefix(state, prefix) {
     Object.values(nextState.progress).every((value) => value === 0) && nextState.claimed.length === 0);
 
   const dailyTasksPanelSource = fs.readFileSync(path.join(REPO_ROOT, 'src/components/DailyTasksPanel.tsx'), 'utf8');
-  check('выполненные ежедневные поручения можно скрыть крестиком',
-    dailyTasksPanelSource.includes('<X className="h-3.5 w-3.5" />') &&
-      dailyTasksPanelSource.includes('Скрыть выполненные поручения до следующего дня') &&
-      dailyTasksPanelSource.includes('localStorage.setItem(dismissStorageKey, \'1\')'));
+  check('полученные и просроченные поручения скрываются автоматически',
+    dailyTasksPanelSource.includes('nowMs >= end') &&
+      dailyTasksPanelSource.includes('!state.claimed.includes(task.key)') &&
+      dailyTasksPanelSource.includes('visibleTasks.length === 0'));
 
   Date.now = realNow;
   console.log(`\nИтог: ${pass} pass / ${fail} fail`);

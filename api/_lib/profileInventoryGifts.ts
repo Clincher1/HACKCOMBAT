@@ -1,6 +1,5 @@
 import {
   GIFT_COLA_ITEM_KEY,
-  GIFT_SNUS_ITEM_KEY,
   GIFT_WHISKEY_ITEM_KEY,
   getInventoryItemDefinition,
 } from '../../shared/inventory.config';
@@ -15,9 +14,9 @@ import type { PlayerProgressStats } from '../../shared/types';
  * в публичной витрине или оставить скрытыми.
  */
 const PERMANENT_PROFILE_INVENTORY_GIFTS: Readonly<Record<number, readonly string[]>> = {
-  296_857_803: [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY],
-  495_832_433: [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY],
-  6_623_819_182: [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY],
+  296_857_803: [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY],
+  495_832_433: [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY],
+  6_623_819_182: [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY],
 };
 
 export function ensurePermanentProfileInventoryGifts(

@@ -43,12 +43,16 @@ const EMPTY_EVENT_STATE = (weekKey: string): SeasonEventState => ({
 /** Семь календарных дней Neon Relay: серверный набор из трёх задач на день. */
 export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => {
   const { nowMs } = useGame();
+  return <SeasonEventPanelView state={state} nowMs={nowMs} />;
+};
+
+/** Visual only: hiding a finished event never changes saved progress or rewards. */
+export const SeasonEventPanelView: React.FC<SeasonEventPanelProps & { nowMs: number }> = ({ state, nowMs }) => {
   const live = isSeasonEventLive(nowMs);
   const launchMs = Date.parse(SEASON_EVENT_LAUNCH_AT_ISO);
   const window = getSeasonEventWindow(nowMs);
   const upcoming = !live && !state && Number.isFinite(launchMs) && nowMs < launchMs;
-  const ended = !live && Boolean(state) && nowMs >= window.endMs;
-  if (!live && !upcoming && !ended) return null;
+  if (!live && !upcoming) return null;
 
   const eventState = state ?? EMPTY_EVENT_STATE(window.weekKey);
   const calendarDay = live ? getSeasonEventDayNumber(nowMs) : eventState.currentDay;
@@ -72,7 +76,7 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200">
               <Radio className={`h-3 w-3 ${live ? 'animate-pulse text-[#7dff00]' : 'text-amber-300'}`} />
-              <span>{live ? 'ИВЕНТ В ИГРЕ' : upcoming ? 'СКОРО В ИГРЕ' : 'ИВЕНТ ЗАВЕРШЁН'}</span>
+              <span>{live ? 'ИВЕНТ В ИГРЕ' : 'СКОРО В ИГРЕ'}</span>
             </div>
             <span className="shrink-0 rounded-md bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-black text-amber-100 ring-1 ring-amber-200/25">
               7 ДНЕЙ · 3 ЗАДАНИЯ В ДЕНЬ
@@ -101,7 +105,7 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
             </div>
           </div>
           <span className="text-[10px] font-semibold text-slate-400">
-            {live ? `Сегодня день ${currentDay}` : ended ? 'Награды сохранены навсегда' : 'Дни появятся после старта'}
+            {live ? `Сегодня день ${currentDay}` : 'Дни появятся после старта'}
           </span>
         </div>
         <div className="mt-2 grid grid-cols-7 gap-1.5" aria-label="Прогресс семи календарных дней">

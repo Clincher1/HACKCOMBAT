@@ -38,7 +38,7 @@ function check(name, condition, extra = '') {
   }
 }
 
-const expectedKeys = ['reward:gift_cola', 'reward:gift_whiskey', 'reward:gift_snus'];
+const expectedKeys = ['reward:gift_cola', 'reward:gift_whiskey'];
 const assignments = [296_857_803, 495_832_433, 6_623_819_182];
 
 for (const tgId of assignments) {
@@ -50,6 +50,7 @@ for (const tgId of assignments) {
   check(`${tgId} не получает дубликаты при повторном sync`,
     secondPass === false && expectedKeys.every((key) => stats.inventoryOwned.filter((owned) => owned === key).length === 1));
   check(`${tgId} подарки не выставляются автоматически`, stats.inventoryShowcase.length === 0);
+  check(`${tgId} удалённый подарок больше не выдаётся`, !stats.inventoryOwned.includes('reward:gift_snus'));
 }
 
 const unknown = { inventoryOwned: ['reward:first_donut'], inventoryShowcase: [] };

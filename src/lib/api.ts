@@ -1,3 +1,4 @@
+import type { ArchiveEntry, ArchiveReply, ArchiveResponse } from '../../shared/operatorArchive';
 import type {
   ApiSyncResponse,
   LeaderboardResponse,
@@ -51,6 +52,9 @@ async function apiRequest<T>(path: string, method: 'GET' | 'POST' = 'POST', body
 // тапов уезжает вместе с покупкой. Один сетевой круг вместо двух: покупка
 // ощущается мгновенной, и сервер уже видит свежий баланс.
 export const gameApi = {
+  archiveSync: () => apiRequest<ArchiveResponse>('/api/operator-archive', 'POST', { action: 'sync' }),
+  archiveRead: (key: string) => apiRequest<{ ok: true; entry: ArchiveEntry }>('/api/operator-archive', 'POST', { action: 'read', key }),
+  archiveReply: (key: string, reply: ArchiveReply) => apiRequest<{ ok: true; entry: ArchiveEntry }>('/api/operator-archive', 'POST', { action: 'reply', key, reply }),
   /**
    * Для direct-link Mini Apps Telegram иногда кладёт startapp только в
    * tgWebAppStartParam внешнего launch payload, а не в подписанный tgWebAppData.
@@ -81,10 +85,11 @@ export const gameApi = {
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/season-event', 'POST', { action, clicks }),
   skinAction: (
-    action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+    action: 'buy_or_equip' | 'unequip' | 'clear_lockdown' | 'set_theme' | 'profile_frame' | 'set_desk_stage',
     skinKey?: string,
-    clicks = 0
-  ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
+    clicks = 0,
+    expectedPrice?: number
+  ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks, expectedPrice }),
   profileFrameAction: (frameKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action: 'profile_frame', skinKey: frameKey, clicks }),
   inventoryVisibility: (itemKey: string, visible: boolean, clicks = 0) =>
@@ -94,6 +99,8 @@ export const gameApi = {
       visible,
       clicks,
     }),
+  useNewYearCandy: (requestId: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/inventory', 'POST', { action: 'use', itemKey: 'reward:new_year_candy', requestId, clicks }),
   publicProfile: (profileId: string) =>
     apiRequest<PublicProfileResponse>(`/api/profile?profileId=${encodeURIComponent(profileId)}`, 'GET'),
   prestige: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/prestige', 'POST', { clicks }),

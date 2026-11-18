@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Gift, LockKeyhole, X } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Gift, LockKeyhole } from 'lucide-react';
 import React from 'react';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { getGameDayBoundsMs } from '../../shared/mechanics';
@@ -12,28 +12,7 @@ interface DailyTasksPanelProps {
 
 /** Небольшой ежедневный слой над главой: только текущие поручения и только XP. */
 export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
-  const { player, nowMs, busyKey, claimDailyTask } = useGame();
-  const dismissStorageKey = player && state
-    ? `hk:daily-tasks:dismissed:${player.tgId}:${state.dayKey}`
-    : null;
-  const [dismissedDayKey, setDismissedDayKey] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!dismissStorageKey) {
-      setDismissedDayKey(null);
-      return;
-    }
-    try {
-      setDismissedDayKey(
-        window.localStorage.getItem(dismissStorageKey) === '1' ? state?.dayKey ?? null : null
-      );
-    } catch {
-      // Если Telegram/WebView запретил localStorage, закрытие всё равно
-      // работает до перерендера текущей сессии.
-      setDismissedDayKey(null);
-    }
-  }, [dismissStorageKey, state?.dayKey]);
-
+  const { nowMs, busyKey, claimDailyTask } = useGame();
   if (!state) return null;
 
   const tasks = state.taskKeys
@@ -44,20 +23,11 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
   const resetAt = getGameDayBoundsMs(state.dayKey).end;
   const secondsToReset = Math.max(0, (resetAt - nowMs) / 1000);
   const completedCount = tasks.filter((task) => state.claimed.includes(task.key)).length;
-  const allClaimed = completedCount === tasks.length;
-  if (allClaimed && dismissedDayKey === state.dayKey) return null;
-
-  const dismissCompletedTasks = () => {
-    if (!allClaimed) return;
-    setDismissedDayKey(state.dayKey);
-    if (dismissStorageKey) {
-      try {
-        window.localStorage.setItem(dismissStorageKey, '1');
-      } catch {
-        // UI-only preference: server progress and XP are already saved.
-      }
-    }
-  };
+  // Past sets and already claimed tasks are not active work. Keep completed but
+  // unclaimed tasks visible until the day ends so their reward is never hidden.
+  const { start, end } = getGameDayBoundsMs(state.dayKey);
+  const visibleTasks = tasks.filter((task) => !state.claimed.includes(task.key));
+  if (nowMs < start || nowMs >= end || visibleTasks.length === 0) return null;
 
   return (
     <section
@@ -77,17 +47,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
               <span className="rounded-md bg-[#00f0ff]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#8ffaff]">
                 {completedCount}/{tasks.length}
               </span>
-              {allClaimed && (
-                <button
-                  type="button"
-                  onClick={dismissCompletedTasks}
-                  aria-label="Скрыть выполненные поручения до следующего дня"
-                  title="Скрыть выполненные поручения до следующего дня"
-                  className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-600/80 text-slate-400 transition hover:border-[#00f0ff]/55 hover:bg-[#00f0ff]/10 hover:text-[#8ffaff]"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
+
             </div>
           </div>
           <p className="mt-0.5 text-[11px] leading-relaxed text-slate-300">
@@ -97,7 +57,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
       </div>
 
       <div className="mt-3 space-y-2">
-        {tasks.map((task) => {
+        {visibleTasks.map((task) => {
           const progress = Math.min(task.target, state.progress[task.key] ?? 0);
           const claimed = state.claimed.includes(task.key);
           const ready = progress >= task.target;

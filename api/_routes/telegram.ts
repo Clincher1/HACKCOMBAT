@@ -45,7 +45,7 @@ interface TelegramSuccessfulPayment {
 
 interface TelegramUpdate {
   message?: {
-    chat: { id: number };
+    chat: { id: number; type?: string };
     from?: TelegramUser;
     text?: string;
     successful_payment?: TelegramSuccessfulPayment;
@@ -69,6 +69,14 @@ interface TelegramUpdate {
 }
 
 let lastRegisterAt = 0;
+
+// Constant-time comparison, with no accidental acceptance of empty secrets.
+function secretMatches(incoming: unknown, expected: string | undefined): boolean {
+  if (typeof incoming !== 'string' || !expected) return false;
+  const a = Buffer.from(incoming), b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
 
 function escapeHtml(text: string): string {
   return text
@@ -231,6 +239,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   // Автопривязка серверного BOT_TOKEN по кнопке ?action=register (с защитой от спама раз в 15 сек)
   if (req.method === 'GET' && urlObj.searchParams.get('action') === 'register') {
+    if (!secretMatches(req.headers['x-webhook-setup-secret'], process.env.TELEGRAM_WEBHOOK_SETUP_SECRET)) {
+      return sendJson(res, 403, { ok: false, error: 'Webhook setup authorization required' });
+    }
     if (!botToken) {
       return sendJson(res, 400, {
         ok: false,
@@ -267,6 +278,19 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       body: JSON.stringify({
         commands: [
           { command: 'start', description: 'Запустить HACKER KOMBAT' },
+          { command: 'play', description: 'Открыть игру' },
+          { command: 'menu', description: 'Где главное меню' },
+          { command: 'story', description: 'Задания оператора' },
+          { command: 'characters', description: 'Где найти команду' },
+          { command: 'hack', description: 'Где найти контракты' },
+          { command: 'events', description: 'Ежедневные задания и события' },
+          { command: 'stats', description: 'Профиль и рейтинг' },
+          { command: 'shop', description: 'Где найти косметику' },
+          { command: 'upgrade', description: 'Где улучшить оборудование' },
+          { command: 'save', description: 'Как сохраняется прогресс' },
+          { command: 'load', description: 'Как загрузить прогресс' },
+          { command: 'settings', description: 'Настройки игры' },
+          { command: 'accessibility', description: 'Доступность игры' },
           { command: 'invite', description: 'Пригласи друга и получи бонус' },
           { command: 'donate', description: 'Поддержать проект (Telegram Stars)' },
           { command: 'paysupport', description: 'Помощь по платежам и возврат' },
@@ -347,8 +371,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     </div>
     <ol>
       <li>Токен хранится строго в секретах сервера Vercel (<code>Sensitive</code>) и никогда не передаётся в браузер.</li>
-      <li>Нажмите кнопку ниже, чтобы обновить привязку защищённого Webhook (<code>${webAppUrl}/api/telegram</code>) и кнопки <b>«⚡ Играть»</b>.</li>
+      <li>Для настройки нужен отдельный секрет TELEGRAM_WEBHOOK_SETUP_SECRET. Нажмите кнопку ниже, чтобы обновить привязку защищённого Webhook (<code>${webAppUrl}/api/telegram</code>) и кнопки <b>«⚡ Играть»</b>.</li>
     </ol>
+    <label>Секрет настройки: <input id="setup-secret" type="password" autocomplete="off" /></label>
     <button id="btn">🚀 Обновить Webhook и кнопку «⚡ Играть»</button>
     <div id="out" class="status"></div>
   </div>
@@ -358,7 +383,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       out.style.display = 'block';
       out.textContent = '⏳ Обновляем защищённый Webhook...';
       try {
-        const r = await fetch('/api/telegram?action=register').then(x => x.json());
+        const r = await fetch('/api/telegram?action=register', { headers: { 'x-webhook-setup-secret': document.getElementById('setup-secret').value } }).then(x => x.json());
         if (!r.ok) throw new Error(r.error || 'Ошибка регистрации');
         out.innerHTML = '✅ <b>Готово!</b> Бот <b>@' + r.botUsername + '</b> защищён секретным токеном и готов к игре!<br><br>👉 <a style="color:#34d399;font-weight:bold" href="https://t.me/' + r.botUsername + '" target="_blank">Открыть @' + r.botUsername + ' в Telegram</a>';
       } catch (e) {
@@ -385,26 +410,15 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }
 
-  // Криптографическая проверка подписи Telegram Webhook (X-Telegram-Bot-Api-Secret-Token)
-  const explicitSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  // Telegram secret token is required; never register a webhook in response to
+  // an unauthenticated message. Accept v1 only for installations whose existing
+  // webhook was set up with the older bot/setup-bot.mjs and no explicit secret.
   const incomingSecret = req.headers['x-telegram-bot-api-secret-token'];
-  if (explicitSecret && incomingSecret !== explicitSecret) {
+  const legacySecret = !process.env.TELEGRAM_WEBHOOK_SECRET && botToken
+    ? crypto.createHmac('sha256', 'hk-webhook-v1').update(botToken).digest('hex').slice(0, 48)
+    : undefined;
+  if (!secretMatches(incomingSecret, derivedSecret) && !secretMatches(incomingSecret, legacySecret)) {
     return sendJson(res, 401, { ok: false, error: 'Invalid webhook secret' });
-  }
-  if (incomingSecret && derivedSecret && incomingSecret !== derivedSecret && incomingSecret !== explicitSecret) {
-    return sendJson(res, 401, { ok: false, error: 'Invalid webhook secret' });
-  }
-  // Если старый вебхук пришёл без secret_token — автоматически дообновляем setWebhook с secret_token на стороне Telegram!
-  if (!incomingSecret && botToken && derivedSecret) {
-    fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        url: `${webAppUrl}/api/telegram`,
-        secret_token: derivedSecret,
-        allowed_updates: ['message', 'callback_query', 'pre_checkout_query'],
-      }),
-    }).catch(() => undefined);
   }
 
   try {
@@ -655,6 +669,35 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       return sendJson(res, 200, { ok: true, refunded: refund.ok });
     }
 
+    // Commands inspired by the Telegram guide point to the existing Mini App.
+    // They never create a separate session or modify player state in chat.
+    const command = text.match(/^\/([a-z]+)(?:@[a-z0-9_]+)?(?:\s|$)/i)?.[1]?.toLowerCase();
+    const gameHelp: Record<string, string> = {
+      menu: 'Главное меню находится в игре. Используй нижнюю панель, чтобы открыть нужный раздел.',
+      play: 'Открой игру и продолжай с того места, на котором остановился.',
+      story: 'Задания оператора и сюжетный архив находятся на рабочем столе. Записи открываются за закрытые контракты.',
+      characters: 'Открой раздел «Команда» в нижней панели игры.',
+      hack: 'Контракты и скан целей находятся в разделе «Взломы» в нижней панели.',
+      events: 'Ежедневные поручения и доступные события находятся на рабочем столе игры.',
+      stats: 'Уровень, достижения и рейтинг находятся в разделе «Профиль» игры.',
+      save: 'Прогресс сохраняется на сервере автоматически. Отдельная команда сохранения не нужна.',
+      load: 'Открой игру под тем же аккаунтом Telegram: сохранённый прогресс загрузится автоматически.',
+      shop: 'Оформление находится в «Кибер-Косметике» внутри игры.',
+      upgrade: 'Улучшения оборудования находятся в разделе «Улучшения» игры.',
+      settings: 'Часть настроек доступна внутри игры. Отдельного меню настроек бота пока нет.',
+      accessibility: 'Игра частично учитывает настройку уменьшения движения на устройстве. Отдельное меню доступности пока не готово.',
+    };
+    if (command && Object.hasOwn(gameHelp, command)) {
+      await tgApi(botToken, 'sendMessage', {
+        chat_id: chatId,
+        text: gameHelp[command],
+        reply_markup: update.message?.chat?.type === 'private'
+          ? { inline_keyboard: [[{ text: '🚀 Открыть игру', web_app: { url: webAppUrl } }]] }
+          : undefined,
+      });
+      return sendJson(res, 200, { ok: true });
+    }
+
     let messageText =
       `⚡ <b>Добро пожаловать в HACKER KOMBAT, ${safeName}!</b>\n\n` +
       `Прокачивай рабочий стол от подпольного ПК до квантового мейнфрейма:\n` +
@@ -675,7 +718,7 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       messageText =
         `📖 <b>Справка HACKER KOMBAT</b>\n\n` +
         `1. <b>Data</b> — основная валюта с кликов, пассивного дохода и миссий.\n` +
-        `2. <b>Crypto (💎)</b> — редкая валюта за ежедневный вход и 24 достижения (скины со статами и пропуск таймеров).\n` +
+        `2. <b>Crypto (💎)</b> — редкая валюта за ежедневный вход и 24 достижения (оформление и пропуск таймеров).\n` +
         `3. <b>Rep vs Heat</b> — взламывай плохие сайты ради Rep (White Hat +20% Data/ч) или рискуй на крупных целях ради сверхдохода (Black Hat +50% к клику, но при Heat &gt; 100 срабатывает киберпатруль!).\n` +
         `4. Полный гайд доступен прямо внутри игры по кнопке <b>«📖 Обучение»</b> сверху!`;
     }

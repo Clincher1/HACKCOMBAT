@@ -21,7 +21,6 @@ import { PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
   FIRST_DONUT_ITEM_KEY,
   GIFT_COLA_ITEM_KEY,
-  GIFT_SNUS_ITEM_KEY,
   GIFT_WHISKEY_ITEM_KEY,
   getInventoryItemDefinition,
 } from '../../shared/inventory.config';
@@ -105,9 +104,10 @@ check(
     /inventoryShowcase/.test(migration016) &&
     !/TRUNCATE|DELETE\s+FROM\s+public\.players/i.test(migration016)
 );
+check('удалённый подарок не определён в каталоге', getInventoryItemDefinition('reward:gift_snus') === null);
 check(
   'персональные подарки — только публичные неприменимые предметы',
-  [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY].every((key) => {
+  [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY].every((key) => {
     const item = getInventoryItemDefinition(key);
     return item?.usable === false && item?.equipAction === null;
   })
@@ -116,13 +116,13 @@ check(
   'migration 017 назначает три подарка двум стабильным Telegram ID без вайпа',
   /296857803/.test(migration017) &&
     /495832433/.test(migration017) &&
-    [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY].every((key) => migration017.includes(key)) &&
+    [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, 'reward:gift_snus'].every((key) => migration017.includes(key)) &&
     !/TRUNCATE|DELETE\s+FROM\s+public\.players/i.test(migration017)
 );
 check(
   'migration 018 назначает подарки useryou2202 по стабильному Telegram ID без вайпа',
   /6623819182/.test(migration018) &&
-    [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, GIFT_SNUS_ITEM_KEY].every((key) => migration018.includes(key)) &&
+    [GIFT_COLA_ITEM_KEY, GIFT_WHISKEY_ITEM_KEY, 'reward:gift_snus'].every((key) => migration018.includes(key)) &&
     !/TRUNCATE|DELETE\s+FROM\s+public\.players/i.test(migration018)
 );
 
@@ -138,7 +138,7 @@ check(
   'новые скины имеют дорогой вход и уникальные ключи',
   newShopSkins.length === 9 &&
     new Set(newShopSkins.map((skin) => skin.key)).size === newShopSkins.length &&
-    newShopSkins.every((skin) => skin.cryptoCost >= 160 && Number.isFinite(skin.clickBonusPct))
+    newShopSkins.every((skin) => skin.cryptoCost >= 160 && skin.clickBonusPct === 0)
 );
 
 const deskSource = readFileSync('src/components/DeskScene.tsx', 'utf8');
