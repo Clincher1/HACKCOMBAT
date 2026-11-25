@@ -15,6 +15,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   DEMO_LADDER,
+  DEMO_MAX_LEVEL,
   DEMO_SECTIONS,
   DEMO_TOTAL_UNLOCKS,
   type DemoItem,
@@ -31,7 +32,7 @@ const TEAL = '#2ee6d6';
 const CORAL = '#ff7a4d';
 const SAND = '#f5d5b0';
 
-const LEVEL_STOPS = [1, 5, 10, 20, 30, 50] as const;
+const LEVEL_STOPS = [1, 5, 10, 20, 30, 50, 100, 200] as const;
 
 const isLocked = (item: DemoItem, level: number): boolean => item.level > level;
 
@@ -438,11 +439,11 @@ export const DemoPage: React.FC = () => {
           <input
             type="range"
             min={1}
-            max={60}
+            max={DEMO_MAX_LEVEL}
             step={1}
             value={level}
             onChange={(event) => setLevel(Number(event.target.value))}
-            className="mt-2 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-[#2ee6d6]"
+            className="mt-2 h-2 w-full cursor-pointer accent-[#2ee6d6]"
             aria-label="Уровень игрока"
           />
           <div className="mt-1.5 flex flex-wrap items-center gap-1">

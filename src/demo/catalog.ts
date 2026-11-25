@@ -490,4 +490,14 @@ export function buildLadder(): LadderRow[] {
 
 export const DEMO_LADDER = buildLadder();
 
+/**
+ * Верхняя граница ползунка: самый глубокий порог в конфигах, округлённый вверх
+ * до 50. Сейчас это рамка `endless_operator` на 180 уровне → 200. Так витрина
+ * не «прячет» дальний эндгейм, если контент добавят выше.
+ */
+export const DEMO_MAX_LEVEL = Math.max(
+  60,
+  Math.ceil(Math.max(...DEMO_SECTIONS.flatMap((s) => s.items.map((i) => i.level))) / 50) * 50
+);
+
 export type { DemoSection as DemoSectionType };

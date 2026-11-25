@@ -35,7 +35,12 @@ import { ACTIVE_SEASON_EVENT } from '../../shared/seasonalEvent.config';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import { BASE_THEMES } from '../../shared/themes.config';
-import { DEMO_LADDER, DEMO_SECTIONS, DEMO_TOTAL_UNLOCKS } from '../../src/demo/catalog';
+import {
+  DEMO_LADDER,
+  DEMO_MAX_LEVEL,
+  DEMO_SECTIONS,
+  DEMO_TOTAL_UNLOCKS,
+} from '../../src/demo/catalog';
 import { DEMO_CEILING } from '../../src/demo/ceiling';
 import { DemoPage } from '../../src/pages/DemoPage';
 
@@ -153,6 +158,12 @@ check(
 // ---------------------------------------------------------------- 4. секреты
 
 const secrets = items.filter((item) => item.secret);
+check(
+  'ползунок уровня покрывает самый глубокий порог контента',
+  DEMO_MAX_LEVEL >= Math.max(...items.map((item) => item.level)),
+  `ползунок до ${DEMO_MAX_LEVEL}, глубочайший порог ${Math.max(...items.map((item) => item.level))}`
+);
+
 check(
   'секретные достижения помечены и их 14',
   secrets.length === 14 && secrets.every((item) => item.key.startsWith('ach-')),
