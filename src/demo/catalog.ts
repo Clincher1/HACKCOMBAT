@@ -66,7 +66,7 @@ const STAGE_LEVELS = [1, 5, 10, 15, 20, 25, 30] as const;
 const deskSection: DemoSection = {
   id: 'desk',
   title: 'Рабочий стол',
-  subtitle: 'Сцена меняется сама: 1 → 5 → 10 → 15 → 20 → 25 → 30 уровень',
+  subtitle: 'Сцена меняется сама с уровнем + 6 локаций, куда можно выйти',
   glyph: '🖥️',
   accent: '#2ee6d6',
   items: [
@@ -90,8 +90,8 @@ const deskSection: DemoSection = {
         image: bd.url,
         glyph: bd.glyph,
         level: bd.requiredLevel,
-        cost: 'бесплатно',
-        tag: bd.weatherLabel,
+        cost: bd.device === 'phone' ? 'с телефона' : 'с ноутбука',
+        tag: `${bd.place} · ${bd.weatherLabel}`,
         accent: bd.accent,
       })
     ),

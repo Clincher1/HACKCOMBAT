@@ -62,19 +62,19 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
   return (
     <section
       aria-label="Ежедневные поручения"
-      className="rounded-2xl bg-gradient-to-br from-cyan-950/35 via-[#111a31] to-[#10172e] border border-[#00f0ff]/35 p-3.5 shadow-[0_0_22px_rgba(0,240,255,0.08)]"
+      className="rounded-2xl bg-gradient-to-br from-cyan-950/35 via-[#111a31] to-[var(--ui-panel)] border border-[var(--ui-primary)]/35 p-3.5 shadow-[0_0_22px_rgba(var(--ui-primary-rgb),0.08)]"
     >
       <div className="flex items-start gap-2.5">
-        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#00f0ff]/12 text-[#00f0ff]">
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-primary)]/12 text-[var(--ui-primary)]">
           <CalendarDays className="h-4 w-4" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[#00f0ff]">
+            <div className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--ui-primary)]">
               📅 Ежедневные поручения
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <span className="rounded-md bg-[#00f0ff]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#8ffaff]">
+              <span className="rounded-md bg-[var(--ui-primary)]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#8ffaff]">
                 {completedCount}/{tasks.length}
               </span>
               {allClaimed && (
@@ -83,7 +83,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
                   onClick={dismissCompletedTasks}
                   aria-label="Скрыть выполненные поручения до следующего дня"
                   title="Скрыть выполненные поручения до следующего дня"
-                  className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-600/80 text-slate-400 transition hover:border-[#00f0ff]/55 hover:bg-[#00f0ff]/10 hover:text-[#8ffaff]"
+                  className="flex h-6 w-6 items-center justify-center rounded-md border border-slate-600/80 text-slate-400 transition hover:border-[var(--ui-primary)]/55 hover:bg-[var(--ui-primary)]/10 hover:text-[#8ffaff]"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -111,8 +111,8 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
                 claimed
                   ? 'border-emerald-400/30 bg-emerald-950/20'
                   : ready
-                    ? 'border-[#7dff00]/55 bg-[#7dff00]/8 shadow-[0_0_14px_rgba(125,255,0,0.08)]'
-                    : 'border-slate-700/80 bg-[#0a0e1a]/45'
+                    ? 'border-[var(--ui-success)]/55 bg-[var(--ui-success)]/8 shadow-[0_0_14px_rgba(var(--ui-success-rgb),0.08)]'
+                    : 'border-slate-700/80 bg-[var(--ui-panel-deep)]/45'
               }`}
             >
               <div className="flex items-start gap-2">
@@ -134,7 +134,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
                 <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-slate-800">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      claimed ? 'bg-emerald-400' : ready ? 'bg-[#7dff00]' : 'bg-[#00f0ff]'
+                      claimed ? 'bg-emerald-400' : ready ? 'bg-[var(--ui-success)]' : 'bg-[var(--ui-primary)]'
                     }`}
                     style={{ width: `${progressPercent}%` }}
                   />
@@ -145,7 +145,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
               </div>
 
               <div className="mt-2 flex items-center justify-between gap-2">
-                <span className={`text-[10px] ${claimed ? 'text-emerald-300' : ready ? 'text-[#7dff00]' : 'text-slate-500'}`}>
+                <span className={`text-[10px] ${claimed ? 'text-emerald-300' : ready ? 'text-[var(--ui-success)]' : 'text-slate-500'}`}>
                   {claimed ? (
                     <span className="inline-flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Получено</span>
                   ) : ready ? (
@@ -162,7 +162,7 @@ export const DailyTasksPanel: React.FC<DailyTasksPanelProps> = ({ state }) => {
                     claimed
                       ? 'cursor-default bg-emerald-950/40 text-emerald-300'
                       : ready
-                        ? 'cursor-pointer bg-[#7dff00] text-[#071005] hover:bg-[#a6ff66]'
+                        ? 'cursor-pointer bg-[var(--ui-success)] text-[#071005] hover:bg-[#a6ff66]'
                         : 'cursor-not-allowed bg-slate-800 text-slate-500'
                   }`}
                 >

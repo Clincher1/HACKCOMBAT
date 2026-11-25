@@ -15,6 +15,14 @@
 
 export type BackdropWeather = 'sunset' | 'day' | 'night' | 'rain';
 
+/**
+ * v5.0: локация — это не только «картинка за спиной», но и понятное место,
+ * куда игрок «вышел»: улица, кафе, пляж, дом. Поле device объясняет, с чего
+ * он там работает, и подписывается в интерфейсе — от планшета на коленях
+ * до телефона в руке.
+ */
+export type LocationDevice = 'laptop' | 'phone' | 'desk';
+
 export interface BackdropConfig {
   key: string;
   name: string;
@@ -28,6 +36,10 @@ export interface BackdropConfig {
   accent: string;
   /** «Погодная» подпись в углу сцены: город, температура, состояние. */
   weatherLabel: string;
+  /** v5.0: короткое имя места для бейджа на сцене («Уличное кафе»). */
+  place: string;
+  /** v5.0: с чего игрок там работает. Чистая атмосфера, без бонусов. */
+  device: LocationDevice;
 }
 
 export const BACKDROPS_CONFIG: BackdropConfig[] = [
@@ -41,6 +53,8 @@ export const BACKDROPS_CONFIG: BackdropConfig[] = [
     glyph: '🌇',
     accent: '#ff8a4c',
     weatherLabel: 'Сан-Мираж · 27° · закат',
+    place: 'Крыша дома',
+    device: 'laptop',
   },
   {
     key: 'beach_day',
@@ -52,6 +66,8 @@ export const BACKDROPS_CONFIG: BackdropConfig[] = [
     glyph: '🏖️',
     accent: '#39d6d0',
     weatherLabel: 'Плая-Верде · 31° · бриз',
+    place: 'Пляжная терраса',
+    device: 'laptop',
   },
   {
     key: 'motel_night',
@@ -63,6 +79,8 @@ export const BACKDROPS_CONFIG: BackdropConfig[] = [
     glyph: '🌴',
     accent: '#c084fc',
     weatherLabel: 'Рут-66 · 24° · ясно',
+    place: 'Мотель у бассейна',
+    device: 'phone',
   },
   {
     key: 'rain_window',
@@ -74,6 +92,34 @@ export const BACKDROPS_CONFIG: BackdropConfig[] = [
     glyph: '🌧️',
     accent: '#7aa2f7',
     weatherLabel: 'Даунтаун · 19° · дождь',
+    place: 'Квартира в даунтауне',
+    device: 'laptop',
+  },
+  {
+    key: 'street_cafe',
+    name: 'Уличное кафе',
+    tagline: 'Столик в старом квартале, кофе и ноут. Мимо ходят люди, и работать — в удовольствие.',
+    url: '/assets/backdrops/backdrop-street-cafe.webp',
+    weather: 'day',
+    requiredLevel: 1,
+    glyph: '☕',
+    accent: '#e8a06a',
+    weatherLabel: 'Старый квартал · 26° · солнце',
+    place: 'Уличное кафе',
+    device: 'laptop',
+  },
+  {
+    key: 'beach_bar',
+    name: 'Пляжный бар',
+    tagline: 'Стойка у самой воды: телефон в руке, лёд в стакане, работа идёт сама.',
+    url: '/assets/backdrops/backdrop-beach-bar.webp',
+    weather: 'sunset',
+    requiredLevel: 1,
+    glyph: '🍹',
+    accent: '#ff8a5c',
+    weatherLabel: 'Плайя-Верде · 29° · закат',
+    place: 'Пляжный бар',
+    device: 'phone',
   },
 ];
 

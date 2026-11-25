@@ -126,6 +126,26 @@ check(
 // ---------------------------------------------------------------- 3. лестница
 
 const ladderLevels = DEMO_LADDER.map((row) => row.level);
+const locations = items.filter((item) => item.key.startsWith('backdrop-'));
+check(
+  'все локации в витрине, у каждой место и девайс',
+  locations.length === BACKDROPS_CONFIG.length &&
+    BACKDROPS_CONFIG.every((location) => Boolean(location.place) && Boolean(location.device)),
+  BACKDROPS_CONFIG.map((location) => `${location.key}:${location.device}`).join(' ')
+);
+check(
+  'среди локаций есть и ноутбук, и телефон',
+  BACKDROPS_CONFIG.some((location) => location.device === 'laptop') &&
+    BACKDROPS_CONFIG.some((location) => location.device === 'phone')
+);
+check(
+  'у всех локаций картинка на месте и не тяжелее 200 КБ',
+  BACKDROPS_CONFIG.every((location) => {
+    const file = path.join(process.cwd(), 'public', location.url.replace(/^\//, ''));
+    return fs.existsSync(file) && fs.statSync(file).size <= 200 * 1024;
+  })
+);
+
 check(
   'лестница отсортирована по возрастанию без повторов',
   ladderLevels.every((level, index) => index === 0 || level > ladderLevels[index - 1])

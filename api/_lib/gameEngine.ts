@@ -509,8 +509,11 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       typeof src.lastMissionRefreshAt === 'string' && !Number.isNaN(new Date(src.lastMissionRefreshAt).getTime())
         ? src.lastMissionRefreshAt
         : null,
-    baseTheme:
-      src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
+    // v5.0: список тем больше не захардкожен — «неон» добавился как опция,
+    // и любой известный BASE_THEMES ключ должен переживать round-trip.
+    baseTheme: BASE_THEMES.some((theme) => theme.key === src.baseTheme)
+      ? (src.baseTheme as (typeof BASE_THEMES)[number]['key'])
+      : undefined,
     // v4.1: только известные ключи фона — иначе старый/битый jsonb включит пустую сцену.
     deskBackdrop: isBackdropKey(src.deskBackdrop) ? src.deskBackdrop : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной

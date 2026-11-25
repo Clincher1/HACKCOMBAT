@@ -144,9 +144,17 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
     `${beforeClickPower} → ${r.player.derived.clickPower}`
   );
 
-  // ── 3. Возврат к классике ────────────────────────────────────────────────
+  // ── 3. Возврат к тёплой базе ─────────────────────────────────────────────
   res = await setTheme(TG, 'classic');
-  check('классика включается', res.ok === true && res.player?.stats?.baseTheme === 'classic');
+  check('тёплая база включается', res.ok === true && res.player?.stats?.baseTheme === 'classic');
+
+  // v5.0: прежняя кибер-классика стала отдельной темой «Неон-Сити».
+  // Сервер обязан принимать новый ключ и возвращать его в /init.
+  res = await setTheme(TG, 'neon');
+  check('тема «Неон-Сити» принимается сервером', res.ok === true, res.error ?? '');
+  r = await call(TG, 'init');
+  check('«Неон-Сити» переживает reload', r.player.stats.baseTheme === 'neon', r.player.stats.baseTheme);
+  await setTheme(TG, 'classic');
 
   // ── 4. Неизвестная тема ──────────────────────────────────────────────────
   const bad = await setTheme(TG, 'hacker_theme_9000');
@@ -163,16 +171,42 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
   check('скин применился', r.player.equippedSkin === 'default', r.player.equippedSkin);
 
   // ── 6. Чистая функция композиции фильтра ─────────────────────────────────
-  check('в конфиге две темы', themes.BASE_THEMES.length === 2, themes.BASE_THEMES.length);
-  check('обе темы бесплатные', themes.BASE_THEMES.every((t) => t.free === true));
+  check('в конфиге три темы', themes.BASE_THEMES.length === 3, themes.BASE_THEMES.length);
+  check('все темы бесплатные', themes.BASE_THEMES.every((t) => t.free === true));
+  check('ключи тем уникальны', new Set(themes.BASE_THEMES.map((t) => t.key)).size === 3);
+  const classic = themes.getBaseTheme('classic');
+  const neon = themes.getBaseTheme('neon');
+  check(
+    'тёплая база идёт первой и является дефолтом',
+    themes.BASE_THEMES[0].key === 'classic' && themes.DEFAULT_BASE_THEME === 'classic'
+  );
+  check(
+    'тёплая база не неоновая: акцент янтарный, успех шалфейный',
+    classic.ui.successHex !== neon.ui.successHex &&
+      classic.ui.successHex !== '#7dff00' &&
+      neon.ui.successHex === '#7dff00',
+    `${classic.ui.successHex} vs ${neon.ui.successHex}`
+  );
+  check(
+    'у тёплой темы выключены скан-линии, у неона включены',
+    classic.ui.scanlines === false && neon.ui.scanlines === true
+  );
+  check(
+    'тёплая тема мягче по форме, чем неон',
+    classic.ui.radiusBoost > neon.ui.radiusBoost,
+    `${neon.ui.radiusBoost} → ${classic.ui.radiusBoost}`
+  );
+  check(
+    'у каждой темы есть тёплый фон-свечение и тёмный текст на акценте',
+    themes.BASE_THEMES.every((t) => Array.isArray(t.ui.backgroundGlow) && Boolean(t.palette.onPrimary))
+  );
   check(
     'у тем нет поля бонуса к тапу (чистая косметика)',
     themes.BASE_THEMES.every((t) => !('clickBonusPct' in t))
   );
-  const classic = themes.getBaseTheme('classic');
   const femme = themes.getBaseTheme('femme');
   check(
-    'классика не сдвигает фильтр скина',
+    'базовая тема не сдвигает фильтр скина',
     themes.composeSceneFilter('hue-rotate(85deg) saturate(1.25)', classic) ===
       'hue-rotate(85deg) saturate(1.25)'
   );
@@ -201,22 +235,26 @@ const setTheme = (tgId, key) => call(tgId, 'skin', { action: 'set_theme', skinKe
   // v3.6.2: форма интерфейса — часть темы, а не только палитра
   check('у темы есть UI-токены формы', Boolean(femme.ui) && Boolean(classic.ui));
   check(
-    'женская тема смягчает радиусы',
-    femme.ui.radiusBoost > classic.ui.radiusBoost,
-    `${classic.ui.radiusBoost} → ${femme.ui.radiusBoost}`
+    'женская тема смягчает радиусы относительно неона',
+    femme.ui.radiusBoost > neon.ui.radiusBoost,
+    `${neon.ui.radiusBoost} → ${femme.ui.radiusBoost}`
   );
-  check('ушки на кнопке HACK только у женской', femme.ui.catEars === true && classic.ui.catEars === false);
+  check(
+    'ушки на кнопке HACK только у женской',
+    femme.ui.catEars === true && classic.ui.catEars === false && neon.ui.catEars === false
+  );
   check(
     'градиент кнопки берётся из темы и различается',
-    femme.ui.buttonGradient.join() !== classic.ui.buttonGradient.join(),
-    femme.ui.buttonGradient.join(' → ')
+    femme.ui.buttonGradient.join() !== classic.ui.buttonGradient.join() &&
+      neon.ui.buttonGradient.join() !== classic.ui.buttonGradient.join(),
+    `${classic.ui.buttonGradient.join(' → ')} / ${femme.ui.buttonGradient.join(' → ')}`
   );
   check(
     'у женской темы мягкий «успех» вместо кислотного лайма',
-    femme.ui.successHex !== classic.ui.successHex,
-    `${classic.ui.successHex} → ${femme.ui.successHex}`
+    femme.ui.successHex !== neon.ui.successHex,
+    `${neon.ui.successHex} → ${femme.ui.successHex}`
   );
-  check('неизвестный ключ откатывается к классике', themes.getBaseTheme('nope').key === 'classic');
+  check('неизвестный ключ откатывается к тёплой базе', themes.getBaseTheme('nope').key === 'classic');
 
   // Ассеты существуют и не раздуты
   // Все семь этапов: файл существует, не тяжелее лимита и уникален по содержимому

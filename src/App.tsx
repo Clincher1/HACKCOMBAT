@@ -42,7 +42,7 @@ const DemoPage = React.lazy(async () => {
 const RouteLoading: React.FC = () => (
   <div className="min-h-[55vh] flex flex-col items-center justify-center text-center">
     <div className="w-9 h-9 rounded-xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-3" />
-    <p className="text-xs text-slate-400">Открываем раздел…</p>
+    <p className="text-xs text-slate-400">Секунду…</p>
   </div>
 );
 
@@ -52,11 +52,11 @@ const AppShell: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen cyber-grid-bg flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 rounded-2xl border-2 border-[#00f0ff] border-t-transparent animate-spin mb-4" />
-        <div className="font-display text-lg font-extrabold text-[#00f0ff] tracking-widest">
+        <div className="w-12 h-12 rounded-2xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-4" />
+        <div className="font-display text-lg font-extrabold text-[var(--ui-primary)] tracking-widest">
           HACKER KOMBAT
         </div>
-        <p className="text-xs text-slate-400 mt-1">Загрузка кибер-терминала...</p>
+        <p className="text-xs text-slate-400 mt-1">Загружаем твой стол…</p>
       </div>
     );
   }
@@ -79,7 +79,7 @@ const AppShell: React.FC = () => {
             type="button"
             onClick={() => void retryInit()}
             disabled={loading}
-            className="mt-4 w-full rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-sm font-extrabold text-[#061018] transition hover:brightness-110 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
+            className="mt-4 w-full rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-sm font-extrabold text-[var(--ui-on-primary)] transition hover:brightness-110 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
           >
             <span className="inline-flex items-center justify-center gap-2">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -128,7 +128,7 @@ const AppRoutes: React.FC = () => {
     return (
       <Suspense
         fallback={
-          <div className="min-h-screen bg-[#070b10] flex items-center justify-center">
+          <div className="min-h-screen bg-[var(--ui-panel-deep)] flex items-center justify-center">
             <div className="w-9 h-9 rounded-xl border-2 border-[#2ee6d6] border-t-transparent animate-spin" />
           </div>
         }

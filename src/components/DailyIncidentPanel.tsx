@@ -22,7 +22,7 @@ export const DailyIncidentPanel: React.FC = () => {
   return (
     <section
       aria-label="Ежедневный киберинцидент"
-      className={`daily-incident-panel rounded-2xl border border-fuchsia-300/30 bg-gradient-to-br from-[#261238] via-[#171535] to-[#10172e] p-3.5 shadow-[0_0_24px_rgba(217,70,239,0.14)]${resolved ? ' daily-incident-panel--resolved' : ''}`}
+      className={`daily-incident-panel rounded-2xl border border-fuchsia-300/30 bg-gradient-to-br from-[#261238] via-[var(--ui-panel)] to-[var(--ui-panel)] p-3.5 shadow-[0_0_24px_rgba(217,70,239,0.14)]${resolved ? ' daily-incident-panel--resolved' : ''}`}
     >
       <div className="flex items-start gap-2.5">
         <div className="daily-incident-panel__signal mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-fuchsia-400/15 text-fuchsia-100 ring-1 ring-fuchsia-200/45">
@@ -52,7 +52,7 @@ export const DailyIncidentPanel: React.FC = () => {
               type="button"
               disabled={busy}
               onClick={() => void resolveDailyIncident(choice.key)}
-              className="group rounded-xl border border-fuchsia-200/20 bg-[#0a0e1a]/55 p-2.5 text-left transition hover:border-fuchsia-200/55 hover:bg-fuchsia-300/10 disabled:cursor-wait disabled:opacity-60"
+              className="group rounded-xl border border-fuchsia-200/20 bg-[var(--ui-panel-deep)]/55 p-2.5 text-left transition hover:border-fuchsia-200/55 hover:bg-fuchsia-300/10 disabled:cursor-wait disabled:opacity-60"
             >
               <div className="flex items-start gap-2">
                 <span className="text-base leading-none" aria-hidden="true">{choice.icon}</span>

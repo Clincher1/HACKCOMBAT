@@ -215,6 +215,15 @@ const setBackdrop = (key) => call(TG, 'skin', { action: 'set_backdrop', skinKey:
   check('мусор не попал в jsonb', r.player.stats.deskBackdrop === 'rooftop_sunset', r.player.stats.deskBackdrop);
 
   // ── 4. Переключение и сброс ────────────────────────────────────────────
+  // v5.0: новые локации (улица и пляжный бар) — обычные ключи конфига,
+  // сервер обязан их принимать без правок в API.
+  for (const key of ['street_cafe', 'beach_bar']) {
+    const locRes = await setBackdrop(key);
+    check(`локация «${key}» принимается сервером`, locRes.ok === true, locRes.error ?? '');
+    const after = await call(TG, 'init');
+    check(`локация «${key}» сохраняется`, after.player.stats.deskBackdrop === key, after.player.stats.deskBackdrop);
+  }
+
   await setBackdrop('rain_window');
   r = await call(TG, 'init');
   check('переключение работает', r.player.stats.deskBackdrop === 'rain_window', r.player.stats.deskBackdrop);

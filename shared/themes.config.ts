@@ -14,7 +14,7 @@
 //   поправка, которая компенсирует базу и возвращает скину его задуманный вид.
 // ============================================================================
 
-export type BaseThemeKey = 'classic' | 'femme';
+export type BaseThemeKey = 'classic' | 'neon' | 'femme';
 
 export interface BaseThemeConfig {
   key: BaseThemeKey;
@@ -38,6 +38,8 @@ export interface BaseThemeConfig {
     bg: string;
     text: string;
     textMuted: string;
+    /** Тёмный текст, который читается на основном акценте (кнопки, бейджи). */
+    onPrimary?: string;
   };
   /** Мягкая вуаль поверх сцены — «температура» темы. */
   sceneVignette: string;
@@ -64,6 +66,13 @@ export interface BaseThemeConfig {
     buttonGradient: [string, string];
     /** Цвет «плюсов»/успеха: у женской темы мягкая мята вместо кислотного лайма. */
     successHex: string;
+    /**
+     * v5.0: скан-линии CRT и сетка фона — часть характера темы.
+     * У тёплой «Сан-Мираж» их нет: это уютная комната, а не терминал.
+     */
+    scanlines?: boolean;
+    /** Светящиеся пятна фона (два цвета). По умолчанию — акценты темы. */
+    backgroundGlow?: [string, string];
   };
   /**
    * Поправка hue-rotate (в градусах) для скинов поверх этой темы.
@@ -74,9 +83,43 @@ export interface BaseThemeConfig {
 
 export const BASE_THEMES: BaseThemeConfig[] = [
   {
+    // v5.0: ключ остаётся 'classic', потому что он уже лежит в сейвах игроков.
+    // Меняется только внешность: тёплый южный вечер вместо холодного неона.
     key: 'classic',
-    name: 'Классика',
-    tagline: 'Тот самый кибер-неон: циан, маджента и ночной мегаполис.',
+    name: 'Сан-Мираж',
+    tagline: 'Тёплый вечер, терракота и бирюза. Уютно, по-человечески, без неона.',
+    free: true,
+    glyph: '🌅',
+    previewFrom: '#ff9a5a',
+    previewTo: '#4ecdc4',
+    palette: {
+      cyan: '#ff9a5a', // основной акцент: тёплый янтарь (кнопки, подписи)
+      magenta: '#4ecdc4', // второй акцент: морская бирюза
+      green: '#a8d98a', // «успех»: мягкий шалфей вместо кислотного лайма
+      purple: '#d8a7c4', // пыльная роза
+      panel: '#221b16',
+      panelDeep: '#14100d',
+      bg: '#14100d',
+      text: '#f7ede2',
+      textMuted: '#bda998',
+      onPrimary: '#26150a',
+    },
+    sceneVignette: 'rgba(255, 154, 90, 0.12)',
+    ui: {
+      radiusBoost: 8,
+      catEars: false,
+      buttonGradient: ['#ff9a5a', '#4ecdc4'],
+      successHex: '#a8d98a',
+      scanlines: false,
+      backgroundGlow: ['#ff9a5a', '#4ecdc4'],
+    },
+    themeOffset: 0,
+  },
+  {
+    // Прежняя кибер-классика — теперь выбор, а не навязанный стиль.
+    key: 'neon',
+    name: 'Неон-Сити',
+    tagline: 'Та самая ночная матрица: циан, маджента, скан-линии. Для тех, кто скучает.',
     free: true,
     glyph: '🕶️',
     previewFrom: '#00f0ff',
@@ -91,6 +134,7 @@ export const BASE_THEMES: BaseThemeConfig[] = [
       bg: '#0a0e1a',
       text: '#ffffff',
       textMuted: '#94a3b8',
+      onPrimary: '#061018',
     },
     sceneVignette: 'rgba(0, 240, 255, 0.10)',
     ui: {
@@ -98,6 +142,8 @@ export const BASE_THEMES: BaseThemeConfig[] = [
       catEars: false,
       buttonGradient: ['#00f0ff', '#ff00a0'],
       successHex: '#7dff00',
+      scanlines: true,
+      backgroundGlow: ['#00f0ff', '#ff00a0'],
     },
     themeOffset: 0,
   },
@@ -119,6 +165,7 @@ export const BASE_THEMES: BaseThemeConfig[] = [
       bg: '#0d0918',
       text: '#ffffff',
       textMuted: '#b8a8cc',
+      onPrimary: '#2a0d1d',
     },
     sceneVignette: 'rgba(255, 111, 181, 0.14)',
     sceneUrl: '/assets/themes/femme/stage-01.webp',
@@ -137,6 +184,8 @@ export const BASE_THEMES: BaseThemeConfig[] = [
       catEars: true,
       buttonGradient: ['#ff8cc6', '#b06bff'],
       successHex: '#7cf5c8',
+      scanlines: true,
+      backgroundGlow: ['#ff6fb5', '#b06bff'],
     },
     // База уже смещена в розово-фиолетовый диапазон; при появлении платных
     // тем-баз здесь будет компенсация, чтобы скины не уезжали.

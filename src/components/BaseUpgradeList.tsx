@@ -21,13 +21,13 @@ export const BaseUpgradeList: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl bg-[#10172e] border border-[#7dff00]/25 p-3.5">
+      <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-success)]/25 p-3.5">
         <div className="text-xs font-bold text-white flex items-center gap-1.5">
-          <Cpu className="w-4 h-4 text-[#7dff00] shrink-0" />
+          <Cpu className="w-4 h-4 text-[var(--ui-success)] shrink-0" />
           <span>База Оператора ({ownedLevels}/{BASE_UPGRADES_CONFIG.length} улучшений)</span>
         </div>
         <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-          Пассивные покупки <strong className="text-[#7dff00]">не сбрасываются Престижем</strong>. Суммарно{' '}
+          Пассивные покупки <strong className="text-[var(--ui-success)]">не сбрасываются Престижем</strong>. Суммарно{' '}
           {totalLevels}/{BASE_UPGRADES_CONFIG.length * 15} уровней. Стоят Data + ⚙️ Чипы.
         </p>
       </div>
@@ -48,22 +48,22 @@ export const BaseUpgradeList: React.FC = () => {
               key={cfg.key}
               className={`rounded-2xl border p-3 flex flex-col justify-between gap-2.5 ${
                 isMax
-                  ? 'bg-[#101c28] border-[#7dff00]/45'
-                  : 'bg-[#10172e]/95 border-slate-800/90'
+                  ? 'bg-[#101c28] border-[var(--ui-success)]/45'
+                  : 'bg-[var(--ui-panel)]/95 border-slate-800/90'
               }`}
             >
               <div className="space-y-1.5">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-[#0a0e1a] border border-slate-800 flex items-center justify-center text-lg shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 flex items-center justify-center text-lg shrink-0">
                     {isMax ? '✅' : cfg.icon}
                   </div>
-                  <span className="px-2 py-0.5 rounded-md bg-[#0a0e1a] border border-slate-700/80 text-[10px] font-bold text-[#7dff00]">
+                  <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)] border border-slate-700/80 text-[10px] font-bold text-[var(--ui-success)]">
                     Ур. {level}/{cfg.maxLevel}
                   </span>
                 </div>
                 <h3 className="text-xs font-extrabold text-white leading-snug">{cfg.name}</h3>
                 <p className="text-[10px] text-slate-400 leading-relaxed">{cfg.description}</p>
-                <div className="text-[10px] font-bold px-2 py-1 rounded bg-[#7dff00]/10 text-[#7dff00] border border-[#7dff00]/25">
+                <div className="text-[10px] font-bold px-2 py-1 rounded bg-[var(--ui-success)]/10 text-[var(--ui-success)] border border-[var(--ui-success)]/25">
                   ⚡ {cfg.effectLabel}
                 </div>
               </div>
@@ -73,7 +73,7 @@ export const BaseUpgradeList: React.FC = () => {
                   {Array.from({ length: cfg.maxLevel }).map((_, idx) => (
                     <div
                       key={idx}
-                      className={`h-1 flex-1 rounded-full ${idx < level ? 'bg-[#7dff00]' : 'bg-slate-800'}`}
+                      className={`h-1 flex-1 rounded-full ${idx < level ? 'bg-[var(--ui-success)]' : 'bg-slate-800'}`}
                     />
                   ))}
                 </div>
@@ -83,10 +83,10 @@ export const BaseUpgradeList: React.FC = () => {
                   onClick={() => void buyBaseUpgrade(cfg.key)}
                   className={`w-full py-2 px-2 rounded-xl text-[11px] font-display font-bold transition cursor-pointer ${
                     isMax
-                      ? 'bg-[#7dff00]/15 text-[#7dff00] border border-[#7dff00]/35 cursor-default'
+                      ? 'bg-[var(--ui-success)]/15 text-[var(--ui-success)] border border-[var(--ui-success)]/35 cursor-default'
                       : canBuy
-                        ? 'bg-[#7dff00] hover:bg-[#7dff00]/90 text-[#061018] shadow-[0_0_16px_rgba(125,255,0,0.25)]'
-                        : 'bg-[#0a0e1a] text-slate-500 border border-slate-800 cursor-not-allowed'
+                        ? 'bg-[var(--ui-success)] hover:bg-[var(--ui-success)]/90 text-[var(--ui-on-primary)] shadow-[0_0_16px_rgba(var(--ui-success-rgb),0.25)]'
+                        : 'bg-[var(--ui-panel-deep)] text-slate-500 border border-slate-800 cursor-not-allowed'
                   }`}
                 >
                   {isMax ? (

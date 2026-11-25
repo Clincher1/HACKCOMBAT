@@ -66,13 +66,13 @@ export const TutorialModal: React.FC = () => {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.93, y: 18 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl bg-[#0e152b] border border-[#00f0ff]/45 shadow-[0_0_50px_rgba(0,240,255,0.22)] overflow-hidden"
+            className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl bg-[#0e152b] border border-[var(--ui-primary)]/45 shadow-[0_0_50px_rgba(var(--ui-primary-rgb),0.22)] overflow-hidden"
           >
             {/* Шапка Академии */}
             <div className="px-4 py-3.5 bg-gradient-to-r from-[#111c3a] to-[#161332] border-b border-slate-800 flex items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-[#00f0ff]/15 border border-[#00f0ff]/45 flex items-center justify-center shrink-0">
-                  <BookOpen className="w-4 h-4 text-[#00f0ff]" />
+                <div className="w-9 h-9 rounded-xl bg-[var(--ui-primary)]/15 border border-[var(--ui-primary)]/45 flex items-center justify-center shrink-0">
+                  <BookOpen className="w-4 h-4 text-[var(--ui-primary)]" />
                 </div>
                 <div className="min-w-0">
                   <h2 className="font-display font-extrabold text-sm sm:text-base text-white truncate">
@@ -86,7 +86,7 @@ export const TutorialModal: React.FC = () => {
               <button
                 type="button"
                 onClick={closeTutorial}
-                className="p-1.5 rounded-lg bg-[#0a0e1a]/70 text-slate-400 hover:text-white cursor-pointer"
+                className="p-1.5 rounded-lg bg-[var(--ui-panel-deep)]/70 text-slate-400 hover:text-white cursor-pointer"
                 aria-label="Закрыть обучение"
               >
                 <X className="w-4 h-4" />
@@ -94,7 +94,7 @@ export const TutorialModal: React.FC = () => {
             </div>
 
             {/* Переключатель 5 разделов гайда */}
-            <div className="grid grid-cols-5 gap-1 p-2 bg-[#0a0e1a] border-b border-slate-800/90 shrink-0">
+            <div className="grid grid-cols-5 gap-1 p-2 bg-[var(--ui-panel-deep)] border-b border-slate-800/90 shrink-0">
               {TABS.map((t) => {
                 const active = t.id === activeTab;
                 return (
@@ -107,7 +107,7 @@ export const TutorialModal: React.FC = () => {
                     }}
                     className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 text-[10px] font-bold transition cursor-pointer ${
                       active
-                        ? 'bg-[#00f0ff]/20 border border-[#00f0ff]/60 text-[#00f0ff]'
+                        ? 'bg-[var(--ui-primary)]/20 border border-[var(--ui-primary)]/60 text-[var(--ui-primary)]'
                         : 'text-slate-400 hover:text-white border border-transparent'
                     }`}
                   >
@@ -122,13 +122,13 @@ export const TutorialModal: React.FC = () => {
             <div className="p-4 overflow-y-auto space-y-3 text-xs leading-relaxed text-slate-300">
               {activeTab === 'currencies' && (
                 <>
-                  <div className="rounded-xl bg-[#00f0ff]/10 border border-[#00f0ff]/30 p-3 space-y-1">
-                    <div className="font-display font-bold text-[#00f0ff] flex items-center gap-1.5">
+                  <div className="rounded-xl bg-[var(--ui-primary)]/10 border border-[var(--ui-primary)]/30 p-3 space-y-1">
+                    <div className="font-display font-bold text-[var(--ui-primary)] flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4" /> 1. DATA — Главная валюта прогресса
                     </div>
                     <p>
                       Добывается кликами по кнопке <strong>HACK</strong>, пассивным майнингом{' '}
-                      <strong className="text-[#7dff00]">Data/час</strong> (работает даже когда игра
+                      <strong className="text-[var(--ui-success)]">Data/час</strong> (работает даже когда игра
                       закрыта — копилка до <strong>24 часов оффлайн</strong>!) и контрактами во
                       вкладке «Взломы». Тратится на все 48 карточек улучшений и стартовых NPC.
                     </p>
@@ -175,7 +175,7 @@ export const TutorialModal: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-[#0a0e1a] border border-slate-800 p-3">
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 p-3">
                     <strong className="text-white">⚡ CPU Charge (Энергия):</strong> 1 клик тратит 1
                     энергию. Восстанавливается сама (<strong>+1⚡ каждые 2 сек</strong>). Стартовый
                     запас <code>1500</code> разгоняется карточками <strong>Comfort</strong> вплоть до{' '}
@@ -186,12 +186,12 @@ export const TutorialModal: React.FC = () => {
 
               {activeTab === 'upgrades' && (
                 <>
-                  <div className="rounded-xl bg-[#0a0e1a] border border-[#00f0ff]/35 p-3">
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-primary)]/35 p-3">
                     <div className="font-bold text-white mb-1">
                       📐 Главное правило уровня игрока:
                     </div>
                     <p>
-                      <strong className="text-[#00f0ff]">Уровень = опыт.</strong> XP дают только
+                      <strong className="text-[var(--ui-primary)]">Уровень = опыт.</strong> XP дают только
                       взломами — карточки больше не повышают уровень. Каждые <strong>5 уровней</strong>{' '}
                       визуально эволюционирует рабочий стол, на <strong>10 уровне</strong> открывается
                       второй слот миссий, а на <strong>20</strong> — третий. Команда и питомцы
@@ -199,8 +199,8 @@ export const TutorialModal: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-[#0a0e1a] border border-[#ff00a0]/35 p-3">
-                    <div className="font-bold text-[#ff00a0] mb-1">
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-secondary)]/35 p-3">
+                    <div className="font-bold text-[var(--ui-secondary)] mb-1">
                       ⚙️ Чипы и Тира — почему нельзя «раскачаться» за час
                     </div>
                     <p>
@@ -218,8 +218,8 @@ export const TutorialModal: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <div className="rounded-xl bg-[#101935] border border-cyan-500/30 p-3">
-                      <div className="font-bold text-[#00f0ff]">
+                    <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-cyan-500/30 p-3">
+                      <div className="font-bold text-[var(--ui-primary)]">
                         🖥️ Этап 1 (Ур. 1–10): Старт — Hardware + Comfort
                       </div>
                       <p className="mt-1">
@@ -230,8 +230,8 @@ export const TutorialModal: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-[#101935] border border-[#7dff00]/30 p-3">
-                      <div className="font-bold text-[#7dff00]">
+                    <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/30 p-3">
+                      <div className="font-bold text-[var(--ui-success)]">
                         🤖 Этап 2 (Ур. 10–25): Автономный доход — Software + Команда
                       </div>
                       <p className="mt-1">
@@ -242,7 +242,7 @@ export const TutorialModal: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="rounded-xl bg-[#101935] border border-rose-500/30 p-3">
+                    <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-rose-500/30 p-3">
                       <div className="font-bold text-rose-300">
                         🔥 Этап 3 (Ур. 25–60+): Мегапроекты и Darknet
                       </div>
@@ -258,7 +258,7 @@ export const TutorialModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => jumpTo('/upgrades')}
-                    className="w-full py-2.5 rounded-xl bg-[#00f0ff]/15 hover:bg-[#00f0ff]/25 border border-[#00f0ff]/50 text-[#00f0ff] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)]/15 hover:bg-[var(--ui-primary)]/25 border border-[var(--ui-primary)]/50 text-[var(--ui-primary)] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Перейти в «Улучшения»</span>
                     <ChevronRight className="w-4 h-4" />
@@ -274,8 +274,8 @@ export const TutorialModal: React.FC = () => {
                     Уровнем и Престижем!
                   </p>
 
-                  <div className="rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 p-3">
-                    <div className="font-bold text-[#7dff00] mb-1">🎲 Взлом не гарантирован</div>
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 p-3">
+                    <div className="font-bold text-[var(--ui-success)] mb-1">🎲 Взлом не гарантирован</div>
                     <p>
                       У каждой цели есть <strong>сила железа</strong> и базовый шанс успеха. Твой
                       шанс = сила твоих карточек, Базы и команды против этой цели, плюс запас уровня
@@ -287,17 +287,17 @@ export const TutorialModal: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 gap-2">
-                    <div className="rounded-xl bg-[#0a0e1a] border border-emerald-500/35 p-2.5">
+                    <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-emerald-500/35 p-2.5">
                       <span className="font-bold text-emerald-300">⚪ Белый хакинг (Скам и фишинг):</span>{' '}
                       защищает пользователей: даёт <strong>+Data, много +Rep и 0 Heat</strong>.
                       Лучший выбор для репутации и безопасного фарма.
                     </div>
-                    <div className="rounded-xl bg-[#0a0e1a] border border-rose-500/35 p-2.5">
+                    <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-rose-500/35 p-2.5">
                       <span className="font-bold text-rose-300">⚫ Чёрный хакинг (Мегакорпорации):</span>{' '}
                       даёт огромный куш <strong>+++Data</strong>, но забирает <strong>Rep и добавляет Heat</strong>.
                       Не запускай, если Heat уже около 80–90.
                     </div>
-                    <div className="rounded-xl bg-[#0a0e1a] border border-slate-700 p-2.5">
+                    <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-700 p-2.5">
                       <span className="font-bold text-slate-200">🔵 Нейтральный хакинг (Блоги, хабы и секретные контракты):</span>{' '}
                       спокойные вылазки со средним доходом и небольшим Heat. После найма{' '}
                       <strong>Analyst</strong> в эту же категорию добавятся секретные контракты с{' '}
@@ -305,16 +305,16 @@ export const TutorialModal: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-[#101935] border border-slate-700 p-3 space-y-1.5">
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-700 p-3 space-y-1.5">
                     <div className="font-bold text-white">⚖️ Как работают пути Хакера:</div>
                     <div>
-                      • <strong className="text-[#00f0ff]">🛡️ Белый хакинг</strong> (когда{' '}
+                      • <strong className="text-[var(--ui-primary)]">🛡️ Белый хакинг</strong> (когда{' '}
                       <code>Rep &gt; Heat × 2</code> и <code>Rep ≥ 10</code>):{' '}
                       <strong>+20% к пассивному Data/час</strong> и <strong>×2 награда</strong> за
                       все белые миссии!
                     </div>
                     <div>
-                      • <strong className="text-[#ff00a0]">🕶️ Чёрный хакинг</strong> (когда{' '}
+                      • <strong className="text-[var(--ui-secondary)]">🕶️ Чёрный хакинг</strong> (когда{' '}
                       <code>Heat &gt; Rep × 2</code> и <code>Heat ≥ 10</code>):{' '}
                       <strong>+50% Data за каждый тап</strong>, но розыск Heat растёт на 30% быстрее.
                     </div>
@@ -323,7 +323,7 @@ export const TutorialModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => jumpTo('/hacks')}
-                    className="w-full py-2.5 rounded-xl bg-[#ff00a0]/15 hover:bg-[#ff00a0]/25 border border-[#ff00a0]/50 text-[#ff00a0] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-[var(--ui-secondary)]/15 hover:bg-[var(--ui-secondary)]/25 border border-[var(--ui-secondary)]/50 text-[var(--ui-secondary)] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Перейти во «Взломы»</span>
                     <ChevronRight className="w-4 h-4" />
@@ -338,28 +338,28 @@ export const TutorialModal: React.FC = () => {
                     чьи бонусы складываются и усиливают весь твой аккаунт:
                   </p>
                   <div className="space-y-1.5 text-[11px]">
-                    <div className="p-2.5 rounded-xl bg-[#0a0e1a] border border-slate-800">
-                      <strong className="text-[#00f0ff]">1. Coder (450 Data)</strong> → бери самым
+                    <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
+                      <strong className="text-[var(--ui-primary)]">1. Coder (450 Data)</strong> → бери самым
                       первым для <strong>+5% Data/час</strong>.
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#0a0e1a] border border-slate-800">
-                      <strong className="text-[#00f0ff]">2. Social Engineer (900 Data)</strong> →{' '}
+                    <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
+                      <strong className="text-[var(--ui-primary)]">2. Social Engineer (900 Data)</strong> →{' '}
                       <strong>+10% к силе каждого клика</strong>.
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#0a0e1a] border border-slate-800">
-                      <strong className="text-[#7dff00]">3. Botmaster (2 200 Data)</strong> →{' '}
+                    <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
+                      <strong className="text-[var(--ui-success)]">3. Botmaster (2 200 Data)</strong> →{' '}
                       <strong>Автоклик 1/сек</strong> (фармит за тебя даже оффлайн!).
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#0a0e1a] border border-slate-800">
+                    <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
                       <strong className="text-emerald-300">4. Analyst (45 Rep)</strong> →{' '}
                       <strong>ключевой NPC!</strong> Открывает фиолетовые миссии для фарма{' '}
                       <strong>💎 Crypto</strong>.
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#0a0e1a] border border-slate-800">
+                    <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
                       <strong className="text-emerald-300">5. Fence (25 Rep)</strong> →{' '}
                       <strong>-20% к приросту Heat</strong> (незаменим для Darknet!).
                     </div>
-                    <div className="p-2.5 rounded-xl bg-[#0a0e1a] border border-slate-800">
+                    <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
                       <strong className="text-purple-300">
                         6–8. Cryptographer (65K Data), AI Architect (100 Rep), Спектр (220 Rep)
                       </strong>{' '}
@@ -367,8 +367,8 @@ export const TutorialModal: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="rounded-xl bg-[#0a0e1a] border border-[#ff00a0]/35 p-3 space-y-1.5">
-                    <div className="font-bold text-[#ff00a0]">🐾 Питомцы-компаньоны</div>
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-secondary)]/35 p-3 space-y-1.5">
+                    <div className="font-bold text-[var(--ui-secondary)]">🐾 Питомцы-компаньоны</div>
                     <p>
                       Три питомца на вкладке «Команда»: <strong>хомяк «Байт»</strong> (+3% пассива),{' '}
                       <strong>крыса «Глитч»</strong> (+4% к клику) и{' '}
@@ -379,8 +379,8 @@ export const TutorialModal: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-[#0a0e1a] border border-[#7dff00]/35 p-3 space-y-1.5">
-                    <div className="font-bold text-[#7dff00]">🏠 База (вкладка «Улучшения»)</div>
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 p-3 space-y-1.5">
+                    <div className="font-bold text-[var(--ui-success)]">🏠 База (вкладка «Улучшения»)</div>
                     <p>
                       10 пассивных покупок по 15 уровней: кофемашина (реген энергии), авто-скрипт
                       (автоклик), ИБП (+к оффлайн-копилке), талисман удачи (шанс Crypto) и другие.
@@ -392,7 +392,7 @@ export const TutorialModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => jumpTo('/team')}
-                    className="w-full py-2.5 rounded-xl bg-[#7dff00]/15 hover:bg-[#7dff00]/25 border border-[#7dff00]/50 text-[#7dff00] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-[var(--ui-success)]/15 hover:bg-[var(--ui-success)]/25 border border-[var(--ui-success)]/50 text-[var(--ui-success)] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Открыть «Команду»</span>
                     <ChevronRight className="w-4 h-4" />
@@ -402,7 +402,7 @@ export const TutorialModal: React.FC = () => {
 
               {activeTab === 'endgame' && (
                 <>
-                  <div className="rounded-xl bg-gradient-to-br from-purple-950/60 to-[#0a0e1a] border border-purple-500/40 p-3 space-y-1.5">
+                  <div className="rounded-xl bg-gradient-to-br from-purple-950/60 to-[var(--ui-panel-deep)] border border-purple-500/40 p-3 space-y-1.5">
                     <div className="font-display font-bold text-purple-300">
                       🌐 Многоступенчатый GLOBAL HACK (Престиж)
                     </div>
@@ -427,7 +427,7 @@ export const TutorialModal: React.FC = () => {
                     </ul>
                   </div>
 
-                  <div className="rounded-xl bg-[#0a0e1a] border border-emerald-500/30 p-3 space-y-1">
+                  <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-emerald-500/30 p-3 space-y-1">
                     <div className="font-bold text-emerald-300">
                       ☁️ Облачное сохранение и обновления без вайпов
                     </div>
@@ -443,11 +443,11 @@ export const TutorialModal: React.FC = () => {
             </div>
 
             {/* Нижняя кнопка */}
-            <div className="p-3 bg-[#0a0e1a] border-t border-slate-800 shrink-0">
+            <div className="p-3 bg-[var(--ui-panel-deep)] border-t border-slate-800 shrink-0">
               <button
                 type="button"
                 onClick={closeTutorial}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[#00f0ff] to-[#00b8ff] text-[#041019] font-display font-extrabold text-xs uppercase tracking-wider cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[var(--ui-primary)] to-[#00b8ff] text-[#041019] font-display font-extrabold text-xs uppercase tracking-wider cursor-pointer"
               >
                 Понятно, за работу! ⚡
               </button>

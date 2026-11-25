@@ -1,29 +1,42 @@
 @import "tailwindcss";
 
 :root {
-  --cyber-bg: #0a0e1a;
-  --cyber-panel: #10162b;
-  --cyber-cyan: #00f0ff;
-  --cyber-magenta: #ff00a0;
-  --cyber-green: #7dff00;
-  --cyber-purple: #c084fc;
-  /* Панель по умолчанию (совпадает с классической темой). */
-  --cyber-panel-deep: #0a0e1a;
+  /* v5.0 «Сан-Мираж»: тёплая база по умолчанию — терракота, янтарь, бирюза.
+     Тёмная «Неон-Сити» осталась отдельной темой, которую можно включить. */
+  --cyber-bg: #14100d;
+  --cyber-panel: #221b16;
+  --cyber-cyan: #ff9a5a;
+  --cyber-magenta: #4ecdc4;
+  --cyber-green: #a8d98a;
+  --cyber-purple: #d8a7c4;
+  --cyber-panel-deep: #14100d;
   /* v3.6.5: палитра ХРОМА интерфейса. По умолчанию совпадает с темой,
      а скин интерфейса переопределяет её через GameContext. Арт сцены
      этих переменных не использует — он остаётся нетронутым. */
-  --ui-primary: #00f0ff;
-  --ui-primary-rgb: 0, 240, 255;
-  --ui-secondary: #ff00a0;
-  --ui-secondary-rgb: 255, 0, 160;
-  --ui-panel: #10172e;
-  --ui-panel-rgb: 16, 23, 46;
-  --ui-panel-deep: #0a0e1a;
-  --ui-panel-deep-rgb: 10, 14, 26;
-  --ui-text: #e8f4ff;
-  --theme-vignette: rgba(0, 240, 255, 0.1);
+  --ui-primary: #ff9a5a;
+  --ui-primary-rgb: 255, 154, 90;
+  --ui-secondary: #4ecdc4;
+  --ui-secondary-rgb: 78, 205, 196;
+  --ui-success: #a8d98a;
+  --ui-success-rgb: 168, 217, 138;
+  --ui-purple: #d8a7c4;
+  --ui-purple-rgb: 216, 167, 196;
+  --ui-panel: #221b16;
+  --ui-panel-rgb: 34, 27, 22;
+  --ui-panel-deep: #14100d;
+  --ui-panel-deep-rgb: 20, 16, 13;
+  --ui-text: #f7ede2;
+  --ui-text-muted: #bda998;
+  /* Тёмный текст на акцентной кнопке: на янтаре нужен кофейный, не белый. */
+  --ui-on-primary: #26150a;
+  --ui-on-success: #16220f;
+  /* Свечение фона и «характер»: у тёплой темы нет сетки и скан-линий. */
+  --ui-glow-1: 255, 154, 90;
+  --ui-glow-2: 78, 205, 196;
+  --ui-grid-opacity: 0;
+  --scanline-opacity: 0;
+  --theme-vignette: rgba(255, 154, 90, 0.12);
 }
-
 * {
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
@@ -35,27 +48,37 @@ body,
   min-height: 100%;
   /* v3.6.1: фон подхватывает выбранную базовую тему (переменная из GameContext). */
   background-color: var(--cyber-bg, #0a0e1a);
-  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-family: 'Inter', 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
   overscroll-behavior-y: none;
 }
 
 .font-display {
-  font-family: 'Orbitron', 'JetBrains Mono', sans-serif;
+  font-family: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }
 
-/* Киберпанк фоновая сетка */
+/* Фон приложения. v5.0: тёплые пятна света вместо неоновой сетки.
+   Теме «Неон-Сити» сетка возвращается через --ui-grid-opacity. */
 .cyber-grid-bg {
-  background-color: var(--cyber-bg, #0a0e1a);
+  background-color: var(--cyber-bg, #14100d);
   background-image:
-    radial-gradient(circle at 18% 0%, rgba(0, 240, 255, 0.11), transparent 42%),
-    radial-gradient(circle at 85% 12%, rgba(255, 0, 160, 0.09), transparent 40%),
-    linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+    radial-gradient(circle at 16% 0%, rgba(var(--ui-glow-1), 0.16), transparent 46%),
+    radial-gradient(circle at 88% 10%, rgba(var(--ui-glow-2), 0.12), transparent 44%),
+    linear-gradient(
+      rgba(var(--ui-grid-line-rgb, var(--ui-glow-1)), calc(var(--ui-grid-opacity, 0) * 0.05)) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(var(--ui-grid-line-rgb, var(--ui-glow-1)), calc(var(--ui-grid-opacity, 0) * 0.05)) 1px,
+      transparent 1px
+    );
   background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
 }
 
-/* Тонкие скан-линии CRT поверх интерактивной сцены */
+/* Тонкие скан-линии CRT поверх интерактивной сцены (у тёплой темы выключены) */
 .scanline-overlay {
+  opacity: var(--scanline-opacity, 0);
   background: repeating-linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.025) 0px,
@@ -422,9 +445,10 @@ body[data-theme='femme'] .rounded-2xl {
   display: block;
   overflow: hidden;
   isolation: isolate;
+  /* v5.0: аватар — тёплое стекло, а не зелёная матрица. */
   background:
-    radial-gradient(circle at 50% 46%, rgba(39, 255, 111, 0.22), transparent 54%),
-    linear-gradient(135deg, #001b0b 0%, #00351a 52%, #001207 100%);
+    radial-gradient(circle at 50% 46%, rgba(255, 154, 90, 0.3), transparent 56%),
+    linear-gradient(135deg, #2b1a10 0%, #3c2617 52%, #1a110b 100%);
 }
 
 .matrix-avatar__rain,
@@ -439,8 +463,8 @@ body[data-theme='femme'] .rounded-2xl {
 .matrix-avatar__rain {
   z-index: 1;
   overflow: hidden;
-  opacity: 0.94;
-  filter: drop-shadow(0 0 3px rgba(66, 255, 119, 0.75));
+  opacity: 0.55;
+  filter: drop-shadow(0 0 3px rgba(255, 154, 90, 0.45));
 }
 
 .matrix-avatar__column {
@@ -448,23 +472,23 @@ body[data-theme='femme'] .rounded-2xl {
   top: -220%;
   width: 10%;
   height: 240%;
-  color: #24e96a;
-  font-family: 'Share Tech Mono', 'Roboto Mono', ui-monospace, monospace;
+  color: #ffcf9f;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1.5px;
   line-height: 1;
   opacity: 0.74;
   text-align: center;
-  text-shadow: 0 0 4px #42ff77, 0 0 9px rgba(24, 201, 100, 0.75);
+  text-shadow: 0 0 4px rgba(255, 154, 90, 0.55);
   text-orientation: upright;
   writing-mode: vertical-rl;
   animation: matrixAvatarRain 3.2s linear infinite;
 }
 
 .matrix-avatar__column::first-letter {
-  color: #effff3;
-  text-shadow: 0 0 4px #ffffff, 0 0 10px #42ff77;
+  color: #fff4e6;
+  text-shadow: 0 0 4px rgba(255, 244, 230, 0.7);
 }
 
 .matrix-avatar__column--1 { left: 1%; animation-delay: -2.4s; animation-duration: 2.7s; }
@@ -482,10 +506,10 @@ body[data-theme='femme'] .rounded-2xl {
 
 .matrix-avatar__grid {
   z-index: 2;
-  opacity: 0.2;
+  opacity: 0.07;
   background-image:
-    linear-gradient(rgba(66, 255, 119, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(66, 255, 119, 0.16) 1px, transparent 1px);
+    linear-gradient(rgba(255, 210, 170, 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 210, 170, 0.3) 1px, transparent 1px);
   background-size: 9px 9px;
   mix-blend-mode: screen;
 }
@@ -504,6 +528,7 @@ body[data-theme='femme'] .rounded-2xl {
     transparent
   );
   filter: blur(1px);
+  opacity: 0.18;
   animation: matrixAvatarScan 2.6s ease-in-out infinite;
 }
 

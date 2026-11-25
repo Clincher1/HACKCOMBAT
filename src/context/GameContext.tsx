@@ -143,7 +143,7 @@ function incrementOptimisticTapProgress(stats: PlayerState['stats']): PlayerStat
 }
 
 
-/** '#00f0ff' -> '0, 240, 255' — нужен для rgba(var(--ui-primary-rgb), 0.2). */
+/** 'var(--ui-primary)' -> '0, 240, 255' — нужен для rgba(var(--ui-primary-rgb), 0.2). */
 function hexToRgbTriplet(hex: string): string {
   const clean = hex.replace('#', '');
   const full =
@@ -960,6 +960,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--cyber-panel', theme.palette.panel);
     root.setProperty('--cyber-panel-deep', theme.palette.panelDeep);
     root.setProperty('--theme-vignette', theme.sceneVignette);
+    // v5.0: характер темы — не только цвет, но и «воздух».
+    // У тёплой «Сан-Мираж» нет скан-линий и сетки, у «Неон-Сити» есть.
+    root.setProperty('--ui-success', theme.ui.successHex);
+    root.setProperty('--ui-success-rgb', hexToRgbTriplet(theme.ui.successHex));
+    root.setProperty('--ui-purple', theme.palette.purple);
+    root.setProperty('--ui-purple-rgb', hexToRgbTriplet(theme.palette.purple));
+    root.setProperty('--ui-on-primary', theme.palette.onPrimary ?? 'var(--ui-on-primary)');
+    root.setProperty('--ui-text-muted', theme.palette.textMuted);
+    root.setProperty('--scanline-opacity', theme.ui.scanlines === false ? '0' : '1');
+    root.setProperty('--ui-grid-opacity', theme.ui.scanlines === false ? '0' : '1');
+    const glow = theme.ui.backgroundGlow ?? [theme.palette.cyan, theme.palette.magenta];
+    root.setProperty('--ui-glow-1', hexToRgbTriplet(glow[0]));
+    root.setProperty('--ui-glow-2', hexToRgbTriplet(glow[1]));
     document.body.dataset.theme = theme.key;
   }, [player?.stats.baseTheme]);
 
@@ -988,6 +1001,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--ui-panel-deep', panelDeep);
     root.setProperty('--ui-panel-deep-rgb', hexToRgbTriplet(panelDeep));
     root.setProperty('--ui-text', uiSkin?.uiTokens?.text ?? theme.palette.text);
+    // Тёплый текст-подпись тоже подстраивается под тему, иначе на коричневых
+    // панелях серо-голубой muted выглядит как деталь из другой игры.
+    if (!uiSkin) {
+      root.setProperty('--ui-text-muted', theme.palette.textMuted);
+    }
     if (uiSkin) {
       document.body.dataset.uiSkin = uiSkin.key;
     } else {

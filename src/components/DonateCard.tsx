@@ -148,17 +148,17 @@ export const DonateCard: React.FC = () => {
   );
 
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-[#2a0f1f] to-[#0f172e] border border-[#ff00a0]/35 p-4 space-y-2.5">
+    <div className="rounded-2xl bg-gradient-to-br from-[#2a0f1f] to-[var(--ui-panel-deep)] border border-[var(--ui-secondary)]/35 p-4 space-y-2.5">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between gap-2 cursor-pointer"
       >
         <span className="flex items-center gap-2 font-display text-sm font-extrabold text-white">
-          <Heart className="w-4 h-4 text-[#ff00a0]" />
+          <Heart className="w-4 h-4 text-[var(--ui-secondary)]" />
           Поддержать проект
         </span>
-        <span className="text-[10px] font-bold text-[#ff8ac0] bg-[#ff00a0]/12 border border-[#ff00a0]/35 px-2 py-0.5 rounded">
+        <span className="text-[10px] font-bold text-[#ff8ac0] bg-[var(--ui-secondary)]/12 border border-[var(--ui-secondary)]/35 px-2 py-0.5 rounded">
           {supported > 0 ? `Поддержано ${supported} ⭐` : 'Telegram Stars'}
         </span>
       </button>
@@ -171,7 +171,7 @@ export const DonateCard: React.FC = () => {
       </p>
 
       {supported > 0 && (
-        <div className="rounded-xl bg-[#0a0e1a] border border-[#ff00a0]/25 px-2.5 py-2 space-y-0.5">
+        <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-secondary)]/25 px-2.5 py-2 space-y-0.5">
           <div className="flex items-center justify-between text-[11px]">
             <span className="text-slate-300">Поддержано всего</span>
             <span className="font-extrabold text-[#ffd75e]">{supported} ⭐</span>
@@ -195,7 +195,7 @@ export const DonateCard: React.FC = () => {
                 type="button"
                 disabled={busyStars !== null}
                 onClick={() => void donate(stars)}
-                className="py-2 rounded-xl bg-[#0a0e1a] border border-[#ff00a0]/40 text-xs font-bold text-[#ffd75e] hover:bg-[#ff00a0]/12 disabled:opacity-50 disabled:cursor-wait cursor-pointer flex items-center justify-center gap-1"
+                className="py-2 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-secondary)]/40 text-xs font-bold text-[#ffd75e] hover:bg-[var(--ui-secondary)]/12 disabled:opacity-50 disabled:cursor-wait cursor-pointer flex items-center justify-center gap-1"
               >
                 {busyStars === stars ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -212,7 +212,7 @@ export const DonateCard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => void openExternalDonate(external.url)}
-                className="w-full py-2 rounded-xl bg-[#ff00a0]/12 border border-[#ff00a0]/40 text-[11px] font-bold text-white hover:bg-[#ff00a0]/20 cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2 rounded-xl bg-[var(--ui-secondary)]/12 border border-[var(--ui-secondary)]/40 text-[11px] font-bold text-white hover:bg-[var(--ui-secondary)]/20 cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <CreditCard className="w-3.5 h-3.5 text-[#ff8ac0]" />
                 {external.label}
@@ -222,7 +222,7 @@ export const DonateCard: React.FC = () => {
           )}
 
           <div className="flex items-start gap-1.5 text-[10px] text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#7dff00] mt-0.5 shrink-0" />
+            <ShieldCheck className="w-3.5 h-3.5 text-[var(--ui-success)] mt-0.5 shrink-0" />
             <span>
               Оплата в Telegram Stars. Возврат — команда <code>/paysupport</code> в боте, условия —{' '}
               <code>/terms</code>.
@@ -233,7 +233,7 @@ export const DonateCard: React.FC = () => {
 
       {error && <div className="text-[11px] text-rose-300">{error}</div>}
       {justPaid && !error && (
-        <div className="text-[11px] text-[#7dff00] font-semibold">
+        <div className="text-[11px] text-[var(--ui-success)] font-semibold">
           ❤️ Спасибо! Чек придёт в чат с ботом, там же /paysupport.
         </div>
       )}

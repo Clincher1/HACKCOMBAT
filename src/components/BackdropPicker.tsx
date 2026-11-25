@@ -1,105 +1,63 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BACKDROPS_CONFIG } from '../../shared/backdrops.config';
 import { useGame } from '../context/GameContext';
+import { DEVICE_LABEL, LocationGrid, LocationPickerModal } from './LocationPicker';
 
 /**
- * «Вид из окна» (v4.1) — переключатель сцены за спиной оператора.
+ * «Локации» (v5.0, было «вид из окна» v4.1).
  *
- * Это косметика: ни Data, ни Crypto не тратятся, бонусов к тапу нет.
- * Выбор хранится в stats.deskBackdrop и переживает Престиж, как темы и рамки.
+ * Игрок выбирает, где он работает: крыша, пляжная терраса, уличное кафе,
+ * пляжный бар, мотель или квартира в дождь. Чистая атмосфера: ни Data, ни
+ * Crypto не тратятся, бонусов к тапу нет, выбор переживает Престиж.
  */
 export const BackdropPicker: React.FC = () => {
-  const { player, deskBackdrop, setDeskBackdrop, busyKey } = useGame();
-  if (!player) return null;
+  const { deskBackdrop } = useGame();
+  const [open, setOpen] = useState(false);
 
-  const activeKey = deskBackdrop?.key;
-  const level = player.derived.level;
+  const laptops = BACKDROPS_CONFIG.filter((location) => location.device === 'laptop').length;
+  const phones = BACKDROPS_CONFIG.filter((location) => location.device === 'phone').length;
 
   return (
-    <section className="rounded-2xl bg-gradient-to-br from-[#15112f] to-[#10172e] border border-white/10 p-3.5 space-y-3">
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5 text-sm font-display font-extrabold text-white">
-          <span aria-hidden="true">🌤️</span>
-          <span>Вид из окна</span>
+    <section className="space-y-3 rounded-2xl border border-white/10 bg-[var(--ui-panel)] p-3.5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 font-display text-sm font-extrabold text-white">
+            <span aria-hidden>🗺️</span>
+            <span>Локации</span>
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-[var(--ui-text-muted)]">
+            Где ты сейчас: {BACKDROPS_CONFIG.length} мест — от крыши до пляжного бара. Везде можно
+            работать: {laptops} мест с ноутбуком, {phones} с телефона. Антураж, не бонус.
+          </p>
         </div>
-        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-          Сцена, у которой стоит твой терминал: закат на крыше, пляж днём, мотель у бассейна или дождь
-          за стеклом. Чистая атмосфера — без бонусов к тапу.
-        </p>
+        {deskBackdrop && (
+          <span
+            className="shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-bold"
+            style={{ background: `${deskBackdrop.accent}22`, color: deskBackdrop.accent }}
+          >
+            {deskBackdrop.place}
+          </span>
+        )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2.5">
-        {BACKDROPS_CONFIG.map((backdrop) => {
-          const active = activeKey === backdrop.key;
-          const locked = level < backdrop.requiredLevel;
-          const busy = busyKey === `backdrop:${backdrop.key}`;
-          return (
-            <button
-              key={backdrop.key}
-              type="button"
-              disabled={locked || busy}
-              onClick={() => void setDeskBackdrop(backdrop.key)}
-              aria-pressed={active}
-              className={`relative overflow-hidden rounded-xl border text-left transition-transform duration-100 active:scale-[0.98] ${
-                active
-                  ? 'border-white/70 ring-2 ring-offset-0'
-                  : 'border-white/10 hover:border-white/25'
-              } ${locked ? 'opacity-45 cursor-not-allowed' : ''}`}
-              style={active ? { borderColor: backdrop.accent, boxShadow: `0 0 18px ${backdrop.accent}55` } : undefined}
-            >
-              <img
-                src={backdrop.url}
-                alt={backdrop.name}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-[74px] object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#08060f]/95 via-[#08060f]/25 to-transparent" />
-
-              <div className="absolute left-2 right-2 bottom-1.5">
-                <div className="text-[11.5px] font-bold text-white leading-tight truncate">
-                  {backdrop.glyph} {backdrop.name}
-                </div>
-                <div className="text-[9.5px] text-white/60 truncate">{backdrop.weatherLabel}</div>
-              </div>
-
-              {active && (
-                <span
-                  className="absolute top-1.5 right-1.5 grid place-items-center w-5 h-5 rounded-full text-[11px] font-black text-[#08060f]"
-                  style={{ background: backdrop.accent }}
-                  aria-hidden="true"
-                >
-                  ✓
-                </span>
-              )}
-              {locked && (
-                <span className="absolute top-1.5 left-1.5 rounded-md bg-[#08060f]/85 border border-white/20 px-1.5 py-0.5 text-[9.5px] font-bold text-white/80">
-                  🔒 Ур. {backdrop.requiredLevel}
-                </span>
-              )}
-              {busy && (
-                <span className="absolute inset-0 grid place-items-center bg-[#08060f]/60 text-[10px] font-bold text-white/80">
-                  применяем…
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
+      <LocationGrid />
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10.5px] text-slate-500">
-          {deskBackdrop ? 'Сейчас: ' + deskBackdrop.name : 'Сейчас: сцена по уровню'}
+        <span className="text-[10.5px] text-[var(--ui-text-muted)]">
+          {deskBackdrop
+            ? `Сейчас: ${deskBackdrop.place} · ${DEVICE_LABEL[deskBackdrop.device].short}`
+            : 'Сейчас: сцена по уровню'}
         </span>
         <button
           type="button"
-          disabled={!deskBackdrop || busyKey === 'backdrop:'}
-          onClick={() => void setDeskBackdrop('')}
-          className="rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300 disabled:opacity-40"
+          onClick={() => setOpen(true)}
+          className="rounded-lg bg-[var(--ui-primary)] px-2.5 py-1.5 text-[11px] font-extrabold text-[var(--ui-on-primary)] transition hover:brightness-110 cursor-pointer"
         >
-          Сцена по уровню
+          Открыть карту мест
         </button>
       </div>
+
+      <LocationPickerModal open={open} onClose={() => setOpen(false)} />
     </section>
   );
 };

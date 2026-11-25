@@ -66,7 +66,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-[var(--ui-primary)]/40 bg-[#0b1020] p-4 shadow-[0_0_45px_rgba(var(--ui-primary-rgb),0.22)]">
+      <div className="max-h-[88vh] w-full max-w-xl overflow-y-auto rounded-3xl border border-[var(--ui-primary)]/40 bg-[var(--ui-panel-deep)] p-4 shadow-[0_0_45px_rgba(var(--ui-primary-rgb),0.22)]">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <ExternalLink className="h-4 w-4 text-[var(--ui-primary)]" />
@@ -93,12 +93,12 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
           </div>
         ) : profile ? (
           <>
-            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-800 bg-[#10172e] p-3">
+            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-3">
               <div
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-xl font-black"
                 style={{ borderColor: frame.accent, background: frame.background, boxShadow: frame.glow }}
               >
-                {profile.avatarKey ? getInventoryItemDefinition(`skin:${profile.avatarKey}`)?.icon ?? '🧑‍💻' : '🕶️'}
+                {profile.avatarKey ? getInventoryItemDefinition(`skin:${profile.avatarKey}`)?.icon ?? '🧑‍💻' : '🙂'}
               </div>
               <div className="min-w-0">
                 <div className="truncate font-display text-base font-extrabold text-white">{profile.username}</div>
@@ -122,7 +122,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
             </div>
 
             {profile.items.length === 0 ? (
-              <div className="mt-3 rounded-2xl border border-slate-800 bg-[#10172e] p-5 text-center text-xs text-slate-500">
+              <div className="mt-3 rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-5 text-center text-xs text-slate-500">
                 Игрок пока ничего не выставил.
               </div>
             ) : (
@@ -130,7 +130,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
                 {profile.items.map((item) => (
                   <div
                     key={item.key}
-                    className="rounded-2xl border bg-[#10172e] p-2.5"
+                    className="rounded-2xl border bg-[var(--ui-panel)] p-2.5"
                     style={{ borderColor: `${item.accent}66` }}
                   >
                     <div className="flex h-16 items-center justify-center rounded-xl bg-black/20 text-3xl">

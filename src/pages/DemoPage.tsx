@@ -78,7 +78,7 @@ const ItemCard: React.FC<{
             locked ? 'opacity-35 saturate-50 grayscale-[35%]' : 'group-hover:scale-[1.03]'
           }`}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#070b10] via-[#070b10]/35 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[var(--ui-panel-deep)] via-[var(--ui-panel-deep)]/35 to-transparent" />
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-2.5">
           <span
             className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider"
@@ -186,7 +186,7 @@ const LadderView: React.FC<{ level: number }> = ({ level }) => (
             <div className="flex items-center gap-2">
               <span
                 className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg font-display text-[11px] font-extrabold ${
-                  reached ? 'bg-[#2ee6d6] text-[#06231f]' : 'bg-white/8 text-slate-400'
+                  reached ? 'bg-[#2ee6d6] text-[var(--ui-on-success)]' : 'bg-white/8 text-slate-400'
                 }`}
               >
                 {row.level}
@@ -321,7 +321,7 @@ export const DemoPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#070b10] text-slate-200">
+    <div className="min-h-screen bg-[var(--ui-panel-deep)] text-slate-200">
       {/* Тёплое свечение «заката» — общий фон демо, чтобы экран не был холодным. */}
       <div
         aria-hidden
@@ -417,7 +417,7 @@ export const DemoPage: React.FC = () => {
         </div>
 
         {/* Управление */}
-        <div className="sticky top-0 z-20 -mx-3 mt-3 border-y border-white/10 bg-[#070b10]/95 px-3 py-2 backdrop-blur">
+        <div className="sticky top-0 z-20 -mx-3 mt-3 border-y border-white/10 bg-[var(--ui-panel-deep)]/95 px-3 py-2 backdrop-blur">
           <div className="flex items-center justify-between gap-2">
             <div className="text-[10px] text-slate-400">
               <span className="font-bold text-white">{totalUnlocked}</span> из {DEMO_TOTAL_UNLOCKS}{' '}
@@ -454,7 +454,7 @@ export const DemoPage: React.FC = () => {
                 onClick={() => setLevel(stop)}
                 className={`rounded-lg px-2 py-1 text-[10px] font-bold transition cursor-pointer ${
                   level === stop
-                    ? 'bg-[#2ee6d6] text-[#06231f]'
+                    ? 'bg-[#2ee6d6] text-[var(--ui-on-success)]'
                     : 'bg-white/6 text-slate-300 hover:bg-white/12'
                 }`}
               >
