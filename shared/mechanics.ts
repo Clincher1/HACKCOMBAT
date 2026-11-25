@@ -185,7 +185,7 @@ export function getDeskStageInfo(stage: 1 | 5 | 10 | 15 | 20 | 25 | 30): {
       };
     case 5:
       return {
-        title: 'Ур. 5 — Двойной Неон',
+        title: 'Ур. 5 — Второй Монитор',
         subtitle: 'Второй монитор и бирюзовый неон под столом',
         sceneUrl: '/assets/scenes/stage-05.webp',
         nextLevel: 10,
@@ -199,14 +199,14 @@ export function getDeskStageInfo(stage: 1 | 5 | 10 | 15 | 20 | 25 | 30): {
       };
     case 15:
       return {
-        title: 'Ур. 15 — Воздушный Перехват',
-        subtitle: 'Дрон-разведчик барражирует над пляжем',
+        title: 'Ур. 15 — Тихая Веранда',
+        subtitle: 'Второй монитор на веранде, закат над водой',
         sceneUrl: '/assets/scenes/stage-15.webp',
         nextLevel: 20,
       };
     case 20:
       return {
-        title: 'Ур. 20 — Кибер-Станция',
+        title: 'Ур. 20 — Пентхаус',
         subtitle: 'Три монитора, кресло и панорама залива',
         sceneUrl: '/assets/scenes/stage-20.webp',
         nextLevel: 25,
@@ -220,8 +220,8 @@ export function getDeskStageInfo(stage: 1 | 5 | 10 | 15 | 20 | 25 | 30): {
       };
     case 30:
       return {
-        title: 'Ур. 30+ — Ядро Матрицы',
-        subtitle: 'Голограммы, дрон и закат над бухтой',
+        title: 'Ур. 30+ — Командный Зал',
+        subtitle: 'Панорамный зал, закат над бухтой и вся команда рядом',
         sceneUrl: '/assets/scenes/stage-30.webp',
         nextLevel: 50,
       };

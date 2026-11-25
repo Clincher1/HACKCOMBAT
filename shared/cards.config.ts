@@ -10,7 +10,7 @@ export const CARD_CATEGORIES: {
   {
     id: 'hardware',
     label: 'Hardware',
-    subtitle: 'Железо, кластеры и квантовые узлы (тап + пассив)',
+    subtitle: 'Железо, кластеры и рабочие станции (тап + пассив)',
     accentColor: '#00f0ff',
     iconUrl: '/assets/cards/hardware.svg',
   },
@@ -83,13 +83,13 @@ export const CARDS_CONFIG: CardConfig[] = [
   },
   {
     key: 'scout_drone',
-    name: 'Дрон-разведчик',
-    description: 'Сканирует беспроводные эфиры мегаполиса 24/7.',
+    name: 'Внешняя антенна',
+    description: 'Ловит открытые сети вокруг дома круглосуточно.',
     category: 'hardware',
     basePrice: 700,
     dataPerHourPerLevel: 2200,
     clickBonusPerLevel: 1.0,
-    iconGlyph: '🛸',
+    iconGlyph: '📡',
   },
   {
     key: 'quantum_cooler',
@@ -346,7 +346,7 @@ export const CARDS_CONFIG: CardConfig[] = [
   {
     key: 'energy_fridge',
     name: 'Мини-холодильник',
-    description: 'Запас кибер-тоника у руки: +50 Energy Max.',
+    description: 'Холодная вода и кола под рукой: +50 Energy Max.',
     category: 'comfort',
     basePrice: 1900,
     dataPerHourPerLevel: 4900,
@@ -413,8 +413,8 @@ export const CARDS_CONFIG: CardConfig[] = [
   },
   {
     key: 'orbital_penthouse_station',
-    name: 'Станция «Небесный Штаб»',
-    description: 'Личный командный модуль на низкой орбите.',
+    name: 'Лофт «Штаб»',
+    description: 'Своя студия с отдельным кабинетом и тишиной.',
     category: 'comfort',
     basePrice: 4100000,
     dataPerHourPerLevel: 3100000,
@@ -491,8 +491,8 @@ export const CARDS_CONFIG: CardConfig[] = [
   },
   {
     key: 'sat_hijack',
-    name: 'Орбитальный Перехват',
-    description: 'Подключение к вымышленному спутнику связи: +18 Heat.',
+    name: 'Серый прокси-пул',
+    description: 'Подключение к чужому пулу прокси: +18 Heat.',
     category: 'darknet',
     basePrice: 26000,
     dataPerHourPerLevel: 68000,
@@ -537,8 +537,8 @@ export const CARDS_CONFIG: CardConfig[] = [
   },
   {
     key: 'eclipse_satellite_swarm',
-    name: 'Рой Спутников «Затмение»',
-    description: 'Скрытая теневая группировка ретрансляторов: +26 Heat.',
+    name: 'Ферма прокси',
+    description: 'Сотня арендованных прокси по всему миру: +26 Heat.',
     category: 'darknet',
     basePrice: 3200000,
     dataPerHourPerLevel: 3400000,

@@ -152,7 +152,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   {
     key: 'frame_rooster_red',
     name: 'Красный Петух',
-    description: 'Алый боевой профиль с головой кибер-петуха. Постоянный персональный подарок администратора.',
+    description: 'Алый боевой профиль с головой петуха. Постоянный персональный подарок администратора.',
     accent: '#ff304f',
     background: 'linear-gradient(135deg, rgba(255,48,79,0.34), rgba(92,10,24,0.72))',
     glow: '0 0 18px rgba(255, 48, 79, 0.7), inset 0 0 12px rgba(255, 184, 77, 0.18)',

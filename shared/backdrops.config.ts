@@ -121,6 +121,32 @@ export const BACKDROPS_CONFIG: BackdropConfig[] = [
     place: 'Пляжный бар',
     device: 'phone',
   },
+  {
+    key: 'home_room',
+    name: 'Своя комната вечером',
+    tagline: 'Лампа, плед, кружка и тишина. Самый спокойный вариант — никто не смотрит в экран.',
+    url: '/assets/backdrops/backdrop-home-room.webp',
+    weather: 'night',
+    requiredLevel: 1,
+    glyph: '🪔',
+    accent: '#e0a96d',
+    weatherLabel: 'Дом · 22° · тихий вечер',
+    place: 'Своя комната',
+    device: 'laptop',
+  },
+  {
+    key: 'promenade',
+    name: 'Набережная',
+    tagline: 'Скамейка у моря, ноут на коленях и низкое солнце. Ветер в лицо, работа идёт.',
+    url: '/assets/backdrops/backdrop-promenade.webp',
+    weather: 'sunset',
+    requiredLevel: 1,
+    glyph: '🌅',
+    accent: '#ffb27a',
+    weatherLabel: 'Набережная · 25° · низкое солнце',
+    place: 'Набережная',
+    device: 'laptop',
+  },
 ];
 
 const BACKDROP_MAP = new Map(BACKDROPS_CONFIG.map((b) => [b.key, b]));

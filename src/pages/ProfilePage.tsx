@@ -264,7 +264,7 @@ export const ProfilePage: React.FC = () => {
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
               maxLength={24}
-              placeholder="Ваш кибер-ник..."
+              placeholder="Ник или имя..."
               className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--ui-panel-deep)] border border-slate-700 text-xs text-white focus:outline-none focus:border-[var(--ui-primary)]"
             />
             <button

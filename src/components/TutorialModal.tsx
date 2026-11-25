@@ -155,7 +155,7 @@ export const TutorialModal: React.FC = () => {
                     </div>
                     <p>
                       Растёт при ликвидации мошеннических <strong>⚪ белых</strong> целей. Нужна для
-                      найма лучших специалистов команды (<em>Fence, Analyst, AI Architect, Спектр</em>)
+                      найма лучших специалистов команды (<em>Фантом, Ирис, Омега, Спектр</em>)
                       и активации ветки <strong>Белый хакинг (+20% Data/час)</strong>.
                     </p>
                   </div>
@@ -250,7 +250,7 @@ export const TutorialModal: React.FC = () => {
                         Карты <strong>Darknet</strong> дают <strong>самый огромный доход в игре</strong>{' '}
                         (вплоть до миллионов Data/ч на <em>«Левиафане»</em>), но прибавляют{' '}
                         <code>+Heat</code> при покупке. Покупай их серией, пока Heat ниже 80–90, и
-                        заранее найми <strong>Fence (-20% Heat)</strong>!
+                        заранее найми <strong>Фантом (-20% Heat)</strong>!
                       </p>
                     </div>
                   </div>
@@ -300,7 +300,7 @@ export const TutorialModal: React.FC = () => {
                     <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-700 p-2.5">
                       <span className="font-bold text-slate-200">🔵 Нейтральный хакинг (Блоги, хабы и секретные контракты):</span>{' '}
                       спокойные вылазки со средним доходом и небольшим Heat. После найма{' '}
-                      <strong>Analyst</strong> в эту же категорию добавятся секретные контракты с{' '}
+                      <strong>Ирис</strong> в эту же категорию добавятся секретные контракты с{' '}
                       <strong>45–75% шансом на 💎 Crypto</strong>.
                     </div>
                   </div>
@@ -347,21 +347,21 @@ export const TutorialModal: React.FC = () => {
                       <strong>+10% к силе каждого клика</strong>.
                     </div>
                     <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
-                      <strong className="text-[var(--ui-success)]">3. Botmaster (2 200 Data)</strong> →{' '}
+                      <strong className="text-[var(--ui-success)]">3. Вектор (2 200 Data)</strong> →{' '}
                       <strong>Автоклик 1/сек</strong> (фармит за тебя даже оффлайн!).
                     </div>
                     <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
-                      <strong className="text-emerald-300">4. Analyst (45 Rep)</strong> →{' '}
+                      <strong className="text-emerald-300">4. Ирис (45 Rep)</strong> →{' '}
                       <strong>ключевой NPC!</strong> Открывает фиолетовые миссии для фарма{' '}
                       <strong>💎 Crypto</strong>.
                     </div>
                     <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
-                      <strong className="text-emerald-300">5. Fence (25 Rep)</strong> →{' '}
+                      <strong className="text-emerald-300">5. Фантом (25 Rep)</strong> →{' '}
                       <strong>-20% к приросту Heat</strong> (незаменим для Darknet!).
                     </div>
                     <div className="p-2.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800">
                       <strong className="text-purple-300">
-                        6–8. Cryptographer (65K Data), AI Architect (100 Rep), Спектр (220 Rep)
+                        6–8. Шифр (65K Data), Омега (100 Rep), Спектр (220 Rep)
                       </strong>{' '}
                       → мощнейшие эндгейм-усилители пассива, тапа и автоклика!
                     </div>

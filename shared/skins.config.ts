@@ -245,7 +245,7 @@ export const SKINS_CONFIG: SkinConfig[] = [
   {
     key: 'ui_crimson',
     name: 'Crimson HUD',
-    description: 'Алый HUD боевого дрона: максимум тревоги на минимуме площади.',
+    description: 'Алый акцент: максимум внимания на минимуме площади.',
     category: 'ui',
     cryptoCost: 72,
     requiredLevel: 22,

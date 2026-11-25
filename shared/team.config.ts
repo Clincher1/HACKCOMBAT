@@ -8,7 +8,7 @@ import type { TeamNpcConfig } from './types';
 export const TEAM_CONFIG: TeamNpcConfig[] = [
   {
     key: 'coder',
-    callsign: 'Coder // Кай «Zero»',
+    callsign: 'Кай «Zero»',
     roleTitle: 'Пишет и чинит код',
     quote: '«Хороший код — как хороший кофе: без спешки и с утра.»',
     effectLabel: '+10% Data/час',
@@ -26,7 +26,7 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
   },
   {
     key: 'social_engineer',
-    callsign: 'Social Engineer // Никс',
+    callsign: 'Никс',
     roleTitle: 'Договаривается с людьми',
     quote: '«Сначала спроси, как у человека дела. Дальше всё проще.»',
     effectLabel: '+15% Data за клик',
@@ -44,7 +44,7 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
   },
   {
     key: 'fence',
-    callsign: 'Fence // Фантом',
+    callsign: 'Фантом',
     roleTitle: 'Убирает цифровые следы',
     quote: '«Я не стираю следы. Я просто убираю за всеми.»',
     effectLabel: 'Снижает прирост Heat на 20%',
@@ -62,8 +62,8 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
   },
   {
     key: 'botmaster',
-    callsign: 'Botmaster // Вектор',
-    roleTitle: 'Гоняет дроны и скрипты',
+    callsign: 'Вектор',
+    roleTitle: 'Автоматизирует рутину',
     quote: '«Мой рой работает, пока я завтракаю на террасе.»',
     effectLabel: 'Автоклик 1/сек',
     avatarUrl: '/assets/avatars/botmaster.webp',
@@ -80,7 +80,7 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
   },
   {
     key: 'analyst',
-    callsign: 'Analyst // Ирис',
+    callsign: 'Ирис',
     roleTitle: 'Читает данные как книгу',
     quote: '«Смотреть в данные — как смотреть на закат: главное не спешить.»',
     effectLabel: 'Открывает секретные «серые» миссии (+8% Data/ч)',
@@ -98,7 +98,7 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
   },
   {
     key: 'cryptographer',
-    callsign: 'Cryptographer // Шифр',
+    callsign: 'Шифр',
     roleTitle: 'Разбирает шифры',
     quote: '«Красивые задачи — те, где ответ не лежит на поверхности.»',
     effectLabel: '+20% Data/час и −10% прирост Heat',
@@ -116,7 +116,7 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
   },
   {
     key: 'architect',
-    callsign: 'AI Architect // Омега',
+    callsign: 'Омега',
     roleTitle: 'Собирает системы',
     quote: '«Хорошая система должна быть тёплой, а не просто умной.»',
     effectLabel: '+25% Data/час и +20% к клику',
@@ -134,7 +134,7 @@ export const TEAM_CONFIG: TeamNpcConfig[] = [
   },
   {
     key: 'zero_day_hunter',
-    callsign: 'Zero-Day Hunter // Спектр',
+    callsign: 'Спектр',
     roleTitle: 'Видел всё и не устал',
     quote: '«Опыт — это когда ты уже ошибался именно в этом месте.»',
     effectLabel: '+30% Data/час, +25% к клику и Автоклик +1/сек',

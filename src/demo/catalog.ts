@@ -161,10 +161,10 @@ const missionSection: DemoSection = {
   accent: '#7dff00',
   items: MISSIONS_CONFIG.map((mission): DemoItem => {
     const targetLabel: Record<string, string> = {
-      bad: 'злая цель',
-      good: 'белая цель',
-      neutral: 'нейтральная',
-      grey: 'серая',
+      bad: 'мошенники',
+      good: 'корпорация',
+      neutral: 'частный сайт',
+      grey: 'серый контракт',
     };
     return {
       key: `mission-${mission.key}`,
