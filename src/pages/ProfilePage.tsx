@@ -1,6 +1,6 @@
 import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Scale, Sparkles, Trophy } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import {
   ACHIEVEMENTS_CONFIG,
   PUBLIC_ACHIEVEMENTS_COUNT,
@@ -754,6 +754,27 @@ export const ProfilePage: React.FC = () => {
             : `Требуется ${requiredPrestigeLevel} уровень (ещё ${requiredPrestigeLevel - derived.level} ур.)`}
         </button>
       </div>
+
+      {/* Демо-витрина (v4.3): посмотреть все открытия, не гринда до 30 уровня */}
+      <Link
+        to="/demo"
+        className="flex items-center gap-3 rounded-2xl border border-[#2ee6d6]/35 bg-gradient-to-br from-[#0d2a2b] to-[#0b1117] p-3 transition hover:border-[#2ee6d6]/70"
+      >
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#2ee6d6]/15 text-lg" aria-hidden>
+          🖼️
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-[12px] font-extrabold text-white">
+            Демо-версия: все открытия
+          </span>
+          <span className="mt-0.5 block text-[10px] leading-snug text-slate-400">
+            7 сцен, 48 модулей, 30 контрактов, 80 ачивок — витрина всего контента с ползунком уровня
+          </span>
+        </span>
+        <span className="shrink-0 rounded-lg bg-[#2ee6d6] px-2 py-1 text-[10px] font-extrabold text-[#06231f]">
+          Открыть
+        </span>
+      </Link>
 
       {/* Рефералка: своя ссылка, статистика и правила (v3.5) */}
       <ReferralCard />

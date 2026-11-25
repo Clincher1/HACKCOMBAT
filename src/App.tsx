@@ -1,6 +1,6 @@
 import { RefreshCw, WifiOff } from 'lucide-react';
 import React, { Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
 import { BottomNav } from './components/BottomNav';
 import { TopHud } from './components/TopHud';
@@ -32,6 +32,11 @@ const UpgradesPage = React.lazy(async () => {
 const ModalsAndOverlays = React.lazy(async () => {
   const module = await import('./components/Modals');
   return { default: module.ModalsAndOverlays };
+});
+// v4.3: демо-витрина всех открытий. Отдельный чанк: в игровую сессию не грузится.
+const DemoPage = React.lazy(async () => {
+  const module = await import('./pages/DemoPage');
+  return { default: module.DemoPage };
 });
 
 const RouteLoading: React.FC = () => (
@@ -110,12 +115,40 @@ const AppShell: React.FC = () => {
   );
 };
 
+/**
+ * /demo живёт ВНЕ GameProvider: витрина не должна зависеть от Telegram-сессии,
+ * от /api/init и не может ничего записать в живой сейв. Остальные маршруты —
+ * обычная игра.
+ */
+const AppRoutes: React.FC = () => {
+  const { pathname } = useLocation();
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+
+  if (normalized === '/demo') {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[#070b10] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl border-2 border-[#2ee6d6] border-t-transparent animate-spin" />
+          </div>
+        }
+      >
+        <DemoPage />
+      </Suspense>
+    );
+  }
+
+  return (
+    <GameProvider>
+      <AppShell />
+    </GameProvider>
+  );
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <GameProvider>
-        <AppShell />
-      </GameProvider>
+      <AppRoutes />
     </BrowserRouter>
   );
 };
