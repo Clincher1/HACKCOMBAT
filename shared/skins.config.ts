@@ -13,13 +13,15 @@ export const SKINS_CONFIG: SkinConfig[] = [
   // ---------------------------- DESK ----------------------------
   {
     key: 'default',
-    name: 'Cyber Cyan OS',
-    description: 'Классический неоновый терминал ночного мегаполиса.',
+    // v5.0: базовая косметика стола больше не неоновая. Ключ 'default'
+    // сохранён — он лежит у всех игроков и не должен «слетать».
+    name: 'Сан-Мираж OS',
+    description: 'Тёплый терминал у моря: терракота, янтарь и бирюза.',
     category: 'desk',
     cryptoCost: 0,
-    primaryHex: '#00f0ff',
-    secondaryHex: '#ff00a0',
-    accentHex: '#7dff00',
+    primaryHex: '#ff9a5a',
+    secondaryHex: '#4ecdc4',
+    accentHex: '#a8d98a',
     cssFilter: 'none',
     clickBonusPct: 0,
   },
