@@ -7,6 +7,7 @@ import {
 } from '../../shared/achievements.config';
 import { AchievementsPanel } from '../components/AchievementsPanel';
 import { CollectionPanel } from '../components/CollectionPanel';
+import { BackdropPicker } from '../components/BackdropPicker';
 import { InventoryPanel } from '../components/InventoryPanel';
 import { DonateCard } from '../components/DonateCard';
 import { ReferralCard } from '../components/ReferralCard';
@@ -677,7 +678,10 @@ export const ProfilePage: React.FC = () => {
       ) : tab === 'achievements' ? (
         <AchievementsPanel />
       ) : tab === 'collection' ? (
-        <CollectionPanel />
+        <>
+          <BackdropPicker />
+          <CollectionPanel />
+        </>
       ) : (
         <InventoryPanel />
       )}

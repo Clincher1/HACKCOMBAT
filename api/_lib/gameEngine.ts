@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
+import { BACKDROPS_CONFIG, isBackdropKey } from '../../shared/backdrops.config';
 import {
   BASE_UPGRADES_CONFIG,
   CHIP_DAILY_CAP,
@@ -510,6 +511,8 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     baseTheme:
       src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
+    // v4.1: только известные ключи фона — иначе старый/битый jsonb включит пустую сцену.
+    deskBackdrop: isBackdropKey(src.deskBackdrop) ? src.deskBackdrop : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
     // категории — мусор из jsonb не должен попадать в экипировку.
     equippedUi: pickSkinKey(src.equippedUi, 'ui'),
@@ -3366,7 +3369,7 @@ export async function handleSeasonEventAction(
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'set_backdrop' | 'profile_frame',
   skinKey?: string,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
@@ -3481,6 +3484,43 @@ export async function handleSkinAction(
         type: 'success',
         title: `${theme.glyph} Тема «${theme.name}» включена`,
         message: 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
+      });
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    // v4.1: выбор «вида из окна». Косметика без бонусов: ни Data, ни Crypto
+    // не списываются; ключ валидируется по конфигу, чтобы в jsonb не попадал мусор.
+    if (action === 'set_backdrop') {
+      // Пустой ключ = вернуться к сцене по уровню. Это тоже косметика, поэтому
+      // сброс не стоит ресурсов и не требует отдельного действия в API.
+      if (!skinKey) {
+        delete record.stats.deskBackdrop;
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'info',
+          title: '🌆 Сцена по уровню',
+          message: 'Вид из окна сброшен: стол снова растёт вместе с твоим уровнем.',
+        });
+        await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+        return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+      }
+      if (!isBackdropKey(skinKey)) {
+        throw new Error('Фон не найден');
+      }
+      const backdrop = BACKDROPS_CONFIG.find((b) => b.key === skinKey);
+      if (!backdrop) {
+        throw new Error('Фон не найден');
+      }
+      if (deriveStats(record).level < backdrop.requiredLevel) {
+        throw new Error(`Фон откроется на Ур. ${backdrop.requiredLevel}`);
+      }
+      record.stats.deskBackdrop = backdrop.key;
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `${backdrop.glyph} Вид из окна: «${backdrop.name}»`,
+        message: backdrop.tagline,
       });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);

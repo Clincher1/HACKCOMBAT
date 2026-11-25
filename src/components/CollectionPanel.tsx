@@ -5,6 +5,7 @@ import { getDeskStageInfo } from '../../shared/mechanics';
 import { PETS_CONFIG } from '../../shared/pets.config';
 import { SKINS_CONFIG, resolveEquippedSkins } from '../../shared/skins.config';
 import { BASE_THEMES } from '../../shared/themes.config';
+import { BACKDROPS_CONFIG } from '../../shared/backdrops.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -65,7 +66,7 @@ function rewardLabel(cryptoReward: number, chipReward?: number, dataReward?: num
  * авторитетно приходят в PlayerState с сервера.
  */
 export const CollectionPanel: React.FC = () => {
-  const { player, baseTheme } = useGame();
+  const { player, baseTheme, deskBackdrop } = useGame();
   const [filter, setFilter] = useState<CollectionFilter>('all');
 
   const items = useMemo<CollectionItem[]>(() => {
@@ -110,6 +111,23 @@ export const CollectionPanel: React.FC = () => {
         reward: active ? 'Надето сейчас' : 'Можно включить в настройках темы',
         source: 'Бесплатная тема оформления',
         accent: theme.previewFrom,
+      };
+    });
+
+    // v4.1: «виды из окна» — такие же коллекционные предметы, как темы и скины.
+    const backdropItems: CollectionItem[] = BACKDROPS_CONFIG.map((backdrop) => {
+      const active = deskBackdrop?.key === backdrop.key;
+      return {
+        key: `backdrop:${backdrop.key}`,
+        category: 'cosmetics',
+        title: backdrop.name,
+        description: backdrop.tagline,
+        icon: backdrop.glyph,
+        unlocked: true,
+        status: active ? 'Активен' : 'Бесплатно',
+        reward: active ? 'Сейчас за окном' : 'Можно включить в профиле',
+        source: 'Бесплатный вид из окна',
+        accent: backdrop.accent,
       };
     });
 
@@ -226,13 +244,14 @@ export const CollectionPanel: React.FC = () => {
     return [
       ...achievementItems,
       ...themeItems,
+      ...backdropItems,
       ...skinItems,
       ...stageItems,
       prestigeItem,
       ...teamItems,
       ...petItems,
     ];
-  }, [baseTheme.key, player]);
+  }, [baseTheme.key, deskBackdrop?.key, player]);
 
   if (!player) return null;
 

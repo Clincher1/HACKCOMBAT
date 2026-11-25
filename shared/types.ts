@@ -429,6 +429,8 @@ export interface PlayerProgressStats {
   equippedProfileFrameExpiresAt?: string | null;
   /** v3.6.1: выбранная базовая тема оформления (classic | femme). */
   baseTheme?: string;
+  /** v4.1: выбранный «вид из окна» (см. shared/backdrops.config.ts). */
+  deskBackdrop?: string;
   /**
    * v3.6.5: отдельные слоты косметики.
    * Раньше все три категории писались в players.equipped_skin, поэтому

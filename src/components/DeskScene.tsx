@@ -12,6 +12,7 @@ import {
 } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
+import { BackdropWeather } from './BackdropWeather';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
@@ -37,6 +38,7 @@ export const DeskScene: React.FC = () => {
     clearHeatLockdown,
     busyKey,
     baseTheme,
+    deskBackdrop,
   } = useGame();
 
   const [particles, setParticles] = useState<ByteParticle[]>([]);
@@ -104,8 +106,11 @@ export const DeskScene: React.FC = () => {
   // v3.6.3: у базовой темы свой арт на КАЖДЫЙ этап (1/5/10/15/20/25/30) —
   // рабочий стол растёт вместе с уровнем, как в классике. Если у темы набора
   // нет, падаем на единственную сцену, а дальше — на сцену классики.
-  const sceneUrl = getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
-  const sceneFilter = composeSceneFilter(activeSkin.cssFilter, baseTheme);
+  // v4.1: «вид из окна» — отдельный косметический слой. Если он выбран, он
+  // заменяет арт этапа/темы; скин стола при этом не перекрашивает фотографию
+  // (hue-rotate превратил бы закат в кислоту), но продолжает жить в интерфейсе.
+  const sceneUrl = deskBackdrop?.url ?? getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
+  const sceneFilter = deskBackdrop ? 'none' : composeSceneFilter(activeSkin.cssFilter, baseTheme);
 
   const handleTap = (e: React.MouseEvent<HTMLElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -241,11 +246,16 @@ export const DeskScene: React.FC = () => {
           className="w-full h-full object-cover pointer-events-none"
         />
 
+        {/* Погода за окном: солнце, облака, чайки, дождь или ночные огни */}
+        {deskBackdrop && <BackdropWeather kind={deskBackdrop.weather} />}
+
         {/* Вуаль темы: мягко подкрашивает сцену под палитру базы */}
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(120% 90% at 50% 100%, ${baseTheme.sceneVignette} 0%, transparent 62%)`,
+            background: deskBackdrop
+              ? `radial-gradient(120% 95% at 50% 100%, ${baseTheme.sceneVignette}55 0%, transparent 58%)`
+              : `radial-gradient(120% 90% at 50% 100%, ${baseTheme.sceneVignette} 0%, transparent 62%)`,
           }}
         />
 
@@ -269,9 +279,24 @@ export const DeskScene: React.FC = () => {
           </div>
         )}
 
+        {/* Подпись «что за окном» — маленький HUD южного города */}
+        {deskBackdrop && (
+          <div className="absolute right-2.5 bottom-2.5 z-[2] pointer-events-none flex items-center gap-1.5 rounded-full bg-[#0a0e1a]/70 border border-white/15 px-2.5 py-1">
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: deskBackdrop.accent, boxShadow: `0 0 8px ${deskBackdrop.accent}` }}
+            />
+            <span className="text-[10px] font-semibold tracking-wide text-white/80">{deskBackdrop.weatherLabel}</span>
+          </div>
+        )}
+
         {/* CRT скан-линии и виньетка */}
         <div className="scanline-overlay absolute inset-0" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-transparent to-[#0a0e1a]/45 pointer-events-none" />
+        <div
+          className={`absolute inset-0 pointer-events-none bg-gradient-to-t ${
+            deskBackdrop ? 'from-[#0a0e1a]/80 via-transparent to-[#0a0e1a]/35' : 'from-[#0a0e1a] via-transparent to-[#0a0e1a]/45'
+          }`}
+        />
 
         {/* Верхние бейджи трёх направлений и автоклика Botmaster */}
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 pointer-events-none">

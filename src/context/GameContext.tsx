@@ -20,6 +20,7 @@ import type {
 } from '../../shared/types';
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
+import { getBackdrop, type BackdropConfig } from '../../shared/backdrops.config';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
@@ -78,6 +79,9 @@ interface GameContextValue {
   /** Выбранная бесплатная базовая тема (v3.6.1). */
   baseTheme: BaseThemeConfig;
   setBaseTheme: (key: BaseThemeKey) => Promise<void>;
+  /** v4.1: выбранный «вид из окна» (undefined — сцена по уровню). */
+  deskBackdrop: BackdropConfig | undefined;
+  setDeskBackdrop: (key: string) => Promise<void>;
   clearHeatLockdown: () => Promise<void>;
   triggerPrestige: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
@@ -176,6 +180,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
   const [player, setPlayer] = useState<PlayerState | null>(null);
   // Базовая тема — производная от player.stats.baseTheme (сервер — источник истины).
+  // v4.1: активный «вид из окна». Живёт в stats, поэтому переживает Престиж.
+  const deskBackdrop = useMemo<BackdropConfig | undefined>(
+    () => getBackdrop(player?.stats.deskBackdrop),
+    [player?.stats.deskBackdrop]
+  );
+
   const baseTheme = useMemo<BaseThemeConfig>(
     () => getBaseTheme(player?.stats.baseTheme),
     [player?.stats.baseTheme]
@@ -885,6 +895,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  // v4.1: фон — такая же косметика, как тема: бесплатная, без бонусов к тапу.
+  const setDeskBackdrop = useCallback(
+    (key: string) =>
+      runAction(`backdrop:${key}`, (clicks) => gameApi.skinAction('set_backdrop', key, clicks), true, 'light'),
+    [runAction]
+  );
+
   const clearHeatLockdown = useCallback(
     () => runAction('clear_lockdown', (clicks) => gameApi.skinAction('clear_lockdown', undefined, clicks), true, 'light'),
     [runAction]
@@ -1099,6 +1116,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInventoryVisibility,
       baseTheme,
       setBaseTheme,
+      deskBackdrop,
+      setDeskBackdrop,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,
@@ -1153,6 +1172,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInventoryVisibility,
       baseTheme,
       setBaseTheme,
+      deskBackdrop,
+      setDeskBackdrop,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,

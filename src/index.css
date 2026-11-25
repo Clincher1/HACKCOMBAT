@@ -891,3 +891,182 @@ body[data-theme='femme'] .rounded-2xl {
     animation: none;
   }
 }
+
+/* ============================================================================
+   ВИД ИЗ ОКНА (v4.1) — погодный слой поверх сцены.
+   Только transform/opacity, фиксированные тайлы, без filter и box-shadow:
+   на бюджетных Android в Telegram WebView это разница между 60 и 25 fps.
+   ============================================================================ */
+.bd-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ---- облака: медленный дрейф за 1.5–2.5 минуты ---- */
+.bd-cloud {
+  position: absolute;
+  left: 0;
+  border-radius: 50%;
+  animation-name: bdDrift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+@keyframes bdDrift {
+  from { transform: translate3d(-70%, 0, 0); }
+  to   { transform: translate3d(260%, 0, 0); }
+}
+
+/* ---- солнце на закате: очень мягкая пульсация ---- */
+.bd-sun {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 54%;
+  aspect-ratio: 1;
+  margin-left: -27%;
+  margin-top: -27%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 206, 138, 0.5) 0%,
+    rgba(255, 146, 96, 0.26) 38%,
+    rgba(255, 92, 122, 0) 70%
+  );
+  animation: bdSunPulse 9s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+@keyframes bdSunPulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.05); }
+}
+
+/* ---- чайки: редкие, чтобы не раздражали ---- */
+.bd-gull {
+  position: absolute;
+  left: -6%;
+  animation-name: bdGull;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+@keyframes bdGull {
+  from { transform: translate3d(-4vw, 0, 0); }
+  50%  { transform: translate3d(60vw, -6px, 0); }
+  to   { transform: translate3d(124vw, 0, 0); }
+}
+
+/* ---- тёплая дымка и дневной бриз ---- */
+.bd-warm-haze {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 55%;
+  background: linear-gradient(180deg, rgba(255, 150, 90, 0) 0%, rgba(255, 120, 70, 0.16) 60%, rgba(120, 40, 70, 0.22) 100%);
+}
+.bd-day-breeze {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 250, 235, 0.18) 0%, rgba(255, 255, 255, 0) 45%);
+}
+.bd-night-mist {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 42%;
+  background: linear-gradient(180deg, rgba(90, 60, 160, 0) 0%, rgba(70, 40, 130, 0.28) 100%);
+}
+
+/* ---- ночные огни (боке) ---- */
+.bd-bokeh {
+  position: absolute;
+  inset: 0;
+}
+.bd-bokeh span {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 224, 170, 0.9), rgba(255, 180, 120, 0));
+  animation: bdBokeh 6.5s ease-in-out infinite alternate;
+  will-change: opacity, transform;
+}
+@keyframes bdBokeh {
+  from { opacity: 0.25; transform: scale(0.85); }
+  to   { opacity: 0.9;  transform: scale(1.12); }
+}
+
+/* ---- дождь: два слоя, тайл 120px, прокрутка ровно на тайл ---- */
+.bd-rain {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: -120px;
+  bottom: 0;
+  background-size: 100% 120px;
+  background-repeat: repeat;
+  animation-name: bdRain;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+.bd-rain--far {
+  opacity: 0.5;
+  background-image: repeating-linear-gradient(
+    102deg,
+    rgba(200, 225, 255, 0) 0 11px,
+    rgba(200, 225, 255, 0.22) 11px 12px,
+    rgba(200, 225, 255, 0) 12px 26px
+  );
+  animation-duration: 1.1s;
+}
+.bd-rain--near {
+  opacity: 0.35;
+  background-image: repeating-linear-gradient(
+    98deg,
+    rgba(255, 255, 255, 0) 0 26px,
+    rgba(255, 255, 255, 0.3) 26px 28px,
+    rgba(255, 255, 255, 0) 28px 52px
+  );
+  animation-duration: 0.62s;
+}
+@keyframes bdRain {
+  from { transform: translate3d(0, -120px, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+
+/* ---- туман и капли на стекле ---- */
+.bd-fog {
+  position: absolute;
+  inset: auto -10% -6% -10%;
+  height: 46%;
+  background: radial-gradient(120% 100% at 50% 100%, rgba(180, 210, 255, 0.22), rgba(180, 210, 255, 0));
+  animation: bdFog 16s ease-in-out infinite alternate;
+  will-change: transform, opacity;
+}
+@keyframes bdFog {
+  from { opacity: 0.6; transform: translate3d(0, 6px, 0); }
+  to   { opacity: 1;   transform: translate3d(0, -6px, 0); }
+}
+.bd-glass {
+  position: absolute;
+  inset: 0;
+  opacity: 0.5;
+  background-image:
+    radial-gradient(circle at 18% 32%, rgba(255, 255, 255, 0.22) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 34% 68%, rgba(255, 255, 255, 0.16) 0 3px, transparent 3.5px),
+    radial-gradient(circle at 62% 24%, rgba(255, 255, 255, 0.18) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 78% 58%, rgba(255, 255, 255, 0.14) 0 3.5px, transparent 4px),
+    radial-gradient(circle at 88% 18%, rgba(255, 255, 255, 0.2) 0 2px, transparent 2.5px),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 45%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-cloud,
+  .bd-sun,
+  .bd-gull,
+  .bd-bokeh span,
+  .bd-rain,
+  .bd-fog {
+    animation: none;
+  }
+}
