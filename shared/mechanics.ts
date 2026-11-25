@@ -179,49 +179,49 @@ export function getDeskStageInfo(stage: 1 | 5 | 10 | 15 | 20 | 25 | 30): {
     case 1:
       return {
         title: 'Ур. 1 — Подпольный Старт',
-        subtitle: 'Один монитор, верная механика и ночной кофе',
+        subtitle: 'Один монитор, закат за окном и первый заказ',
         sceneUrl: '/assets/scenes/stage-01.webp',
         nextLevel: 5,
       };
     case 5:
       return {
         title: 'Ур. 5 — Двойной Неон',
-        subtitle: 'Второй монитор + RGB неоновая подсветка стола',
+        subtitle: 'Второй монитор и бирюзовый неон под столом',
         sceneUrl: '/assets/scenes/stage-05.webp',
         nextLevel: 10,
       };
     case 10:
       return {
         title: 'Ур. 10 — Локальный Кластер',
-        subtitle: 'Собственная серверная стойка рядом со столом',
+        subtitle: 'Своя серверная стойка у окна с видом на залив',
         sceneUrl: '/assets/scenes/stage-10.webp',
         nextLevel: 15,
       };
     case 15:
       return {
         title: 'Ур. 15 — Воздушный Перехват',
-        subtitle: 'Дрон-разведчик с активным оптическим сканером',
+        subtitle: 'Дрон-разведчик барражирует над пляжем',
         sceneUrl: '/assets/scenes/stage-15.webp',
         nextLevel: 20,
       };
     case 20:
       return {
         title: 'Ур. 20 — Кибер-Станция',
-        subtitle: 'Три монитора + кресло геймера + 3 слота миссий',
+        subtitle: 'Три монитора, кресло и панорама залива',
         sceneUrl: '/assets/scenes/stage-20.webp',
         nextLevel: 25,
       };
     case 25:
       return {
         title: 'Ур. 25 — Серверный Бункер',
-        subtitle: 'Полный переезд в подземный дата-центр',
+        subtitle: 'Бункер под городом: свой дата-центр',
         sceneUrl: '/assets/scenes/stage-25.webp',
         nextLevel: 30,
       };
     case 30:
       return {
         title: 'Ур. 30+ — Ядро Матрицы',
-        subtitle: 'Летающие голограммы, дрон и цифровой дождь',
+        subtitle: 'Голограммы, дрон и закат над бухтой',
         sceneUrl: '/assets/scenes/stage-30.webp',
         nextLevel: 50,
       };

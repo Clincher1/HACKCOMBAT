@@ -294,7 +294,7 @@ export const DeskScene: React.FC = () => {
         <div className="scanline-overlay absolute inset-0" />
         <div
           className={`absolute inset-0 pointer-events-none bg-gradient-to-t ${
-            deskBackdrop ? 'from-[#0a0e1a]/80 via-transparent to-[#0a0e1a]/35' : 'from-[#0a0e1a] via-transparent to-[#0a0e1a]/45'
+            'from-[#0a0e1a]/85 via-transparent to-[#0a0e1a]/30'
           }`}
         />
 
