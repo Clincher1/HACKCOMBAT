@@ -5,6 +5,7 @@ import { getGameDayBoundsMs } from '../../shared/mechanics';
 import { QuestCard } from '../components/QuestCard';
 import { useGame } from '../context/GameContext';
 import { formatCountdown } from '../lib/format';
+import { isLollipopActive } from '../../shared/season.config';
 import { buildQuestSections, type Quest, type QuestSection } from '../lib/quests';
 
 /**
@@ -40,12 +41,13 @@ const DailyResetNote: React.FC<{ dayKey: string }> = ({ dayKey }) => {
 interface SectionProps {
   section: QuestSection;
   pendingClaims: ReadonlySet<string>;
+  boostActive: boolean;
   onClaim: (quest: Quest) => void;
   /** Ключ игрового дня — только для ежедневной секции. */
   dayKey?: string;
 }
 
-const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, onClaim, dayKey }) => {
+const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, boostActive, onClaim, dayKey }) => {
   const Icon = SECTION_ICONS[section.id];
   const closed = section.quests.filter((quest) => quest.status === 'closed').length;
 
@@ -83,6 +85,7 @@ const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, onClaim, 
               key={quest.id}
               quest={quest}
               pending={quest.claimId ? pendingClaims.has(quest.claimId) : false}
+              boostActive={boostActive}
               onClaim={onClaim}
             />
           ))}
@@ -101,7 +104,9 @@ const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, onClaim, 
 const MemoSection = React.memo(SectionBody);
 
 export const TasksPage: React.FC = () => {
-  const { player, pendingClaims, claimDailyTask, claimContract } = useGame();
+  const { player, nowMs, pendingClaims, claimDailyTask, claimContract } = useGame();
+  // Леденец тикает по общему nowMs: чип «×2 сейчас» гаснет сам, без своего таймера.
+  const boostActive = isLollipopActive(player?.stats.lollipop, nowMs);
 
   // Секции зависят только от состояния игрока: тик таймера их не пересобирает.
   const sections = React.useMemo(() => (player ? buildQuestSections(player) : []), [player]);
@@ -145,6 +150,7 @@ export const TasksPage: React.FC = () => {
           key={section.id}
           section={section}
           pendingClaims={pendingClaims}
+          boostActive={boostActive}
           onClaim={onClaim}
           dayKey={section.id === 'daily' ? dayKey : undefined}
         />

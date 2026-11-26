@@ -22,6 +22,7 @@ import {
 } from '../../shared/hack.config';
 import { getFirstChapterState } from '../../shared/chapter.config';
 import { HACK_DIFFICULTIES } from '../../shared/hacks.config';
+import { isLollipopActive } from '../../shared/season.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { HackSessionState, MissionTargetType } from '../../shared/types';
 import { DailyIncidentPanel } from '../components/DailyIncidentPanel';
@@ -236,6 +237,7 @@ export const HacksPage: React.FC = () => {
               endsAt: activeSession.endsAt,
               cost: activeSession.cost,
             }}
+            boostActive={isLollipopActive(player.stats.lollipop, nowMs)}
             onFinish={finishHack}
             onRestart={(difficulty) => void startHackSession(difficulty)}
             busy={hackBusy}

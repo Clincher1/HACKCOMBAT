@@ -333,7 +333,7 @@ function readSource(relative) {
 try {
   const deskScene = readSource('src/components/DeskScene.tsx');
   const deskPage = readSource('src/pages/DeskPage.tsx');
-  const topHud = readSource('src/components/TopHud.tsx');
+  const topHudSrc = readSource('src/components/TopHud.tsx');
   const context = readSource('src/context/GameContext.tsx');
   const board = readSource('src/components/ContractBoard.tsx');
 
@@ -343,7 +343,7 @@ try {
   check('на столе есть доска контрактов', deskPage.includes('<ContractBoard />'));
   check('доска показывает прогресс и «Забрать»', board.includes('data-qa="contract-card"') && board.includes('collect-contract'));
   check('CPU Charge виден на доске', /CPU/.test(board));
-  check('HUD: доход по контрактам, а не тап', topHud.includes('contractIncomePerHour') && topHud.includes('gameplayV3'));
+  check('HUD: доход по контрактам, а не тап', topHudSrc.includes('contractIncomePerHour') && topHudSrc.includes('gameplayV3'));
   check('авто-сбор на init реализован', context.includes('autoClaimedRef') && context.includes('isContractReady'));
   check('авто-сбор уважает флаг', /if \(!isGameplayV3Enabled\(\) \|\| !player \|\| loading\) return;/.test(context));
 
@@ -469,6 +469,35 @@ try {
       engine.includes('Результат этой сессии уже принят'));
   check('Heat от взломов зачитывается в контракты',
     (engine.match(/incrementContractProgress\(record, 'heat', heatGain\)/g) ?? []).length >= 2);
+
+  // --- v6.3: сезонный леденец (×2 Data) --------------------------------------
+  const seasonConfig = readSource('shared/season.config.ts');
+  const lollipopBadge = readSource('src/components/LollipopBadge.tsx');
+
+  check('сезон описан флагом и суточным окном',
+    seasonConfig.includes('export const isSeasonActive = true') &&
+      seasonConfig.includes('export const durationMs = 86_400_000') &&
+      seasonConfig.includes('export const LOLLIPOP_BOOST_MS = 3_600_000'));
+  check('буст хранится в stats.jsonb, без новых таблиц',
+    engine.includes('lollipop: normalizeLollipopState(src.lollipop)') &&
+      !fs.readdirSync(path.join(projectRoot, 'supabase/migrations')).some((file) => file.includes('lollipop')));
+  check('множитель применяется на сервере (тапы и взломы)',
+    engine.includes('const clickBoost = lollipopMultiplier(record.stats.lollipop, nowMs)') &&
+      engine.includes('hackDataReward(difficulty, safeHits) * lollipopMultiplier(record.stats.lollipop, nowMs)'));
+  check('активация — раз в сутки и только при закрытом окне',
+    engine.includes('export async function handleLollipopAction') &&
+      engine.includes('canActivateLollipop(state, nowMs)') &&
+      engine.includes('lastActivatedDayKey: getGameDayKey(nowMs)'));
+  check('роут леденца зарегистрирован',
+    router.includes("import lollipop from './_routes/lollipop'") && router.includes('lollipop,'));
+  check('бейдж мемоизирован и не держит свой таймер',
+    lollipopBadge.includes('React.memo(LollipopBadgeBase)') &&
+      !lollipopBadge.includes('setInterval') &&
+      lollipopBadge.includes('data-qa="lollipop-badge"') &&
+      topHudSrc.includes('<LollipopBadge />'));
+  check('×2 виден в карточке контракта и в сессии взлома',
+    readSource('src/components/QuestCard.tsx').includes('×2 сейчас') &&
+      readSource('src/components/HackSession.tsx').includes('Леденец активен — Data ×2'));
 
   // --- онбординг: первый кадр игры без «тапни» и без кнопки ТАП -------------
   const onboarding = readSource('src/components/Onboarding.tsx');
