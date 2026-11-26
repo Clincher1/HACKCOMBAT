@@ -369,6 +369,40 @@ try {
   check('мёртвая CSS-переменная --theme-vignette удалена',
     !deskScene.includes('--theme-vignette') && !context.includes('--theme-vignette'));
 
+  // --- v6.0: экран «Задания» — три секции, одна карточка, без легаси ---------
+  const app = readSource('src/App.tsx');
+  const questsLib = readSource('src/lib/quests.ts');
+  const tasksPage = readSource('src/pages/TasksPage.tsx');
+  const questCard = readSource('src/components/QuestCard.tsx');
+  const tasksTeaser = readSource('src/components/TasksTeaser.tsx');
+
+  check('маршрут /tasks подключён', app.includes('path="/tasks"') && app.includes("import('./pages/TasksPage')"));
+  check('три секции: ежедневные, прогресс, события',
+    ['daily', 'progress', 'event'].every((id) => questsLib.includes(`build${id === 'daily' ? 'Daily' : id === 'progress' ? 'Progress' : 'Event'}Section`)) &&
+      tasksPage.includes('data-qa={`quest-section-${section.id}`}'));
+  check('задания собираются из единого источника',
+    questsLib.includes('export function buildQuestSections') &&
+      tasksPage.includes('buildQuestSections') &&
+      !tasksPage.includes('dailyTasks.config') && !questCard.includes('shared/'));
+  check('один тип карточки задания на весь раздел',
+    questCard.includes('data-qa="quest-card"') &&
+      tasksPage.includes('<QuestCard') &&
+      (readSource('src/pages/DeskPage.tsx').includes('TasksTeaser')));
+  check('награда забирается одним тапом', questCard.includes('data-qa-action="claim-quest"') && questCard.includes('Забрать'));
+  check('оптимистичный забор: метка до ответа API',
+    context.includes('pendingClaims') && context.includes('const runClaim = useCallback') &&
+      questCard.includes('pending ? \'closed\' : quest.status'));
+  check('легаси-панели удалены и не импортируются',
+    !fs.existsSync(path.join(projectRoot, 'src/components/SeasonEventPanel.tsx')) &&
+      !fs.existsSync(path.join(projectRoot, 'src/components/DailyTasksPanel.tsx')) &&
+      !readSource('src/pages/DeskPage.tsx').includes('SeasonEventPanel'));
+  check('легаси-текстов старой эпохи нет в UI',
+    !readSource('src/components/QuestCard.tsx').includes('Сценарий · 7 календарных дней') &&
+      !tasksPage.includes('Сценарий · 7 календарных') &&
+      !questsLib.includes('Участник/Мастер'));
+  check('анимации только transform/opacity',
+    !questCard.includes('transition-all') && questCard.includes('scaleX(') && tasksTeaser.includes('scaleX('));
+
   // --- онбординг: первый кадр игры без «тапни» и без кнопки ТАП -------------
   const onboarding = readSource('src/components/Onboarding.tsx');
   check('онбординг: текст шага под флагом геймплея',

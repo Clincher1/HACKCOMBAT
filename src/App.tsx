@@ -33,6 +33,11 @@ const UpgradesPage = React.lazy(async () => {
   const module = await import('./pages/UpgradesPage');
   return { default: module.UpgradesPage };
 });
+// v6.0: раздел заданий — отдельный экран (поручения, прогресс, события).
+const TasksPage = React.lazy(async () => {
+  const module = await import('./pages/TasksPage');
+  return { default: module.TasksPage };
+});
 const ModalsAndOverlays = React.lazy(async () => {
   const module = await import('./components/Modals');
   return { default: module.ModalsAndOverlays };
@@ -126,6 +131,7 @@ const AppShell: React.FC = () => {
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<DeskPage />} />
+            <Route path="/tasks" element={<TasksPage />} />
             <Route
               path="/upgrades"
               element={newPlayerMode ? <LockedTab title="Улучшения" hint="Пока — одна подсказка на столе." /> : <UpgradesPage />}
