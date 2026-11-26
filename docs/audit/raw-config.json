@@ -1,0 +1,4400 @@
+{
+ "achievements": {
+  "ACHIEVEMENTS_BY_KEY": {
+   "first_boot": {
+    "key": "first_boot",
+    "title": "Hello, World!",
+    "description": "Сделать первые 25 кликов по терминалу.",
+    "cryptoReward": 3,
+    "icon": "⚡",
+    "rarity": "common"
+   },
+   "first_upgrade": {
+    "key": "first_upgrade",
+    "title": "Апгрейд Железа",
+    "description": "Купить первую карточку улучшения стола.",
+    "cryptoReward": 5,
+    "icon": "🛠️",
+    "rarity": "common"
+   },
+   "first_mission": {
+    "key": "first_mission",
+    "title": "Полевое Крещение",
+    "description": "Завершить первый контракт взлома.",
+    "cryptoReward": 5,
+    "icon": "🎯",
+    "rarity": "common"
+   },
+   "first_teammate": {
+    "key": "first_teammate",
+    "title": "Мы — Команда",
+    "description": "Нанять первого специалиста в команду.",
+    "cryptoReward": 8,
+    "icon": "🤝",
+    "rarity": "common"
+   },
+   "first_pet": {
+    "key": "first_pet",
+    "title": "Пушистый Сообщник",
+    "description": "Завести первого питомца на вкладке «Команда».",
+    "cryptoReward": 6,
+    "icon": "🐹",
+    "rarity": "common"
+   },
+   "first_feed": {
+    "key": "first_feed",
+    "title": "Кто Хороший Мальчик",
+    "description": "Покормить питомца впервые.",
+    "cryptoReward": 3,
+    "icon": "🥕",
+    "rarity": "common"
+   },
+   "first_base": {
+    "key": "first_base",
+    "title": "Обустройство Базы",
+    "description": "Купить первое пассивное улучшение на вкладке «База».",
+    "cryptoReward": 6,
+    "icon": "🏠",
+    "rarity": "common"
+   },
+   "first_chip": {
+    "key": "first_chip",
+    "title": "Первая Микросхема",
+    "description": "Получить первый Чип с успешного контракта или ежедневной награды.",
+    "cryptoReward": 3,
+    "icon": "⚙️",
+    "rarity": "common"
+   },
+   "desk_lvl_5": {
+    "key": "desk_lvl_5",
+    "title": "Двойной Неон",
+    "description": "Достичь 5 уровня и эволюционировать рабочий стол.",
+    "cryptoReward": 8,
+    "icon": "🖥️",
+    "rarity": "common"
+   },
+   "desk_lvl_10": {
+    "key": "desk_lvl_10",
+    "title": "Локальный Кластер",
+    "description": "Достичь 10 уровня и собрать серверную стойку.",
+    "cryptoReward": 12,
+    "icon": "🗄️",
+    "rarity": "rare"
+   },
+   "desk_lvl_15": {
+    "key": "desk_lvl_15",
+    "title": "Небо под Контролем",
+    "description": "Достичь 15 уровня и собрать второй монитор.",
+    "cryptoReward": 15,
+    "icon": "🛸",
+    "rarity": "rare"
+   },
+   "triple_slots_20": {
+    "key": "triple_slots_20",
+    "title": "Мультипоточность",
+    "description": "Достичь 20 уровня и открыть сразу 3 слота миссий.",
+    "cryptoReward": 15,
+    "icon": "🔀",
+    "rarity": "rare"
+   },
+   "desk_lvl_25": {
+    "key": "desk_lvl_25",
+    "title": "Серверный Бункер",
+    "description": "Достичь 25 уровня и переехать в подземный дата-центр.",
+    "cryptoReward": 22,
+    "icon": "🏗️",
+    "rarity": "epic"
+   },
+   "desk_lvl_30": {
+    "key": "desk_lvl_30",
+    "title": "Матрица Пробуждена",
+    "description": "Достичь 30 уровня и активировать Ядро Матрицы.",
+    "cryptoReward": 30,
+    "icon": "🌐",
+    "rarity": "epic"
+   },
+   "level_40": {
+    "key": "level_40",
+    "title": "Ветеран Сети",
+    "description": "Достичь 40 уровня игрока.",
+    "cryptoReward": 35,
+    "icon": "🎖️",
+    "rarity": "epic"
+   },
+   "level_50": {
+    "key": "level_50",
+    "title": "Полтинник",
+    "description": "Достичь 50 уровня игрока — рубеж, с которого начинается Global Hack.",
+    "cryptoReward": 45,
+    "icon": "🏅",
+    "rarity": "legendary",
+    "chipReward": 15
+   },
+   "level_60": {
+    "key": "level_60",
+    "title": "За Пределами Схемы",
+    "description": "Достичь 60 уровня игрока.",
+    "cryptoReward": 60,
+    "icon": "🧿",
+    "rarity": "legendary",
+    "chipReward": 25
+   },
+   "card_first_max": {
+    "key": "card_first_max",
+    "title": "До Упора",
+    "description": "Прокачать любую карточку до максимума текущего Тира.",
+    "cryptoReward": 20,
+    "icon": "🧱",
+    "rarity": "rare",
+    "chipReward": 5
+   },
+   "tier_2": {
+    "key": "tier_2",
+    "title": "Промышленный Разгон",
+    "description": "Открыть Тир II и разблокировать 16–30 уровни всех модулей.",
+    "cryptoReward": 25,
+    "icon": "⚡",
+    "rarity": "rare"
+   },
+   "tier_3": {
+    "key": "tier_3",
+    "title": "Военный Подряд",
+    "description": "Открыть Тир III и разблокировать 31–45 уровни всех модулей.",
+    "cryptoReward": 45,
+    "icon": "🔋",
+    "rarity": "epic"
+   },
+   "tier_4": {
+    "key": "tier_4",
+    "title": "Теневой Арсенал",
+    "description": "Открыть Тир IV — максимальные 60 уровней модулей.",
+    "cryptoReward": 90,
+    "icon": "🚀",
+    "rarity": "legendary",
+    "chipReward": 30
+   },
+   "card_level_15": {
+    "key": "card_level_15",
+    "title": "За Гранью Заводских",
+    "description": "Прокачать любую карточку до 15 уровня.",
+    "cryptoReward": 25,
+    "icon": "📈",
+    "rarity": "rare"
+   },
+   "card_level_20": {
+    "key": "card_level_20",
+    "title": "Инженерный Подвиг",
+    "description": "Прокачать любую карточку до 20 уровня.",
+    "cryptoReward": 45,
+    "icon": "⚙️",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   "card_level_25": {
+    "key": "card_level_25",
+    "title": "Абсолютный Максимум",
+    "description": "Прокачать любую карточку до 25 уровня — рубеж полного промышленного арсенала.",
+    "cryptoReward": 80,
+    "icon": "💠",
+    "rarity": "legendary",
+    "chipReward": 20
+   },
+   "cards_all_5": {
+    "key": "cards_all_5",
+    "title": "Всесторонний Подход",
+    "description": "Прокачать все 48 модулей минимум до 5 уровня.",
+    "cryptoReward": 40,
+    "icon": "🧩",
+    "rarity": "epic",
+    "chipReward": 15
+   },
+   "cards_all_10": {
+    "key": "cards_all_10",
+    "title": "Коллекционер Железа",
+    "description": "Прокачать все 48 модулей минимум до 10 уровня.",
+    "cryptoReward": 90,
+    "icon": "🏆",
+    "rarity": "legendary",
+    "chipReward": 40
+   },
+   "cards_all_15": {
+    "key": "cards_all_15",
+    "title": "Симфония Байтов",
+    "description": "Прокачать все 48 модулей минимум до 15 уровня.",
+    "cryptoReward": 150,
+    "icon": "🌟",
+    "rarity": "legendary",
+    "chipReward": 60
+   },
+   "chips_50": {
+    "key": "chips_50",
+    "title": "Ящик Запчастей",
+    "description": "Накопить 50 Чипов.",
+    "cryptoReward": 15,
+    "icon": "🔩",
+    "rarity": "rare"
+   },
+   "chips_250": {
+    "key": "chips_250",
+    "title": "Цех Подполья",
+    "description": "Накопить 250 Чипов.",
+    "cryptoReward": 35,
+    "icon": "🏭",
+    "rarity": "epic"
+   },
+   "chips_1000": {
+    "key": "chips_1000",
+    "title": "Хранитель Микросхем",
+    "description": "Накопить 1000 Чипов.",
+    "cryptoReward": 70,
+    "icon": "🧰",
+    "rarity": "legendary"
+   },
+   "chips_no_spend": {
+    "key": "chips_no_spend",
+    "title": "Ни Одного Лишнего",
+    "description": "Собрать 500 Чипов, так и не открыв Тир II.",
+    "cryptoReward": 40,
+    "icon": "🧊",
+    "rarity": "epic",
+    "secret": true
+   },
+   "full_squad": {
+    "key": "full_squad",
+    "title": "Костяк Синдиката",
+    "description": "Собрать 6 специалистов в команду.",
+    "cryptoReward": 25,
+    "icon": "👥",
+    "rarity": "rare"
+   },
+   "elite_syndicate_8": {
+    "key": "elite_syndicate_8",
+    "title": "Полный Совет Теней",
+    "description": "Нанять всех 8 специалистов.",
+    "cryptoReward": 40,
+    "icon": "🏛️",
+    "rarity": "epic"
+   },
+   "grey_missions_10": {
+    "key": "grey_missions_10",
+    "title": "Серый Кардинал",
+    "description": "Завершить 10 контрактов категории Grey.",
+    "cryptoReward": 30,
+    "icon": "🌫️",
+    "rarity": "rare"
+   },
+   "missions_veteran_15": {
+    "key": "missions_veteran_15",
+    "title": "Ночной Рейдер",
+    "description": "Успешно выполнить 15 контрактов во вкладке «Взломы».",
+    "cryptoReward": 12,
+    "icon": "🛰️",
+    "rarity": "common"
+   },
+   "missions_master_50": {
+    "key": "missions_master_50",
+    "title": "Гроза Корпораций",
+    "description": "Успешно выполнить 50 контрактов.",
+    "cryptoReward": 30,
+    "icon": "💥",
+    "rarity": "rare"
+   },
+   "missions_100": {
+    "key": "missions_100",
+    "title": "Контрактник",
+    "description": "Успешно выполнить 100 контрактов.",
+    "cryptoReward": 45,
+    "icon": "📜",
+    "rarity": "epic"
+   },
+   "missions_250": {
+    "key": "missions_250",
+    "title": "Легенда Подполья",
+    "description": "Успешно выполнить 250 контрактов.",
+    "cryptoReward": 90,
+    "icon": "👑",
+    "rarity": "legendary",
+    "chipReward": 25
+   },
+   "mission_fail": {
+    "key": "mission_fail",
+    "title": "Первый Блин Комом",
+    "description": "Провалить контракт хотя бы раз.",
+    "cryptoReward": 5,
+    "icon": "🫠",
+    "rarity": "common",
+    "secret": true
+   },
+   "missions_all_types": {
+    "key": "missions_all_types",
+    "title": "Полный Спектр",
+    "description": "Завершить контракты трёх направлений: Белый, Чёрный и Нейтральный (включая секретные).",
+    "cryptoReward": 35,
+    "icon": "🎡",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   "click_sprinter_500": {
+    "key": "click_sprinter_500",
+    "title": "Горячие Клавиши",
+    "description": "Набрать 500 кликов по консоли взлома.",
+    "cryptoReward": 8,
+    "icon": "⌨️",
+    "rarity": "common"
+   },
+   "click_master_2500": {
+    "key": "click_master_2500",
+    "title": "Оператор Матрицы",
+    "description": "Набрать 2 500 кликов.",
+    "cryptoReward": 18,
+    "icon": "🎹",
+    "rarity": "rare"
+   },
+   "click_legend_10k": {
+    "key": "click_legend_10k",
+    "title": "Нейро-Рефлексы 10K",
+    "description": "Набрать 10 000 кликов.",
+    "cryptoReward": 35,
+    "icon": "🦾",
+    "rarity": "epic"
+   },
+   "click_25k": {
+    "key": "click_25k",
+    "title": "Палец-Кракен",
+    "description": "Набрать 25 000 кликов.",
+    "cryptoReward": 70,
+    "icon": "🌀",
+    "rarity": "legendary",
+    "chipReward": 20
+   },
+   "click_50k": {
+    "key": "click_50k",
+    "title": "Тендосистема",
+    "description": "Набрать 50 000 кликов.",
+    "cryptoReward": 120,
+    "icon": "🧬",
+    "rarity": "legendary"
+   },
+   "data_millionaire": {
+    "key": "data_millionaire",
+    "title": "Сто Тысяч Пакет",
+    "description": "Накопить 100 000 Data на балансе.",
+    "cryptoReward": 20,
+    "icon": "💾",
+    "rarity": "rare"
+   },
+   "true_millionaire_1m": {
+    "key": "true_millionaire_1m",
+    "title": "Миллионер Данных",
+    "description": "Накопить 1 000 000 Data на балансе.",
+    "cryptoReward": 30,
+    "icon": "💰",
+    "rarity": "epic"
+   },
+   "data_tycoon_25m": {
+    "key": "data_tycoon_25m",
+    "title": "Властелин Дата-Центров",
+    "description": "Накопить 25 000 000 Data на балансе.",
+    "cryptoReward": 60,
+    "icon": "🏦",
+    "rarity": "legendary"
+   },
+   "data_100m": {
+    "key": "data_100m",
+    "title": "Цифровой Магнат",
+    "description": "Накопить 100 000 000 Data на балансе.",
+    "cryptoReward": 120,
+    "icon": "🌌",
+    "rarity": "legendary",
+    "chipReward": 40
+   },
+   "crypto_baron_500": {
+    "key": "crypto_baron_500",
+    "title": "Крипто-Барон",
+    "description": "Накопить 500 Crypto на счету.",
+    "cryptoReward": 50,
+    "icon": "💎",
+    "rarity": "epic"
+   },
+   "energy_overcharge_2500": {
+    "key": "energy_overcharge_2500",
+    "title": "Высокое Напряжение",
+    "description": "Поднять максимум CPU Energy до 2 500.",
+    "cryptoReward": 18,
+    "icon": "🔌",
+    "rarity": "rare"
+   },
+   "white_hat_path": {
+    "key": "white_hat_path",
+    "title": "Страж Сети (White Hat)",
+    "description": "Активировать ветку Белой Шляпы и набрать 40+ Rep.",
+    "cryptoReward": 12,
+    "icon": "🛡️",
+    "rarity": "rare"
+   },
+   "black_hat_path": {
+    "key": "black_hat_path",
+    "title": "Призрак Даркнета (Black Hat)",
+    "description": "Активировать ветку Чёрной Шляпы с высоким Heat.",
+    "cryptoReward": 12,
+    "icon": "🕶️",
+    "rarity": "rare"
+   },
+   "rep_guardian_250": {
+    "key": "rep_guardian_250",
+    "title": "Арбитр Киберпространства",
+    "description": "Набрать 250 Rep.",
+    "cryptoReward": 30,
+    "icon": "⚖️",
+    "rarity": "epic"
+   },
+   "heat_edge": {
+    "key": "heat_edge",
+    "title": "На Лезвии",
+    "description": "Дойти до Heat 95–99 и не попасть под перехват.",
+    "cryptoReward": 30,
+    "icon": "🔥",
+    "rarity": "epic",
+    "secret": true
+   },
+   "clean_hands_20": {
+    "key": "clean_hands_20",
+    "title": "Чистые Руки",
+    "description": "Достичь 20 уровня, ни разу не набрав Heat.",
+    "cryptoReward": 35,
+    "icon": "🕊️",
+    "rarity": "epic",
+    "secret": true
+   },
+   "global_hack_prestige": {
+    "key": "global_hack_prestige",
+    "title": "GLOBAL HACK I",
+    "description": "Выполнить первый Global Hack Престиж.",
+    "cryptoReward": 50,
+    "icon": "♾️",
+    "rarity": "epic"
+   },
+   "global_hack_prestige_2": {
+    "key": "global_hack_prestige_2",
+    "title": "CYBER OVERLORD (PRE-II)",
+    "description": "Выполнить второй Global Hack Престиж.",
+    "cryptoReward": 100,
+    "icon": "🔮",
+    "rarity": "legendary",
+    "chipReward": 30
+   },
+   "prestige_3": {
+    "key": "prestige_3",
+    "title": "Тройное Перерождение",
+    "description": "Выполнить три Global Hack Престижа.",
+    "cryptoReward": 150,
+    "icon": "🌠",
+    "rarity": "legendary",
+    "chipReward": 60
+   },
+   "all_pets": {
+    "key": "all_pets",
+    "title": "Домашний Зоопарк",
+    "description": "Завести всех трёх питомцев: хомяка, крысу и морскую свинку.",
+    "cryptoReward": 40,
+    "icon": "🐾",
+    "rarity": "epic"
+   },
+   "pet_feed_50": {
+    "key": "pet_feed_50",
+    "title": "Лучший Хозяин",
+    "description": "Покормить питомцев суммарно 50 раз.",
+    "cryptoReward": 35,
+    "icon": "🍎",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   "pet_streak_7": {
+    "key": "pet_streak_7",
+    "title": "Семь Дней Заботы",
+    "description": "Кормить питомцев 7 дней подряд.",
+    "cryptoReward": 45,
+    "icon": "📅",
+    "rarity": "epic"
+   },
+   "pet_max_affection": {
+    "key": "pet_max_affection",
+    "title": "Сродство Душ",
+    "description": "Довести привязанность любого питомца до максимума (10).",
+    "cryptoReward": 55,
+    "icon": "💞",
+    "rarity": "legendary"
+   },
+   "base_all_bought": {
+    "key": "base_all_bought",
+    "title": "Умный Дом",
+    "description": "Открыть (по 1 уровню) все 10 пассивных улучшений Базы.",
+    "cryptoReward": 40,
+    "icon": "🏡",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   "base_max_one": {
+    "key": "base_max_one",
+    "title": "Доведено До Ума",
+    "description": "Прокачать любое улучшение Базы до 15 уровня.",
+    "cryptoReward": 50,
+    "icon": "🔧",
+    "rarity": "epic"
+   },
+   "base_all_max": {
+    "key": "base_all_max",
+    "title": "Идеальный Штаб",
+    "description": "Прокачать ВСЕ 10 улучшений Базы до 15 уровня.",
+    "cryptoReward": 200,
+    "icon": "🏙️",
+    "rarity": "legendary",
+    "chipReward": 80
+   },
+   "skins_3": {
+    "key": "skins_3",
+    "title": "Модник Терминала",
+    "description": "Открыть 3 скина рабочего стола.",
+    "cryptoReward": 25,
+    "icon": "🎨",
+    "rarity": "rare"
+   },
+   "skins_all": {
+    "key": "skins_all",
+    "title": "Гардероб Хакера",
+    "description": "Открыть все скины рабочего стола.",
+    "cryptoReward": 90,
+    "icon": "🌈",
+    "rarity": "legendary"
+   },
+   "tutorial_all_tabs": {
+    "key": "tutorial_all_tabs",
+    "title": "Прилежный Студент",
+    "description": "Прочитать все 5 глав Академии HACKER KOMBAT.",
+    "cryptoReward": 10,
+    "icon": "🎓",
+    "rarity": "common"
+   },
+   "tutorial_reread_10": {
+    "key": "tutorial_reread_10",
+    "title": "Перечитал Мануал",
+    "description": "Открыть Обучение 10 раз. Инструкция — это святое.",
+    "cryptoReward": 8,
+    "icon": "📖",
+    "rarity": "common",
+    "secret": true
+   },
+   "tabs_tourist": {
+    "key": "tabs_tourist",
+    "title": "Полный Обход",
+    "description": "Побывать на всех пяти вкладках приложения за одну сессию... или за всю жизнь.",
+    "cryptoReward": 8,
+    "icon": "🧭",
+    "rarity": "common"
+   },
+   "night_owl": {
+    "key": "night_owl",
+    "title": "Ночная Смена",
+    "description": "Зайти в игру между 03:00 и 05:00 по местному времени.",
+    "cryptoReward": 12,
+    "icon": "🦉",
+    "rarity": "rare",
+    "secret": true
+   },
+   "early_bird": {
+    "key": "early_bird",
+    "title": "Ранняя Пташка",
+    "description": "Зайти в игру до 07:00 по местному времени.",
+    "cryptoReward": 8,
+    "icon": "🌅",
+    "rarity": "common",
+    "secret": true
+   },
+   "coffee_break": {
+    "key": "coffee_break",
+    "title": "Кофе-Брейк",
+    "description": "Провести 15 минут в игре, не сделав ни одного клика.",
+    "cryptoReward": 10,
+    "icon": "☕",
+    "rarity": "common",
+    "secret": true
+   },
+   "session_30m": {
+    "key": "session_30m",
+    "title": "Глубокая Сессия",
+    "description": "Провести 30 минут в игре без перерыва.",
+    "cryptoReward": 15,
+    "icon": "⏳",
+    "rarity": "rare",
+    "secret": true
+   },
+   "shop_freeze_30": {
+    "key": "shop_freeze_30",
+    "title": "Дзен-Режим",
+    "description": "30 минут после 10 уровня не покупать ничего вообще.",
+    "cryptoReward": 12,
+    "icon": "🧘",
+    "rarity": "rare",
+    "secret": true
+   },
+   "stubborn_50": {
+    "key": "stubborn_50",
+    "title": "Своей Дорогой",
+    "description": "Достичь 50 уровня, ни разу не сделав Global Hack.",
+    "cryptoReward": 70,
+    "icon": "🦅",
+    "rarity": "legendary",
+    "secret": true
+   },
+   "pet_hungry": {
+    "key": "pet_hungry",
+    "title": "Ну Где Ты Был",
+    "description": "Довести питомца до состояния «очень голоден». Он не обиделся.",
+    "cryptoReward": 4,
+    "icon": "🥺",
+    "rarity": "common",
+    "secret": true
+   },
+   "zoo_keeper_30": {
+    "key": "zoo_keeper_30",
+    "title": "Тридцать Кормлений",
+    "description": "Покормить питомцев 30 раз — терпение и забота.",
+    "cryptoReward": 20,
+    "icon": "🌾",
+    "rarity": "rare",
+    "secret": true
+   },
+   "heat_survivor": {
+    "key": "heat_survivor",
+    "title": "Перехвачен, Но Не Сломан",
+    "description": "Словить штраф за высокий Heat и вернуться в игру.",
+    "cryptoReward": 10,
+    "icon": "🚨",
+    "rarity": "rare",
+    "secret": true
+   }
+  },
+  "ACHIEVEMENTS_CONFIG": [
+   {
+    "key": "first_boot",
+    "title": "Hello, World!",
+    "description": "Сделать первые 25 кликов по терминалу.",
+    "cryptoReward": 3,
+    "icon": "⚡",
+    "rarity": "common"
+   },
+   {
+    "key": "first_upgrade",
+    "title": "Апгрейд Железа",
+    "description": "Купить первую карточку улучшения стола.",
+    "cryptoReward": 5,
+    "icon": "🛠️",
+    "rarity": "common"
+   },
+   {
+    "key": "first_mission",
+    "title": "Полевое Крещение",
+    "description": "Завершить первый контракт взлома.",
+    "cryptoReward": 5,
+    "icon": "🎯",
+    "rarity": "common"
+   },
+   {
+    "key": "first_teammate",
+    "title": "Мы — Команда",
+    "description": "Нанять первого специалиста в команду.",
+    "cryptoReward": 8,
+    "icon": "🤝",
+    "rarity": "common"
+   },
+   {
+    "key": "first_pet",
+    "title": "Пушистый Сообщник",
+    "description": "Завести первого питомца на вкладке «Команда».",
+    "cryptoReward": 6,
+    "icon": "🐹",
+    "rarity": "common"
+   },
+   {
+    "key": "first_feed",
+    "title": "Кто Хороший Мальчик",
+    "description": "Покормить питомца впервые.",
+    "cryptoReward": 3,
+    "icon": "🥕",
+    "rarity": "common"
+   },
+   {
+    "key": "first_base",
+    "title": "Обустройство Базы",
+    "description": "Купить первое пассивное улучшение на вкладке «База».",
+    "cryptoReward": 6,
+    "icon": "🏠",
+    "rarity": "common"
+   },
+   {
+    "key": "first_chip",
+    "title": "Первая Микросхема",
+    "description": "Получить первый Чип с успешного контракта или ежедневной награды.",
+    "cryptoReward": 3,
+    "icon": "⚙️",
+    "rarity": "common"
+   },
+   {
+    "key": "desk_lvl_5",
+    "title": "Двойной Неон",
+    "description": "Достичь 5 уровня и эволюционировать рабочий стол.",
+    "cryptoReward": 8,
+    "icon": "🖥️",
+    "rarity": "common"
+   },
+   {
+    "key": "desk_lvl_10",
+    "title": "Локальный Кластер",
+    "description": "Достичь 10 уровня и собрать серверную стойку.",
+    "cryptoReward": 12,
+    "icon": "🗄️",
+    "rarity": "rare"
+   },
+   {
+    "key": "desk_lvl_15",
+    "title": "Небо под Контролем",
+    "description": "Достичь 15 уровня и собрать второй монитор.",
+    "cryptoReward": 15,
+    "icon": "🛸",
+    "rarity": "rare"
+   },
+   {
+    "key": "triple_slots_20",
+    "title": "Мультипоточность",
+    "description": "Достичь 20 уровня и открыть сразу 3 слота миссий.",
+    "cryptoReward": 15,
+    "icon": "🔀",
+    "rarity": "rare"
+   },
+   {
+    "key": "desk_lvl_25",
+    "title": "Серверный Бункер",
+    "description": "Достичь 25 уровня и переехать в подземный дата-центр.",
+    "cryptoReward": 22,
+    "icon": "🏗️",
+    "rarity": "epic"
+   },
+   {
+    "key": "desk_lvl_30",
+    "title": "Матрица Пробуждена",
+    "description": "Достичь 30 уровня и активировать Ядро Матрицы.",
+    "cryptoReward": 30,
+    "icon": "🌐",
+    "rarity": "epic"
+   },
+   {
+    "key": "level_40",
+    "title": "Ветеран Сети",
+    "description": "Достичь 40 уровня игрока.",
+    "cryptoReward": 35,
+    "icon": "🎖️",
+    "rarity": "epic"
+   },
+   {
+    "key": "level_50",
+    "title": "Полтинник",
+    "description": "Достичь 50 уровня игрока — рубеж, с которого начинается Global Hack.",
+    "cryptoReward": 45,
+    "icon": "🏅",
+    "rarity": "legendary",
+    "chipReward": 15
+   },
+   {
+    "key": "level_60",
+    "title": "За Пределами Схемы",
+    "description": "Достичь 60 уровня игрока.",
+    "cryptoReward": 60,
+    "icon": "🧿",
+    "rarity": "legendary",
+    "chipReward": 25
+   },
+   {
+    "key": "card_first_max",
+    "title": "До Упора",
+    "description": "Прокачать любую карточку до максимума текущего Тира.",
+    "cryptoReward": 20,
+    "icon": "🧱",
+    "rarity": "rare",
+    "chipReward": 5
+   },
+   {
+    "key": "tier_2",
+    "title": "Промышленный Разгон",
+    "description": "Открыть Тир II и разблокировать 16–30 уровни всех модулей.",
+    "cryptoReward": 25,
+    "icon": "⚡",
+    "rarity": "rare"
+   },
+   {
+    "key": "tier_3",
+    "title": "Военный Подряд",
+    "description": "Открыть Тир III и разблокировать 31–45 уровни всех модулей.",
+    "cryptoReward": 45,
+    "icon": "🔋",
+    "rarity": "epic"
+   },
+   {
+    "key": "tier_4",
+    "title": "Теневой Арсенал",
+    "description": "Открыть Тир IV — максимальные 60 уровней модулей.",
+    "cryptoReward": 90,
+    "icon": "🚀",
+    "rarity": "legendary",
+    "chipReward": 30
+   },
+   {
+    "key": "card_level_15",
+    "title": "За Гранью Заводских",
+    "description": "Прокачать любую карточку до 15 уровня.",
+    "cryptoReward": 25,
+    "icon": "📈",
+    "rarity": "rare"
+   },
+   {
+    "key": "card_level_20",
+    "title": "Инженерный Подвиг",
+    "description": "Прокачать любую карточку до 20 уровня.",
+    "cryptoReward": 45,
+    "icon": "⚙️",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   {
+    "key": "card_level_25",
+    "title": "Абсолютный Максимум",
+    "description": "Прокачать любую карточку до 25 уровня — рубеж полного промышленного арсенала.",
+    "cryptoReward": 80,
+    "icon": "💠",
+    "rarity": "legendary",
+    "chipReward": 20
+   },
+   {
+    "key": "cards_all_5",
+    "title": "Всесторонний Подход",
+    "description": "Прокачать все 48 модулей минимум до 5 уровня.",
+    "cryptoReward": 40,
+    "icon": "🧩",
+    "rarity": "epic",
+    "chipReward": 15
+   },
+   {
+    "key": "cards_all_10",
+    "title": "Коллекционер Железа",
+    "description": "Прокачать все 48 модулей минимум до 10 уровня.",
+    "cryptoReward": 90,
+    "icon": "🏆",
+    "rarity": "legendary",
+    "chipReward": 40
+   },
+   {
+    "key": "cards_all_15",
+    "title": "Симфония Байтов",
+    "description": "Прокачать все 48 модулей минимум до 15 уровня.",
+    "cryptoReward": 150,
+    "icon": "🌟",
+    "rarity": "legendary",
+    "chipReward": 60
+   },
+   {
+    "key": "chips_50",
+    "title": "Ящик Запчастей",
+    "description": "Накопить 50 Чипов.",
+    "cryptoReward": 15,
+    "icon": "🔩",
+    "rarity": "rare"
+   },
+   {
+    "key": "chips_250",
+    "title": "Цех Подполья",
+    "description": "Накопить 250 Чипов.",
+    "cryptoReward": 35,
+    "icon": "🏭",
+    "rarity": "epic"
+   },
+   {
+    "key": "chips_1000",
+    "title": "Хранитель Микросхем",
+    "description": "Накопить 1000 Чипов.",
+    "cryptoReward": 70,
+    "icon": "🧰",
+    "rarity": "legendary"
+   },
+   {
+    "key": "chips_no_spend",
+    "title": "Ни Одного Лишнего",
+    "description": "Собрать 500 Чипов, так и не открыв Тир II.",
+    "cryptoReward": 40,
+    "icon": "🧊",
+    "rarity": "epic",
+    "secret": true
+   },
+   {
+    "key": "full_squad",
+    "title": "Костяк Синдиката",
+    "description": "Собрать 6 специалистов в команду.",
+    "cryptoReward": 25,
+    "icon": "👥",
+    "rarity": "rare"
+   },
+   {
+    "key": "elite_syndicate_8",
+    "title": "Полный Совет Теней",
+    "description": "Нанять всех 8 специалистов.",
+    "cryptoReward": 40,
+    "icon": "🏛️",
+    "rarity": "epic"
+   },
+   {
+    "key": "grey_missions_10",
+    "title": "Серый Кардинал",
+    "description": "Завершить 10 контрактов категории Grey.",
+    "cryptoReward": 30,
+    "icon": "🌫️",
+    "rarity": "rare"
+   },
+   {
+    "key": "missions_veteran_15",
+    "title": "Ночной Рейдер",
+    "description": "Успешно выполнить 15 контрактов во вкладке «Взломы».",
+    "cryptoReward": 12,
+    "icon": "🛰️",
+    "rarity": "common"
+   },
+   {
+    "key": "missions_master_50",
+    "title": "Гроза Корпораций",
+    "description": "Успешно выполнить 50 контрактов.",
+    "cryptoReward": 30,
+    "icon": "💥",
+    "rarity": "rare"
+   },
+   {
+    "key": "missions_100",
+    "title": "Контрактник",
+    "description": "Успешно выполнить 100 контрактов.",
+    "cryptoReward": 45,
+    "icon": "📜",
+    "rarity": "epic"
+   },
+   {
+    "key": "missions_250",
+    "title": "Легенда Подполья",
+    "description": "Успешно выполнить 250 контрактов.",
+    "cryptoReward": 90,
+    "icon": "👑",
+    "rarity": "legendary",
+    "chipReward": 25
+   },
+   {
+    "key": "mission_fail",
+    "title": "Первый Блин Комом",
+    "description": "Провалить контракт хотя бы раз.",
+    "cryptoReward": 5,
+    "icon": "🫠",
+    "rarity": "common",
+    "secret": true
+   },
+   {
+    "key": "missions_all_types",
+    "title": "Полный Спектр",
+    "description": "Завершить контракты трёх направлений: Белый, Чёрный и Нейтральный (включая секретные).",
+    "cryptoReward": 35,
+    "icon": "🎡",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   {
+    "key": "click_sprinter_500",
+    "title": "Горячие Клавиши",
+    "description": "Набрать 500 кликов по консоли взлома.",
+    "cryptoReward": 8,
+    "icon": "⌨️",
+    "rarity": "common"
+   },
+   {
+    "key": "click_master_2500",
+    "title": "Оператор Матрицы",
+    "description": "Набрать 2 500 кликов.",
+    "cryptoReward": 18,
+    "icon": "🎹",
+    "rarity": "rare"
+   },
+   {
+    "key": "click_legend_10k",
+    "title": "Нейро-Рефлексы 10K",
+    "description": "Набрать 10 000 кликов.",
+    "cryptoReward": 35,
+    "icon": "🦾",
+    "rarity": "epic"
+   },
+   {
+    "key": "click_25k",
+    "title": "Палец-Кракен",
+    "description": "Набрать 25 000 кликов.",
+    "cryptoReward": 70,
+    "icon": "🌀",
+    "rarity": "legendary",
+    "chipReward": 20
+   },
+   {
+    "key": "click_50k",
+    "title": "Тендосистема",
+    "description": "Набрать 50 000 кликов.",
+    "cryptoReward": 120,
+    "icon": "🧬",
+    "rarity": "legendary"
+   },
+   {
+    "key": "data_millionaire",
+    "title": "Сто Тысяч Пакет",
+    "description": "Накопить 100 000 Data на балансе.",
+    "cryptoReward": 20,
+    "icon": "💾",
+    "rarity": "rare"
+   },
+   {
+    "key": "true_millionaire_1m",
+    "title": "Миллионер Данных",
+    "description": "Накопить 1 000 000 Data на балансе.",
+    "cryptoReward": 30,
+    "icon": "💰",
+    "rarity": "epic"
+   },
+   {
+    "key": "data_tycoon_25m",
+    "title": "Властелин Дата-Центров",
+    "description": "Накопить 25 000 000 Data на балансе.",
+    "cryptoReward": 60,
+    "icon": "🏦",
+    "rarity": "legendary"
+   },
+   {
+    "key": "data_100m",
+    "title": "Цифровой Магнат",
+    "description": "Накопить 100 000 000 Data на балансе.",
+    "cryptoReward": 120,
+    "icon": "🌌",
+    "rarity": "legendary",
+    "chipReward": 40
+   },
+   {
+    "key": "crypto_baron_500",
+    "title": "Крипто-Барон",
+    "description": "Накопить 500 Crypto на счету.",
+    "cryptoReward": 50,
+    "icon": "💎",
+    "rarity": "epic"
+   },
+   {
+    "key": "energy_overcharge_2500",
+    "title": "Высокое Напряжение",
+    "description": "Поднять максимум CPU Energy до 2 500.",
+    "cryptoReward": 18,
+    "icon": "🔌",
+    "rarity": "rare"
+   },
+   {
+    "key": "white_hat_path",
+    "title": "Страж Сети (White Hat)",
+    "description": "Активировать ветку Белой Шляпы и набрать 40+ Rep.",
+    "cryptoReward": 12,
+    "icon": "🛡️",
+    "rarity": "rare"
+   },
+   {
+    "key": "black_hat_path",
+    "title": "Призрак Даркнета (Black Hat)",
+    "description": "Активировать ветку Чёрной Шляпы с высоким Heat.",
+    "cryptoReward": 12,
+    "icon": "🕶️",
+    "rarity": "rare"
+   },
+   {
+    "key": "rep_guardian_250",
+    "title": "Арбитр Киберпространства",
+    "description": "Набрать 250 Rep.",
+    "cryptoReward": 30,
+    "icon": "⚖️",
+    "rarity": "epic"
+   },
+   {
+    "key": "heat_edge",
+    "title": "На Лезвии",
+    "description": "Дойти до Heat 95–99 и не попасть под перехват.",
+    "cryptoReward": 30,
+    "icon": "🔥",
+    "rarity": "epic",
+    "secret": true
+   },
+   {
+    "key": "clean_hands_20",
+    "title": "Чистые Руки",
+    "description": "Достичь 20 уровня, ни разу не набрав Heat.",
+    "cryptoReward": 35,
+    "icon": "🕊️",
+    "rarity": "epic",
+    "secret": true
+   },
+   {
+    "key": "global_hack_prestige",
+    "title": "GLOBAL HACK I",
+    "description": "Выполнить первый Global Hack Престиж.",
+    "cryptoReward": 50,
+    "icon": "♾️",
+    "rarity": "epic"
+   },
+   {
+    "key": "global_hack_prestige_2",
+    "title": "CYBER OVERLORD (PRE-II)",
+    "description": "Выполнить второй Global Hack Престиж.",
+    "cryptoReward": 100,
+    "icon": "🔮",
+    "rarity": "legendary",
+    "chipReward": 30
+   },
+   {
+    "key": "prestige_3",
+    "title": "Тройное Перерождение",
+    "description": "Выполнить три Global Hack Престижа.",
+    "cryptoReward": 150,
+    "icon": "🌠",
+    "rarity": "legendary",
+    "chipReward": 60
+   },
+   {
+    "key": "all_pets",
+    "title": "Домашний Зоопарк",
+    "description": "Завести всех трёх питомцев: хомяка, крысу и морскую свинку.",
+    "cryptoReward": 40,
+    "icon": "🐾",
+    "rarity": "epic"
+   },
+   {
+    "key": "pet_feed_50",
+    "title": "Лучший Хозяин",
+    "description": "Покормить питомцев суммарно 50 раз.",
+    "cryptoReward": 35,
+    "icon": "🍎",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   {
+    "key": "pet_streak_7",
+    "title": "Семь Дней Заботы",
+    "description": "Кормить питомцев 7 дней подряд.",
+    "cryptoReward": 45,
+    "icon": "📅",
+    "rarity": "epic"
+   },
+   {
+    "key": "pet_max_affection",
+    "title": "Сродство Душ",
+    "description": "Довести привязанность любого питомца до максимума (10).",
+    "cryptoReward": 55,
+    "icon": "💞",
+    "rarity": "legendary"
+   },
+   {
+    "key": "base_all_bought",
+    "title": "Умный Дом",
+    "description": "Открыть (по 1 уровню) все 10 пассивных улучшений Базы.",
+    "cryptoReward": 40,
+    "icon": "🏡",
+    "rarity": "epic",
+    "chipReward": 10
+   },
+   {
+    "key": "base_max_one",
+    "title": "Доведено До Ума",
+    "description": "Прокачать любое улучшение Базы до 15 уровня.",
+    "cryptoReward": 50,
+    "icon": "🔧",
+    "rarity": "epic"
+   },
+   {
+    "key": "base_all_max",
+    "title": "Идеальный Штаб",
+    "description": "Прокачать ВСЕ 10 улучшений Базы до 15 уровня.",
+    "cryptoReward": 200,
+    "icon": "🏙️",
+    "rarity": "legendary",
+    "chipReward": 80
+   },
+   {
+    "key": "skins_3",
+    "title": "Модник Терминала",
+    "description": "Открыть 3 скина рабочего стола.",
+    "cryptoReward": 25,
+    "icon": "🎨",
+    "rarity": "rare"
+   },
+   {
+    "key": "skins_all",
+    "title": "Гардероб Хакера",
+    "description": "Открыть все скины рабочего стола.",
+    "cryptoReward": 90,
+    "icon": "🌈",
+    "rarity": "legendary"
+   },
+   {
+    "key": "tutorial_all_tabs",
+    "title": "Прилежный Студент",
+    "description": "Прочитать все 5 глав Академии HACKER KOMBAT.",
+    "cryptoReward": 10,
+    "icon": "🎓",
+    "rarity": "common"
+   },
+   {
+    "key": "tutorial_reread_10",
+    "title": "Перечитал Мануал",
+    "description": "Открыть Обучение 10 раз. Инструкция — это святое.",
+    "cryptoReward": 8,
+    "icon": "📖",
+    "rarity": "common",
+    "secret": true
+   },
+   {
+    "key": "tabs_tourist",
+    "title": "Полный Обход",
+    "description": "Побывать на всех пяти вкладках приложения за одну сессию... или за всю жизнь.",
+    "cryptoReward": 8,
+    "icon": "🧭",
+    "rarity": "common"
+   },
+   {
+    "key": "night_owl",
+    "title": "Ночная Смена",
+    "description": "Зайти в игру между 03:00 и 05:00 по местному времени.",
+    "cryptoReward": 12,
+    "icon": "🦉",
+    "rarity": "rare",
+    "secret": true
+   },
+   {
+    "key": "early_bird",
+    "title": "Ранняя Пташка",
+    "description": "Зайти в игру до 07:00 по местному времени.",
+    "cryptoReward": 8,
+    "icon": "🌅",
+    "rarity": "common",
+    "secret": true
+   },
+   {
+    "key": "coffee_break",
+    "title": "Кофе-Брейк",
+    "description": "Провести 15 минут в игре, не сделав ни одного клика.",
+    "cryptoReward": 10,
+    "icon": "☕",
+    "rarity": "common",
+    "secret": true
+   },
+   {
+    "key": "session_30m",
+    "title": "Глубокая Сессия",
+    "description": "Провести 30 минут в игре без перерыва.",
+    "cryptoReward": 15,
+    "icon": "⏳",
+    "rarity": "rare",
+    "secret": true
+   },
+   {
+    "key": "shop_freeze_30",
+    "title": "Дзен-Режим",
+    "description": "30 минут после 10 уровня не покупать ничего вообще.",
+    "cryptoReward": 12,
+    "icon": "🧘",
+    "rarity": "rare",
+    "secret": true
+   },
+   {
+    "key": "stubborn_50",
+    "title": "Своей Дорогой",
+    "description": "Достичь 50 уровня, ни разу не сделав Global Hack.",
+    "cryptoReward": 70,
+    "icon": "🦅",
+    "rarity": "legendary",
+    "secret": true
+   },
+   {
+    "key": "pet_hungry",
+    "title": "Ну Где Ты Был",
+    "description": "Довести питомца до состояния «очень голоден». Он не обиделся.",
+    "cryptoReward": 4,
+    "icon": "🥺",
+    "rarity": "common",
+    "secret": true
+   },
+   {
+    "key": "zoo_keeper_30",
+    "title": "Тридцать Кормлений",
+    "description": "Покормить питомцев 30 раз — терпение и забота.",
+    "cryptoReward": 20,
+    "icon": "🌾",
+    "rarity": "rare",
+    "secret": true
+   },
+   {
+    "key": "heat_survivor",
+    "title": "Перехвачен, Но Не Сломан",
+    "description": "Словить штраф за высокий Heat и вернуться в игру.",
+    "cryptoReward": 10,
+    "icon": "🚨",
+    "rarity": "rare",
+    "secret": true
+   }
+  ],
+  "PUBLIC_ACHIEVEMENTS_COUNT": 66
+ },
+ "backdrops": {
+  "BACKDROPS_CONFIG": [
+   {
+    "key": "rooftop_sunset",
+    "name": "Крыша на закате",
+    "tagline": "Тёплый вечер, пальмы и город в дымке. Ноут на столе, напиток рядом.",
+    "url": "/assets/backdrops/backdrop-rooftop-sunset.webp",
+    "weather": "sunset",
+    "requiredLevel": 1,
+    "glyph": "🌇",
+    "accent": "#ff8a4c",
+    "weatherLabel": "Сан-Мираж · 27° · закат",
+    "place": "Крыша дома",
+    "device": "laptop"
+   },
+   {
+    "key": "beach_day",
+    "name": "Пляж днём",
+    "tagline": "Терраса у воды, тень от зонта и шум прибоя. Работается лучше, чем в офисе.",
+    "url": "/assets/backdrops/backdrop-beach-day.webp",
+    "weather": "day",
+    "requiredLevel": 1,
+    "glyph": "🏖️",
+    "accent": "#39d6d0",
+    "weatherLabel": "Плая-Верде · 31° · бриз",
+    "place": "Пляжная терраса",
+    "device": "laptop"
+   },
+   {
+    "key": "motel_night",
+    "name": "Мотель у бассейна",
+    "tagline": "Неон, тёплая вода и тишина после полуночи. Самое время для тихой работы.",
+    "url": "/assets/backdrops/backdrop-motel-night.webp",
+    "weather": "night",
+    "requiredLevel": 1,
+    "glyph": "🌴",
+    "accent": "#c084fc",
+    "weatherLabel": "Рут-66 · 24° · ясно",
+    "place": "Мотель у бассейна",
+    "device": "phone"
+   },
+   {
+    "key": "rain_window",
+    "name": "Дождь за окном",
+    "tagline": "Плед, лампа и струи по стеклу. Город светится где-то там, за бокалом.",
+    "url": "/assets/backdrops/backdrop-rain-window.webp",
+    "weather": "rain",
+    "requiredLevel": 1,
+    "glyph": "🌧️",
+    "accent": "#7aa2f7",
+    "weatherLabel": "Даунтаун · 19° · дождь",
+    "place": "Квартира в даунтауне",
+    "device": "laptop"
+   },
+   {
+    "key": "street_cafe",
+    "name": "Уличное кафе",
+    "tagline": "Столик в старом квартале, кофе и ноут. Мимо ходят люди, и работать — в удовольствие.",
+    "url": "/assets/backdrops/backdrop-street-cafe.webp",
+    "weather": "day",
+    "requiredLevel": 1,
+    "glyph": "☕",
+    "accent": "#e8a06a",
+    "weatherLabel": "Старый квартал · 26° · солнце",
+    "place": "Уличное кафе",
+    "device": "laptop"
+   },
+   {
+    "key": "beach_bar",
+    "name": "Пляжный бар",
+    "tagline": "Стойка у самой воды: телефон в руке, лёд в стакане, работа идёт сама.",
+    "url": "/assets/backdrops/backdrop-beach-bar.webp",
+    "weather": "sunset",
+    "requiredLevel": 1,
+    "glyph": "🍹",
+    "accent": "#ff8a5c",
+    "weatherLabel": "Плайя-Верде · 29° · закат",
+    "place": "Пляжный бар",
+    "device": "phone"
+   },
+   {
+    "key": "home_room",
+    "name": "Своя комната вечером",
+    "tagline": "Лампа, плед, кружка и тишина. Самый спокойный вариант — никто не смотрит в экран.",
+    "url": "/assets/backdrops/backdrop-home-room.webp",
+    "weather": "night",
+    "requiredLevel": 1,
+    "glyph": "🪔",
+    "accent": "#e0a96d",
+    "weatherLabel": "Дом · 22° · тихий вечер",
+    "place": "Своя комната",
+    "device": "laptop"
+   },
+   {
+    "key": "promenade",
+    "name": "Набережная",
+    "tagline": "Скамейка у моря, ноут на коленях и низкое солнце. Ветер в лицо, работа идёт.",
+    "url": "/assets/backdrops/backdrop-promenade.webp",
+    "weather": "sunset",
+    "requiredLevel": 1,
+    "glyph": "🌅",
+    "accent": "#ffb27a",
+    "weatherLabel": "Набережная · 25° · низкое солнце",
+    "place": "Набережная",
+    "device": "laptop"
+   }
+  ]
+ },
+ "base": {
+  "BASE_UPGRADES_CONFIG": [
+   {
+    "key": "coffee_machine",
+    "requiredLevel": 1,
+    "name": "Кофемашина «Турбо»",
+    "description": "Двойной эспрессо не спрашивает, он просто работает.",
+    "effectLabel": "+1.33% к скорости регена CPU Energy за уровень",
+    "icon": "☕",
+    "maxLevel": 15,
+    "basePrice": 24000,
+    "priceGrowth": 1.85,
+    "baseChipCost": 1,
+    "effectPerLevel": 0.0133
+   },
+   {
+    "key": "standing_desk",
+    "requiredLevel": 3,
+    "name": "Стоячий стол",
+    "description": "Спина прямая — палец быстрее.",
+    "effectLabel": "+0.67% к силе клика за уровень",
+    "icon": "🪑",
+    "maxLevel": 15,
+    "basePrice": 48000,
+    "priceGrowth": 1.85,
+    "baseChipCost": 1,
+    "effectPerLevel": 0.0067
+   },
+   {
+    "key": "vpn_router",
+    "requiredLevel": 5,
+    "name": "VPN-роутер «Туман»",
+    "description": "Три прыжка через вымышленные узлы — и следов нет.",
+    "effectLabel": "−1% к приросту Heat за уровень",
+    "icon": "🛡️",
+    "maxLevel": 15,
+    "basePrice": 96000,
+    "priceGrowth": 1.9,
+    "baseChipCost": 2,
+    "effectPerLevel": 0.01
+   },
+   {
+    "key": "ups_battery",
+    "requiredLevel": 8,
+    "name": "ИБП «Последний Бастион»",
+    "description": "Город может погаснуть. Твой терминал — нет.",
+    "effectLabel": "+40 минут к оффлайн-копилке за уровень",
+    "icon": "🔋",
+    "maxLevel": 15,
+    "basePrice": 150000,
+    "priceGrowth": 1.9,
+    "baseChipCost": 2,
+    "effectPerLevel": 2400
+   },
+   {
+    "key": "auto_script",
+    "requiredLevel": 10,
+    "name": "Авто-скрипт «Роевик»",
+    "description": "Пока ты пьёшь кофе, он печатает.",
+    "effectLabel": "+0.067 авто-клика/сек за уровень",
+    "icon": "🤖",
+    "maxLevel": 15,
+    "basePrice": 240000,
+    "priceGrowth": 1.95,
+    "baseChipCost": 2,
+    "effectPerLevel": 0.0667
+   },
+   {
+    "key": "analytics_desk",
+    "requiredLevel": 13,
+    "name": "Аналитический терминал",
+    "description": "Графики говорят громче слов.",
+    "effectLabel": "+1% к награде за контракты за уровень",
+    "icon": "📊",
+    "maxLevel": 15,
+    "basePrice": 360000,
+    "priceGrowth": 1.95,
+    "baseChipCost": 3,
+    "effectPerLevel": 0.01
+   },
+   {
+    "key": "storage_rack",
+    "requiredLevel": 17,
+    "name": "Стеллаж-хранилище",
+    "description": "Каждый байт на своём месте — и работает на тебя.",
+    "effectLabel": "+1% к пассивному доходу за уровень",
+    "icon": "🗄️",
+    "maxLevel": 15,
+    "basePrice": 520000,
+    "priceGrowth": 2,
+    "baseChipCost": 3,
+    "effectPerLevel": 0.01
+   },
+   {
+    "key": "thermal_paste",
+    "requiredLevel": 21,
+    "name": "Жидкий металл",
+    "description": "Минус 12 градусов — плюс пара процентов скидки у поставщиков.",
+    "effectLabel": "−0.67% к цене всех карточек за уровень",
+    "icon": "🧴",
+    "maxLevel": 15,
+    "basePrice": 800000,
+    "priceGrowth": 2.05,
+    "baseChipCost": 4,
+    "effectPerLevel": 0.0067
+   },
+   {
+    "key": "auto_feeder",
+    "requiredLevel": 25,
+    "name": "Авто-кормушка",
+    "description": "Питомцы едят сами, пока ты в рейде.",
+    "effectLabel": "Авто-кормление питомцев +1.33% скидки на корм за уровень",
+    "icon": "🍽️",
+    "maxLevel": 15,
+    "basePrice": 1200000,
+    "priceGrowth": 2,
+    "baseChipCost": 4,
+    "effectPerLevel": 0.0133
+   },
+   {
+    "key": "lucky_charm",
+    "requiredLevel": 30,
+    "name": "Талисман удачи",
+    "description": "Кусок материнской платы на шнурке. Работает. Не спрашивай.",
+    "effectLabel": "+0.67% к шансу дропа Crypto с контрактов за уровень",
+    "icon": "🍀",
+    "maxLevel": 15,
+    "basePrice": 1800000,
+    "priceGrowth": 2.1,
+    "baseChipCost": 5,
+    "effectPerLevel": 0.0067
+   }
+  ],
+  "CHIP_DAILY_CAP": 45,
+  "CHIP_REWARD_PER_DAILY": 3,
+  "CHIP_REWARD_PER_GREY_MISSION": 2,
+  "CHIP_REWARD_PER_MISSION": 1
+ },
+ "cards": {
+  "CARDS_CONFIG": [
+   {
+    "key": "monitor",
+    "name": "Монитор IPS 240Hz",
+    "description": "Больше окон терминала — выше поток данных.",
+    "category": "hardware",
+    "basePrice": 20,
+    "dataPerHourPerLevel": 120,
+    "clickBonusPerLevel": 0.25,
+    "iconGlyph": "🖥️"
+   },
+   {
+    "key": "keyboard",
+    "name": "Мех. Клавиатура",
+    "description": "Кастомные оптические свитчи увеличивают мощь каждого тапа.",
+    "category": "hardware",
+    "basePrice": 15,
+    "dataPerHourPerLevel": 80,
+    "clickBonusPerLevel": 0.6,
+    "iconGlyph": "⌨️"
+   },
+   {
+    "key": "gpu",
+    "name": "Видеокарта CyberGPU",
+    "description": "Параллельные вычисления разгоняют пассивный майнинг Data.",
+    "category": "hardware",
+    "basePrice": 75,
+    "dataPerHourPerLevel": 340,
+    "clickBonusPerLevel": 0.4,
+    "iconGlyph": "🎛️"
+   },
+   {
+    "key": "server_rack",
+    "name": "Серверная стойка",
+    "description": "Собственный кластер 42U прямо у рабочего стола.",
+    "category": "hardware",
+    "basePrice": 260,
+    "dataPerHourPerLevel": 950,
+    "iconGlyph": "🗄️"
+   },
+   {
+    "key": "scout_drone",
+    "name": "Внешняя антенна",
+    "description": "Ловит открытые сети вокруг дома круглосуточно.",
+    "category": "hardware",
+    "basePrice": 700,
+    "dataPerHourPerLevel": 2200,
+    "clickBonusPerLevel": 1,
+    "iconGlyph": "📡"
+   },
+   {
+    "key": "quantum_cooler",
+    "name": "Крио-охлаждение",
+    "description": "Держит частоты процессора на пике без троттлинга.",
+    "category": "hardware",
+    "basePrice": 1600,
+    "dataPerHourPerLevel": 4600,
+    "iconGlyph": "❄️"
+   },
+   {
+    "key": "fiber_uplink",
+    "name": "Оптический канал 100G",
+    "description": "Прямой гигабитный аплинк в магистральную сеть.",
+    "category": "hardware",
+    "basePrice": 3800,
+    "dataPerHourPerLevel": 9800,
+    "clickBonusPerLevel": 1.8,
+    "iconGlyph": "⚡"
+   },
+   {
+    "key": "neural_chip",
+    "name": "Нейро-сопроцессор",
+    "description": "Тензорный модуль нового поколения.",
+    "category": "hardware",
+    "basePrice": 8500,
+    "dataPerHourPerLevel": 19500,
+    "clickBonusPerLevel": 3,
+    "iconGlyph": "🧠"
+   },
+   {
+    "key": "asic_blade_array",
+    "name": "Блейд-ферма ASIC X9",
+    "description": "Стойка промышленных вычислителей для мидгейма.",
+    "category": "hardware",
+    "basePrice": 42000,
+    "dataPerHourPerLevel": 64000,
+    "clickBonusPerLevel": 6.5,
+    "minLevel": 15,
+    "iconGlyph": "🧱"
+   },
+   {
+    "key": "photonic_core",
+    "name": "Фотонный Процессор",
+    "description": "Световые затворы обрабатывают терабайты без нагрева.",
+    "category": "hardware",
+    "basePrice": 185000,
+    "dataPerHourPerLevel": 215000,
+    "clickBonusPerLevel": 14,
+    "minLevel": 25,
+    "iconGlyph": "💎"
+   },
+   {
+    "key": "subsea_datacenter",
+    "name": "Подводный Дата-Бункер",
+    "description": "Автономная капсула серверов на дне северного океана.",
+    "category": "hardware",
+    "basePrice": 820000,
+    "dataPerHourPerLevel": 740000,
+    "clickBonusPerLevel": 32,
+    "minLevel": 38,
+    "iconGlyph": "🌊"
+   },
+   {
+    "key": "orbital_quantum_ring",
+    "name": "Орбитальное Кванто-Кольцо",
+    "description": "Финальный мегапроект Hardware: планетарная вычислительная сеть.",
+    "category": "hardware",
+    "basePrice": 3600000,
+    "dataPerHourPerLevel": 2650000,
+    "clickBonusPerLevel": 75,
+    "minLevel": 52,
+    "iconGlyph": "🪐"
+   },
+   {
+    "key": "vpn",
+    "name": "Мульти-VPN Цепь",
+    "description": "Маршрутизация трафика через 7 виртуальных узлов.",
+    "category": "software",
+    "basePrice": 25,
+    "dataPerHourPerLevel": 140,
+    "iconGlyph": "🛡️"
+   },
+   {
+    "key": "antidetect",
+    "name": "Антидетект Стек",
+    "description": "Маскировка цифровых отпечатков для мультизадачности.",
+    "category": "software",
+    "basePrice": 65,
+    "dataPerHourPerLevel": 310,
+    "clickBonusPerLevel": 0.35,
+    "iconGlyph": "🎭"
+   },
+   {
+    "key": "botnet",
+    "name": "Симулятор Ботнета",
+    "description": "Вициальный рой воркеров генерирует Data каждую минуту.",
+    "category": "software",
+    "basePrice": 220,
+    "dataPerHourPerLevel": 880,
+    "iconGlyph": "🕸️"
+   },
+   {
+    "key": "exploit_pack",
+    "name": "Эксплойт-пак v4",
+    "description": "Автоматизированный набор игровых скриптов прорыва.",
+    "category": "software",
+    "basePrice": 620,
+    "dataPerHourPerLevel": 2100,
+    "clickBonusPerLevel": 1.2,
+    "iconGlyph": "🧩"
+   },
+   {
+    "key": "ai_assistant",
+    "name": "ИИ-ассистент Кода",
+    "description": "Автономный ко-пилот пишет скрипты со скоростью мысли.",
+    "category": "software",
+    "basePrice": 1500,
+    "dataPerHourPerLevel": 4800,
+    "clickBonusPerLevel": 2,
+    "iconGlyph": "🤖"
+   },
+   {
+    "key": "poly_compiler",
+    "name": "Полиморф-движок",
+    "description": "Динамическая пересборка модулей на лету.",
+    "category": "software",
+    "basePrice": 3400,
+    "dataPerHourPerLevel": 9400,
+    "iconGlyph": "🧬"
+   },
+   {
+    "key": "packet_sniffer",
+    "name": "Спектральный Анализатор",
+    "description": "Извлекает ценные пакеты из фонового шума сети.",
+    "category": "software",
+    "basePrice": 7600,
+    "dataPerHourPerLevel": 18200,
+    "iconGlyph": "📡"
+   },
+   {
+    "key": "quantum_decryptor",
+    "name": "Квантовый Дешифратор",
+    "description": "Мгновенный подбор ключей в игровом симуляторе.",
+    "category": "software",
+    "basePrice": 16500,
+    "dataPerHourPerLevel": 36000,
+    "clickBonusPerLevel": 4.5,
+    "iconGlyph": "🔮"
+   },
+   {
+    "key": "autonomous_agents",
+    "name": "Рой ИИ-Агентов",
+    "description": "Самообучающиеся агенты фармят синтетические узлы круглосуточно.",
+    "category": "software",
+    "basePrice": 68000,
+    "dataPerHourPerLevel": 105000,
+    "clickBonusPerLevel": 9,
+    "minLevel": 16,
+    "iconGlyph": "🧠"
+   },
+   {
+    "key": "zero_knowledge_os",
+    "name": "Ядро Zero-Knowledge OS",
+    "description": "Операционная система криптографической невидимости.",
+    "category": "software",
+    "basePrice": 290000,
+    "dataPerHourPerLevel": 340000,
+    "clickBonusPerLevel": 20,
+    "minLevel": 28,
+    "iconGlyph": "💠"
+   },
+   {
+    "key": "synthetic_metaverse",
+    "name": "Синтетический Мета-Узел",
+    "description": "Собственная виртуальная вселенная, генерирующая потоки Data.",
+    "category": "software",
+    "basePrice": 1250000,
+    "dataPerHourPerLevel": 1150000,
+    "clickBonusPerLevel": 45,
+    "minLevel": 40,
+    "iconGlyph": "🌌"
+   },
+   {
+    "key": "agi_singularity_kernel",
+    "name": "Сверхразум «Сингулярность»",
+    "description": "Венец ветки Software — автономное цифровое сознание.",
+    "category": "software",
+    "basePrice": 5400000,
+    "dataPerHourPerLevel": 4100000,
+    "clickBonusPerLevel": 110,
+    "minLevel": 55,
+    "iconGlyph": "👁️"
+   },
+   {
+    "key": "gamer_chair",
+    "name": "Кибер-кресло Pro",
+    "description": "Анатомическая посадка: +50 к макс. энергии CPU за уровень.",
+    "category": "comfort",
+    "basePrice": 30,
+    "dataPerHourPerLevel": 90,
+    "energyMaxPerLevel": 50,
+    "iconGlyph": "💺"
+   },
+   {
+    "key": "coffee_machine",
+    "name": "Нео-Кофеварка",
+    "description": "Двойной эспрессо: +50 Energy Max и прирост Data/час.",
+    "category": "comfort",
+    "basePrice": 55,
+    "dataPerHourPerLevel": 210,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 0.3,
+    "iconGlyph": "☕"
+   },
+   {
+    "key": "neon_light",
+    "name": "Неоновая Подсветка",
+    "description": "Киберпанк-вайб #ff00a0: +50 Energy Max и бонус к тапу.",
+    "category": "comfort",
+    "basePrice": 130,
+    "dataPerHourPerLevel": 450,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 0.65,
+    "iconGlyph": "🌈"
+   },
+   {
+    "key": "smart_desk",
+    "name": "Смарт-стол с приводом",
+    "description": "Идеальная эргономика для марафонов: +50 Energy Max.",
+    "category": "comfort",
+    "basePrice": 320,
+    "dataPerHourPerLevel": 960,
+    "energyMaxPerLevel": 50,
+    "iconGlyph": "🛸"
+   },
+   {
+    "key": "synth_audio",
+    "name": "Акустика Synthwave",
+    "description": "Ритм ночного города ускоряет печать: +50 Energy Max.",
+    "category": "comfort",
+    "basePrice": 800,
+    "dataPerHourPerLevel": 2250,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 1.1,
+    "iconGlyph": "🎧"
+   },
+   {
+    "key": "energy_fridge",
+    "name": "Мини-холодильник",
+    "description": "Холодная вода и кола под рукой: +50 Energy Max.",
+    "category": "comfort",
+    "basePrice": 1900,
+    "dataPerHourPerLevel": 4900,
+    "energyMaxPerLevel": 50,
+    "iconGlyph": "🧊"
+   },
+   {
+    "key": "air_ionizer",
+    "name": "Климат-капсула",
+    "description": "Чистый озон в серверной комнате: +50 Energy Max.",
+    "category": "comfort",
+    "basePrice": 4400,
+    "dataPerHourPerLevel": 10500,
+    "energyMaxPerLevel": 50,
+    "iconGlyph": "🌀"
+   },
+   {
+    "key": "holo_projector",
+    "name": "Голо-проектор Сцены",
+    "description": "Парящие 3D-виджеты над столом: +50 Energy Max.",
+    "category": "comfort",
+    "basePrice": 9800,
+    "dataPerHourPerLevel": 22000,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 2.5,
+    "iconGlyph": "💠"
+   },
+   {
+    "key": "bionic_gloves",
+    "name": "Тактильные Перчатки",
+    "description": "Мгновенный нейро-отклик клавиш: мощный буст тапа и +50 Energy Max.",
+    "category": "comfort",
+    "basePrice": 46000,
+    "dataPerHourPerLevel": 72000,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 8.5,
+    "minLevel": 15,
+    "iconGlyph": "🧤"
+   },
+   {
+    "key": "penthouse_loft",
+    "name": "Кибер-Пентхаус 88 Этаж",
+    "description": "Панорамный штаб над неоновым мегаполисом.",
+    "category": "comfort",
+    "basePrice": 210000,
+    "dataPerHourPerLevel": 245000,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 18,
+    "minLevel": 26,
+    "iconGlyph": "🏙️"
+   },
+   {
+    "key": "neural_sleep_pod",
+    "name": "Капсула Нейро-Фокуса",
+    "description": "Полное восстановление концентрации оператора.",
+    "category": "comfort",
+    "basePrice": 940000,
+    "dataPerHourPerLevel": 860000,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 42,
+    "minLevel": 38,
+    "iconGlyph": "🛸"
+   },
+   {
+    "key": "orbital_penthouse_station",
+    "name": "Лофт «Штаб»",
+    "description": "Своя студия с отдельным кабинетом и тишиной.",
+    "category": "comfort",
+    "basePrice": 4100000,
+    "dataPerHourPerLevel": 3100000,
+    "energyMaxPerLevel": 50,
+    "clickBonusPerLevel": 95,
+    "minLevel": 52,
+    "iconGlyph": "🚀"
+   },
+   {
+    "key": "scam_exploits",
+    "name": "Скам-эксплойты",
+    "description": "Агрессивные теневые модули: много Data, +8 Heat при покупке.",
+    "category": "darknet",
+    "basePrice": 95,
+    "dataPerHourPerLevel": 560,
+    "clickBonusPerLevel": 0.9,
+    "heatOnBuy": 8,
+    "iconGlyph": "☣️"
+   },
+   {
+    "key": "zero_day",
+    "name": "Zero-Day Архив",
+    "description": "Редчайший пакет уязвимостей симулятора: огромный доход, +12 Heat.",
+    "category": "darknet",
+    "basePrice": 380,
+    "dataPerHourPerLevel": 1850,
+    "clickBonusPerLevel": 1.7,
+    "heatOnBuy": 12,
+    "iconGlyph": "💀"
+   },
+   {
+    "key": "phantom_proxy",
+    "name": "Теневой Шлюз Onion",
+    "description": "Скрытая маршрутизация чёрного рынка: +10 Heat.",
+    "category": "darknet",
+    "basePrice": 920,
+    "dataPerHourPerLevel": 3900,
+    "heatOnBuy": 10,
+    "iconGlyph": "🕷️"
+   },
+   {
+    "key": "shadow_market",
+    "name": "Даркнет-биржа Дампов",
+    "description": "Оптовая торговля синтетическими базами: +14 Heat.",
+    "category": "darknet",
+    "basePrice": 2300,
+    "dataPerHourPerLevel": 8600,
+    "clickBonusPerLevel": 2.6,
+    "heatOnBuy": 14,
+    "iconGlyph": "🏴‍☠️"
+   },
+   {
+    "key": "crypto_tumbler",
+    "name": "Миксер Протоколов",
+    "description": "Высокодоходный теневой пул ликвидности: +12 Heat.",
+    "category": "darknet",
+    "basePrice": 5400,
+    "dataPerHourPerLevel": 17500,
+    "heatOnBuy": 12,
+    "iconGlyph": "🎲"
+   },
+   {
+    "key": "black_ice",
+    "name": "Вирус «Чёрный Лёд»",
+    "description": "Пробивает корпоративные периметры: +16 Heat.",
+    "category": "darknet",
+    "basePrice": 12000,
+    "dataPerHourPerLevel": 34000,
+    "clickBonusPerLevel": 4,
+    "heatOnBuy": 16,
+    "iconGlyph": "🩸"
+   },
+   {
+    "key": "sat_hijack",
+    "name": "Серый прокси-пул",
+    "description": "Подключение к чужому пулу прокси: +18 Heat.",
+    "category": "darknet",
+    "basePrice": 26000,
+    "dataPerHourPerLevel": 68000,
+    "heatOnBuy": 18,
+    "iconGlyph": "🛰️"
+   },
+   {
+    "key": "red_mercury_core",
+    "name": "Ядро «Омега-Дарк»",
+    "description": "Запрещённый ИИ-кластер максимальной мощности: +22 Heat.",
+    "category": "darknet",
+    "basePrice": 58000,
+    "dataPerHourPerLevel": 145000,
+    "clickBonusPerLevel": 8,
+    "heatOnBuy": 22,
+    "iconGlyph": "🔥"
+   },
+   {
+    "key": "ghost_submarine_cable",
+    "name": "Врезка в Донный Кабель",
+    "description": "Перехват межконтинентального трафика симулятора: +20 Heat.",
+    "category": "darknet",
+    "basePrice": 195000,
+    "dataPerHourPerLevel": 360000,
+    "clickBonusPerLevel": 18,
+    "heatOnBuy": 20,
+    "minLevel": 20,
+    "iconGlyph": "⚓"
+   },
+   {
+    "key": "shadow_central_ledger",
+    "name": "Теневой Центробанк",
+    "description": "Подпольный клиринговый узел мегаполиса: +24 Heat.",
+    "category": "darknet",
+    "basePrice": 780000,
+    "dataPerHourPerLevel": 1080000,
+    "clickBonusPerLevel": 44,
+    "heatOnBuy": 24,
+    "minLevel": 32,
+    "iconGlyph": "🏦"
+   },
+   {
+    "key": "eclipse_satellite_swarm",
+    "name": "Ферма прокси",
+    "description": "Сотня арендованных прокси по всему миру: +26 Heat.",
+    "category": "darknet",
+    "basePrice": 3200000,
+    "dataPerHourPerLevel": 3400000,
+    "clickBonusPerLevel": 105,
+    "heatOnBuy": 26,
+    "minLevel": 44,
+    "iconGlyph": "🌑"
+   },
+   {
+    "key": "leviathan_protocol",
+    "name": "Протокол «Левиафан»",
+    "description": "Абсолютная вершина Даркнета — максимальный доход в игре (+30 Heat)!",
+    "category": "darknet",
+    "basePrice": 11500000,
+    "dataPerHourPerLevel": 9800000,
+    "clickBonusPerLevel": 260,
+    "heatOnBuy": 30,
+    "minLevel": 58,
+    "iconGlyph": "🐉"
+   }
+  ],
+  "CARD_CATEGORIES": [
+   {
+    "id": "hardware",
+    "label": "Hardware",
+    "subtitle": "Железо, кластеры и рабочие станции (тап + пассив)",
+    "accentColor": "#00f0ff",
+    "iconUrl": "/assets/cards/hardware.svg"
+   },
+   {
+    "id": "software",
+    "label": "Software",
+    "subtitle": "Софт, ИИ-алгоритмы и автономный фарм Data/час",
+    "accentColor": "#7dff00",
+    "iconUrl": "/assets/cards/software.svg"
+   },
+   {
+    "id": "comfort",
+    "label": "Comfort",
+    "subtitle": "Запас CPU Energy (до 5000) + фокус оператора",
+    "accentColor": "#ff00a0",
+    "iconUrl": "/assets/cards/comfort.svg"
+   },
+   {
+    "id": "darknet",
+    "label": "Darknet",
+    "subtitle": "Экстремальный доход Data + рост розыска (Heat)",
+    "accentColor": "#ff3b6b",
+    "iconUrl": "/assets/cards/darknet.svg"
+   }
+  ],
+  "CARD_GLOBAL_INDEX_DIVISOR": 50,
+  "CARD_GLOBAL_INDEX_POWER": 1.2,
+  "CARD_LEVEL_INCOME_GROWTH": 1.18,
+  "CARD_PRICE_GROWTH": 1.24,
+  "CARD_PRICE_SCALE": 40,
+  "CARD_TIERS": [
+   {
+    "tier": 1,
+    "title": "Тир I — Подвальный Стенд",
+    "maxLevel": 15,
+    "requiredPlayerLevel": 1,
+    "chipCost": 0,
+    "dataCost": 0,
+    "description": "Базовое железо: до 15 уровней каждого модуля. Дальше нужны Чипы."
+   },
+   {
+    "tier": 2,
+    "title": "Тир II — Промышленный Разгон",
+    "maxLevel": 30,
+    "requiredPlayerLevel": 10,
+    "chipCost": 60,
+    "dataCost": 120000,
+    "description": "Открывает уровни 16–30. Чипы падают только за завершённые взломы."
+   },
+   {
+    "tier": 3,
+    "title": "Тир III — Квантовый Арсенал",
+    "maxLevel": 45,
+    "requiredPlayerLevel": 22,
+    "chipCost": 150,
+    "dataCost": 1500000,
+    "description": "Уровни 31–45. Требует дисциплины: контракты, а не просто фарм."
+   },
+   {
+    "tier": 4,
+    "title": "Тир IV — Теневой Арсенал",
+    "maxLevel": 60,
+    "requiredPlayerLevel": 36,
+    "chipCost": 320,
+    "dataCost": 12000000,
+    "description": "Максимальные 60 уровней модулей — вершина инженерной мысли."
+   }
+  ],
+  "MAX_CARD_LEVEL": 60
+ },
+ "chapter": {
+  "FIRST_CHAPTER_STEPS": [
+   {
+    "id": "terminal",
+    "title": "Собери терминал",
+    "deskBrief": "Новый оператор начинает не с громкого рейда, а с рабочего железа. Подтяни первую карточку и приготовь узел к выходу в сеть.",
+    "missionBrief": "Сначала собери рабочий узел: первая карточка откроет путь к нормальным контрактам.",
+    "href": "/upgrades",
+    "actionLabel": "Открыть апгрейды",
+    "missionKeys": []
+   },
+   {
+    "id": "first-trace",
+    "title": "Оставь первый след",
+    "deskBrief": "Терминал проснулся. Теперь выбери безопасную вымышленную цель и забери первый результат операции.",
+    "missionBrief": "Первый след уже рядом: запусти доступную цель T1 и вернись за результатом.",
+    "href": "/hacks",
+    "actionLabel": "Открыть скан сети",
+    "missionKeys": [
+     "scam_shop",
+     "fake_lottery",
+     "retro_blog",
+     "pixel_arcade",
+     "dev_forum"
+    ]
+   },
+   {
+    "id": "network-noise",
+    "title": "Услышь шум в сети",
+    "deskBrief": "Сеть заметила твой почерк. Достигни 3 уровня и закрой ещё один контракт — после этого откроются первые T2-цели.",
+    "missionBrief": "Ищи цели T2: «Копия входа в банк» или «Ферма спам-звонков». Если их нет в текущем скане, дождись обновления или выбери доступную цель.",
+    "href": "/hacks",
+    "actionLabel": "Проверить T2-цели",
+    "missionKeys": [
+     "phishing_bank",
+     "bot_spam_net"
+    ]
+   }
+  ]
+ },
+ "dailyTasks": {
+  "DAILY_TASKS_BY_KEY": {
+   "tap_100": {
+    "key": "tap_100",
+    "kind": "tap",
+    "target": 100,
+    "rewardXp": 10,
+    "icon": "👆",
+    "title": "Разогреть терминал",
+    "description": "Сделай 100 тапов по консоли."
+   },
+   "tap_500": {
+    "key": "tap_500",
+    "kind": "tap",
+    "target": 500,
+    "rewardXp": 20,
+    "icon": "⚡",
+    "title": "Пробить ритм",
+    "description": "Сделай 500 тапов по консоли."
+   },
+   "tap_1000": {
+    "key": "tap_1000",
+    "kind": "tap",
+    "target": 1000,
+    "rewardXp": 30,
+    "icon": "🔥",
+    "title": "Давить на газ",
+    "description": "Сделай 1 000 тапов по консоли."
+   },
+   "mission_start_1": {
+    "key": "mission_start_1",
+    "kind": "mission_start",
+    "target": 1,
+    "rewardXp": 10,
+    "icon": "🛰️",
+    "title": "Выйти в сеть",
+    "description": "Запусти 1 контракт."
+   },
+   "mission_start_2": {
+    "key": "mission_start_2",
+    "kind": "mission_start",
+    "target": 2,
+    "rewardXp": 20,
+    "icon": "📡",
+    "title": "Поднять волну",
+    "description": "Запусти 2 контракта."
+   },
+   "mission_start_3": {
+    "key": "mission_start_3",
+    "kind": "mission_start",
+    "target": 3,
+    "rewardXp": 30,
+    "icon": "🌐",
+    "title": "Расширить периметр",
+    "description": "Запусти 3 контракта."
+   },
+   "mission_complete_1": {
+    "key": "mission_complete_1",
+    "kind": "mission_complete",
+    "target": 1,
+    "rewardXp": 10,
+    "icon": "✅",
+    "title": "Закрыть хвост",
+    "description": "Забери результат 1 контракта."
+   },
+   "mission_complete_2": {
+    "key": "mission_complete_2",
+    "kind": "mission_complete",
+    "target": 2,
+    "rewardXp": 20,
+    "icon": "🎯",
+    "title": "Собрать результаты",
+    "description": "Забери результаты 2 контрактов."
+   },
+   "mission_complete_3": {
+    "key": "mission_complete_3",
+    "kind": "mission_complete",
+    "target": 3,
+    "rewardXp": 30,
+    "icon": "🏁",
+    "title": "Довести смену до конца",
+    "description": "Забери результаты 3 контрактов."
+   }
+  },
+  "DAILY_TASKS_PER_DAY": 3,
+  "DAILY_TASK_POOLS": {
+   "tap": [
+    {
+     "key": "tap_100",
+     "kind": "tap",
+     "target": 100,
+     "rewardXp": 10,
+     "icon": "👆",
+     "title": "Разогреть терминал",
+     "description": "Сделай 100 тапов по консоли."
+    },
+    {
+     "key": "tap_500",
+     "kind": "tap",
+     "target": 500,
+     "rewardXp": 20,
+     "icon": "⚡",
+     "title": "Пробить ритм",
+     "description": "Сделай 500 тапов по консоли."
+    },
+    {
+     "key": "tap_1000",
+     "kind": "tap",
+     "target": 1000,
+     "rewardXp": 30,
+     "icon": "🔥",
+     "title": "Давить на газ",
+     "description": "Сделай 1 000 тапов по консоли."
+    }
+   ],
+   "mission_start": [
+    {
+     "key": "mission_start_1",
+     "kind": "mission_start",
+     "target": 1,
+     "rewardXp": 10,
+     "icon": "🛰️",
+     "title": "Выйти в сеть",
+     "description": "Запусти 1 контракт."
+    },
+    {
+     "key": "mission_start_2",
+     "kind": "mission_start",
+     "target": 2,
+     "rewardXp": 20,
+     "icon": "📡",
+     "title": "Поднять волну",
+     "description": "Запусти 2 контракта."
+    },
+    {
+     "key": "mission_start_3",
+     "kind": "mission_start",
+     "target": 3,
+     "rewardXp": 30,
+     "icon": "🌐",
+     "title": "Расширить периметр",
+     "description": "Запусти 3 контракта."
+    }
+   ],
+   "mission_complete": [
+    {
+     "key": "mission_complete_1",
+     "kind": "mission_complete",
+     "target": 1,
+     "rewardXp": 10,
+     "icon": "✅",
+     "title": "Закрыть хвост",
+     "description": "Забери результат 1 контракта."
+    },
+    {
+     "key": "mission_complete_2",
+     "kind": "mission_complete",
+     "target": 2,
+     "rewardXp": 20,
+     "icon": "🎯",
+     "title": "Собрать результаты",
+     "description": "Забери результаты 2 контрактов."
+    },
+    {
+     "key": "mission_complete_3",
+     "kind": "mission_complete",
+     "target": 3,
+     "rewardXp": 30,
+     "icon": "🏁",
+     "title": "Довести смену до конца",
+     "description": "Забери результаты 3 контрактов."
+    }
+   ]
+  }
+ },
+ "donate": {
+  "DONATE_CARD_DEFAULT_LABEL": "Донат картой / СБП",
+  "DONATE_CARD_LABEL_MAX": 32,
+  "DONATE_CARD_NOTE": "Откроется внешняя страница доната в браузере. Telegram Stars остаются основным способом поддержки.",
+  "DONATE_CARD_URL_MAX": 300,
+  "DONATE_CURRENCY": "XTR",
+  "DONATE_DESCRIPTION": "Добровольная поддержка проекта в Telegram Stars. Игровых преимуществ не даёт: ни Data, ни чипов, ни ускорений. Только «спасибо» и содержание серверов.",
+  "DONATE_MAX_STARS": 1000,
+  "DONATE_MIN_STARS": 1,
+  "DONATE_PAYLOAD_MAX_BYTES": 128,
+  "DONATE_PAYLOAD_PREFIX": "d1",
+  "DONATE_THANKS": "❤️ Спасибо за поддержку! Твой вклад идёт на серверы, домен и новые обновления. Игровой баланс он не меняет — качаться всё равно честным тапом.",
+  "DONATE_TIER_STARS": [
+   10,
+   25,
+   50,
+   100
+  ],
+  "DONATE_TITLE": "Поддержать HACKER KOMBAT"
+ },
+ "hack": {
+  "HACK_BASE_SUCCESS": {
+   "neutral": 0.9,
+   "bad": 0.88,
+   "good": 0.76,
+   "grey": 0.64
+  },
+  "HACK_MAX_CHANCE": 0.96,
+  "HACK_MIN_CHANCE": 0.05,
+  "HACK_OUTCOME_REWARD": {
+   "success": {
+    "data": 1,
+    "xp": 1,
+    "rep": 1,
+    "heat": 1,
+    "chips": 1
+   },
+   "partial": {
+    "data": 0.45,
+    "xp": 0.55,
+    "rep": 0.5,
+    "heat": 0.5,
+    "chips": 0
+   },
+   "fail": {
+    "data": 0,
+    "xp": 0.15,
+    "rep": 0,
+    "heat": 1.5,
+    "chips": 0
+   }
+  },
+  "HACK_PARTIAL_THRESHOLD": 0.45,
+  "MAX_PLAYER_LEVEL": 9007199254740991,
+  "MAX_SAFE_XP": 9007199254740991,
+  "MISSION_ENTRY_DATA_RATE": 0.12,
+  "MISSION_ENTRY_MIN_DATA": 25,
+  "MISSION_REWARD_LEVEL_GROWTH": 1.14,
+  "MISSION_REWARD_POST_CAP_GROWTH": 1.02,
+  "MISSION_REWARD_SOFT_CAP_LEVEL": 90,
+  "MISSION_TIER_MAX_LEVEL": {
+   "1": 3,
+   "2": 7,
+   "3": 12,
+   "4": 18,
+   "5": 26,
+   "6": 200
+  },
+  "MISSION_TIER_REF_LEVEL": {
+   "1": 1,
+   "2": 3,
+   "3": 7,
+   "4": 12,
+   "5": 18,
+   "6": 26
+  },
+  "XP_CURVE_COEF": 140,
+  "XP_CURVE_POWER": 2,
+  "XP_LEVEL_EXPONENT": 0.9
+ },
+ "incidents": {
+  "DAILY_INCIDENTS": [
+   {
+    "key": "corp_scanner",
+    "title": "Корпоративный сканер",
+    "brief": "Внешний сенсор заметил всплеск трафика. У тебя есть несколько секунд, чтобы выбрать протокол.",
+    "system": "СИСТЕМА · уровень угрозы растёт",
+    "choices": [
+     {
+      "key": "cover_tracks",
+      "title": "Спрятать следы",
+      "description": "Получить небольшой Data-бонус, снизить Heat и тихо укрепить репутацию.",
+      "icon": "🫥"
+     },
+     {
+      "key": "route_noise",
+      "title": "Пустить шум по маршруту",
+      "description": "Забрать немного Data, но оставить заметный след.",
+      "icon": "📡"
+     },
+     {
+      "key": "counter_scan",
+      "title": "Контрсканирование",
+      "description": "Рискнуть Heat ради шанса найти редкий Crypto-пакет.",
+      "icon": "⚔️"
+     }
+    ]
+   },
+   {
+    "key": "lost_packet",
+    "title": "Потерянный пакет",
+    "brief": "В relay застрял пакет с чужими ключами. Можно вернуть его владельцу, продать маршрут или изучить находку.",
+    "system": "СИСТЕМА · пакет без владельца",
+    "choices": [
+     {
+      "key": "return_packet",
+      "title": "Вернуть пакет",
+      "description": "Получить небольшой Data-бонус и Rep, убрать часть Heat за честный маршрут.",
+      "icon": "📦"
+     },
+     {
+      "key": "sell_packet",
+      "title": "Продать маршрут",
+      "description": "Быстрый Data-бонус с небольшим ростом Heat.",
+      "icon": "💠"
+     },
+     {
+      "key": "decode_packet",
+      "title": "Расшифровать находку",
+      "description": "Малый Data-бонус и шанс на Crypto, но след станет горячее.",
+      "icon": "🔐"
+     }
+    ]
+   },
+   {
+    "key": "ghost_login",
+    "title": "Призрачный логин",
+    "brief": "В старом терминале появился активный сеанс. Он может быть ловушкой, а может — коротким путём в закрытый узел.",
+    "system": "СИСТЕМА · неизвестный оператор",
+    "choices": [
+     {
+      "key": "close_session",
+      "title": "Закрыть сеанс",
+      "description": "Небольшой Data-бонус, меньше Heat и немного Rep за безопасный выход.",
+      "icon": "🚪"
+     },
+     {
+      "key": "borrow_session",
+      "title": "Взять сеанс напрокат",
+      "description": "Получить Data, приняв умеренный риск.",
+      "icon": "🛰️"
+     },
+     {
+      "key": "trace_operator",
+      "title": "Отследить оператора",
+      "description": "Проверить неизвестного хакера ради Crypto-пакета.",
+      "icon": "🕵️"
+     }
+    ]
+   },
+   {
+    "key": "decoy_signal",
+    "title": "Ложный сигнал",
+    "brief": "Сеть подбрасывает три одинаковых маяка. Только один ведёт к чистому маршруту.",
+    "system": "СИСТЕМА · доверие канала 41%",
+    "choices": [
+     {
+      "key": "clean_channel",
+      "title": "Выбрать чистый канал",
+      "description": "Небольшой Data-бонус, погасить Heat и получить Rep-бонус.",
+      "icon": "🟢"
+     },
+     {
+      "key": "harvest_signal",
+      "title": "Собрать сигнал",
+      "description": "Превратить шум в Data, но оставить цифровой отпечаток.",
+      "icon": "📶"
+     },
+     {
+      "key": "break_beacon",
+      "title": "Сломать маяк",
+      "description": "Попытаться выбить Crypto с повышенным риском.",
+      "icon": "💥"
+     }
+    ]
+   },
+   {
+    "key": "quiet_backdoor",
+    "title": "Тихий бэкдор",
+    "brief": "В обновлении старого роутера обнаружен незакрытый вход. Решение повлияет на Heat и репутацию команды.",
+    "system": "СИСТЕМА · окно закрывается",
+    "choices": [
+     {
+      "key": "patch_backdoor",
+      "title": "Закрыть дыру",
+      "description": "Получить небольшой Data-бонус, укрепить репутацию и снизить Heat.",
+      "icon": "🛡️"
+     },
+     {
+      "key": "use_backdoor",
+      "title": "Использовать окно",
+      "description": "Забрать Data до того, как маршрут исчезнет.",
+      "icon": "🕳️"
+     },
+     {
+      "key": "map_backdoor",
+      "title": "Составить карту",
+      "description": "Разведать сеть и рискнуть ради Crypto.",
+      "icon": "🗺️"
+     }
+    ]
+   },
+   {
+    "key": "blackout_window",
+    "title": "Окно блэкаута",
+    "brief": "На несколько минут район ушёл в тень. Можно переждать, заработать на тишине или проверить периметр.",
+    "system": "СИСТЕМА · видимость почти нулевая",
+    "choices": [
+     {
+      "key": "wait_blackout",
+      "title": "Переждать",
+      "description": "Получить небольшой Data-бонус, снизить Heat и сохранить чистые руки.",
+      "icon": "🌑"
+     },
+     {
+      "key": "work_blackout",
+      "title": "Работать в тени",
+      "description": "Повысить Data с небольшим риском обнаружения.",
+      "icon": "🌐"
+     },
+     {
+      "key": "scan_perimeter",
+      "title": "Проверить периметр",
+      "description": "Искать Crypto в темноте, принимая повышенный Heat.",
+      "icon": "🔦"
+     }
+    ]
+   }
+  ]
+ },
+ "inventory": {
+  "FIRST_DONUT_ITEM_KEY": "reward:first_donut",
+  "GIFT_COLA_ITEM_KEY": "reward:gift_cola",
+  "GIFT_SNUS_ITEM_KEY": "reward:gift_snus",
+  "GIFT_WHISKEY_ITEM_KEY": "reward:gift_whiskey"
+ },
+ "mechanics": {
+  "ACTIVITY_HEARTBEAT_MAX_GAP_SEC": 45,
+  "BASE_MAX_ENERGY": 1500,
+  "BASE_OFFLINE_CAP_SECONDS": 28800,
+  "BASE_UPGRADES_CONFIG": [
+   {
+    "key": "coffee_machine",
+    "requiredLevel": 1,
+    "name": "Кофемашина «Турбо»",
+    "description": "Двойной эспрессо не спрашивает, он просто работает.",
+    "effectLabel": "+1.33% к скорости регена CPU Energy за уровень",
+    "icon": "☕",
+    "maxLevel": 15,
+    "basePrice": 24000,
+    "priceGrowth": 1.85,
+    "baseChipCost": 1,
+    "effectPerLevel": 0.0133
+   },
+   {
+    "key": "standing_desk",
+    "requiredLevel": 3,
+    "name": "Стоячий стол",
+    "description": "Спина прямая — палец быстрее.",
+    "effectLabel": "+0.67% к силе клика за уровень",
+    "icon": "🪑",
+    "maxLevel": 15,
+    "basePrice": 48000,
+    "priceGrowth": 1.85,
+    "baseChipCost": 1,
+    "effectPerLevel": 0.0067
+   },
+   {
+    "key": "vpn_router",
+    "requiredLevel": 5,
+    "name": "VPN-роутер «Туман»",
+    "description": "Три прыжка через вымышленные узлы — и следов нет.",
+    "effectLabel": "−1% к приросту Heat за уровень",
+    "icon": "🛡️",
+    "maxLevel": 15,
+    "basePrice": 96000,
+    "priceGrowth": 1.9,
+    "baseChipCost": 2,
+    "effectPerLevel": 0.01
+   },
+   {
+    "key": "ups_battery",
+    "requiredLevel": 8,
+    "name": "ИБП «Последний Бастион»",
+    "description": "Город может погаснуть. Твой терминал — нет.",
+    "effectLabel": "+40 минут к оффлайн-копилке за уровень",
+    "icon": "🔋",
+    "maxLevel": 15,
+    "basePrice": 150000,
+    "priceGrowth": 1.9,
+    "baseChipCost": 2,
+    "effectPerLevel": 2400
+   },
+   {
+    "key": "auto_script",
+    "requiredLevel": 10,
+    "name": "Авто-скрипт «Роевик»",
+    "description": "Пока ты пьёшь кофе, он печатает.",
+    "effectLabel": "+0.067 авто-клика/сек за уровень",
+    "icon": "🤖",
+    "maxLevel": 15,
+    "basePrice": 240000,
+    "priceGrowth": 1.95,
+    "baseChipCost": 2,
+    "effectPerLevel": 0.0667
+   },
+   {
+    "key": "analytics_desk",
+    "requiredLevel": 13,
+    "name": "Аналитический терминал",
+    "description": "Графики говорят громче слов.",
+    "effectLabel": "+1% к награде за контракты за уровень",
+    "icon": "📊",
+    "maxLevel": 15,
+    "basePrice": 360000,
+    "priceGrowth": 1.95,
+    "baseChipCost": 3,
+    "effectPerLevel": 0.01
+   },
+   {
+    "key": "storage_rack",
+    "requiredLevel": 17,
+    "name": "Стеллаж-хранилище",
+    "description": "Каждый байт на своём месте — и работает на тебя.",
+    "effectLabel": "+1% к пассивному доходу за уровень",
+    "icon": "🗄️",
+    "maxLevel": 15,
+    "basePrice": 520000,
+    "priceGrowth": 2,
+    "baseChipCost": 3,
+    "effectPerLevel": 0.01
+   },
+   {
+    "key": "thermal_paste",
+    "requiredLevel": 21,
+    "name": "Жидкий металл",
+    "description": "Минус 12 градусов — плюс пара процентов скидки у поставщиков.",
+    "effectLabel": "−0.67% к цене всех карточек за уровень",
+    "icon": "🧴",
+    "maxLevel": 15,
+    "basePrice": 800000,
+    "priceGrowth": 2.05,
+    "baseChipCost": 4,
+    "effectPerLevel": 0.0067
+   },
+   {
+    "key": "auto_feeder",
+    "requiredLevel": 25,
+    "name": "Авто-кормушка",
+    "description": "Питомцы едят сами, пока ты в рейде.",
+    "effectLabel": "Авто-кормление питомцев +1.33% скидки на корм за уровень",
+    "icon": "🍽️",
+    "maxLevel": 15,
+    "basePrice": 1200000,
+    "priceGrowth": 2,
+    "baseChipCost": 4,
+    "effectPerLevel": 0.0133
+   },
+   {
+    "key": "lucky_charm",
+    "requiredLevel": 30,
+    "name": "Талисман удачи",
+    "description": "Кусок материнской платы на шнурке. Работает. Не спрашивай.",
+    "effectLabel": "+0.67% к шансу дропа Crypto с контрактов за уровень",
+    "icon": "🍀",
+    "maxLevel": 15,
+    "basePrice": 1800000,
+    "priceGrowth": 2.1,
+    "baseChipCost": 5,
+    "effectPerLevel": 0.0067
+   }
+  ],
+  "EMPTY_BASE_TOTALS": {
+   "energyRegenBonusPct": 0,
+   "clickBonusPct": 0,
+   "heatReductionPct": 0,
+   "offlineCapBonusSec": 0,
+   "autoClickPerSec": 0,
+   "missionRewardBonusPct": 0,
+   "passiveBonusPct": 0,
+   "cardPriceDiscountPct": 0,
+   "autoFeedEnabled": false,
+   "feedDiscountPct": 0,
+   "cryptoDropBonusPct": 0
+  },
+  "ENERGY_REGEN_SECONDS": 2,
+  "GAME_DAY_UTC_OFFSET_MINUTES": 180,
+  "HEAT_LOCKDOWN_SECONDS": 60,
+  "HEAT_PENALTY_DATA_LOSS_PCT": 0.1,
+  "HEAT_PENALTY_THRESHOLD": 100,
+  "HEAT_RESET_AFTER_PENALTY": 50,
+  "MAX_ENERGY_CAP": 5000,
+  "MAX_PRESTIGE_COUNT": 9007199254740991,
+  "OFFLINE_PASSIVE_RATE_MULT": 0.5,
+  "OFFLINE_REQUIRED_ACTIVE_SECONDS": 480,
+  "OFFLINE_TAP_CAP_SECONDS": 28800,
+  "OFFLINE_TAP_RATE_PER_SEC": 0.1,
+  "PRESTIGE_DOUBLING_CYCLES": 5,
+  "PRESTIGE_POST_CAP_BONUS": 0.1,
+  "PRESTIGE_REQUIRED_LEVEL": 50,
+  "RANK_TITLES": [
+   {
+    "minLevel": 1,
+    "minData": 0,
+    "title": "Первокурсник"
+   },
+   {
+    "minLevel": 5,
+    "minData": 2500,
+    "title": "Стажёр"
+   },
+   {
+    "minLevel": 10,
+    "minData": 15000,
+    "title": "Младший специалист"
+   },
+   {
+    "minLevel": 18,
+    "minData": 75000,
+    "title": "Пентестер"
+   },
+   {
+    "minLevel": 26,
+    "minData": 400000,
+    "title": "Специалист по безопасности"
+   },
+   {
+    "minLevel": 35,
+    "minData": 2000000,
+    "title": "Старший инженер"
+   },
+   {
+    "minLevel": 50,
+    "minData": 12000000,
+    "title": "Архитектор"
+   },
+   {
+    "minLevel": 70,
+    "minData": 60000000,
+    "title": "Руководитель группы"
+   },
+   {
+    "minLevel": 85,
+    "minData": 300000000,
+    "title": "Директор по рискам"
+   },
+   {
+    "minLevel": 100,
+    "minData": 1500000000,
+    "title": "Партнёр"
+   },
+   {
+    "minLevel": 125,
+    "minData": 8000000000,
+    "title": "Серый кардинал"
+   },
+   {
+    "minLevel": 155,
+    "minData": 40000000000,
+    "title": "Хранитель архива"
+   }
+  ]
+ },
+ "missions": {
+  "MISSIONS_CONFIG": [
+   {
+    "key": "scam_shop",
+    "targetName": "Магазин-однодневка",
+    "targetType": "bad",
+    "description": "Магазин кроссовок, который берёт предоплату и исчезает. Закрыть витрину, пока не заплатил ещё кто-то.",
+    "tier": 1,
+    "durationSec": 50,
+    "baseDataReward": 200,
+    "repDelta": 6,
+    "heatDelta": 0,
+    "xpReward": 22,
+    "requiredPower": 15,
+    "baseSuccess": 0.88,
+    "minLevel": 1
+   },
+   {
+    "key": "fake_lottery",
+    "targetName": "Фейковый розыгрыш",
+    "targetType": "bad",
+    "description": "«Разыгрываем телефон»: собирает номера и данные карт. Снять страницу и предупредить участников.",
+    "tier": 1,
+    "durationSec": 60,
+    "baseDataReward": 240,
+    "repDelta": 8,
+    "heatDelta": 0,
+    "xpReward": 27,
+    "requiredPower": 15,
+    "baseSuccess": 0.88,
+    "minLevel": 1
+   },
+   {
+    "key": "phishing_bank",
+    "targetName": "Копия входа в банк",
+    "targetType": "bad",
+    "description": "Точная копия банковской страницы входа. Перехватить домен и отдать данные настоящему банку.",
+    "tier": 2,
+    "durationSec": 100,
+    "baseDataReward": 600,
+    "repDelta": 10,
+    "heatDelta": 0,
+    "xpReward": 156,
+    "requiredPower": 45,
+    "baseSuccess": 0.88,
+    "minLevel": 3
+   },
+   {
+    "key": "bot_spam_net",
+    "targetName": "Ферма спам-звонков",
+    "targetType": "bad",
+    "description": "Автодозвон «из службы безопасности». Отключить панель, пока не позвонили твоей бабушке.",
+    "tier": 2,
+    "durationSec": 110,
+    "baseDataReward": 660,
+    "repDelta": 13,
+    "heatDelta": 0,
+    "xpReward": 171,
+    "requiredPower": 45,
+    "baseSuccess": 0.88,
+    "minLevel": 3
+   },
+   {
+    "key": "crypto_drain_fake",
+    "targetName": "Пустой airdrop",
+    "targetType": "bad",
+    "description": "Сайт обещает токены, а списывает всё с кошелька. Обезвредить контракт и вытащить список пострадавших.",
+    "tier": 3,
+    "durationSec": 160,
+    "baseDataReward": 1440,
+    "repDelta": 16,
+    "heatDelta": 0,
+    "xpReward": 871,
+    "requiredPower": 130,
+    "baseSuccess": 0.88,
+    "minLevel": 7
+   },
+   {
+    "key": "malware_bazaar",
+    "targetName": "Каталог «кряков»",
+    "targetType": "bad",
+    "description": "Под взломанными программами прячутся трояны. Закрыть каталог и предупредить форумы.",
+    "tier": 3,
+    "durationSec": 190,
+    "baseDataReward": 1710,
+    "repDelta": 22,
+    "heatDelta": 0,
+    "xpReward": 1034,
+    "requiredPower": 130,
+    "baseSuccess": 0.88,
+    "minLevel": 7
+   },
+   {
+    "key": "ransom_vault",
+    "targetName": "Шифровальщик в клинике",
+    "targetType": "bad",
+    "description": "Небольшая клиника, файлы с анализами зашифрованы. Восстановить ключи и вернуть базу.",
+    "tier": 4,
+    "durationSec": 260,
+    "baseDataReward": 3380,
+    "repDelta": 30,
+    "heatDelta": 0,
+    "xpReward": 3083,
+    "requiredPower": 360,
+    "baseSuccess": 0.88,
+    "minLevel": 12
+   },
+   {
+    "key": "deepfake_cartel",
+    "targetName": "Ферма дипфейков",
+    "targetType": "bad",
+    "description": "Канал с поддельными видео «руководства» для переводов. Остановить рассылку до следующей жертвы.",
+    "tier": 4,
+    "durationSec": 300,
+    "baseDataReward": 3900,
+    "repDelta": 42,
+    "heatDelta": 0,
+    "xpReward": 3558,
+    "requiredPower": 360,
+    "baseSuccess": 0.88,
+    "minLevel": 12
+   },
+   {
+    "key": "phantom_ponzi_core",
+    "targetName": "Инвест-пирамида",
+    "targetType": "bad",
+    "description": "Обещает 30% в месяц и платит старым за счёт новых. Заморозить выплаты и выгрузить реестр.",
+    "tier": 5,
+    "durationSec": 420,
+    "baseDataReward": 7560,
+    "repDelta": 60,
+    "heatDelta": 0,
+    "xpReward": 7917,
+    "requiredPower": 900,
+    "baseSuccess": 0.88,
+    "minLevel": 18
+   },
+   {
+    "key": "shadow_ai_collective",
+    "targetName": "Сеть колл-центров",
+    "targetType": "bad",
+    "description": "Сотни «сотрудников банка» в одном здании. Разрушить связку и вернуть базы клиентов.",
+    "tier": 6,
+    "durationSec": 720,
+    "baseDataReward": 18720,
+    "repDelta": -28,
+    "heatDelta": 52,
+    "xpReward": 19469,
+    "requiredPower": 2200,
+    "baseSuccess": 0.88,
+    "minLevel": 26
+   },
+   {
+    "key": "retro_blog",
+    "targetName": "Свой старый блог",
+    "targetType": "neutral",
+    "description": "Свой же блог на древнем движке: спокойный полигон, где можно тренироваться без последствий.",
+    "tier": 1,
+    "durationSec": 40,
+    "baseDataReward": 144,
+    "repDelta": 0,
+    "heatDelta": 4,
+    "xpReward": 18,
+    "requiredPower": 15,
+    "baseSuccess": 0.9,
+    "minLevel": 1
+   },
+   {
+    "key": "pixel_arcade",
+    "targetName": "Аркадный автомат",
+    "targetType": "neutral",
+    "description": "Автомат в баре держит рекорд десять лет. Перебить его и вписать свой ник.",
+    "tier": 1,
+    "durationSec": 45,
+    "baseDataReward": 162,
+    "repDelta": 0,
+    "heatDelta": 3,
+    "xpReward": 20,
+    "requiredPower": 15,
+    "baseSuccess": 0.9,
+    "minLevel": 1
+   },
+   {
+    "key": "dev_forum",
+    "targetName": "Архив форума",
+    "targetType": "neutral",
+    "description": "Собрать архив старых обсуждений с рабочими конфигами, пока форум не закрыли.",
+    "tier": 1,
+    "durationSec": 55,
+    "baseDataReward": 198,
+    "repDelta": 0,
+    "heatDelta": 5,
+    "xpReward": 24,
+    "requiredPower": 15,
+    "baseSuccess": 0.9,
+    "minLevel": 1
+   },
+   {
+    "key": "indie_radio",
+    "targetName": "Ночной эфир",
+    "targetType": "neutral",
+    "description": "Независимая радиостанция принимает треки от слушателей. Пропихнуть свой в плейлист.",
+    "tier": 2,
+    "durationSec": 95,
+    "baseDataReward": 513,
+    "repDelta": 1,
+    "heatDelta": 6,
+    "xpReward": 148,
+    "requiredPower": 45,
+    "baseSuccess": 0.9,
+    "minLevel": 3
+   },
+   {
+    "key": "drone_racing_hub",
+    "targetName": "Картинг-трек",
+    "targetType": "neutral",
+    "description": "Любительская лига картинга: выгрузить результаты и телеметрию для своего архива.",
+    "tier": 3,
+    "durationSec": 150,
+    "baseDataReward": 1215,
+    "repDelta": 2,
+    "heatDelta": 7,
+    "xpReward": 817,
+    "requiredPower": 130,
+    "baseSuccess": 0.9,
+    "minLevel": 7
+   },
+   {
+    "key": "holo_cinema_grid",
+    "targetName": "Кино на крыше",
+    "targetType": "neutral",
+    "description": "Независимый кинотеатр под открытым небом. Поставить свой анонс в очередь афиши.",
+    "tier": 4,
+    "durationSec": 240,
+    "baseDataReward": 2808,
+    "repDelta": 2,
+    "heatDelta": 8,
+    "xpReward": 2846,
+    "requiredPower": 360,
+    "baseSuccess": 0.9,
+    "minLevel": 12
+   },
+   {
+    "key": "metro_grid",
+    "targetName": "Табло на станции",
+    "targetType": "good",
+    "description": "Официальное табло расписания. Тихая шалость — но патруль смотрит.",
+    "tier": 1,
+    "durationSec": 65,
+    "baseDataReward": 377,
+    "repDelta": -5,
+    "heatDelta": 14,
+    "xpReward": 29,
+    "requiredPower": 15,
+    "baseSuccess": 0.76,
+    "minLevel": 1
+   },
+   {
+    "key": "gov_portal",
+    "targetName": "Портал услуг",
+    "targetType": "good",
+    "description": "Публичный портал города. Громко, шумно, и Heat растёт быстро.",
+    "tier": 2,
+    "durationSec": 115,
+    "baseDataReward": 1000,
+    "repDelta": -12,
+    "heatDelta": 24,
+    "xpReward": 179,
+    "requiredPower": 45,
+    "baseSuccess": 0.76,
+    "minLevel": 3
+   },
+   {
+    "key": "mega_corp",
+    "targetName": "Логистика ретейлера",
+    "targetType": "good",
+    "description": "Складская система крупной сети магазинов: внутренние цены и остатки.",
+    "tier": 2,
+    "durationSec": 120,
+    "baseDataReward": 1044,
+    "repDelta": -6,
+    "heatDelta": 16,
+    "xpReward": 187,
+    "requiredPower": 45,
+    "baseSuccess": 0.76,
+    "minLevel": 3
+   },
+   {
+    "key": "biogen_labs",
+    "targetName": "Сеть лабораторий",
+    "targetType": "good",
+    "description": "Медицинские лаборатории: закрытые результаты исследований и записи пациентов.",
+    "tier": 3,
+    "durationSec": 170,
+    "baseDataReward": 2218,
+    "repDelta": -9,
+    "heatDelta": 20,
+    "xpReward": 926,
+    "requiredPower": 130,
+    "baseSuccess": 0.76,
+    "minLevel": 7
+   },
+   {
+    "key": "omni_bank",
+    "targetName": "Клиринг банка",
+    "targetType": "good",
+    "description": "Узел банковских переводов. Крупный куш и очень громкий след.",
+    "tier": 3,
+    "durationSec": 210,
+    "baseDataReward": 2740,
+    "repDelta": -16,
+    "heatDelta": 30,
+    "xpReward": 1143,
+    "requiredPower": 130,
+    "baseSuccess": 0.76,
+    "minLevel": 7
+   },
+   {
+    "key": "aether_cloud",
+    "targetName": "Облачный провайдер",
+    "targetType": "good",
+    "description": "Чужие серверы без оплаты: мощности на халяву и большой счёт в конце месяца.",
+    "tier": 4,
+    "durationSec": 270,
+    "baseDataReward": 5090,
+    "repDelta": -20,
+    "heatDelta": 34,
+    "xpReward": 3202,
+    "requiredPower": 360,
+    "baseSuccess": 0.76,
+    "minLevel": 12
+   },
+   {
+    "key": "star_orbital",
+    "targetName": "Магистральный оператор",
+    "targetType": "good",
+    "description": "Оператор связи: стабильный канал и большие данные, но полиция уже рядом.",
+    "tier": 4,
+    "durationSec": 330,
+    "baseDataReward": 6220,
+    "repDelta": -25,
+    "heatDelta": 40,
+    "xpReward": 3913,
+    "requiredPower": 360,
+    "baseSuccess": 0.76,
+    "minLevel": 12
+   },
+   {
+    "key": "quantum_exchange",
+    "targetName": "Биржа",
+    "targetType": "good",
+    "description": "Рейд на клиринговый модуль биржи. Максимальный Heat за один заход.",
+    "tier": 5,
+    "durationSec": 450,
+    "baseDataReward": 11745,
+    "repDelta": -32,
+    "heatDelta": 44,
+    "xpReward": 8483,
+    "requiredPower": 900,
+    "baseSuccess": 0.76,
+    "minLevel": 18
+   },
+   {
+    "key": "citadel_ai_vault",
+    "targetName": "Дата-центр банка",
+    "targetType": "good",
+    "description": "Финальный корпоративный бастион: резервные копии и колоссальный запас Data.",
+    "tier": 5,
+    "durationSec": 480,
+    "baseDataReward": 12528,
+    "repDelta": -40,
+    "heatDelta": 48,
+    "xpReward": 9048,
+    "requiredPower": 900,
+    "baseSuccess": 0.76,
+    "minLevel": 18
+   },
+   {
+    "key": "orbital_bank_ring",
+    "targetName": "Межбанковский клиринг",
+    "targetType": "good",
+    "description": "Самая охраняемая цель: межбанковский клиринг. Огромный куш — огромный Heat.",
+    "tier": 6,
+    "durationSec": 780,
+    "baseDataReward": 29406,
+    "repDelta": -34,
+    "heatDelta": 46,
+    "xpReward": 21091,
+    "requiredPower": 2200,
+    "baseSuccess": 0.76,
+    "minLevel": 26
+   },
+   {
+    "key": "grey_offshore_ledger",
+    "targetName": "Офшорный реестр",
+    "targetType": "grey",
+    "description": "Секретный контракт Ирис: аудит теневого реестра с шансом редкой Крипты.",
+    "tier": 3,
+    "durationSec": 200,
+    "baseDataReward": 2340,
+    "repDelta": 15,
+    "heatDelta": 6,
+    "xpReward": 1089,
+    "requiredPower": 130,
+    "baseSuccess": 0.64,
+    "minLevel": 7,
+    "cryptoDropChance": 0.45
+   },
+   {
+    "key": "grey_syndicate_node",
+    "targetName": "Узел серых подрядчиков",
+    "targetType": "grey",
+    "description": "Рейд по наводке Ирис: высокий доход Data, Rep и шанс Crypto.",
+    "tier": 4,
+    "durationSec": 300,
+    "baseDataReward": 5070,
+    "repDelta": 22,
+    "heatDelta": 8,
+    "xpReward": 3558,
+    "requiredPower": 360,
+    "baseSuccess": 0.64,
+    "minLevel": 12,
+    "cryptoDropChance": 0.6
+   },
+   {
+    "key": "grey_ghost_sat",
+    "targetName": "Заброшенный узел связи",
+    "targetType": "grey",
+    "description": "Расшифровать старую станцию и найти следы прошлых владельцев (+шанс 💎 Crypto).",
+    "tier": 5,
+    "durationSec": 400,
+    "baseDataReward": 9360,
+    "repDelta": 30,
+    "heatDelta": 10,
+    "xpReward": 7540,
+    "requiredPower": 900,
+    "baseSuccess": 0.64,
+    "minLevel": 18,
+    "cryptoDropChance": 0.65
+   },
+   {
+    "key": "grey_quantum_archive",
+    "targetName": "Архив закрытых отчётов",
+    "targetType": "grey",
+    "description": "Высший секретный контракт: архив синдиката (+высокий шанс 💎 Crypto).",
+    "tier": 6,
+    "durationSec": 600,
+    "baseDataReward": 20280,
+    "repDelta": 42,
+    "heatDelta": 12,
+    "xpReward": 16224,
+    "requiredPower": 2200,
+    "baseSuccess": 0.64,
+    "minLevel": 26,
+    "cryptoDropChance": 0.75
+   }
+  ]
+ },
+ "pets": {
+  "EMPTY_PET_BUFFS": {
+   "passiveBonusPct": 0,
+   "clickBonusPct": 0,
+   "heatReductionPct": 0,
+   "missionBonusPct": 0
+  },
+  "PETS_CONFIG": [
+   {
+    "key": "hamster_byte",
+    "name": "Хомяк «Байт»",
+    "species": "Хомяк",
+    "emoji": "🐹",
+    "description": "Живёт в системном блоке и греется о кулер. Пока сыт — подъедает фоновые процессы и ускоряет пассивный доход.",
+    "quote": "«Он не грызёт провода. Почти.»",
+    "costCurrency": "data",
+    "costAmount": 60000,
+    "requiredLevel": 14,
+    "buffType": "passive",
+    "buffPct": 0.03,
+    "buffLabel": "+3% к пассивному доходу Data/час",
+    "hungerDecayPerHour": 2.1,
+    "feedHunger": 45,
+    "feedCooldownHours": 4,
+    "feedBaseCost": 80
+   },
+   {
+    "key": "rat_glitch",
+    "name": "Крыса «Глитч»",
+    "species": "Крыса",
+    "emoji": "🐭",
+    "description": "Нашла себе дом в кабельном лотке и знает каждый тайный проход. Пока сыта — подсказывает идеальные тайминги тапа.",
+    "quote": "«Она была здесь до тебя. И останется после.»",
+    "costCurrency": "crypto",
+    "costAmount": 120,
+    "requiredLevel": 17,
+    "buffType": "click",
+    "buffPct": 0.04,
+    "buffLabel": "+4% к силе клика",
+    "hungerDecayPerHour": 2.4,
+    "feedHunger": 45,
+    "feedCooldownHours": 4,
+    "feedBaseCost": 150
+   },
+   {
+    "key": "guinea_pixel",
+    "name": "Морская свинка «Пиксель»",
+    "species": "Морская свинка",
+    "emoji": "🐷",
+    "description": "Самая спокойная в команде. Гасит нервы оператора, поэтому Heat растёт медленнее, а добыча с контрактов — вкуснее.",
+    "quote": "«Свинка не паникует. Свинка планирует.»",
+    "costCurrency": "rep",
+    "costAmount": 450,
+    "requiredLevel": 20,
+    "buffType": "heat",
+    "buffPct": 0.09,
+    "buffLabel": "−9% к приросту Heat и +4% к награде за контракты",
+    "missionBonusPct": 0.04,
+    "hungerDecayPerHour": 1.8,
+    "feedHunger": 45,
+    "feedCooldownHours": 5,
+    "feedBaseCost": 220
+   }
+  ],
+  "PET_AFFECTION_BONUS_PER_LEVEL": 0.03,
+  "PET_AFFECTION_MAX": 10,
+  "PET_FEEDINGS_PER_AFFECTION": 5,
+  "PET_FULL_THRESHOLD": 60,
+  "PET_HUNGRY_THRESHOLD": 30
+ },
+ "profileFrames": {
+  "PROFILE_FRAMES": [
+   {
+    "key": "default",
+    "name": "Без рамки",
+    "description": "Стандартный профиль оператора.",
+    "accent": "#64748b",
+    "background": "rgba(15, 23, 42, 0.92)",
+    "glow": "none",
+    "source": "Базовый профиль"
+   },
+   {
+    "key": "frame_cyan_pulse",
+    "name": "Cyan Pulse",
+    "description": "Чистый голубой импульс — базовый цвет терминала, собранный в строгую неоновую рамку.",
+    "accent": "#00f0ff",
+    "background": "linear-gradient(135deg, rgba(0,240,255,0.26), rgba(14,116,144,0.18))",
+    "glow": "0 0 14px rgba(0, 240, 255, 0.48)",
+    "source": "Магазин · базовая палитра",
+    "cryptoCost": 480,
+    "requiredLevel": 30
+   },
+   {
+    "key": "frame_magenta_breach",
+    "name": "Magenta Breach",
+    "description": "Малиновый сигнал тревоги и мягкий фиолетовый перелив в стиле закрытого канала.",
+    "accent": "#ff00a0",
+    "background": "linear-gradient(135deg, rgba(255,0,160,0.28), rgba(126,34,206,0.2))",
+    "glow": "0 0 14px rgba(255, 0, 160, 0.46)",
+    "source": "Магазин · базовая палитра",
+    "cryptoCost": 620,
+    "requiredLevel": 30
+   },
+   {
+    "key": "frame_lime_overclock",
+    "name": "Lime Overclock",
+    "description": "Кислотно-зелёная линия разгона для тех, кто держит терминал на пределе.",
+    "accent": "#7dff00",
+    "background": "linear-gradient(135deg, rgba(125,255,0,0.24), rgba(20,83,45,0.2))",
+    "glow": "0 0 14px rgba(125, 255, 0, 0.42)",
+    "source": "Магазин · базовая палитра",
+    "cryptoCost": 760,
+    "requiredLevel": 30
+   },
+   {
+    "key": "frame_amber_trace",
+    "name": "Amber Trace",
+    "description": "Янтарный след старого CRT поверх тёмного корпуса — тёплый цвет в холодной сети.",
+    "accent": "#ffb703",
+    "background": "linear-gradient(135deg, rgba(255,183,3,0.3), rgba(146,64,14,0.2))",
+    "glow": "0 0 15px rgba(255, 183, 3, 0.46)",
+    "source": "Магазин · базовая палитра",
+    "cryptoCost": 920,
+    "requiredLevel": 30
+   },
+   {
+    "key": "frame_violet_ghost",
+    "name": "Фиалковый",
+    "description": "Фиолетовый фантомный контур — редкий, но всё ещё честный базовый хром.",
+    "accent": "#c084fc",
+    "background": "linear-gradient(135deg, rgba(192,132,252,0.28), rgba(76,29,149,0.24))",
+    "glow": "0 0 16px rgba(192, 132, 252, 0.5)",
+    "source": "Магазин · базовая палитра",
+    "cryptoCost": 1100,
+    "requiredLevel": 30
+   },
+   {
+    "key": "frame_red_alert",
+    "name": "Red Alert",
+    "description": "Багровая рамка аварийного протокола для профиля, который всегда на острие.",
+    "accent": "#f43f5e",
+    "background": "linear-gradient(135deg, rgba(244,63,94,0.3), rgba(127,29,29,0.24))",
+    "glow": "0 0 16px rgba(244, 63, 94, 0.48)",
+    "source": "Магазин · базовая палитра",
+    "cryptoCost": 1350,
+    "requiredLevel": 30
+   },
+   {
+    "key": "frame_prism_circuit",
+    "name": "Prism Circuit",
+    "description": "Призматические дорожки переливаются от бирюзы к фуксии — первая рамка элитного сектора.",
+    "accent": "#67e8f9",
+    "background": "linear-gradient(135deg, rgba(103,232,249,0.28), rgba(192,132,252,0.3), rgba(244,114,182,0.2))",
+    "glow": "0 0 18px rgba(103, 232, 249, 0.56), inset 0 0 12px rgba(244, 114, 182, 0.18)",
+    "borderImage": "linear-gradient(135deg, #67e8f9, #c084fc, #f472b6, #67e8f9) 1",
+    "source": "Магазин · элитный сектор",
+    "cryptoCost": 2500,
+    "requiredLevel": 45
+   },
+   {
+    "key": "frame_black_ice",
+    "name": "Black ICE Crown",
+    "description": "Чёрный лёд и серебряная корона для оператора, который больше не ошибается дважды.",
+    "accent": "#bae6fd",
+    "background": "linear-gradient(135deg, rgba(15,23,42,0.98), rgba(14,116,144,0.52))",
+    "glow": "0 0 20px rgba(186, 230, 253, 0.5), inset 0 0 14px rgba(56, 189, 248, 0.18)",
+    "borderImage": "linear-gradient(135deg, #0f172a, #bae6fd, #38bdf8, #0f172a) 1",
+    "source": "Магазин · элитный сектор",
+    "cryptoCost": 4500,
+    "requiredLevel": 60
+   },
+   {
+    "key": "frame_aurora_ring",
+    "name": "Aurora Ring",
+    "description": "Северное сияние в замкнутом контуре — заметна даже среди самых ярких профилей.",
+    "accent": "#bef264",
+    "background": "linear-gradient(135deg, rgba(20,83,45,0.7), rgba(8,47,73,0.86), rgba(88,28,135,0.42))",
+    "glow": "0 0 22px rgba(190, 242, 100, 0.56), inset 0 0 16px rgba(34, 211, 238, 0.2)",
+    "borderImage": "linear-gradient(135deg, #22d3ee, #bef264, #c084fc, #22d3ee) 1",
+    "source": "Магазин · элитный сектор",
+    "cryptoCost": 7500,
+    "requiredLevel": 80
+   },
+   {
+    "key": "frame_gold_root",
+    "name": "Gold Root Access",
+    "description": "Золотой root-доступ без лишних слов: рамка для высокого ранга и длинной карьеры.",
+    "accent": "#fbbf24",
+    "background": "linear-gradient(135deg, rgba(120,53,15,0.72), rgba(31,41,55,0.9), rgba(180,83,9,0.38))",
+    "glow": "0 0 24px rgba(251, 191, 36, 0.62), inset 0 0 16px rgba(254, 240, 138, 0.2)",
+    "borderImage": "linear-gradient(135deg, #92400e, #fbbf24, #fef3c7, #f59e0b, #92400e) 1",
+    "source": "Магазин · элитный сектор",
+    "cryptoCost": 12000,
+    "requiredLevel": 105
+   },
+   {
+    "key": "frame_quantum_halo",
+    "name": "Тёплый Ореол",
+    "description": "Тёплый ореол с фиолетовым ядром — редкая отметка того, кто ушёл далеко за сотый уровень.",
+    "accent": "#e9d5ff",
+    "background": "radial-gradient(circle at 30% 20%, rgba(233,213,255,0.42), transparent 34%), linear-gradient(135deg, rgba(76,29,149,0.78), rgba(8,47,73,0.82))",
+    "glow": "0 0 26px rgba(216, 180, 254, 0.68), inset 0 0 18px rgba(103, 232, 249, 0.2)",
+    "borderImage": "linear-gradient(135deg, #4c1d95, #e9d5ff, #67e8f9, #a855f7, #4c1d95) 1",
+    "source": "Магазин · элитный сектор",
+    "cryptoCost": 20000,
+    "requiredLevel": 135
+   },
+   {
+    "key": "frame_endless_operator",
+    "name": "Endless Operator",
+    "description": "Бесконечный контур карьеры: самая дорогая рамка магазина для тех, кто не признаёт финалов.",
+    "accent": "#fef08a",
+    "background": "conic-gradient(from 220deg, rgba(251,191,36,0.46), rgba(244,114,182,0.34), rgba(103,232,249,0.42), rgba(167,139,250,0.46), rgba(251,191,36,0.46))",
+    "glow": "0 0 30px rgba(254, 240, 138, 0.7), inset 0 0 18px rgba(255,255,255,0.22)",
+    "borderImage": "linear-gradient(135deg, #fef08a, #f59e0b, #f472b6, #67e8f9, #fef08a) 1",
+    "source": "Магазин · элитный сектор",
+    "cryptoCost": 35000,
+    "requiredLevel": 180
+   },
+   {
+    "key": "frame_rooster_red",
+    "name": "Красный Петух",
+    "description": "Алый боевой профиль с головой петуха. Постоянный персональный подарок администратора.",
+    "accent": "#ff304f",
+    "background": "linear-gradient(135deg, rgba(255,48,79,0.34), rgba(92,10,24,0.72))",
+    "glow": "0 0 18px rgba(255, 48, 79, 0.7), inset 0 0 12px rgba(255, 184, 77, 0.18)",
+    "source": "Подарок администратора · навсегда",
+    "iconUrl": "/assets/frames/rooster-red.png",
+    "giftOnly": true
+   },
+   {
+    "key": "frame_rainbow_fish",
+    "name": "Радужный Карась",
+    "description": "Радужный карась в водяной рамке для профиля SolidPegasus. Постоянный персональный подарок администратора.",
+    "accent": "#67e8f9",
+    "background": "conic-gradient(from 210deg, rgba(255,92,240,0.45), rgba(255,209,102,0.38), rgba(93,246,255,0.42), rgba(129,140,248,0.46), rgba(255,92,240,0.45))",
+    "glow": "0 0 18px rgba(93, 246, 255, 0.62), inset 0 0 14px rgba(255, 92, 240, 0.24)",
+    "borderImage": "linear-gradient(135deg, #ff5cf0, #ffd166, #5df6ff, #818cf8, #ff5cf0) 1",
+    "source": "Подарок администратора · навсегда",
+    "avatarUrl": "/assets/frames/solidpegasus-fish.png",
+    "giftOnly": true
+   },
+   {
+    "key": "frame_matrix_rain",
+    "name": "Matrix Runner · useryou2202",
+    "description": "Бегущий цифровой дождь в стиле Матрицы с читаемым ником useryou2202. Персональный постоянный подарок администратора.",
+    "accent": "#42ff77",
+    "background": "linear-gradient(135deg, rgba(2,24,13,0.96), rgba(0,72,34,0.8))",
+    "glow": "0 0 20px rgba(66, 255, 119, 0.72), inset 0 0 14px rgba(66, 255, 119, 0.22)",
+    "borderImage": "linear-gradient(135deg, #0b6b32, #42ff77, #b6ffcb, #18c964, #0b6b32) 1",
+    "source": "Персональный подарок администратора · навсегда",
+    "avatarMode": "matrix_rain",
+    "avatarLabel": "useryou2202",
+    "giftOnly": true
+   },
+   {
+    "key": "frame_neon_relay",
+    "name": "Neon Relay · Участник",
+    "description": "Голубая рамка за первый полностью пройденный день Neon Relay.",
+    "accent": "#00f0ff",
+    "background": "linear-gradient(135deg, rgba(0,240,255,0.22), rgba(168,85,247,0.24))",
+    "glow": "0 0 12px rgba(0, 240, 255, 0.42)",
+    "source": "Сезонная операция · участие",
+    "eventKey": "neon-relay"
+   },
+   {
+    "key": "frame_neon_relay_master",
+    "name": "Neon Relay · Мастер",
+    "description": "Золотая рамка за полное прохождение всех 7 дней Neon Relay.",
+    "accent": "#ffb703",
+    "background": "linear-gradient(135deg, rgba(255,183,3,0.28), rgba(255,0,160,0.24))",
+    "glow": "0 0 16px rgba(255, 183, 3, 0.52)",
+    "source": "Сезонная операция · мастерство",
+    "eventKey": "neon-relay"
+   }
+  ]
+ },
+ "referral": {
+  "REFERRAL_ATTRIBUTION_WINDOW_DAYS": 7,
+  "REFERRAL_CODE_LENGTH": 8,
+  "REFERRAL_DAILY_LIMIT": 3,
+  "REFERRAL_DATA_WEEKLY_HOURS": 8,
+  "REFERRAL_INVITEE_DATA": 2000,
+  "REFERRAL_INVITEE_DATA_REWARD": 2000,
+  "REFERRAL_INVITEE_XP_SHARE": 0.15,
+  "REFERRAL_LINK_PREFIX": "ref_",
+  "REFERRAL_MAX_SAME_NETWORK_PER_DAY": 3,
+  "REFERRAL_QUALIFY_ACTIVE_SECONDS": 480,
+  "REFERRAL_REFERRER_DATA_HOURS": 1,
+  "REFERRAL_REFERRER_DATA_MAX": 250000,
+  "REFERRAL_REFERRER_DATA_MIN": 2000,
+  "REFERRAL_REFERRER_XP_SHARE": 0.5,
+  "REFERRAL_RULES_SHORT": "Друг должен сыграть 8 минут. За каждого засчитанного друга: половина твоего уровня в XP и час пассивного дохода в Data. Другу — стартовый бонус. Лимит: 3 друга в сутки, 10 в неделю.",
+  "REFERRAL_WEEKLY_LIMIT": 10,
+  "REFERRAL_XP_DAILY_LEVELS": 1,
+  "REFERRAL_XP_WEEKLY_LEVELS": 3
+ },
+ "seasonalEvent": {
+  "ACTIVE_SEASON_EVENT": {
+   "key": "neon-relay",
+   "title": "Международный протокол · Neon Relay",
+   "subtitle": "Семь календарных дней. Каждый день — три личных задания.",
+   "description": "Закрывай сегодняшнюю тройку, не меняя обычную экономику контрактов. Первый полный день открывает голубую рамку, все семь — золотую.",
+   "dayCount": 7,
+   "dailyTasksPerDay": 3,
+   "participationFrameKey": "frame_neon_relay",
+   "masteryFrameKey": "frame_neon_relay_master",
+   "scenarios": [
+    {
+     "day": 1,
+     "title": "Поймать сигнал",
+     "description": "Получить первый набор из трёх заданий и синхронизировать relay.",
+     "system": "День 1 · старт"
+    },
+    {
+     "day": 2,
+     "title": "Открыть туннель",
+     "description": "Новый набор задач приходит только с новым календарным днём.",
+     "system": "День 2 · новый набор"
+    },
+    {
+     "day": 3,
+     "title": "Провести пакет",
+     "description": "Закрыть сегодняшние три шага без reroll после перезагрузки.",
+     "system": "День 3 · стабильность"
+    },
+    {
+     "day": 4,
+     "title": "Усилить relay",
+     "description": "Сложность тройки зафиксирована по уровню на момент её выдачи.",
+     "system": "День 4 · масштабирование"
+    },
+    {
+     "day": 5,
+     "title": "Сверить маршруты",
+     "description": "Собрать ещё один дневной пакет и продолжить недельный маршрут.",
+     "system": "День 5 · маршрут"
+    },
+    {
+     "day": 6,
+     "title": "Закрыть периметр",
+     "description": "Остался один полный день до мастерской награды.",
+     "system": "День 6 · периметр"
+    },
+    {
+     "day": 7,
+     "title": "Передать финальный пакет",
+     "description": "Закрыть последнюю тройку и открыть золотую рамку мастера.",
+     "system": "День 7 · финал"
+    }
+   ]
+  },
+  "SEASON_EVENT_DAY_COUNT": 7,
+  "SEASON_EVENT_LAUNCH_AT_ISO": "2026-10-27T09:00:00+03:00",
+  "SEASON_EVENT_TASKS_PER_DAY": 3
+ },
+ "skins": {
+  "DEFAULT_SKIN_SLOTS": {
+   "desk": "default",
+   "ui": "",
+   "avatar": ""
+  },
+  "SKINS_CONFIG": [
+   {
+    "key": "default",
+    "name": "Сан-Мираж OS",
+    "description": "Тёплый терминал у моря: терракота, янтарь и бирюза.",
+    "category": "desk",
+    "cryptoCost": 0,
+    "primaryHex": "#ff9a5a",
+    "secondaryHex": "#4ecdc4",
+    "accentHex": "#a8d98a",
+    "cssFilter": "none",
+    "clickBonusPct": 0
+   },
+   {
+    "key": "sakura",
+    "name": "Shibuya Overdrive",
+    "description": "Пурпурно-малиновый неон с постоянным +5% к мощности тапа.",
+    "category": "desk",
+    "cryptoCost": 12,
+    "primaryHex": "#ff00a0",
+    "secondaryHex": "#bd00ff",
+    "accentHex": "#00f0ff",
+    "cssFilter": "hue-rotate(85deg) saturate(1.25)",
+    "clickBonusPct": 0.05
+   },
+   {
+    "key": "matrix",
+    "name": "Zion Phosphor",
+    "description": "Изумрудный терминал Матрицы с постоянным +8% к мощности тапа.",
+    "category": "desk",
+    "cryptoCost": 22,
+    "primaryHex": "#7dff00",
+    "secondaryHex": "#00ff88",
+    "accentHex": "#00f0ff",
+    "cssFilter": "hue-rotate(255deg) saturate(1.3)",
+    "clickBonusPct": 0.08
+   },
+   {
+    "key": "solar",
+    "name": "Gold Mainframe",
+    "description": "Кибер-золото элиты даркнета с +12% к мощности тапа.",
+    "category": "desk",
+    "cryptoCost": 35,
+    "primaryHex": "#ffb800",
+    "secondaryHex": "#ff006e",
+    "accentHex": "#ffe600",
+    "cssFilter": "hue-rotate(165deg) saturate(1.35) contrast(1.05)",
+    "clickBonusPct": 0.12
+   },
+   {
+    "key": "void_phantom",
+    "name": "Тёмный Кабинет",
+    "description": "Редкий коллекционный скин эндгейма за Crypto (+18% к мощности тапа).",
+    "category": "desk",
+    "cryptoCost": 65,
+    "primaryHex": "#38bdf8",
+    "secondaryHex": "#c084fc",
+    "accentHex": "#f43f5e",
+    "cssFilter": "hue-rotate(310deg) saturate(1.4) contrast(1.08)",
+    "clickBonusPct": 0.18
+   },
+   {
+    "key": "prestige_omega",
+    "name": "Вечерний Лофт",
+    "description": "Награда за Global Hack: тёплый вечерний свет в кабинете, +22% к мощности тапа.",
+    "category": "desk",
+    "cryptoCost": 0,
+    "prestigeRequired": true,
+    "primaryHex": "#a855f7",
+    "secondaryHex": "#00f0ff",
+    "accentHex": "#7dff00",
+    "cssFilter": "hue-rotate(48deg) saturate(1.45) contrast(1.08)",
+    "clickBonusPct": 0.22
+   },
+   {
+    "key": "neon_tokyo",
+    "name": "Дождь над городом",
+    "description": "Мокрая неоновая улица: розовые вывески и отражения в лужах.",
+    "category": "desk",
+    "cryptoCost": 18,
+    "requiredLevel": 6,
+    "primaryHex": "#ff4d9d",
+    "secondaryHex": "#7c3aed",
+    "accentHex": "#22d3ee",
+    "cssFilter": "hue-rotate(300deg) saturate(1.3)",
+    "clickBonusPct": 0.06
+   },
+   {
+    "key": "ice_archive",
+    "name": "Ice Vault",
+    "description": "Холодный ледяной дата-центр: сине-белые блики на стекле.",
+    "category": "desk",
+    "cryptoCost": 28,
+    "requiredLevel": 10,
+    "primaryHex": "#7dd3fc",
+    "secondaryHex": "#e0f2fe",
+    "accentHex": "#38bdf8",
+    "cssFilter": "hue-rotate(180deg) saturate(0.85) brightness(1.08)",
+    "clickBonusPct": 0.09
+   },
+   {
+    "key": "blood_lan",
+    "name": "Blood LAN",
+    "description": "Красная тревога в серверной: багровый неон и аварийные лампы.",
+    "category": "desk",
+    "cryptoCost": 48,
+    "requiredLevel": 16,
+    "primaryHex": "#ef4444",
+    "secondaryHex": "#7f1d1d",
+    "accentHex": "#fca5a5",
+    "cssFilter": "hue-rotate(140deg) saturate(1.5) contrast(1.1)",
+    "clickBonusPct": 0.15
+   },
+   {
+    "key": "aurora_grid",
+    "name": "Aurora Grid",
+    "description": "Северное сияние поверх сетки дата-центра — редкий стол для долгих рейдов (+10% к мощности тапа).",
+    "category": "desk",
+    "cryptoCost": 180,
+    "requiredLevel": 24,
+    "primaryHex": "#67e8f9",
+    "secondaryHex": "#8b5cf6",
+    "accentHex": "#bef264",
+    "cssFilter": "hue-rotate(225deg) saturate(1.28) brightness(1.04)",
+    "clickBonusPct": 0.1
+   },
+   {
+    "key": "black_ice",
+    "name": "Black ICE",
+    "description": "Чёрный лёд: холодный доступ к закрытому контуру и +15% к мощности тапа.",
+    "category": "desk",
+    "cryptoCost": 360,
+    "requiredLevel": 40,
+    "primaryHex": "#38bdf8",
+    "secondaryHex": "#0f172a",
+    "accentHex": "#f8fafc",
+    "cssFilter": "hue-rotate(190deg) saturate(1.35) contrast(1.12)",
+    "clickBonusPct": 0.15
+   },
+   {
+    "key": "singularity_crown",
+    "name": "Кабинет с видом",
+    "description": "Кабинет с панорамным окном для тех, кто уже пережил первый Global Hack (+20% к мощности тапа).",
+    "category": "desk",
+    "cryptoCost": 750,
+    "prestigeRequired": true,
+    "primaryHex": "#f0abfc",
+    "secondaryHex": "#312e81",
+    "accentHex": "#67e8f9",
+    "cssFilter": "hue-rotate(285deg) saturate(1.42) contrast(1.08)",
+    "clickBonusPct": 0.2
+   },
+   {
+    "key": "ui_amber",
+    "name": "Amber Panels",
+    "description": "Янтарные панели интерфейса в духе старого CRT-монитора.",
+    "category": "ui",
+    "cryptoCost": 8,
+    "requiredLevel": 3,
+    "primaryHex": "#fbbf24",
+    "secondaryHex": "#f97316",
+    "accentHex": "#fde68a",
+    "cssFilter": "sepia(0.35) hue-rotate(5deg) saturate(1.2)",
+    "clickBonusPct": 0.02,
+    "uiTokens": {
+     "accent": "#fbbf24",
+     "accent2": "#f97316",
+     "panel": "#1a1206",
+     "text": "#fde9c2"
+    }
+   },
+   {
+    "key": "ui_mint",
+    "name": "Mint Terminal",
+    "description": "Мятные акценты: спокойный интерфейс для долгих сессий.",
+    "category": "ui",
+    "cryptoCost": 14,
+    "requiredLevel": 5,
+    "primaryHex": "#34d399",
+    "secondaryHex": "#06b6d4",
+    "accentHex": "#a7f3d0",
+    "cssFilter": "hue-rotate(60deg) saturate(1.1)",
+    "clickBonusPct": 0.03,
+    "uiTokens": {
+     "accent": "#34d399",
+     "accent2": "#06b6d4",
+     "panel": "#08201c",
+     "text": "#c8f8e6"
+    }
+   },
+   {
+    "key": "ui_grape",
+    "name": "Grape Protocol",
+    "description": "Виноградный неон и мягкие тени — стиль закрытого клуба.",
+    "category": "ui",
+    "cryptoCost": 26,
+    "requiredLevel": 9,
+    "primaryHex": "#a78bfa",
+    "secondaryHex": "#6d28d9",
+    "accentHex": "#f0abfc",
+    "cssFilter": "hue-rotate(250deg) saturate(1.25)",
+    "clickBonusPct": 0.05,
+    "uiTokens": {
+     "accent": "#a78bfa",
+     "accent2": "#6d28d9",
+     "panel": "#150f2b",
+     "text": "#e4d9ff"
+    }
+   },
+   {
+    "key": "ui_steel",
+    "name": "Steel Frame",
+    "description": "Монохромная сталь: строгий интерфейс без лишнего света.",
+    "category": "ui",
+    "cryptoCost": 40,
+    "requiredLevel": 14,
+    "primaryHex": "#94a3b8",
+    "secondaryHex": "#334155",
+    "accentHex": "#e2e8f0",
+    "cssFilter": "saturate(0.25) brightness(1.05)",
+    "clickBonusPct": 0.08,
+    "uiTokens": {
+     "accent": "#94a3b8",
+     "accent2": "#475569",
+     "panel": "#12161d",
+     "text": "#dbe3ee"
+    }
+   },
+   {
+    "key": "ui_crimson",
+    "name": "Crimson HUD",
+    "description": "Алый акцент: максимум внимания на минимуме площади.",
+    "category": "ui",
+    "cryptoCost": 72,
+    "requiredLevel": 22,
+    "primaryHex": "#f43f5e",
+    "secondaryHex": "#881337",
+    "accentHex": "#fecdd3",
+    "cssFilter": "hue-rotate(155deg) saturate(1.45)",
+    "clickBonusPct": 0.12,
+    "uiTokens": {
+     "accent": "#f43f5e",
+     "accent2": "#881337",
+     "panel": "#1c0710",
+     "text": "#ffd7dd"
+    }
+   },
+   {
+    "key": "ui_hologram",
+    "name": "Hologram Deck",
+    "description": "Призматические панели и голографические блики для тех, кто любит чистый high-tech (+5% к тапу).",
+    "category": "ui",
+    "cryptoCost": 220,
+    "requiredLevel": 28,
+    "primaryHex": "#67e8f9",
+    "secondaryHex": "#c084fc",
+    "accentHex": "#e0f2fe",
+    "cssFilter": "hue-rotate(185deg) saturate(1.18) brightness(1.05)",
+    "clickBonusPct": 0.05,
+    "uiTokens": {
+     "accent": "#67e8f9",
+     "accent2": "#c084fc",
+     "panel": "#101827",
+     "text": "#e0f2fe"
+    }
+   },
+   {
+    "key": "ui_obsidian",
+    "name": "Obsidian Command",
+    "description": "Чёрное стекло командного центра с тонкой серебряной разметкой (+9% к тапу).",
+    "category": "ui",
+    "cryptoCost": 460,
+    "requiredLevel": 50,
+    "primaryHex": "#e2e8f0",
+    "secondaryHex": "#475569",
+    "accentHex": "#94a3b8",
+    "cssFilter": "saturate(0.55) contrast(1.14) brightness(0.98)",
+    "clickBonusPct": 0.09,
+    "uiTokens": {
+     "accent": "#e2e8f0",
+     "accent2": "#64748b",
+     "panel": "#0d1117",
+     "text": "#e2e8f0"
+    }
+   },
+   {
+    "key": "ui_aurora",
+    "name": "Aurora Control",
+    "description": "Лаймово-бирюзовый контур мастерской — дорогой HUD для высокого ранга (+14% к тапу).",
+    "category": "ui",
+    "cryptoCost": 900,
+    "requiredLevel": 90,
+    "primaryHex": "#a3e635",
+    "secondaryHex": "#22d3ee",
+    "accentHex": "#d9f99d",
+    "cssFilter": "hue-rotate(80deg) saturate(1.22) brightness(1.04)",
+    "clickBonusPct": 0.14,
+    "uiTokens": {
+     "accent": "#a3e635",
+     "accent2": "#22d3ee",
+     "panel": "#0b1d1a",
+     "text": "#ecfccb"
+    }
+   },
+   {
+    "key": "avatar_ghost",
+    "name": "Аватар «Призрак»",
+    "description": "Полупрозрачный силуэт без лица — тебя не запомнят.",
+    "category": "avatar",
+    "cryptoCost": 10,
+    "requiredLevel": 4,
+    "primaryHex": "#e2e8f0",
+    "secondaryHex": "#64748b",
+    "accentHex": "#00f0ff",
+    "cssFilter": "saturate(0.6)",
+    "clickBonusPct": 0.02,
+    "avatarGlyph": "👻"
+   },
+   {
+    "key": "avatar_oracle",
+    "name": "Аватар «Оракул»",
+    "description": "Три глаза видят трафик насквозь.",
+    "category": "avatar",
+    "cryptoCost": 20,
+    "requiredLevel": 8,
+    "primaryHex": "#c084fc",
+    "secondaryHex": "#4c1d95",
+    "accentHex": "#e879f9",
+    "cssFilter": "hue-rotate(280deg)",
+    "clickBonusPct": 0.04,
+    "avatarGlyph": "👁️"
+   },
+   {
+    "key": "avatar_ronin",
+    "name": "Аватар «Ронин»",
+    "description": "Кибер-самурай без хозяина и без лишних вопросов.",
+    "category": "avatar",
+    "cryptoCost": 32,
+    "requiredLevel": 12,
+    "primaryHex": "#fca5a5",
+    "secondaryHex": "#7f1d1d",
+    "accentHex": "#fbbf24",
+    "cssFilter": "hue-rotate(330deg) saturate(1.2)",
+    "clickBonusPct": 0.06,
+    "avatarGlyph": "🥷"
+   },
+   {
+    "key": "avatar_daemon",
+    "name": "Аватар «Демон»",
+    "description": "Процесс, который не убивается даже reboot-ом.",
+    "category": "avatar",
+    "cryptoCost": 55,
+    "requiredLevel": 18,
+    "primaryHex": "#fb7185",
+    "secondaryHex": "#4c0519",
+    "accentHex": "#f59e0b",
+    "cssFilter": "hue-rotate(120deg) saturate(1.5)",
+    "clickBonusPct": 0.1,
+    "avatarGlyph": "😈"
+   },
+   {
+    "key": "avatar_zero",
+    "name": "Аватар «Ноль»",
+    "description": "Абсолютная пустота и одинокая звезда в центре.",
+    "category": "avatar",
+    "cryptoCost": 95,
+    "requiredLevel": 26,
+    "primaryHex": "#38bdf8",
+    "secondaryHex": "#0c4a6e",
+    "accentHex": "#a5f3fc",
+    "cssFilter": "hue-rotate(200deg) saturate(1.3)",
+    "clickBonusPct": 0.15,
+    "avatarGlyph": "🌌"
+   },
+   {
+    "key": "avatar_cyber_fox",
+    "name": "Аватар «Кибер-лис»",
+    "description": "Хитрый неоновый следопыт: милый ровно до первого взлома (+4% к тапу).",
+    "category": "avatar",
+    "cryptoCost": 160,
+    "requiredLevel": 24,
+    "primaryHex": "#fb923c",
+    "secondaryHex": "#7c2d12",
+    "accentHex": "#fed7aa",
+    "cssFilter": "hue-rotate(340deg) saturate(1.25)",
+    "clickBonusPct": 0.04,
+    "avatarGlyph": "🦊"
+   },
+   {
+    "key": "avatar_wyrm",
+    "name": "Аватар «Кодовый Вирм»",
+    "description": "Пиксельный дракон, который поселился в ядре терминала (+8% к тапу).",
+    "category": "avatar",
+    "cryptoCost": 420,
+    "requiredLevel": 45,
+    "primaryHex": "#34d399",
+    "secondaryHex": "#064e3b",
+    "accentHex": "#a7f3d0",
+    "cssFilter": "hue-rotate(90deg) saturate(1.35)",
+    "clickBonusPct": 0.08,
+    "avatarGlyph": "🐉"
+   },
+   {
+    "key": "avatar_starborn",
+    "name": "Аватар «Звёздный Оператор»",
+    "description": "Космический силуэт для тех, кто уже перезапустил карьеру через Global Hack (+14% к тапу).",
+    "category": "avatar",
+    "cryptoCost": 950,
+    "prestigeRequired": true,
+    "primaryHex": "#c4b5fd",
+    "secondaryHex": "#312e81",
+    "accentHex": "#fef08a",
+    "cssFilter": "hue-rotate(240deg) saturate(1.35) brightness(1.06)",
+    "clickBonusPct": 0.14,
+    "avatarGlyph": "🪐"
+   }
+  ],
+  "SKIN_CATEGORIES": [
+   {
+    "id": "desk",
+    "label": "🖥️ Рабочий стол"
+   },
+   {
+    "id": "ui",
+    "label": "🎛️ Интерфейс"
+   },
+   {
+    "id": "avatar",
+    "label": "🧑‍💻 Аватары"
+   }
+  ],
+  "SKIN_CLICK_BONUS_CAP": 0.22
+ },
+ "team": {
+  "TEAM_CONFIG": [
+   {
+    "key": "coder",
+    "callsign": "Кай «Zero»",
+    "roleTitle": "Пишет и чинит код",
+    "quote": "«Хороший код — как хороший кофе: без спешки и с утра.»",
+    "effectLabel": "+10% Data/час",
+    "avatarUrl": "/assets/avatars/coder.webp",
+    "costCurrency": "data",
+    "costAmount": 45000,
+    "requiredLevel": 12,
+    "requiredMissions": 25,
+    "hackPower": 25,
+    "passiveBonusPct": 0.1,
+    "clickBonusPct": 0,
+    "autoClickPerSec": 0,
+    "heatReductionPct": 0,
+    "unlocksGreyMissions": false
+   },
+   {
+    "key": "social_engineer",
+    "callsign": "Никс",
+    "roleTitle": "Договаривается с людьми",
+    "quote": "«Сначала спроси, как у человека дела. Дальше всё проще.»",
+    "effectLabel": "+15% Data за клик",
+    "avatarUrl": "/assets/avatars/social_engineer.webp",
+    "costCurrency": "data",
+    "costAmount": 120000,
+    "requiredLevel": 14,
+    "requiredMissions": 30,
+    "hackPower": 30,
+    "passiveBonusPct": 0,
+    "clickBonusPct": 0.15,
+    "autoClickPerSec": 0,
+    "heatReductionPct": 0,
+    "unlocksGreyMissions": false
+   },
+   {
+    "key": "fence",
+    "callsign": "Фантом",
+    "roleTitle": "Убирает цифровые следы",
+    "quote": "«Я не стираю следы. Я просто убираю за всеми.»",
+    "effectLabel": "Снижает прирост Heat на 20%",
+    "avatarUrl": "/assets/avatars/fence.webp",
+    "costCurrency": "rep",
+    "costAmount": 180,
+    "requiredLevel": 15,
+    "requiredMissions": 35,
+    "hackPower": 35,
+    "passiveBonusPct": 0,
+    "clickBonusPct": 0,
+    "autoClickPerSec": 0,
+    "heatReductionPct": 0.2,
+    "unlocksGreyMissions": false
+   },
+   {
+    "key": "botmaster",
+    "callsign": "Вектор",
+    "roleTitle": "Автоматизирует рутину",
+    "quote": "«Мой рой работает, пока я завтракаю на террасе.»",
+    "effectLabel": "Автоклик 1/сек",
+    "avatarUrl": "/assets/avatars/botmaster.webp",
+    "costCurrency": "data",
+    "costAmount": 350000,
+    "requiredLevel": 16,
+    "requiredMissions": 40,
+    "hackPower": 40,
+    "passiveBonusPct": 0,
+    "clickBonusPct": 0,
+    "autoClickPerSec": 1,
+    "heatReductionPct": 0,
+    "unlocksGreyMissions": false
+   },
+   {
+    "key": "analyst",
+    "callsign": "Ирис",
+    "roleTitle": "Читает данные как книгу",
+    "quote": "«Смотреть в данные — как смотреть на закат: главное не спешить.»",
+    "effectLabel": "Открывает секретные «серые» миссии (+8% Data/ч)",
+    "avatarUrl": "/assets/avatars/analyst.webp",
+    "costCurrency": "rep",
+    "costAmount": 320,
+    "requiredLevel": 18,
+    "requiredMissions": 50,
+    "hackPower": 50,
+    "passiveBonusPct": 0.08,
+    "clickBonusPct": 0,
+    "autoClickPerSec": 0,
+    "heatReductionPct": 0,
+    "unlocksGreyMissions": true
+   },
+   {
+    "key": "cryptographer",
+    "callsign": "Шифр",
+    "roleTitle": "Разбирает шифры",
+    "quote": "«Красивые задачи — те, где ответ не лежит на поверхности.»",
+    "effectLabel": "+20% Data/час и −10% прирост Heat",
+    "avatarUrl": "/assets/avatars/cryptographer.webp",
+    "costCurrency": "data",
+    "costAmount": 1200000,
+    "requiredLevel": 22,
+    "requiredMissions": 70,
+    "hackPower": 70,
+    "passiveBonusPct": 0.2,
+    "clickBonusPct": 0,
+    "autoClickPerSec": 0,
+    "heatReductionPct": 0.1,
+    "unlocksGreyMissions": false
+   },
+   {
+    "key": "architect",
+    "callsign": "Омега",
+    "roleTitle": "Собирает системы",
+    "quote": "«Хорошая система должна быть тёплой, а не просто умной.»",
+    "effectLabel": "+25% Data/час и +20% к клику",
+    "avatarUrl": "/assets/avatars/architect.webp",
+    "costCurrency": "rep",
+    "costAmount": 900,
+    "requiredLevel": 28,
+    "requiredMissions": 100,
+    "hackPower": 100,
+    "passiveBonusPct": 0.25,
+    "clickBonusPct": 0.2,
+    "autoClickPerSec": 0,
+    "heatReductionPct": 0,
+    "unlocksGreyMissions": false
+   },
+   {
+    "key": "zero_day_hunter",
+    "callsign": "Спектр",
+    "roleTitle": "Видел всё и не устал",
+    "quote": "«Опыт — это когда ты уже ошибался именно в этом месте.»",
+    "effectLabel": "+30% Data/час, +25% к клику и Автоклик +1/сек",
+    "avatarUrl": "/assets/avatars/zero_day_hunter.webp",
+    "costCurrency": "rep",
+    "costAmount": 2200,
+    "requiredLevel": 36,
+    "requiredMissions": 150,
+    "hackPower": 150,
+    "passiveBonusPct": 0.3,
+    "clickBonusPct": 0.25,
+    "autoClickPerSec": 1,
+    "heatReductionPct": 0.05,
+    "unlocksGreyMissions": false
+   }
+  ]
+ },
+ "themes": {
+  "BASE_THEMES": [
+   {
+    "key": "classic",
+    "name": "Сан-Мираж",
+    "tagline": "Тёплый вечер, терракота и бирюза. Уютно, по-человечески, без неона.",
+    "free": true,
+    "glyph": "🌅",
+    "previewFrom": "#ff9a5a",
+    "previewTo": "#4ecdc4",
+    "palette": {
+     "cyan": "#ff9a5a",
+     "magenta": "#4ecdc4",
+     "green": "#a8d98a",
+     "purple": "#d8a7c4",
+     "panel": "#221b16",
+     "panelDeep": "#14100d",
+     "bg": "#14100d",
+     "text": "#f7ede2",
+     "textMuted": "#bda998",
+     "onPrimary": "#26150a"
+    },
+    "sceneVignette": "rgba(255, 154, 90, 0.12)",
+    "ui": {
+     "radiusBoost": 8,
+     "catEars": false,
+     "buttonGradient": [
+      "#ff9a5a",
+      "#4ecdc4"
+     ],
+     "successHex": "#a8d98a",
+     "scanlines": false,
+     "backgroundGlow": [
+      "#ff9a5a",
+      "#4ecdc4"
+     ]
+    },
+    "themeOffset": 0
+   },
+   {
+    "key": "neon",
+    "name": "Неон-Сити",
+    "tagline": "Та самая ночная матрица: циан, маджента, скан-линии. Для тех, кто скучает.",
+    "free": true,
+    "glyph": "🕶️",
+    "previewFrom": "#00f0ff",
+    "previewTo": "#ff00a0",
+    "palette": {
+     "cyan": "#00f0ff",
+     "magenta": "#ff00a0",
+     "green": "#7dff00",
+     "purple": "#c084fc",
+     "panel": "#10172e",
+     "panelDeep": "#0a0e1a",
+     "bg": "#0a0e1a",
+     "text": "#ffffff",
+     "textMuted": "#94a3b8",
+     "onPrimary": "#061018"
+    },
+    "sceneVignette": "rgba(0, 240, 255, 0.10)",
+    "ui": {
+     "radiusBoost": 0,
+     "catEars": false,
+     "buttonGradient": [
+      "#00f0ff",
+      "#ff00a0"
+     ],
+     "successHex": "#7dff00",
+     "scanlines": true,
+     "backgroundGlow": [
+      "#00f0ff",
+      "#ff00a0"
+     ]
+    },
+    "themeOffset": 0
+   },
+   {
+    "key": "femme",
+    "name": "Neon Muse",
+    "tagline": "Розово-лавандовый неон, тёплая комнатная подсветка и Муза за столом.",
+    "free": true,
+    "glyph": "🌸",
+    "previewFrom": "#ff6fb5",
+    "previewTo": "#b06bff",
+    "palette": {
+     "cyan": "#ff6fb5",
+     "magenta": "#b06bff",
+     "green": "#7cf5c8",
+     "purple": "#e0a7ff",
+     "panel": "#171029",
+     "panelDeep": "#0d0918",
+     "bg": "#0d0918",
+     "text": "#ffffff",
+     "textMuted": "#b8a8cc",
+     "onPrimary": "#2a0d1d"
+    },
+    "sceneVignette": "rgba(255, 111, 181, 0.14)",
+    "sceneUrl": "/assets/themes/femme/stage-01.webp",
+    "previewImage": "/assets/themes/femme/stage-01.webp",
+    "stageScenes": {
+     "1": "/assets/themes/femme/stage-01.webp",
+     "5": "/assets/themes/femme/stage-05.webp",
+     "10": "/assets/themes/femme/stage-10.webp",
+     "15": "/assets/themes/femme/stage-15.webp",
+     "20": "/assets/themes/femme/stage-20.webp",
+     "25": "/assets/themes/femme/stage-25.webp",
+     "30": "/assets/themes/femme/stage-30.webp"
+    },
+    "ui": {
+     "radiusBoost": 6,
+     "catEars": true,
+     "buttonGradient": [
+      "#ff8cc6",
+      "#b06bff"
+     ],
+     "successHex": "#7cf5c8",
+     "scanlines": true,
+     "backgroundGlow": [
+      "#ff6fb5",
+      "#b06bff"
+     ]
+    },
+    "themeOffset": 0
+   }
+  ],
+  "DEFAULT_BASE_THEME": "classic"
+ }
+}
