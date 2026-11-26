@@ -410,6 +410,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   }
 
   console.log(`\nИТОГО: ${pass} pass / ${fail} fail`);
+  if (fail === 0) console.log(`REFERRAL_QA_OK ${pass}`);
   if (fail > 0) {
     console.log('Провалы:', failures.join(', '));
     process.exit(1);

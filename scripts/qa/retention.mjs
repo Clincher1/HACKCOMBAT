@@ -23,6 +23,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
@@ -84,7 +85,7 @@ function signInitData(tgId, startParam) {
 }
 
 let ipSeq = 0;
-async function call(tgId, route, body = {}, startParam) {
+async function call(tgId, route, body = {}, startParam, opts = {}) {
   const req = {
     url: `/api/${route}`,
     method: 'POST',
@@ -92,7 +93,7 @@ async function call(tgId, route, body = {}, startParam) {
       host: 'localhost:5173',
       'x-demo-user-id': String(tgId),
       'x-demo-username': `player${tgId}`,
-      'x-telegram-init-data': signInitData(tgId, startParam),
+      ...(opts.guest ? {} : { 'x-telegram-init-data': signInitData(tgId, startParam) }),
       'x-forwarded-for': `10.126.0.${(ipSeq++ % 200) + 1}`,
     },
     body,
@@ -147,6 +148,33 @@ async function ensurePassiveRate(tgId) {
     }
   }
   return res;
+}
+
+/**
+ * Прогон init в отдельном процессе на заранее засеянной .local-db.json —
+ * ядро держит базу в памяти, поэтому состояние задаётся ДО первого require.
+ */
+function loadSeededCase(dir, seed) {
+  const code = `
+const { dispatchApiRequest } = require(process.env.HK_CORE);
+const req = { url: '/api/init', method: 'POST', headers: {
+  host: 'localhost:5173', 'x-demo-user-id': process.env.HK_SEED,
+  'x-demo-username': 'RetentionLvl12', 'x-forwarded-for': '10.127.0.9' },
+  body: {}, socket: { remoteAddress: '127.0.0.1' }, on() {} };
+const res = { statusCode: 200, payload: '', setHeader() {}, end(chunk) { this.payload = chunk ?? ''; } };
+dispatchApiRequest(req, res).then(() => process.stdout.write(String(res.payload)))
+  .catch((err) => process.stdout.write(JSON.stringify({ ok: false, error: String(err) })));
+`;
+  try {
+    const out = execFileSync(process.execPath, ['-e', code], {
+      cwd: dir,
+      env: { ...process.env, HK_CORE: CORE, HK_SEED: seed },
+      encoding: 'utf8',
+    });
+    return JSON.parse(out);
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
 }
 
 (async () => {
@@ -332,7 +360,81 @@ async function ensurePassiveRate(tgId) {
     delete process.env.RETENTION_V1;
   }
 
+  // ==========================================================================
+  // 12. Seeded-кейс «прод-игрок 12 уровня с уже забранным оффлайном».
+  //     Проверяем именно то состояние, с которого пришёл баг: игрок прошёл
+  //     онбординг, копилка пуста (lastOfflineClaimAt есть), pendingOffline = null.
+  //     Из этого состояния оверлей не должен рендериться — см. qa:overlays,
+  //     который берёт этот же init-ответ как фикстуру.
+  // ==========================================================================
+  const SEED = 950000500; // числовой seed: подписанный initData требует числовой user.id
+  // Гостевой init (без подписи): tgId = sha256(seed) — ровно тот же, что
+  // вычислит дочерний процесс, поэтому засеянная запись гарантированно найдётся.
+  const seedBase = await call(SEED, 'init', {}, undefined, { guest: true });
+  // Ключ локальной базы — String(tgId) гостевого аккаунта (детерминированный
+  // sha256 от seed), поэтому берём его прямо из ответа сервера.
+  const seedKey = String(seedBase.player?.tgId);
+  const seedDbFile = path.join(process.cwd(), '.local-db.json');
+  const caseDir = fs.mkdtempSync(path.join(sandbox, 'seed-'));
+  const templateDb = JSON.parse(fs.readFileSync(seedDbFile, 'utf8'));
+  const seedRecord = templateDb.playersByTgId[seedKey];
+  if (!seedRecord) throw new Error('seeded: не нашёл запись в .local-db.json');
+  Object.assign(seedRecord, {
+    xp: 42_000,
+    data: 250_000,
+    crypto: 240,
+    chips: 18,
+    totalClicks: 3_400,
+    totalMissions: 26,
+    cardTier: 3,
+    cards: { monitor: 6, server: 4, gpu: 2, quantum: 1 },
+  });
+  seedRecord.stats = {
+    ...seedRecord.stats,
+    onboardingV2Completed: true,
+    baseTheme: 'classic',
+    tutorialTabs: ['basics'],
+    pendingOffline: null,
+    lastOfflineClaimAt: new Date(Date.now() - 3 * HOUR).toISOString(),
+    lastSeenAt: new Date(Date.now() - 2 * HOUR).toISOString(),
+    lastDailyClaim: new Date(Date.now()).toISOString().slice(0, 10),
+    dailyStreak: 4,
+    dailyStreakDay: 5,
+    dailyClaimedToday: true,
+  };
+  fs.writeFileSync(path.join(caseDir, '.local-db.json'), JSON.stringify(templateDb));
+
+  const seeded = loadSeededCase(caseDir, SEED);
+  check('seeded: init прод-игрока 12 уровня отвечает', seeded.ok === true, seeded.error ?? '');
+  check('seeded: онбординг пройден (newPlayerMode = false)', seeded.player?.stats?.onboardingV2Completed === true);
+  check('seeded: оффлайн уже забран — копилки нет', seeded.retention?.pendingOffline === null);
+  check('seeded: время последнего claim сохранено', typeof seeded.player?.stats?.lastOfflineClaimAt === 'string');
+  check('seeded: повторный init не воскрешает копилку', seeded.retention?.pendingOffline === null);
+  check('seeded: нет алертов про оффлайн', !(seeded.alerts ?? []).some((a) => String(a.title ?? '').includes('Оффлайн')));
+
+  // Фикстура для qa:overlays: рендер оверлеев на реальном ответе сервера.
+  const fixturePath = path.join(os.tmpdir(), 'hk-overlay-fixture.json');
+  fs.writeFileSync(fixturePath, JSON.stringify({ seeded, source: 'retention.mjs' }));
+  console.log(`fixture для qa:overlays: ${fixturePath}`);
+
+  // ==========================================================================
+  // 13. Сквозной поток welcome-back: pending > 0 → claim → пусто → нет на init.
+  // ==========================================================================
+  const FLOW = 950000400;
+  const flowBase = await ensurePassiveRate(FLOW);
+  check('flow: ставка есть', (flowBase.player?.derived?.dataPerHour ?? 0) > 0);
+  advance(5 * HOUR);
+  const flowReady = await init(FLOW);
+  check('flow: копилка посчитана (модал показать есть что)', (flowReady.retention?.pendingOffline?.data ?? 0) > 0, flowReady.retention?.pendingOffline?.data);
+  const flowClaim = await claimOffline(FLOW);
+  check('flow: claim закрывает копилку', flowClaim.retention?.pendingOffline === null);
+  check('flow: claim начисляет Data', (flowClaim.player?.data ?? 0) > (flowReady.player?.data ?? 0), `${flowReady.player?.data} → ${flowClaim.player?.data}`);
+  const flowAgain = await init(FLOW);
+  check('flow: следующий init не показывает модал', flowAgain.retention?.pendingOffline === null);
+  check('flow: подложка не остаётся (pending null ⇒ ModalFrame не рендерится)', flowAgain.retention?.pendingOffline === null && flowClaim.player?.stats?.lastOfflineClaimAt !== null);
+
   console.log(`\nИТОГО: ${pass} pass / ${fail} fail`);
+  if (fail === 0) console.log(`RETENTION_QA_OK ${pass}`);
   if (fail > 0) {
     console.log('Провалы:', failures.join(', '));
     process.exit(1);

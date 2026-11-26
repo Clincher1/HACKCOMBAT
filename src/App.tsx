@@ -8,6 +8,7 @@ import { LockedTab } from './components/LockedTab';
 import { Onboarding } from './components/Onboarding';
 import { TopHud } from './components/TopHud';
 import { GameProvider, useGame } from './context/GameContext';
+import { WORLD_Z_INDEX } from '../shared/world.config';
 
 // The shell and the first API request stay small. Pages and the modal bundle are
 // fetched only when the authenticated shell is ready, which keeps the Telegram
@@ -95,16 +96,33 @@ const AppShell: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen cyber-grid-bg flex flex-col">
-      {/* v5.5: фон и акцент локации. Слой лежит под контентом (z-0), мир может
-          быть выключен флагом — тогда компонент не рендерит ничего. */}
+    <div className="min-h-screen flex flex-col">
+      {/* v5.6-fix: базовый фон вынесен в отдельный fixed-слой. Корневой шелл
+          обязан быть прозрачным, иначе его background-color перекрывает слои
+          с отрицательным z-index (фон локации) и они становятся невидимыми. */}
+      <div
+        className="cyber-grid-bg fixed inset-0"
+        style={{ zIndex: WORLD_Z_INDEX.shell }}
+        aria-hidden="true"
+        data-qa-layer="shell"
+      />
+      {/* v5.5: фон и акцент локации. Слой лежит ПОД контентом (z = backdrop =
+          -1), мир может быть выключен флагом — тогда компонент не рендерит
+          ничего. */}
       <LocationBackdrop />
       <TopHud />
       <AlertStack />
       {/* v5.4: гейт первого сеанса. Онбординг рисуется над контентом, но под
           навигацией — залоченные вкладки остаются видны. */}
       <Onboarding />
-      <main className="flex-1 w-full max-w-xl mx-auto px-3 pt-3 pb-24">
+      {/* v5.6-fix: <main> намеренно БЕЗ position/z-index. Стек-контекст здесь
+          «запер» бы модалы внутри страниц (LocationPicker z-70, профиль z-50)
+          под навигацией (z-30). Контент и так выше фона локации, потому что
+          фон уведён в отрицательный слой. */}
+      <main
+        className="flex-1 w-full max-w-xl mx-auto px-3 pt-3 pb-24"
+        data-qa-layer="content"
+      >
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<DeskPage />} />
