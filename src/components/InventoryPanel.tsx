@@ -69,7 +69,7 @@ export const InventoryPanel: React.FC = () => {
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-slate-800 bg-[#10172e] p-5 text-center text-xs text-slate-400">
+        <div className="rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-5 text-center text-xs text-slate-400">
           Инвентарь синхронизируется…
         </div>
       ) : (
@@ -89,7 +89,7 @@ export const InventoryPanel: React.FC = () => {
             return (
               <article
                 key={item.key}
-                className={`relative flex min-h-[190px] flex-col overflow-hidden rounded-2xl border bg-[#10172e] p-2.5 transition ${
+                className={`relative flex min-h-[190px] flex-col overflow-hidden rounded-2xl border bg-[var(--ui-panel)] p-2.5 transition ${
                   isPublic ? 'border-[var(--ui-primary)]/70 shadow-[0_0_18px_rgba(var(--ui-primary-rgb),0.12)]' : 'border-slate-800'
                 }`}
               >
@@ -102,7 +102,7 @@ export const InventoryPanel: React.FC = () => {
                   className={`absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg border transition cursor-pointer disabled:cursor-wait disabled:opacity-60 ${
                     isPublic
                       ? 'border-[var(--ui-primary)] bg-[rgba(var(--ui-primary-rgb),0.22)] text-[var(--ui-primary)]'
-                      : 'border-slate-700 bg-[#0a0e1a]/90 text-slate-500 hover:border-slate-500 hover:text-slate-200'
+                      : 'border-slate-700 bg-[var(--ui-panel-deep)]/90 text-slate-500 hover:border-slate-500 hover:text-slate-200'
                   }`}
                   title={isPublic ? 'Убрать из публичной витрины' : 'Выставить в публичную витрину'}
                 >
@@ -141,14 +141,14 @@ export const InventoryPanel: React.FC = () => {
                       className={`flex w-full items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer disabled:cursor-not-allowed ${
                         equipped
                           ? 'border border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
-                          : 'bg-[var(--ui-primary)] text-[#061018] hover:brightness-110'
+                          : 'bg-[var(--ui-primary)] text-[var(--ui-on-primary)] hover:brightness-110'
                       }`}
                     >
                       {equipped ? <Check className="h-3 w-3" /> : null}
                       {equipBusy ? 'Надевание…' : equipped ? 'Надето' : 'Одеть'}
                     </button>
                   ) : (
-                    <div className="flex items-center justify-center gap-1 rounded-lg border border-slate-800 bg-[#0a0e1a] px-2 py-1.5 text-[10px] font-bold text-slate-500">
+                    <div className="flex items-center justify-center gap-1 rounded-lg border border-slate-800 bg-[var(--ui-panel-deep)] px-2 py-1.5 text-[10px] font-bold text-slate-500">
                       <Lock className="h-3 w-3" /> Только показать
                     </div>
                   )}

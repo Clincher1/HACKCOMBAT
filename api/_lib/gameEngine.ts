@@ -2,7 +2,21 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
+import { BACKDROPS_CONFIG, isBackdropKey } from '../../shared/backdrops.config';
 import { isNewbieProtectionActive, newPlayerSnapshotFromCounters } from '../../shared/onboarding.config';
+import { isWorldV2Enabled } from '../../shared/config';
+import {
+  describeLockedLocation,
+  getLocation,
+  getUnlockedLocations,
+  HOME_LOCATION_ID,
+  isLocationMissionStartable,
+  isLocationUnlocked,
+  missionLocationId,
+  resolveLocationId,
+  WORLD_FALLBACK_LOCATION_ID,
+  type LocationId,
+} from '../../shared/world.config';
 import {
   BASE_UPGRADES_CONFIG,
   CHIP_DAILY_CAP,
@@ -101,6 +115,7 @@ import type {
   LeaderboardResponse,
   LeaderboardSelf,
   LeaderboardSort,
+  MissionConfig,
   PlayerProgressStats,
   PlayerState,
   PublicProfile,
@@ -480,6 +495,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     trackEventsDay: typeof src.trackEventsDay === 'string' ? src.trackEventsDay.slice(0, 10) : null,
     // v5.4: пройден ли гейт первого сеанса (иначе оверлей показывался бы снова).
     onboardingV2Completed: src.onboardingV2Completed === true,
+    // v5.5: где игрок. Храним только известный ключ — мусор из jsonb не должен
+    // уводить витрину миссий и фон в несуществующую локацию.
+    locationId: getLocation(src.locationId)?.id,
     hackSuccessByType: numRecord(src.hackSuccessByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     hackFailByType: numRecord(src.hackFailByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     totalXpEarned: num(src.totalXpEarned, 1e12),
@@ -511,8 +529,13 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
       typeof src.lastMissionRefreshAt === 'string' && !Number.isNaN(new Date(src.lastMissionRefreshAt).getTime())
         ? src.lastMissionRefreshAt
         : null,
-    baseTheme:
-      src.baseTheme === 'femme' ? 'femme' : src.baseTheme === 'classic' ? 'classic' : undefined,
+    // v5.0: список тем больше не захардкожен — «неон» добавился как опция,
+    // и любой известный BASE_THEMES ключ должен переживать round-trip.
+    baseTheme: BASE_THEMES.some((theme) => theme.key === src.baseTheme)
+      ? (src.baseTheme as (typeof BASE_THEMES)[number]['key'])
+      : undefined,
+    // v4.1: только известные ключи фона — иначе старый/битый jsonb включит пустую сцену.
+    deskBackdrop: isBackdropKey(src.deskBackdrop) ? src.deskBackdrop : undefined,
     // v3.6.5: слоты интерфейса и аватара. Храним только известные ключи нужной
     // категории — мусор из jsonb не должен попадать в экипировку.
     equippedUi: pickSkinKey(src.equippedUi, 'ui'),
@@ -944,7 +967,46 @@ export function persistLocalDatabase(): void {
  * чтобы на всех Serverless-инстансах Vercel витрина игрока была идентичной и никто не мог
  * запускать миссии вне своей витрины!
  */
-export function pickMissionOffer(unlockedGrey: boolean, seed = 0, playerLevel = 99): string[] {
+/**
+ * Сужает пул до мира игрока (v5.5):
+ *  • выбрасывает контракты локаций, которые ещё не открыты по уровню
+ *    (это же правило проверяет startMission — клиент не может обойти его);
+ *  • поднимает наверх контракты текущей локации;
+ *  • если в локации меньше MIN_LOCATION_OFFER контрактов, добирает «Улицу»,
+ *    чтобы игрок никогда не остался без работы.
+ */
+function scopeOfferPool(
+  pool: MissionConfig[],
+  playerLevel: number,
+  locationId: LocationId
+): MissionConfig[] {
+  const reachable = pool.filter((mission) => isLocationMissionStartable(mission, playerLevel));
+  const base = reachable.length > 0 ? reachable : pool;
+  const local = base.filter((mission) => missionLocationId(mission) === locationId);
+  const street = base.filter(
+    (mission) => missionLocationId(mission) === WORLD_FALLBACK_LOCATION_ID
+  );
+  if (local.length >= MIN_LOCATION_OFFER) return local;
+  const seen = new Set(local.map((mission) => mission.key));
+  const toppedUp = [...local];
+  for (const mission of street) {
+    if (toppedUp.length >= MIN_LOCATION_OFFER) break;
+    if (seen.has(mission.key)) continue;
+    seen.add(mission.key);
+    toppedUp.push(mission);
+  }
+  return toppedUp.length > 0 ? toppedUp : base;
+}
+
+/** Минимальный размер витрины одной локации: меньше — уже «пусто». */
+const MIN_LOCATION_OFFER = 4;
+
+export function pickMissionOffer(
+  unlockedGrey: boolean,
+  seed = 0,
+  playerLevel = 99,
+  locationId?: LocationId
+): string[] {
   let state = (Math.abs(seed) || 1337) % 2147483647;
   const nextRand = () => {
     state = (state * 48271) % 2147483647;
@@ -961,7 +1023,10 @@ export function pickMissionOffer(unlockedGrey: boolean, seed = 0, playerLevel = 
   };
 
   // Контракты открываются по уровню игрока: не даём новичку сразу взять эндгейм-цель на миллионы
-  const unlocked = MISSIONS_CONFIG.filter((m) => (m.minLevel ?? 1) <= playerLevel);
+  const levelScoped = MISSIONS_CONFIG.filter((m) => (m.minLevel ?? 1) <= playerLevel);
+  // v5.5: при включённом мире витрина учитывает открытые локации. Без locationId
+  // (флаг выключен) пул остаётся прежним — поведение до релиза не меняется.
+  const unlocked = locationId ? scopeOfferPool(levelScoped, playerLevel, locationId) : levelScoped;
   const badPool = shuffle(unlocked.filter((m) => m.targetType === 'bad'));
   const goodPool = shuffle(unlocked.filter((m) => m.targetType === 'good'));
   const neutralPool = shuffle(unlocked.filter((m) => m.targetType === 'neutral'));
@@ -982,11 +1047,28 @@ export function pickMissionOffer(unlockedGrey: boolean, seed = 0, playerLevel = 
 
 const MISSION_REFRESH_COOLDOWN_MS = 15 * 60 * 1000;
 
+/**
+ * Локация, для которой строим витрину миссий.
+ *
+ * Возвращает undefined, когда мир выключен (WORLD_V2=false) — тогда витрина
+ * остаётся общей, как до v5.5. Если сохранённая локация почему-то недоступна
+ * (например, уровень упал после prestige), откатываемся в Комнату.
+ */
+export function offerLocationId(
+  stats: { locationId?: string } | undefined,
+  level: number
+): LocationId | undefined {
+  if (!isWorldV2Enabled()) return undefined;
+  const candidate = resolveLocationId(stats?.locationId);
+  return isLocationUnlocked(candidate, level) ? candidate : HOME_LOCATION_ID;
+}
+
 function computeOfferWindow(
   tgId: number,
   unlockedGrey: boolean,
   playerLevel = 99,
-  refreshSalt = 0
+  refreshSalt = 0,
+  locationId?: LocationId
 ): { keys: string[]; refreshedAt: string } {
   const windowMs = MISSION_REFRESH_COOLDOWN_MS;
   const windowIndex = Math.floor(Date.now() / windowMs);
@@ -995,14 +1077,20 @@ function computeOfferWindow(
   const salt = Math.max(0, Math.floor(Number(refreshSalt) || 0));
   const seed = Math.abs(tgId * 31 + windowIndex * 7919 + salt * 104729);
   return {
-    keys: pickMissionOffer(unlockedGrey, seed, playerLevel),
+    keys: pickMissionOffer(unlockedGrey, seed, playerLevel, locationId),
     refreshedAt: new Date(windowIndex * windowMs).toISOString(),
   };
 }
 
 function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
   const nowIso = new Date().toISOString();
-  const offer = computeOfferWindow(user.tgId, false, 1);
+  const offer = computeOfferWindow(
+    user.tgId,
+    false,
+    1,
+    0,
+    offerLocationId(undefined, 1)
+  );
   return {
     id: crypto.randomUUID(),
     tgId: user.tgId,
@@ -1165,7 +1253,8 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     user.tgId,
     hasAnalyst,
     previewLevel,
-    persistedStats.missionRefreshSalt
+    persistedStats.missionRefreshSalt,
+    offerLocationId(persistedStats, previewLevel)
   );
 
   const petsList: StoredPet[] = (petsRes.data ?? [])
@@ -1745,7 +1834,8 @@ async function syncTimeAndRules(
       record.tgId,
       derived.unlockedGreyMissions,
       derived.level,
-      record.stats.missionRefreshSalt
+      record.stats.missionRefreshSalt,
+      offerLocationId(record.stats, derived.level)
     );
     record.availableMissionKeys = nextOffer.keys;
     record.missionsRefreshedAt = nowIso;
@@ -2633,7 +2723,8 @@ export async function handleHireNpc(
         user.tgId,
         true,
         deriveStats(record).level,
-        record.stats.missionRefreshSalt
+        record.stats.missionRefreshSalt,
+        offerLocationId(record.stats, deriveStats(record).level)
       );
       record.availableMissionKeys = nextOffer.keys;
       record.missionsRefreshedAt = new Date().toISOString();
@@ -2719,7 +2810,8 @@ export async function handleMissionAction(
         user.tgId,
         derived.unlockedGreyMissions,
         derived.level,
-        record.stats.missionRefreshSalt
+        record.stats.missionRefreshSalt,
+        offerLocationId(record.stats, derived.level)
       );
       record.availableMissionKeys = nextOffer.keys;
       record.missionsRefreshedAt = new Date().toISOString();
@@ -2752,6 +2844,11 @@ export async function handleMissionAction(
       }
       if ((cfg.minLevel ?? 1) > derived.level) {
         throw new Error(`Этот контракт открывается на ${cfg.minLevel} уровне игрока`);
+      }
+      // v5.5, анти-чит: контракт из ещё не открытой локации нельзя запустить,
+      // даже если клиент подделал missionKey и обошёл витрину.
+      if (!isLocationMissionStartable(cfg, derived.level)) {
+        throw new Error(describeLockedLocation(cfg));
       }
       if (record.activeMissions.some((m) => m.missionKey === cfg.key)) {
         throw new Error('Эта цель уже взламывается в данный момент');
@@ -3383,7 +3480,13 @@ export async function handleSeasonEventAction(
 
 export async function handleSkinAction(
   user: VerifiedTelegramUser,
-  action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+  action:
+    | 'buy_or_equip'
+    | 'clear_lockdown'
+    | 'set_theme'
+    | 'set_backdrop'
+    | 'profile_frame'
+    | 'set_location',
   skinKey?: string,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
@@ -3498,6 +3601,81 @@ export async function handleSkinAction(
         type: 'success',
         title: `${theme.glyph} Тема «${theme.name}» включена`,
         message: 'Оформление интерфейса обновлено. Скины по-прежнему накладываются сверху.',
+      });
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    // v4.1: выбор «вида из окна». Косметика без бонусов: ни Data, ни Crypto
+    // не списываются; ключ валидируется по конфигу, чтобы в jsonb не попадал мусор.
+    if (action === 'set_backdrop') {
+      // Пустой ключ = вернуться к сцене по уровню. Это тоже косметика, поэтому
+      // сброс не стоит ресурсов и не требует отдельного действия в API.
+      if (!skinKey) {
+        delete record.stats.deskBackdrop;
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'info',
+          title: '🌆 Сцена по уровню',
+          message: 'Вид из окна сброшен: стол снова растёт вместе с твоим уровнем.',
+        });
+        await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+        return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+      }
+      if (!isBackdropKey(skinKey)) {
+        throw new Error('Фон не найден');
+      }
+      const backdrop = BACKDROPS_CONFIG.find((b) => b.key === skinKey);
+      if (!backdrop) {
+        throw new Error('Фон не найден');
+      }
+      if (deriveStats(record).level < backdrop.requiredLevel) {
+        throw new Error(`Фон откроется на Ур. ${backdrop.requiredLevel}`);
+      }
+      record.stats.deskBackdrop = backdrop.key;
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `${backdrop.glyph} Вид из окна: «${backdrop.name}»`,
+        message: backdrop.tagline,
+      });
+      await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    // v5.5: переезд между локациями мира. Это не покупка: ни Data, ни Crypto не
+    // списываются, но открытость локации проверяется на сервере по уровню.
+    if (action === 'set_location') {
+      // Флаг-гейт: при WORLD_V2=false мира нет и на сервере тоже — иначе старый
+      // клиент (или curl) мог бы развести сейв по локациям, которых нет в UI.
+      if (!isWorldV2Enabled()) {
+        throw new Error('Мир пока недоступен');
+      }
+      const location = getLocation(skinKey);
+      if (!location) {
+        throw new Error('Локация не найдена');
+      }
+      const level = deriveStats(record).level;
+      if (!isLocationUnlocked(location.id, level)) {
+        throw new Error(`Локация «${location.name}» откроется на ${location.minLevel} уровне`);
+      }
+      record.stats.locationId = location.id;
+      // Витрина пересобирается под новую локацию сразу: иначе игрок видел бы
+      // контракты прошлого места до следующего 15-минутного окна.
+      const nextOffer = computeOfferWindow(
+        record.tgId,
+        deriveStats(record).unlockedGreyMissions,
+        level,
+        record.stats.missionRefreshSalt,
+        location.id
+      );
+      record.availableMissionKeys = nextOffer.keys;
+      record.missionsRefreshedAt = new Date().toISOString();
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `${location.glyph} Ты на месте: «${location.name}»`,
+        message: location.flavor,
       });
       await commitPurchaseAtomic(record, mode, atomicExpected, 'player');
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);

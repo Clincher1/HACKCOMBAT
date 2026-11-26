@@ -56,7 +56,7 @@ export const ModalsAndOverlays: React.FC = () => {
               exit={{ scale: 0.92, y: 12 }}
               className="w-full max-w-sm rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.45)] p-5 text-center shadow-[0_0_40px_rgba(var(--ui-primary-rgb),0.2)]"
             >
-              <Sparkles className="w-10 h-10 text-[#7dff00] mx-auto mb-2" />
+              <Sparkles className="w-10 h-10 text-[var(--ui-success)] mx-auto mb-2" />
               <h3 className="font-display text-lg font-extrabold text-white">
                 Пассивный майнинг завершён!
               </h3>
@@ -65,7 +65,7 @@ export const ModalsAndOverlays: React.FC = () => {
                 и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те
                 сутки, где вы наиграли 8 минут.
               </p>
-              <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[#7dff00]/35 font-display text-2xl font-black text-[#7dff00]">
+              <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 font-display text-2xl font-black text-[var(--ui-success)]">
                 +{formatCompact(offlineModalEarned)} DATA
               </div>
               {offlineModalTaps > 0 && (
@@ -79,7 +79,7 @@ export const ModalsAndOverlays: React.FC = () => {
               <button
                 type="button"
                 onClick={dismissOfflineModal}
-                className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[#061018] font-display font-bold text-sm cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-display font-bold text-sm cursor-pointer"
               >
                 Забрать и продолжить
               </button>
@@ -103,11 +103,11 @@ export const ModalsAndOverlays: React.FC = () => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 16 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl bg-[var(--ui-panel)] border border-[#7dff00]/40 p-5 space-y-4"
+              className="w-full max-w-md rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-success)]/40 p-5 space-y-4"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Gift className="w-5 h-5 text-[#7dff00]" />
+                  <Gift className="w-5 h-5 text-[var(--ui-success)]" />
                   <h3 className="font-display font-bold text-base text-white">
                     Ежедневный Крипто-Дроп
                   </h3>
@@ -135,7 +135,7 @@ export const ModalsAndOverlays: React.FC = () => {
                       key={day}
                       className={`rounded-xl p-2 text-center border ${
                         nextTarget
-                          ? 'bg-[#7dff00]/20 border-[#7dff00] text-white'
+                          ? 'bg-[var(--ui-success)]/20 border-[var(--ui-success)] text-white'
                           : claimed
                             ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] border-[rgba(var(--ui-primary-rgb),0.40)] text-[var(--ui-primary)]'
                             : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400'
@@ -152,7 +152,7 @@ export const ModalsAndOverlays: React.FC = () => {
                 type="button"
                 disabled={!canClaimDaily || busyKey === 'daily'}
                 onClick={() => void claimDailyBonus()}
-                className="w-full py-3 rounded-xl font-display font-bold text-sm bg-[#7dff00] text-[#071005] disabled:opacity-40 transition cursor-pointer"
+                className="w-full py-3 rounded-xl font-display font-bold text-sm bg-[var(--ui-success)] text-[#071005] disabled:opacity-40 transition cursor-pointer"
               >
                 {canClaimDaily
                   ? '🎁 Получить ежедневный бонус!'
@@ -198,14 +198,14 @@ export const ModalsAndOverlays: React.FC = () => {
 
               {storeTab === 'skins' && (
                 <>
-                  {/* v3.6.1: ДВЕ БЕСПЛАТНЫЕ БАЗОВЫЕ ТЕМЫ. Это фундамент оформления:
+                  {/* v5.0: ТРИ БЕСПЛАТНЫЕ БАЗОВЫЕ ТЕМЫ. Это фундамент оформления:
                       выбираешь базу, а платные скины ложатся сверху. Обе темы
                       бесплатны и не дают бонусов к тапу — только внешний вид. */}
                   <div className="space-y-1.5">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                       Базовая тема · бесплатно
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       {BASE_THEMES.map((theme) => {
                         const active = baseTheme.key === theme.key;
                         const pending = busyKey === `theme:${theme.key}`;

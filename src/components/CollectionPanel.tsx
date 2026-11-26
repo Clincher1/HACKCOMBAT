@@ -5,6 +5,7 @@ import { getDeskStageInfo } from '../../shared/mechanics';
 import { PETS_CONFIG } from '../../shared/pets.config';
 import { SKINS_CONFIG, resolveEquippedSkins } from '../../shared/skins.config';
 import { BASE_THEMES } from '../../shared/themes.config';
+import { BACKDROPS_CONFIG } from '../../shared/backdrops.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -37,10 +38,10 @@ const FILTERS: { id: CollectionFilter; label: string }[] = [
 
 const RARITY_META: Record<string, { label: string; color: string }> = {
   common: { label: 'Обычное', color: '#94a3b8' },
-  rare: { label: 'Редкое', color: '#00f0ff' },
-  epic: { label: 'Эпическое', color: '#c084fc' },
+  rare: { label: 'Редкое', color: 'var(--ui-primary)' },
+  epic: { label: 'Эпическое', color: 'var(--ui-purple)' },
   legendary: { label: 'Легендарное', color: '#ffb703' },
-  secret: { label: 'Секретное', color: '#ff00a0' },
+  secret: { label: 'Секретное', color: 'var(--ui-secondary)' },
 };
 
 const STAGES: (1 | 5 | 10 | 15 | 20 | 25 | 30)[] = [1, 5, 10, 15, 20, 25, 30];
@@ -65,7 +66,7 @@ function rewardLabel(cryptoReward: number, chipReward?: number, dataReward?: num
  * авторитетно приходят в PlayerState с сервера.
  */
 export const CollectionPanel: React.FC = () => {
-  const { player, baseTheme } = useGame();
+  const { player, baseTheme, deskBackdrop } = useGame();
   const [filter, setFilter] = useState<CollectionFilter>('all');
 
   const items = useMemo<CollectionItem[]>(() => {
@@ -110,6 +111,23 @@ export const CollectionPanel: React.FC = () => {
         reward: active ? 'Надето сейчас' : 'Можно включить в настройках темы',
         source: 'Бесплатная тема оформления',
         accent: theme.previewFrom,
+      };
+    });
+
+    // v4.1: «виды из окна» — такие же коллекционные предметы, как темы и скины.
+    const backdropItems: CollectionItem[] = BACKDROPS_CONFIG.map((backdrop) => {
+      const active = deskBackdrop?.key === backdrop.key;
+      return {
+        key: `backdrop:${backdrop.key}`,
+        category: 'cosmetics',
+        title: backdrop.name,
+        description: backdrop.tagline,
+        icon: backdrop.glyph,
+        unlocked: true,
+        status: active ? 'Активен' : 'Бесплатно',
+        reward: active ? 'Сейчас за окном' : 'Можно включить в профиле',
+        source: 'Бесплатный вид из окна',
+        accent: backdrop.accent,
       };
     });
 
@@ -164,7 +182,7 @@ export const CollectionPanel: React.FC = () => {
         status: active ? 'Текущий этап' : unlocked ? 'Открыто' : `Откроется на Ур. ${stage}`,
         reward: active ? 'Рабочий стол сейчас' : 'Новая сцена стола',
         source: 'Уровень игрока',
-        accent: '#00f0ff',
+        accent: 'var(--ui-primary)',
       };
     });
 
@@ -178,7 +196,7 @@ export const CollectionPanel: React.FC = () => {
       status: player.prestigeCount > 0 ? `Пройдено ×${player.prestigeCount}` : 'Впереди',
       reward: 'Множитель, сохранение коллекции и знак Prestige',
       source: 'Global Hack',
-      accent: '#ff00a0',
+      accent: 'var(--ui-secondary)',
     };
 
     const teamItems: CollectionItem[] = TEAM_CONFIG.map((npc) => {
@@ -199,7 +217,7 @@ export const CollectionPanel: React.FC = () => {
         status: unlocked ? 'В команде' : requirement,
         reward: `+${npc.hackPower} силы железа`,
         source: 'Найм специалиста',
-        accent: '#7dff00',
+        accent: 'var(--ui-success)',
       };
     });
 
@@ -219,20 +237,21 @@ export const CollectionPanel: React.FC = () => {
         status: unlocked ? 'В коллекции' : requirement,
         reward: pet.buffLabel,
         source: 'Команда → Питомцы',
-        accent: '#c084fc',
+        accent: 'var(--ui-purple)',
       };
     });
 
     return [
       ...achievementItems,
       ...themeItems,
+      ...backdropItems,
       ...skinItems,
       ...stageItems,
       prestigeItem,
       ...teamItems,
       ...petItems,
     ];
-  }, [baseTheme.key, player]);
+  }, [baseTheme.key, deskBackdrop?.key, player]);
 
   if (!player) return null;
 
@@ -258,7 +277,7 @@ export const CollectionPanel: React.FC = () => {
 
   return (
     <div className="space-y-3.5">
-      <section className="rounded-2xl bg-gradient-to-br from-[#15112f] to-[#10172e] border border-purple-500/35 p-3.5 space-y-3">
+      <section className="rounded-2xl bg-gradient-to-br from-[#15112f] to-[var(--ui-panel)] border border-purple-500/35 p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 text-sm font-display font-extrabold text-white">
@@ -280,7 +299,7 @@ export const CollectionPanel: React.FC = () => {
 
         <div className="h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#00f0ff] via-[#c084fc] to-[#ffb703] transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-[var(--ui-primary)] via-[var(--ui-purple)] to-[#ffb703] transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -325,7 +344,7 @@ export const CollectionPanel: React.FC = () => {
             className={`shrink-0 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
               filter === option.id
                 ? 'bg-[rgba(var(--ui-primary-rgb),0.16)] border-[var(--ui-primary)] text-[var(--ui-primary)]'
-                : 'bg-[#10172e] border-slate-800 text-slate-400 hover:text-slate-200'
+                : 'bg-[var(--ui-panel)] border-slate-800 text-slate-400 hover:text-slate-200'
             }`}
           >
             {option.label}
@@ -344,7 +363,7 @@ export const CollectionPanel: React.FC = () => {
                   ? 'bg-[#101c28]'
                   : lockedSecret
                     ? 'bg-[#0b0f1c] border-slate-800/70'
-                    : 'bg-[#0d1224] border-slate-800/80'
+                    : 'bg-[var(--ui-panel-deep)] border-slate-800/80'
               }`}
               style={item.unlocked ? { borderColor: `${item.accent}66` } : undefined}
             >
@@ -374,7 +393,7 @@ export const CollectionPanel: React.FC = () => {
                     )}
                     <span
                       className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                        item.unlocked ? 'bg-[#7dff00]/12 text-[#7dff00]' : 'bg-slate-800 text-slate-500'
+                        item.unlocked ? 'bg-[var(--ui-success)]/12 text-[var(--ui-success)]' : 'bg-slate-800 text-slate-500'
                       }`}
                     >
                       {lockedSecret ? 'СЕКРЕТ' : item.status}
@@ -399,12 +418,12 @@ export const CollectionPanel: React.FC = () => {
       </div>
 
       {visibleItems.length === 0 && (
-        <div className="rounded-xl bg-[#10172e] border border-slate-800 p-5 text-center text-[11px] text-slate-500">
+        <div className="rounded-xl bg-[var(--ui-panel)] border border-slate-800 p-5 text-center text-[11px] text-slate-500">
           В этой секции пока ничего нет.
         </div>
       )}
 
-      <div className="rounded-xl bg-[#0b1020] border border-slate-800/80 p-3 text-[10px] text-slate-500 leading-relaxed flex items-start gap-2">
+      <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800/80 p-3 text-[10px] text-slate-500 leading-relaxed flex items-start gap-2">
         <Shield className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
         <span>
           Все предметы коллекции читаются из текущего серверного прогресса. Никаких новых покупок,

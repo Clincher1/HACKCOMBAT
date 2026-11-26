@@ -13,13 +13,15 @@ export const SKINS_CONFIG: SkinConfig[] = [
   // ---------------------------- DESK ----------------------------
   {
     key: 'default',
-    name: 'Cyber Cyan OS',
-    description: 'Классический неоновый терминал ночного мегаполиса.',
+    // v5.0: базовая косметика стола больше не неоновая. Ключ 'default'
+    // сохранён — он лежит у всех игроков и не должен «слетать».
+    name: 'Сан-Мираж OS',
+    description: 'Тёплый терминал у моря: терракота, янтарь и бирюза.',
     category: 'desk',
     cryptoCost: 0,
-    primaryHex: '#00f0ff',
-    secondaryHex: '#ff00a0',
-    accentHex: '#7dff00',
+    primaryHex: '#ff9a5a',
+    secondaryHex: '#4ecdc4',
+    accentHex: '#a8d98a',
     cssFilter: 'none',
     clickBonusPct: 0,
   },
@@ -61,7 +63,7 @@ export const SKINS_CONFIG: SkinConfig[] = [
   },
   {
     key: 'void_phantom',
-    name: 'Void Phantom Ultra',
+    name: 'Тёмный Кабинет',
     description: 'Редкий коллекционный скин эндгейма за Crypto (+18% к мощности тапа).',
     category: 'desk',
     cryptoCost: 65,
@@ -73,8 +75,8 @@ export const SKINS_CONFIG: SkinConfig[] = [
   },
   {
     key: 'prestige_omega',
-    name: 'Omega Singularity',
-    description: 'Награда за Global Hack Престиж — даёт +22% к мощности тапа!',
+    name: 'Вечерний Лофт',
+    description: 'Награда за Global Hack: тёплый вечерний свет в кабинете, +22% к мощности тапа.',
     category: 'desk',
     cryptoCost: 0,
     prestigeRequired: true,
@@ -86,7 +88,7 @@ export const SKINS_CONFIG: SkinConfig[] = [
   },
   {
     key: 'neon_tokyo',
-    name: 'Neon Tokyo Rain',
+    name: 'Дождь над городом',
     description: 'Мокрая неоновая улица: розовые вывески и отражения в лужах.',
     category: 'desk',
     cryptoCost: 18,
@@ -151,8 +153,8 @@ export const SKINS_CONFIG: SkinConfig[] = [
   },
   {
     key: 'singularity_crown',
-    name: 'Singularity Crown',
-    description: 'Корона сингулярности для тех, кто уже пережил первый Global Hack (+20% к мощности тапа).',
+    name: 'Кабинет с видом',
+    description: 'Кабинет с панорамным окном для тех, кто уже пережил первый Global Hack (+20% к мощности тапа).',
     category: 'desk',
     cryptoCost: 750,
     prestigeRequired: true,
@@ -243,7 +245,7 @@ export const SKINS_CONFIG: SkinConfig[] = [
   {
     key: 'ui_crimson',
     name: 'Crimson HUD',
-    description: 'Алый HUD боевого дрона: максимум тревоги на минимуме площади.',
+    description: 'Алый акцент: максимум внимания на минимуме площади.',
     category: 'ui',
     cryptoCost: 72,
     requiredLevel: 22,

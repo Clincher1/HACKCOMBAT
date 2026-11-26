@@ -57,7 +57,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   },
   {
     key: 'frame_violet_ghost',
-    name: 'Violet Ghost',
+    name: 'Фиалковый',
     description: 'Фиолетовый фантомный контур — редкий, но всё ещё честный базовый хром.',
     accent: '#c084fc',
     background: 'linear-gradient(135deg, rgba(192,132,252,0.28), rgba(76,29,149,0.24))',
@@ -127,8 +127,8 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   },
   {
     key: 'frame_quantum_halo',
-    name: 'Quantum Halo',
-    description: 'Квантовый ореол с фиолетовым ядром — редкая отметка оператора, ушедшего далеко за сотый уровень.',
+    name: 'Тёплый Ореол',
+    description: 'Тёплый ореол с фиолетовым ядром — редкая отметка того, кто ушёл далеко за сотый уровень.',
     accent: '#e9d5ff',
     background: 'radial-gradient(circle at 30% 20%, rgba(233,213,255,0.42), transparent 34%), linear-gradient(135deg, rgba(76,29,149,0.78), rgba(8,47,73,0.82))',
     glow: '0 0 26px rgba(216, 180, 254, 0.68), inset 0 0 18px rgba(103, 232, 249, 0.2)',
@@ -152,7 +152,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   {
     key: 'frame_rooster_red',
     name: 'Красный Петух',
-    description: 'Алый боевой профиль с головой кибер-петуха. Постоянный персональный подарок администратора.',
+    description: 'Алый боевой профиль с головой петуха. Постоянный персональный подарок администратора.',
     accent: '#ff304f',
     background: 'linear-gradient(135deg, rgba(255,48,79,0.34), rgba(92,10,24,0.72))',
     glow: '0 0 18px rgba(255, 48, 79, 0.7), inset 0 0 12px rgba(255, 184, 77, 0.18)',

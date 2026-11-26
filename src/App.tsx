@@ -1,8 +1,9 @@
 import { RefreshCw, WifiOff } from 'lucide-react';
 import React, { Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
 import { BottomNav } from './components/BottomNav';
+import { LocationBackdrop } from './components/LocationBackdrop';
 import { LockedTab } from './components/LockedTab';
 import { Onboarding } from './components/Onboarding';
 import { TopHud } from './components/TopHud';
@@ -35,11 +36,16 @@ const ModalsAndOverlays = React.lazy(async () => {
   const module = await import('./components/Modals');
   return { default: module.ModalsAndOverlays };
 });
+// v4.3: демо-витрина всех открытий. Отдельный чанк: в игровую сессию не грузится.
+const DemoPage = React.lazy(async () => {
+  const module = await import('./pages/DemoPage');
+  return { default: module.DemoPage };
+});
 
 const RouteLoading: React.FC = () => (
   <div className="min-h-[55vh] flex flex-col items-center justify-center text-center">
     <div className="w-9 h-9 rounded-xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-3" />
-    <p className="text-xs text-slate-400">Открываем раздел…</p>
+    <p className="text-xs text-slate-400">Секунду…</p>
   </div>
 );
 
@@ -49,11 +55,11 @@ const AppShell: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen cyber-grid-bg flex flex-col items-center justify-center p-6 text-center">
-        <div className="w-12 h-12 rounded-2xl border-2 border-[#00f0ff] border-t-transparent animate-spin mb-4" />
-        <div className="font-display text-lg font-extrabold text-[#00f0ff] tracking-widest">
+        <div className="w-12 h-12 rounded-2xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-4" />
+        <div className="font-display text-lg font-extrabold text-[var(--ui-primary)] tracking-widest">
           HACKER KOMBAT
         </div>
-        <p className="text-xs text-slate-400 mt-1">Загрузка кибер-терминала...</p>
+        <p className="text-xs text-slate-400 mt-1">Загружаем твой стол…</p>
       </div>
     );
   }
@@ -76,7 +82,7 @@ const AppShell: React.FC = () => {
             type="button"
             onClick={() => void retryInit()}
             disabled={loading}
-            className="mt-4 w-full rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-sm font-extrabold text-[#061018] transition hover:brightness-110 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
+            className="mt-4 w-full rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-sm font-extrabold text-[var(--ui-on-primary)] transition hover:brightness-110 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
           >
             <span className="inline-flex items-center justify-center gap-2">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -90,6 +96,9 @@ const AppShell: React.FC = () => {
 
   return (
     <div className="min-h-screen cyber-grid-bg flex flex-col">
+      {/* v5.5: фон и акцент локации. Слой лежит под контентом (z-0), мир может
+          быть выключен флагом — тогда компонент не рендерит ничего. */}
+      <LocationBackdrop />
       <TopHud />
       <AlertStack />
       {/* v5.4: гейт первого сеанса. Онбординг рисуется над контентом, но под
@@ -127,12 +136,40 @@ const AppShell: React.FC = () => {
   );
 };
 
+/**
+ * /demo живёт ВНЕ GameProvider: витрина не должна зависеть от Telegram-сессии,
+ * от /api/init и не может ничего записать в живой сейв. Остальные маршруты —
+ * обычная игра.
+ */
+const AppRoutes: React.FC = () => {
+  const { pathname } = useLocation();
+  const normalized = pathname.replace(/\/+$/, '') || '/';
+
+  if (normalized === '/demo') {
+    return (
+      <Suspense
+        fallback={
+          <div className="min-h-screen bg-[var(--ui-panel-deep)] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl border-2 border-[#2ee6d6] border-t-transparent animate-spin" />
+          </div>
+        }
+      >
+        <DemoPage />
+      </Suspense>
+    );
+  }
+
+  return (
+    <GameProvider>
+      <AppShell />
+    </GameProvider>
+  );
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <GameProvider>
-        <AppShell />
-      </GameProvider>
+      <AppRoutes />
     </BrowserRouter>
   );
 };

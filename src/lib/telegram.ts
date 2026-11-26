@@ -104,8 +104,8 @@ export function initTelegramMiniApp(): TelegramProfileInfo {
 
     try {
       mountMiniAppSync();
-      setMiniAppBackgroundColor('#0a0e1a');
-      setMiniAppHeaderColor('#0a0e1a');
+      setMiniAppBackgroundColor('var(--ui-panel-deep)');
+      setMiniAppHeaderColor('var(--ui-panel-deep)');
       miniAppReady();
     } catch {
       // ignore optional color calls if host client is older

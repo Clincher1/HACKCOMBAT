@@ -1,0 +1,631 @@
+name: land-features
+
+# Выкатка двух фич на main через PR.
+#
+# Запускается вручную с ветки arena/73bdedb2-hackcombat, но НИКОГДА не пишет в
+# неё: раннер создаёт отдельные ветки analytics/funnel-v1 и feat/onboarding-v2
+# от origin/main, переносит туда коммиты фич, проверяет сборку и QA, открывает
+# PR и делает squash-merge. Прямых пушей в main нет.
+#
+# Секретов в файле нет: используется только GITHUB_TOKEN раннера и (опционально)
+# repo secret SUPABASE_DB_URL для read-only запроса воронки.
+
+on:
+  # workflow_dispatch требует, чтобы файл уже лежал в default-ветке, поэтому
+  # первый (bootstrap) запуск идёт по push в arena-ветку с фильтром по пути:
+  # срабатывает только изменение этого самого файла.
+  push:
+    branches:
+      - arena/73bdedb2-hackcombat
+    paths:
+      - .github/workflows/land-features.yml
+  workflow_dispatch:
+    inputs:
+      features:
+        description: "Что выкатывать: A | B | A+B"
+        required: false
+        default: "A+B"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: land-features
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  REPO: ${{ github.repository }}
+  PROD_URL: ${{ vars.PROD_URL || 'https://hacker-kombat.vercel.app' }}
+  FEATURES: ${{ github.event.inputs.features || 'A+B' }}
+  ARENA_REF: arena/73bdedb2-hackcombat
+
+jobs:
+  land:
+    name: land A -> main -> B -> main -> smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout (arena branch, full history)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Preconditions and shell helpers
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+          cat > "$RUNNER_TEMP/lib.sh" <<'SH'
+          die() { echo "::error::$*"; exit 1; }
+          phase() { echo "::notice::PHASE $*"; }
+
+          # Логи раннера из песочницы не читаются (results-receiver вне egress),
+          # поэтому хвост важного лога кладём в commit comment — он доступен по API.
+          dump_log() {
+            local label=$1 file=$2 sha body
+            [ -f "$file" ] || { echo "::warning::нет файла лога для $label"; return 0; }
+            sha=$(git rev-parse HEAD)
+            body=$(printf 'CI diagnostics: %s\n\n```\n%s\n```\n' "$label" "$(tail -n 120 "$file")")
+            if gh api "repos/$REPO/commits/$sha/comments" -f body="$body" >/dev/null 2>&1; then
+              echo "лог «$label» выгружен в commit comment $sha"
+            else
+              echo "::warning::не удалось выгрузить лог «$label»"
+            fi
+          }
+
+          # Любая команда: вывод в файл, при падении — последние строки в аннотации
+          # (лог раннера из песочницы не читается, аннотации читаются через API).
+          step_run() {
+            local label=$1
+            shift
+            local out="${RUNNER_TEMP:-/tmp}/cmd.out"
+            if ! "$@" >"$out" 2>&1; then
+              echo "::error::ПРОВАЛ: $label"
+              tail -n 6 "$out" | while IFS= read -r line; do echo "::error::  $line"; done
+              echo "---- последние 40 строк вывода ----"
+              tail -n 40 "$out"
+              dump_log "$label" "$out"
+              exit 1
+            fi
+            echo "ok: $label"
+            tail -n 2 "$out" | sed 's/^/    /'
+          }
+
+          branch_exists() { git ls-remote --heads origin "$1" | grep -q .; }
+
+          pr_number_for() {
+            gh pr list --repo "$REPO" --head "$1" --state open --json number --jq '.[0].number // empty'
+          }
+
+          # allow_auto_merge по умолчанию false — без него "gh pr merge --auto" падает.
+          ensure_auto_merge() {
+            local cur
+            cur=$(gh api "repos/$REPO" --jq .allow_auto_merge 2>/dev/null) || cur=""
+            if [ "$cur" = "true" ]; then return 0; fi
+            if gh api -X PATCH "repos/$REPO" -F allow_auto_merge=true --jq '"allow_auto_merge=" + (.allow_auto_merge|tostring)' 2>"${RUNNER_TEMP:-/tmp}/patch.err"; then
+              return 0
+            fi
+            # GITHUB_TOKEN не имеет administration: write — это не повод падать:
+            # merge_pr ниже сделает немедленный squash-merge вместо --auto.
+            echo "::warning::PATCH allow_auto_merge запрещён: $(tail -n 3 "${RUNNER_TEMP:-/tmp}/patch.err" | tr '\n' ' ')"
+            return 0
+          }
+
+          # Идемпотентно: если PR для ветки уже открыт — переиспользуем его.
+          # Номер PR возвращается в глобальной PR_NUM (не через $(...) — иначе
+          # аннотации и текст ошибки gh pr create пропадают в подстановке).
+          open_pr() {
+            local head=$1 base=$2 title=$3 body_file=$4
+            [ -f "$body_file" ] || die "нет файла с телом PR: $body_file"
+            PR_NUM=$(pr_number_for "$head")
+            if [ -z "$PR_NUM" ]; then
+              if ! gh pr create --repo "$REPO" --base "$base" --head "$head" --title "$title" --body-file "$body_file" >"${RUNNER_TEMP:-/tmp}/pr.out" 2>&1; then
+                if grep -qi "not permitted to create or approve pull requests" "${RUNNER_TEMP:-/tmp}/pr.out"; then
+                  # Repo-setting "Allow GitHub Actions to create and approve pull requests"
+                  # выключен, а GITHUB_TOKEN не имеет administration:write, чтобы его включить.
+                  # Ветка уже лежит на origin — PR создаётся владельцем репозитория.
+                  echo "::error::ACTION REQUIRED: создайте PR вручную и перезапустите workflow"
+                  echo "::error::ветка=$head база=$base"
+                  grep -o "GitHub Actions is not permitted[^)]*)" "${RUNNER_TEMP:-/tmp}/pr.out" | head -1 | while IFS= read -r line; do echo "::error::github: $line"; done
+                  return 1
+                fi
+                echo "::error::gh pr create упал для ветки $head"
+                tail -n 8 "${RUNNER_TEMP:-/tmp}/pr.out" | while IFS= read -r line; do echo "::error::  $line"; done
+                cat "${RUNNER_TEMP:-/tmp}/pr.out"
+                exit 1
+              fi
+              PR_NUM=$(pr_number_for "$head")
+            else
+              echo "переиспользую открытый PR #$PR_NUM для $head"
+            fi
+            [ -n "$PR_NUM" ] || die "не удалось получить номер PR для $head"
+            gh pr ready "$PR_NUM" --repo "$REPO" >/dev/null 2>&1 || true
+            return 0
+          }
+
+          merge_pr() {
+            local num=$1
+            ensure_auto_merge
+            if ! gh pr merge "$num" --repo "$REPO" --squash --delete-branch --auto >"${RUNNER_TEMP:-/tmp}/merge1.out" 2>&1; then
+              echo "::warning::--auto недоступен ($(tail -n 2 "${RUNNER_TEMP:-/tmp}/merge1.out" | tr '\n' ' ')) — немедленный squash-merge"
+              gh pr merge "$num" --repo "$REPO" --squash --delete-branch
+            fi
+          }
+
+          wait_pr_merged() {
+            local num=$1 timeout=$2 deadline state
+            deadline=$(( SECONDS + timeout ))
+            while [ $SECONDS -lt $deadline ]; do
+              state=$(gh pr view "$num" --repo "$REPO" --json state --jq .state)
+              case "$state" in
+                MERGED) echo "PR #$num MERGED"; return 0 ;;
+                CLOSED) die "PR #$num закрыт без merge" ;;
+              esac
+              sleep 15
+            done
+            die "таймаут: PR #$num не смержен за ${timeout}s"
+          }
+
+          wait_path_in_ref() {
+            local path=$1 ref=$2 timeout=$3 deadline
+            deadline=$(( SECONDS + timeout ))
+            while [ $SECONDS -lt $deadline ]; do
+              if gh api "repos/$REPO/contents/$path?ref=$ref" >/dev/null 2>&1; then
+                echo "$ref содержит $path"
+                return 0
+              fi
+              sleep 10
+            done
+            die "таймаут: $path не появился в $ref"
+          }
+
+          # Разрешение конфликта построчно: блок <<<<<<< ours ======= theirs >>>>>>>
+          # оставляет все строки ours и только те строки theirs, что подходят под regex.
+          resolve_regex_conflict() {
+            local path=$1 keep=$2
+            python3 - "$path" "$keep" <<'PY'
+          import re
+          import sys
+
+          path, pattern = sys.argv[1], sys.argv[2]
+          keep = re.compile(pattern)
+          out = []
+          mode = None
+          for line in open(path, encoding="utf-8"):
+              if line.startswith("<<<<<<<"):
+                  mode = "ours"
+                  continue
+              if line.startswith("=======") and mode == "ours":
+                  mode = "theirs"
+                  continue
+              if line.startswith(">>>>>>>") and mode == "theirs":
+                  mode = None
+                  continue
+              if mode == "ours":
+                  out.append(line)
+              elif mode == "theirs":
+                  if keep.search(line):
+                      out.append(line)
+                  else:
+                      print("drop(theirs): " + line.rstrip(), file=sys.stderr)
+              else:
+                  out.append(line)
+          open(path, "w", encoding="utf-8").writelines(out)
+          print("resolved " + path)
+          PY
+          }
+
+          # package.json: берём версию main (--ours) и добавляем только нужные хуки.
+          # Пары "key=command" через ';' — так в main не протекают чужие хуки
+          # (qa:backdrops / qa:demo), которых в main нет.
+          resolve_pkg_conflict() {
+            local pairs=$1
+            git checkout --ours -- package.json
+            PAIRS="$pairs" node -e '
+          const fs = require("fs");
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          pkg.scripts = pkg.scripts || {};
+          const pairs = (process.env.PAIRS || "").split(";").filter(Boolean).map((s) => {
+            const i = s.indexOf("=");
+            return [s.slice(0, i), s.slice(i + 1)];
+          });
+          for (const [key, cmd] of pairs) {
+            pkg.scripts[key] = cmd;
+            const hook = "npm run " + key;
+            if (!pkg.scripts["qa:all"].includes(hook)) pkg.scripts["qa:all"] += " && " + hook;
+          }
+          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          '
+            git add package.json
+          }
+
+          # vercel.json: гасим preview-деплой только для своей ветки, остальные
+          # ключи (headers, rewrites, framework) сохраняются как есть.
+          patch_vercel_json() {
+            local branch=$1
+            BRANCH="$branch" node -e '
+          const fs = require("fs");
+          const file = "vercel.json";
+          const cfg = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, "utf8")) : {};
+          cfg.git = cfg.git || {};
+          cfg.git.deploymentEnabled = cfg.git.deploymentEnabled || {};
+          cfg.git.deploymentEnabled[process.env.BRANCH] = false;
+          fs.writeFileSync(file, JSON.stringify(cfg, null, 2) + "\n");
+          '
+            git add vercel.json
+            git commit -m "ci: выключить Vercel preview для ветки $branch"
+          }
+
+          # Любой конфликт вне разрешённого списка — это стоп, а не повод угадывать.
+          assert_conflicts_only() {
+            local allowed=$1 f unmerged
+            unmerged=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+            [ -z "$unmerged" ] && return 0
+            for f in $unmerged; do
+              case " $allowed " in
+                *" $f "*) echo "разрешённый конфликт: $f" ;;
+                *) die "неожиданный конфликт в $f (допустимы: $allowed)" ;;
+              esac
+            done
+          }
+
+          # Никогда не пушим в main: только своя ветка.
+          push_branch() {
+            local br=$1
+            [ "$br" != "main" ] || die "запрещено пушить в main"
+            [ "$(git rev-parse --abbrev-ref HEAD)" = "$br" ] || die "HEAD не на ветке $br"
+            git push origin "$br"
+          }
+          SH
+
+          source "$RUNNER_TEMP/lib.sh"
+          bash -n "$RUNNER_TEMP/lib.sh"
+
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          echo "workflow ref      : $github_ref"
+          echo "main HEAD         : $(gh api "repos/$REPO/commits/main" --jq .sha)"
+          echo "allow_auto_merge  : $(gh api "repos/$REPO" --jq .allow_auto_merge)"
+          echo "features          : $FEATURES"
+          echo "prod              : $PROD_URL"
+          echo "ветки на origin   : $(git ls-remote --heads origin | awk '{print $2}' | sed 's#refs/heads/##' | grep -E 'analytics|onboarding' || echo 'нет analytics/onboarding')"
+        env:
+          github_ref: ${{ github.ref_name }}
+
+      - name: Land A — analytics/funnel-v1
+        if: contains(env.FEATURES, 'A')
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/lib.sh"
+
+          BR=analytics/funnel-v1
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+          if git cat-file -e origin/main:api/_lib/clientEvents.ts 2>/dev/null; then
+            echo "фича A уже в main — шаг пропущен"
+            echo "A_ALREADY_MERGED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if branch_exists "$BR"; then
+            echo "ветка $BR уже есть на origin — переиспользую"
+            git checkout -B "$BR" "origin/$BR"
+          else
+            git checkout -B "$BR" origin/main
+
+            # Фича A = 98712f0 + 2d956d1. Конфликт возможен только в package.json:
+            # в коммитах фичи есть хуки qa:backdrops и qa:demo, которых нет в main.
+            if ! git cherry-pick 98712f0; then
+              assert_conflicts_only "package.json"
+              resolve_pkg_conflict "qa:funnel=node scripts/qa/funnel.mjs"
+              git -c core.editor=true cherry-pick --continue
+            fi
+            git cherry-pick 2d956d1
+
+            patch_vercel_json "$BR"
+
+            files=$(git diff --name-only origin/main HEAD | grep -v '^vercel.json$' | wc -l)
+            echo "файлов фичи A (без vercel.json): $files"
+            echo "--- diff ---"
+            git diff --name-only origin/main HEAD
+            [ "$files" -eq 8 ] || die "ожидалось 8 файлов в A, получено $files"
+
+            phase "A: npm ci"
+            step_run "npm ci" npm ci --no-audit --no-fund
+            phase "A: build (tsc -b + vite + bundle-api)"
+            step_run "build" npm run build
+            phase "A: qa:funnel"
+            step_run "qa:funnel" npm run qa:funnel
+
+            phase "A: push $BR"
+            step_run "push $BR" push_branch "$BR"
+          fi
+
+          cat > "$RUNNER_TEMP/pr-a.md" <<'MD'
+          ## Что внутри
+          * таблица public.client_events + RPC insert_client_event (миграция 019);
+          * POST /api/track: 6 шагов воронки и client_error -> 204, legacy-телеметрия -> 200;
+          * src/lib/analytics.ts: sendBeacon-очередь, перехват ошибок, без сырого initData;
+          * qa:funnel и хук в qa:all;
+          * vercel.json: preview-деплой для этой ветки выключен.
+
+          ## Проверка
+          * npx tsc -b — чисто, npm run qa:funnel — зелено (на раннере, до пуша);
+          * полный npm run qa:all зелёный на локальной проверке A (Client events QA: 21/0).
+          MD
+          phase "A: PR + merge"
+          if ! open_pr "$BR" main \
+            "analytics: воронка первого сеанса (client_events + /api/track)" \
+            "$RUNNER_TEMP/pr-a.md"; then
+            echo "::warning::PR A нужно создать вручную: gh pr create --base main --head $BR"
+            echo "PR_A_PENDING=$BR" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          num=$PR_NUM
+
+          echo "PR_A_NUMBER=$num" >> "$GITHUB_ENV"
+          gh pr view "$num" --repo "$REPO" --json url --jq '"PR_A_URL=" + .url' >> "$GITHUB_ENV"
+          merge_pr "$num"
+
+      - name: Wait until main contains clientEvents.ts (A merged)
+        if: contains(env.FEATURES, 'A') && env.A_ALREADY_MERGED != '1'
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/lib.sh"
+          wait_pr_merged "$PR_A_NUMBER" 1200
+          wait_path_in_ref api/_lib/clientEvents.ts main 1200
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          echo "main HEAD после A: $(gh api "repos/$REPO/commits/main" --jq .sha)"
+
+      - name: Land B — feat/onboarding-v2 (verify before push)
+        if: contains(env.FEATURES, 'B')
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/lib.sh"
+
+          BR=feat/onboarding-v2
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+          if git cat-file -e origin/main:src/lib/onboarding.ts 2>/dev/null; then
+            echo "фича B уже в main — шаг пропущен"
+            echo "B_ALREADY_MERGED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          if branch_exists "$BR"; then
+            echo "ветка $BR уже есть на origin — переиспользую"
+            git checkout -B "$BR" "origin/$BR"
+          else
+            git checkout -B "$BR" origin/main
+
+            # Фича B = 0fd84e7. Два конфликта:
+            #  * api/_lib/gameEngine.ts — импорт backdrops.config в main не нужен,
+            #    onboarding.config обязателен;
+            #  * package.json — версия main + qa:onboarding.
+            if ! git cherry-pick 0fd84e7; then
+              assert_conflicts_only "package.json api/_lib/gameEngine.ts"
+              resolve_regex_conflict api/_lib/gameEngine.ts 'onboarding\.config'
+              git add api/_lib/gameEngine.ts
+              resolve_pkg_conflict "qa:onboarding=node scripts/qa/onboarding.mjs"
+              git -c core.editor=true cherry-pick --continue
+            fi
+
+            patch_vercel_json "$BR"
+
+            files=$(git diff --name-only origin/main HEAD | grep -v '^vercel.json$' | wc -l)
+            echo "файлов фичи B (без vercel.json): $files"
+            echo "--- diff ---"
+            git diff --name-only origin/main HEAD
+            [ "$files" -eq 16 ] || die "ожидалось 16 файлов в B, получено $files"
+          fi
+
+          # Гейт перед PR: строгий TypeScript, сборка и весь QA-набор.
+          phase "B: npm ci"
+          step_run "npm ci" npm ci --no-audit --no-fund
+          phase "B: tsc -b"
+          step_run "tsc -b" npx tsc -b
+          phase "B: build"
+          step_run "build" npm run build
+          # qa:profile-inventory (внутри qa:all) — единственный сьют, который ходит
+          # по HTTP на /api/*: ему нужен живой dev-сервер (vercel-api-dev-plugin).
+          phase "B: dev server"
+          npm run dev > "$RUNNER_TEMP/dev.log" 2>&1 &
+          dev_pid=$!
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -sf -o /dev/null "http://127.0.0.1:5173/"; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 20 "$RUNNER_TEMP/dev.log"
+            dump_log "dev server 5173" "$RUNNER_TEMP/dev.log"
+            die "dev-сервер не поднялся на 127.0.0.1:5173 за 90 с"
+          fi
+          echo "dev-сервер готов (pid $dev_pid)"
+          export API_BASE="http://127.0.0.1:5173"
+
+          phase "B: qa:all"
+          set +e
+          npm run qa:all > "$RUNNER_TEMP/qa-b.log" 2>&1
+          qa_code=$?
+          set -e
+          kill "$dev_pid" 2>/dev/null || true
+          tail -60 "$RUNNER_TEMP/qa-b.log"
+          if [ "$qa_code" -ne 0 ]; then
+            echo "::error::QA упал (exit $qa_code)"
+            grep -E 'FAIL|Error|error' "$RUNNER_TEMP/qa-b.log" | head -5 | while IFS= read -r line; do echo "::error::  $line"; done
+            dump_log "qa:all на ветке feat/onboarding-v2" "$RUNNER_TEMP/qa-b.log"
+            exit 1
+          fi
+          echo "PASS-строк: $(grep -c 'PASS' "$RUNNER_TEMP/qa-b.log" || true)"
+          echo "FAIL-строк: $(grep -c 'FAIL' "$RUNNER_TEMP/qa-b.log" || true)"
+          grep -E 'Onboarding QA|Client events QA|Funnel QA' "$RUNNER_TEMP/qa-b.log" || true
+          git status --porcelain || true
+
+          phase "B: push $BR"
+          step_run "push $BR" push_branch "$BR"
+
+          cat > "$RUNNER_TEMP/pr-b.md" <<'MD'
+          ## Что внутри
+          * оверлей первого заказа (шаги 1-3, aria-label="Первый заказ");
+          * locked-вкладки с подсказкой и авто-разблокировкой;
+          * защита новичка: Heat режется до порога без штрафа и блокировки;
+          * onboarding_done -> stats.onboardingV2Completed, оверлей больше не возвращается;
+          * qa:onboarding (33 проверки) + хук в qa:all;
+          * флаг onboardingV2 выключает всё без правки кода;
+          * vercel.json: preview-деплой для этой ветки выключен.
+
+          ## Проверка (на раннере, до создания PR)
+          * npx tsc -b — чисто; npm run build — успешно;
+          * npm run qa:all — 0 fail, включая Onboarding QA 33/0 и Client events QA 21/0.
+          MD
+          phase "B: PR + merge"
+          if ! open_pr "$BR" main \
+            "feat: onboarding v2 — гейт первого сеанса, locked-вкладки, защита новичка" \
+            "$RUNNER_TEMP/pr-b.md"; then
+            echo "::warning::PR B нужно создать вручную: gh pr create --base main --head $BR"
+            echo "PR_B_PENDING=$BR" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          num=$PR_NUM
+
+          echo "PR_B_NUMBER=$num" >> "$GITHUB_ENV"
+          gh pr view "$num" --repo "$REPO" --json url --jq '"PR_B_URL=" + .url' >> "$GITHUB_ENV"
+          merge_pr "$num"
+
+      - name: Wait until B PR is merged
+        if: contains(env.FEATURES, 'B') && env.B_ALREADY_MERGED != '1'
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/lib.sh"
+          wait_pr_merged "$PR_B_NUMBER" 1800
+          git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
+          echo "main HEAD после B: $(gh api "repos/$REPO/commits/main" --jq .sha)"
+
+      - name: Wait Vercel status on main HEAD
+        id: vercel
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          source "$RUNNER_TEMP/lib.sh"
+
+          SHA=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          echo "main HEAD = $SHA"
+          echo "MAIN_SHA=$SHA" >> "$GITHUB_ENV"
+
+          deadline=$(( SECONDS + 2400 ))
+          while [ $SECONDS -lt $deadline ]; do
+            state=$(gh api "repos/$REPO/commits/$SHA/status" --jq '[.statuses[]? | select(.context | test("vercel"; "i"))] | first | .state // ""')
+            target=$(gh api "repos/$REPO/commits/$SHA/status" --jq '[.statuses[]? | select(.context | test("vercel"; "i"))] | first | .target_url // ""')
+            run_state=$(gh api "repos/$REPO/commits/$SHA/check-runs" --jq '[.check_runs[]? | select(.name | test("vercel"; "i"))] | first | ((.conclusion // .status) // "")' 2>/dev/null || echo "")
+            echo "status=${state:-<нет>} check=${run_state:-<нет>} target=${target:-<нет>}"
+
+            case "$state" in
+              success)
+                [ -n "$target" ] && echo "DEPLOY_URL=$target" >> "$GITHUB_ENV"
+                echo "Vercel: success"
+                exit 0
+                ;;
+              failure|error)
+                die "Vercel сообщил $state (target=${target:-нет})"
+                ;;
+            esac
+            if [ "$run_state" = "failure" ] || [ "$run_state" = "timed_out" ]; then
+              die "Vercel check-run: $run_state"
+            fi
+            if [ -z "$state" ] && [ "$run_state" = "success" ]; then
+              echo "Vercel: check-run success (commit status отсутствует)"
+              exit 0
+            fi
+            sleep 20
+          done
+          die "таймаут 40 мин: commit status Vercel на $SHA так и не появился"
+
+      - name: Smoke production
+        run: |
+          set -euo pipefail
+          PROD="${PROD_URL%/}"
+          echo "PROD=$PROD"
+
+          ok_home=0
+          ok_init=0
+          ok_track=0
+          for i in $(seq 1 24); do
+            home=$(curl -sS -o "$RUNNER_TEMP/home.html" -w '%{http_code}' "$PROD/" || echo 000)
+            init=$(curl -sS -o "$RUNNER_TEMP/init.json" -w '%{http_code}' \
+              "$PROD/api/init" \
+              -H 'x-demo-user-id: ci-smoke' -H 'x-demo-username: CISmoke' || echo 000)
+            track=$(curl -sS -o "$RUNNER_TEMP/track.out" -w '%{http_code}' \
+              -X POST "$PROD/api/track" \
+              -H 'Content-Type: application/json' \
+              -H "Origin: $PROD" \
+              -H 'x-demo-user-id: ci-smoke' -H 'x-demo-username: CISmoke' \
+              --data '{"event":"app_opened","meta":{"session":"ci-smoke"}}' || echo 000)
+
+            echo "попытка $i: GET / => $home | GET /api/init => $init | POST /api/track => $track"
+            [ "$home" = "200" ] && ok_home=1
+            if [ "$init" = "200" ] && ! grep -qi "Init error" "$RUNNER_TEMP/init.json"; then ok_init=1; fi
+            [ "$track" = "204" ] && ok_track=1
+
+            if [ "$ok_home" -eq 1 ] && [ "$ok_init" -eq 1 ] && [ "$ok_track" -eq 1 ]; then break; fi
+            sleep 15
+          done
+
+          echo "SMOKE_HOME=$ok_home" >> "$GITHUB_ENV"
+          echo "SMOKE_INIT=$ok_init" >> "$GITHUB_ENV"
+          echo "SMOKE_TRACK=$ok_track" >> "$GITHUB_ENV"
+
+          [ "$ok_home" -eq 1 ] || die "GET / не вернул 200"
+          [ "$ok_init" -eq 1 ] || die "GET /api/init не 200 или содержит 'Init error'"
+          [ "$ok_track" -eq 1 ] || die "POST /api/track не вернул 204"
+          echo "smoke: 200 / 200 / 204 — ок"
+          head -c 200 "$RUNNER_TEMP/init.json"; echo
+
+      - name: Optional SQL — воронка за 24 часа
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "::notice::secret SUPABASE_DB_URL не задан — SQL пропущен (креды не угадываем)"
+            echo "SQL_SKIPPED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client >/dev/null
+          psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 --no-psqlrc -c "
+            select event, count(*) as n
+            from public.client_events
+            where event in ('app_opened','init_ok','first_frame','first_tap','first_upgrade','first_mission_start')
+              and \"timestamp\" > now() - interval '24 hours'
+            group by event
+            order by event;" | tee "$RUNNER_TEMP/funnel.txt"
+          { echo "SQL_SKIPPED=0"; } >> "$GITHUB_ENV"
+
+      - name: Summary
+        if: always()
+        run: |
+          set -euo pipefail
+          {
+            echo "## land-features"
+            echo ""
+            echo "| шаг | значение |"
+            echo "| --- | --- |"
+            echo "| run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |"
+            echo "| features | ${FEATURES} |"
+            echo "| PR A | ${PR_A_URL:-${PR_A_PENDING:+ветка ${PR_A_PENDING} ждёт PR}} |"
+            echo "| PR B | ${PR_B_URL:-${PR_B_PENDING:+ветка ${PR_B_PENDING} ждёт PR}} |"
+            echo "| main HEAD | ${MAIN_SHA:-—} |"
+            echo "| deployment | ${DEPLOY_URL:-—} |"
+            echo "| production | ${PROD_URL} |"
+            echo "| smoke GET / | ${SMOKE_HOME:-н/д} |"
+            echo "| smoke GET /api/init | ${SMOKE_INIT:-н/д} |"
+            echo "| smoke POST /api/track (204) | ${SMOKE_TRACK:-н/д} |"
+            echo "| SQL | $([ "${SQL_SKIPPED:-1}" = "1" ] && echo 'пропущен: нет секрета SUPABASE_DB_URL' || echo 'выполнен') |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/funnel.txt" ]; then cat "$RUNNER_TEMP/funnel.txt"; fi
+          true

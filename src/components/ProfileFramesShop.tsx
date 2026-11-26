@@ -20,9 +20,9 @@ export const ProfileFramesShop: React.FC = () => {
 
   return (
     <section className="space-y-3">
-      <div className="rounded-2xl border border-[#00f0ff]/30 bg-gradient-to-br from-[#10172e] via-[#121b36] to-[#17122f] p-3.5">
+      <div className="rounded-2xl border border-[var(--ui-primary)]/30 bg-gradient-to-br from-[var(--ui-panel)] via-[#121b36] to-[#17122f] p-3.5">
         <div className="flex items-start gap-2.5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#00f0ff]/12 text-[#00f0ff] ring-1 ring-[#00f0ff]/25">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-primary)]/12 text-[var(--ui-primary)] ring-1 ring-[var(--ui-primary)]/25">
             <Sparkles className="h-4 w-4" />
           </div>
           <div className="min-w-0">
@@ -52,8 +52,8 @@ export const ProfileFramesShop: React.FC = () => {
               key={frame.key}
               className={`rounded-2xl border p-3 transition ${
                 frameEquipped
-                  ? 'border-[#7dff00]/60 bg-[#7dff00]/7 shadow-[0_0_18px_rgba(125,255,0,0.08)]'
-                  : 'border-slate-700/80 bg-[#10172e]/90'
+                  ? 'border-[var(--ui-success)]/60 bg-[var(--ui-success)]/7 shadow-[0_0_18px_rgba(var(--ui-success-rgb),0.08)]'
+                  : 'border-slate-700/80 bg-[var(--ui-panel)]/90'
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -72,7 +72,7 @@ export const ProfileFramesShop: React.FC = () => {
                   <div className="truncate text-xs font-extrabold text-white">{frame.name}</div>
                   <div className="mt-0.5 text-[10px] font-bold text-slate-400">{frame.source}</div>
                 </div>
-                {frameEquipped && <Check className="h-4 w-4 shrink-0 text-[#7dff00]" />}
+                {frameEquipped && <Check className="h-4 w-4 shrink-0 text-[var(--ui-success)]" />}
               </div>
 
               <p className="mt-2 min-h-[32px] text-[10px] leading-relaxed text-slate-400">{frame.description}</p>
@@ -89,7 +89,7 @@ export const ProfileFramesShop: React.FC = () => {
                     frameEquipped
                       ? 'cursor-default bg-emerald-950/40 text-emerald-300'
                       : canBuy
-                        ? 'cursor-pointer bg-[#00f0ff] text-[#061018] hover:brightness-110'
+                        ? 'cursor-pointer bg-[var(--ui-primary)] text-[var(--ui-on-primary)] hover:brightness-110'
                         : 'cursor-not-allowed bg-slate-800 text-slate-500'
                   }`}
                 >
@@ -122,7 +122,7 @@ export const ProfileFramesShop: React.FC = () => {
                   className={`rounded-2xl border p-3 transition ${
                     frameEquipped
                       ? 'border-fuchsia-300/70 bg-fuchsia-300/8 shadow-[0_0_18px_rgba(217,70,239,0.12)]'
-                      : 'border-fuchsia-200/25 bg-[#171535]/80'
+                      : 'border-fuchsia-200/25 bg-[var(--ui-panel)]/80'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
@@ -189,8 +189,8 @@ export const ProfileFramesShop: React.FC = () => {
                   frameEquipped
                     ? 'border-amber-300/60 bg-amber-300/8 shadow-[0_0_18px_rgba(255,183,3,0.1)]'
                     : frameUnlocked
-                      ? 'border-amber-300/25 bg-[#171535]/80'
-                      : 'border-slate-800 bg-[#0a0e1a]/60'
+                      ? 'border-amber-300/25 bg-[var(--ui-panel)]/80'
+                      : 'border-slate-800 bg-[var(--ui-panel-deep)]/60'
                 }`}
               >
                 <div className="flex items-center gap-2.5">
@@ -242,7 +242,7 @@ export const ProfileFramesShop: React.FC = () => {
         </div>
       </div>
 
-      <div className={`rounded-xl border p-3 ${hasDefault ? 'border-slate-600/80 bg-[#10172e]' : 'border-slate-800 bg-[#0a0e1a]/60'}`}>
+      <div className={`rounded-xl border p-3 ${hasDefault ? 'border-slate-600/80 bg-[var(--ui-panel)]' : 'border-slate-800 bg-[var(--ui-panel-deep)]/60'}`}>
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div
