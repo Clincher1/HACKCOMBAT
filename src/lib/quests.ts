@@ -23,8 +23,9 @@ import {
   isSeasonEventLive,
 } from '../../shared/seasonalEvent.config';
 import type { PlayerState } from '../../shared/types';
+import { buildContractSection } from './contracts';
 
-export type QuestKind = 'daily' | 'progress' | 'event';
+export type QuestKind = 'daily' | 'contract' | 'progress' | 'event';
 
 /** Четыре состояния карточки — больше в разделе не бывает. */
 export type QuestStatus = 'available' | 'active' | 'ready' | 'closed';
@@ -41,8 +42,10 @@ export interface Quest {
   current: number;
   target: number;
   status: QuestStatus;
-  /** Ключ ежедневного поручения — только у заданий, которые забираются тапом. */
+  /** Ключ задания, которое забирается тапом: поручение дня или контракт. */
   claimKey?: string;
+  /** Идентификатор в pendingClaims: `daily:<key>` / `contract:<key>`. */
+  claimId?: string;
   /** Куда ведёт действие, если награды не забирают (сюжетные цели). */
   href?: string;
   /** Служебная подпись состояния: «до сброса», «выдаётся автоматически». */
@@ -59,6 +62,7 @@ export interface QuestSection {
 
 export const QUEST_SECTION_TITLES = {
   daily: 'Ежедневные поручения',
+  contract: 'Контракты',
   progress: 'Прогресс',
   event: 'События',
 } as const;
@@ -98,6 +102,7 @@ function buildDailySection(player: PlayerState): QuestSection {
         target: definition.target,
         status: claimed ? 'closed' : ready ? 'ready' : current > 0 ? 'active' : 'available',
         claimKey: definition.key,
+        claimId: `daily:${definition.key}`,
         hint: claimed ? 'Получено' : ready ? 'Готово к забору' : 'В процессе',
       });
     }
@@ -219,7 +224,17 @@ function buildEventSection(player: PlayerState): QuestSection {
   };
 }
 
-/** Все секции экрана «Задания» в порядке отображения. */
+/**
+ * Все секции экрана «Задания» в порядке отображения.
+ *
+ * Контракты идут сразу после поручений дня: это второй короткий слой целей,
+ * прогресс которого растёт сам, поэтому он не должен уезжать вниз под сюжет.
+ */
 export function buildQuestSections(player: PlayerState): QuestSection[] {
-  return [buildDailySection(player), buildProgressSection(player), buildEventSection(player)];
+  return [
+    buildDailySection(player),
+    buildContractSection(player),
+    buildProgressSection(player),
+    buildEventSection(player),
+  ];
 }

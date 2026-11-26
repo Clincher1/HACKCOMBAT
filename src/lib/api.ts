@@ -81,6 +81,9 @@ export const gameApi = {
     apiRequest<ApiSyncResponse>('/api/daily-incident', 'POST', { choiceKey, clicks }),
   claimDailyTask: (taskKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/daily-tasks', 'POST', { action: 'claim', taskKey, clicks }),
+  /** v6.1: забор награды за контракт дня. Тело — только id, награду считает сервер. */
+  claimContract: (contractId: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/contracts', 'POST', { action: 'claim', contractId, clicks }),
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/season-event', 'POST', { action, clicks }),
   skinAction: (

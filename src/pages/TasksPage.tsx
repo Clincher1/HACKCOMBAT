@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronRight, ClipboardList, Trophy } from 'lucide-react';
+import { CalendarDays, ChevronRight, ClipboardList, FileText, Inbox, Trophy } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getGameDayBoundsMs } from '../../shared/mechanics';
@@ -20,6 +20,7 @@ import { buildQuestSections, type Quest, type QuestSection } from '../lib/quests
 
 const SECTION_ICONS = {
   daily: CalendarDays,
+  contract: FileText,
   progress: Trophy,
   event: ClipboardList,
 } as const;
@@ -68,19 +69,20 @@ const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, onClaim, 
       </header>
 
       {section.quests.length === 0 ? (
-        <p
+        <div
           data-qa="quest-section-empty"
-          className="rounded-xl border border-dashed border-slate-700/70 bg-[var(--ui-panel-deep)]/35 px-3 py-3 text-[11px] leading-relaxed text-slate-400"
+          className="flex items-start gap-2 rounded-xl border border-slate-700/60 bg-[var(--ui-panel-deep)]/40 px-3 py-3"
         >
-          {section.empty}
-        </p>
+          <Inbox className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-500" aria-hidden="true" />
+          <p className="text-[11px] leading-relaxed text-slate-400">{section.empty}</p>
+        </div>
       ) : (
         <div className="space-y-2">
           {section.quests.map((quest) => (
             <QuestCard
               key={quest.id}
               quest={quest}
-              pending={quest.claimKey ? pendingClaims.has(`daily:${quest.claimKey}`) : false}
+              pending={quest.claimId ? pendingClaims.has(quest.claimId) : false}
               onClaim={onClaim}
             />
           ))}
@@ -99,16 +101,20 @@ const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, onClaim, 
 const MemoSection = React.memo(SectionBody);
 
 export const TasksPage: React.FC = () => {
-  const { player, pendingClaims, claimDailyTask } = useGame();
+  const { player, pendingClaims, claimDailyTask, claimContract } = useGame();
 
   // Секции зависят только от состояния игрока: тик таймера их не пересобирает.
   const sections = React.useMemo(() => (player ? buildQuestSections(player) : []), [player]);
 
   const onClaim = React.useCallback(
     (quest: Quest) => {
-      if (quest.claimKey) void claimDailyTask(quest.claimKey);
+      if (!quest.claimKey) return;
+      // Единая обёртка забора: обе награды идут через pendingClaims, поэтому
+      // кнопка гаснет в том же кадре, что и тап, а не после ответа сервера.
+      if (quest.kind === 'contract') void claimContract(quest.claimKey);
+      else if (quest.kind === 'daily') void claimDailyTask(quest.claimKey);
     },
-    [claimDailyTask]
+    [claimContract, claimDailyTask]
   );
 
   if (!player) return null;
