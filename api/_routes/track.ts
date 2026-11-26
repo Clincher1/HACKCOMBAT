@@ -1,5 +1,17 @@
 import { handleTrackEvent } from '../_lib/gameEngine';
 import {
+  clampTimestamp,
+  insertClientEvent,
+  isClientAnalyticsEvent,
+  isLegacyTelemetry,
+  readErrorFields,
+  readEventName,
+  readUserAgent,
+  resolvePlayerId,
+  sanitizeMeta,
+  type TrackRequestBody,
+} from '../_lib/clientEvents';
+import {
   authenticateRequest,
   enforceHttpSecurity,
   readJsonBody,
@@ -8,28 +20,87 @@ import {
   type ApiResponse,
 } from '../_lib/http';
 
+/** 204 без тела: клиентская аналитика не ждёт данных, экономит трафик и парсинг. */
+function sendNoContent(res: ApiResponse): void {
+  res.setHeader('Cache-Control', 'no-store, max-age=0');
+  res.statusCode = 204;
+  res.end();
+}
+
+function sendBadRequest(res: ApiResponse, error: string): void {
+  sendJson(res, 400, { ok: false, error });
+}
+
+/**
+ * POST /api/track — приём клиентской аналитики.
+ *
+ * Два пути:
+ *  1. client_events (6 шагов воронки + client_error) → Supabase → 204.
+ *     Антифлуд 5 c и дедупликация шагов воронки живут в insert_client_event().
+ *  2. старая игровая телеметрия (туториал, вкладки, сессия, ночной час) →
+ *     handleTrackEvent() → 200 с синком игрока. Этот путь кормит ачивки,
+ *     поэтому он сохранён без изменений.
+ *
+ * initData проверяется HMAC-подписью Telegram в authenticateRequest()
+ * и НИКОГДА не сохраняется: в базу уходит только player_id (uuid).
+ */
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
   if (req.method !== 'POST') {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }
+
+  let body: TrackRequestBody;
   try {
-    const body = await readJsonBody<{
-      event?: string;
-      value?: number;
-      initData?: string;
-      /** v5.2: необязательный контекст события (для client_error — message/url/line/stack). */
-      meta?: unknown;
-    }>(req);
-    const user = authenticateRequest(req, body);
-    if (!body.event || typeof body.event !== 'string') {
-      return sendJson(res, 400, { ok: false, error: 'event is required' });
+    body = await readJsonBody<TrackRequestBody>(req);
+  } catch {
+    return sendBadRequest(res, 'Некорректное тело запроса');
+  }
+
+  const event = readEventName(body.event);
+  if (!event) return sendBadRequest(res, 'event is required');
+  if (!isClientAnalyticsEvent(event) && !isLegacyTelemetry(event)) {
+    return sendBadRequest(res, 'event is not allowed');
+  }
+
+  let user;
+  try {
+    user = authenticateRequest(req, body);
+  } catch {
+    return sendBadRequest(res, 'Не удалось подтвердить подпись initData');
+  }
+
+  // Путь 1: аналитика в client_events.
+  if (isClientAnalyticsEvent(event)) {
+    const errorFields = readErrorFields(event, body.meta);
+    if (errorFields === undefined) return sendBadRequest(res, 'client_error requires meta.message');
+
+    try {
+      const playerId = await resolvePlayerId(user);
+      // База не настроена (локальный режим) — писать некуда, но клиент не должен видеть ошибку.
+      if (!playerId) return sendNoContent(res);
+
+      await insertClientEvent({
+        playerId,
+        event,
+        timestampIso: clampTimestamp(body.timestamp),
+        userAgent: readUserAgent(body, req.headers['user-agent']),
+        meta: sanitizeMeta(body.meta),
+        error: errorFields,
+      });
+      return sendNoContent(res);
+    } catch {
+      // Наружу — без текста ошибки БД: детали игроку не нужны, а лишнее знание лишнее.
+      return sendJson(res, 500, { ok: false, error: 'Analytics write failed' });
     }
+  }
+
+  // Путь 2: legacy-телеметрия для ачивок (совместимость, возвращает синк игрока).
+  try {
     const result = await handleTrackEvent(
       user,
-      body.event,
-      Number.isFinite(Number(body.value)) ? Number(body.value) : undefined,
-      body.meta
+      event,
+      Number.isFinite(Number(body.value)) ? Number(body.value) : undefined
     );
     return sendJson(res, 200, result);
   } catch (err) {

@@ -380,43 +380,6 @@ function pickProfileFrameKey(raw: unknown): string | undefined {
   return frame.key === raw && frame.key !== 'default' ? frame.key : undefined;
 }
 
-/**
- * v5.2: агрегат воронки. В jsonb живут только известные шаги и только
- * положительные счётчики — старый/битый сейв не раздувает объект.
- */
-function normalizeFunnel(raw: unknown): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (!raw || typeof raw !== 'object') return out;
-  const src = raw as Record<string, unknown>;
-  for (const key of TRACK_FUNNEL_EVENTS) {
-    const value = Number(src[key]);
-    if (Number.isFinite(value) && value > 0) out[key] = Math.min(1_000_000, Math.floor(value));
-  }
-  return out;
-}
-
-/** v5.2: последняя клиентская ошибка. Строки обрезаем, чтобы jsonb не пух. */
-function normalizeLastClientError(raw: unknown): PlayerProgressStats['lastClientError'] {
-  if (!raw || typeof raw !== 'object') return null;
-  const src = raw as Record<string, unknown>;
-  const str = (value: unknown, limit: number) => (typeof value === 'string' ? value.slice(0, limit) : '');
-  const num = (value: unknown) => {
-    const n = Number(value);
-    return Number.isFinite(n) && n > 0 ? Math.min(1_000_000, Math.floor(n)) : 0;
-  };
-  const message = str(src.message, 300);
-  if (message.length === 0) return null;
-  return {
-    message,
-    url: str(src.url, 300),
-    line: num(src.line),
-    column: num(src.column),
-    kind: str(src.kind, 32) || 'error',
-    stack: str(src.stack, 1_200),
-    at: str(src.at, 40),
-  };
-}
-
 function normalizeStats(raw: unknown): PlayerProgressStats {
   const src = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const num = (v: unknown, max = 1_000_000_000) => {
@@ -514,9 +477,6 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     lastPetFeedDay: typeof src.lastPetFeedDay === 'string' ? src.lastPetFeedDay.slice(0, 10) : null,
     trackEventsToday: num(src.trackEventsToday, 10_000),
     trackEventsDay: typeof src.trackEventsDay === 'string' ? src.trackEventsDay.slice(0, 10) : null,
-    // v5.2: воронка и последняя клиентская ошибка переживают round-trip через jsonb.
-    funnel: normalizeFunnel(src.funnel),
-    lastClientError: normalizeLastClientError(src.lastClientError),
     hackSuccessByType: numRecord(src.hackSuccessByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     hackFailByType: numRecord(src.hackFailByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     totalXpEarned: num(src.totalXpEarned, 1e12),
@@ -3807,18 +3767,6 @@ const TRACK_TUTORIAL_TABS = new Set(['currencies', 'upgrades', 'hacks', 'team', 
 const TRACK_APP_TABS = new Set(['/', '/upgrades', '/hacks', '/team', '/profile']);
 const MAX_TRACK_EVENTS_PER_DAY = 200;
 /**
- * v5.2: шаги событийной воронки. Пишутся один раз за жизнь аккаунта и только
- * счётчиком — по ним видно, на каком шаге новый игрок бросает игру.
- */
-const TRACK_FUNNEL_EVENTS = new Set([
-  'app_opened',
-  'init_ok',
-  'first_frame',
-  'first_tap',
-  'first_upgrade',
-  'first_mission_start',
-]);
-/**
  * Эти достижения могут использовать клиентские telemetry-сигналы для UX-бейджа,
  * но никогда не должны выдавать валюту: session/hour/idle/shop нельзя доказать
  * одним POST из браузера.
@@ -3839,24 +3787,10 @@ const CLIENT_TELEMETRY_ACHIEVEMENTS = new Set([
  * badge, но перечисленные выше события не дают Crypto/Chips/Data без серверного
  * подтверждения факта.
  */
-/** Строка из клиентского meta: обрезаем и выкидываем всё, что не строка. */
-function readMetaString(meta: Record<string, unknown> | undefined, key: string, limit: number): string {
-  const value = meta?.[key];
-  return typeof value === 'string' ? value.slice(0, limit) : '';
-}
-
-/** Число из клиентского meta: конечное и неотрицательное, иначе 0. */
-function readMetaNumber(meta: Record<string, unknown> | undefined, key: string): number {
-  const value = meta?.[key];
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? Math.min(Math.floor(parsed), 1_000_000) : 0;
-}
-
 export async function handleTrackEvent(
   user: VerifiedTelegramUser,
   event: string,
-  value?: number,
-  meta?: unknown
+  value?: number
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
@@ -3875,11 +3809,6 @@ export async function handleTrackEvent(
 
     const raw = typeof event === 'string' ? event.slice(0, 64) : '';
     const [kind, arg] = raw.split(':');
-    // Клиентский meta принимаем только как плоский объект; всё остальное — игнор.
-    const metaRecord =
-      typeof meta === 'object' && meta !== null && !Array.isArray(meta)
-        ? (meta as Record<string, unknown>)
-        : undefined;
     let touched = false;
 
     switch (kind) {
@@ -3933,30 +3862,8 @@ export async function handleTrackEvent(
         }
         break;
       }
-      case 'client_error': {
-        // Ошибка браузера: сохраняем последнюю (без ПДн) — этого хватает, чтобы
-        // увидеть «белый экран» у игрока, у которого нет консоли под рукой.
-        record.stats.lastClientError = {
-          message: readMetaString(metaRecord, 'message', 300) || 'unknown',
-          url: readMetaString(metaRecord, 'url', 300),
-          line: readMetaNumber(metaRecord, 'line'),
-          column: readMetaNumber(metaRecord, 'column'),
-          kind: readMetaString(metaRecord, 'kind', 32) || 'error',
-          stack: readMetaString(metaRecord, 'stack', 1_200),
-          at: new Date(nowMs).toISOString(),
-        };
-        touched = true;
+      default:
         break;
-      }
-      default: {
-        if (TRACK_FUNNEL_EVENTS.has(kind)) {
-          const funnel = record.stats.funnel ?? {};
-          funnel[kind] = Math.min(1_000_000, (funnel[kind] ?? 0) + 1);
-          record.stats.funnel = funnel;
-          touched = true;
-        }
-        break;
-      }
     }
 
     if (!touched) {
