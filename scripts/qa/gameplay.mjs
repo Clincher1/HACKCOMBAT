@@ -360,6 +360,15 @@ try {
       deskPage.indexOf('<DeskLocationBar />') < deskPage.indexOf('<ContractBoard />') &&
       deskPage.includes('data-qa="change-location-bar"'));
 
+  // --- v5.9: мёртвая «вуаль темы» убрана, рабочая — только для сцен по уровню
+  check('вуаль темы без битого цвета (нет суффикса после rgba строки)',
+    !deskScene.includes('sceneVignette}55'), 'ищем дописанный суффикс прозрачности');
+  check('вуаль темы рендерится только без выбранной локации',
+    deskScene.includes('{!deskBackdrop && (') &&
+      deskScene.indexOf('{!deskBackdrop && (') < deskScene.indexOf('sceneVignette'));
+  check('мёртвая CSS-переменная --theme-vignette удалена',
+    !deskScene.includes('--theme-vignette') && !context.includes('--theme-vignette'));
+
   // --- онбординг: первый кадр игры без «тапни» и без кнопки ТАП -------------
   const onboarding = readSource('src/components/Onboarding.tsx');
   check('онбординг: текст шага под флагом геймплея',

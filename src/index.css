@@ -35,7 +35,6 @@
   --ui-glow-2: 78, 205, 196;
   --ui-grid-opacity: 0;
   --scanline-opacity: 0;
-  --theme-vignette: rgba(255, 154, 90, 0.12);
   /* v5.5 «День хакера»: акцент локации. LocationBackdrop переопределяет обе
      переменные на :root, а весь интерфейс читает их с фолбэком на тему. */
   --loc-accent: var(--ui-primary);
