@@ -53,6 +53,8 @@ import {
   HEAT_PENALTY_DATA_LOSS_PCT,
   HEAT_PENALTY_THRESHOLD,
   HEAT_RESET_AFTER_PENALTY,
+  resolveTapAllowance,
+  TAP_BURST_CAPACITY,
   ACTIVITY_HEARTBEAT_MAX_GAP_SEC,
   getGameDayBoundsMs,
   getGameDayKey,
@@ -622,6 +624,21 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     return !frame.eventKey || validEventFrameKeys.has(frame.key);
   });
 
+  // v6.4: запас тап-цикла. Мусор в jsonb не должен давать бесконечный запас:
+  // токены зажимаются 0..TAP_BURST_CAPACITY, время — валидное число ≥ 0.
+  const tapBudgetRaw = (src.tapBudget && typeof src.tapBudget === 'object'
+    ? src.tapBudget
+    : null) as Record<string, unknown> | null;
+  const tapTokens = tapBudgetRaw ? Number(tapBudgetRaw.tokens) : Number.NaN;
+  const tapAt = tapBudgetRaw ? Number(tapBudgetRaw.at) : Number.NaN;
+  const tapBudget =
+    Number.isFinite(tapTokens) && Number.isFinite(tapAt)
+      ? {
+          tokens: Math.max(0, Math.min(TAP_BURST_CAPACITY, tapTokens)),
+          at: Math.max(0, tapAt),
+        }
+      : undefined;
+
   return {
     tutorialTabs: strArr(src.tutorialTabs),
     tutorialOpens: num(src.tutorialOpens, 100_000),
@@ -659,6 +676,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     contracts: normalizeContractState(src.contracts),
     hackSession: normalizeHackSession(src.hackSession),
     lollipop: normalizeLollipopState(src.lollipop),
+    tapBudget,
     dailyIncident: normalizeDailyIncidentState(src.dailyIncident),
     seasonEvent,
     unlockedProfileFrames,
@@ -2829,22 +2847,21 @@ async function applyPendingClicks(
     return 0;
   }
 
-  // Серверный Anti-Cheat кликов (v3.1 — дружелюбнее к живому пальцу):
-  // 1) не более 60 кликов в одной пачке (клиент отправляет по 20);
-  // 2) не более 30 кликов/сек — это вдвое быстрее, чем реально тапает человек,
-  //    но всё ещё не даёт скрипту «бесконечный» поток;
-  // 3) главный ограничитель — энергия: каждый клик её сжигает, запас не бесконечен.
-  const rawCount = Math.max(0, Math.min(60, count));
-  let allowedByRate = rawCount;
-  if (record.lastClickBatchAt > 0) {
-    const elapsedSec = Math.max(0.15, (nowMs - record.lastClickBatchAt) / 1000);
-    const maxHumanBurst = Math.max(minBurst, Math.ceil(elapsedSec * 30));
-    allowedByRate = Math.min(rawCount, maxHumanBurst);
-  } else {
-    allowedByRate = Math.min(rawCount, Math.max(minBurst, 30));
-  }
-
-  const validClicks = Math.min(allowedByRate, record.energy);
+  // Серверный Anti-Cheat тапов (v6.4 — тот же темп, что во взломах):
+  // 1) не более TAP_MAX_BATCH (60) тапов в одной пачке (клиент отправляет по 20);
+  // 2) не более TAP_MAX_PER_SEC (6) тап/с по «ведру токенов» с запасом на одну
+  //    клиентскую пачку — живой палец не теряет тапы, скрипт не обгоняет его;
+  // 3) главный ограничитель — CPU Charge: каждый тап сжигает 1 заряд, а без
+  //    заряда тап не проходит вовсе.
+  const allowance = resolveTapAllowance({
+    requested: count,
+    budget: record.stats.tapBudget ?? null,
+    energy: record.energy,
+    nowMs,
+    minBurst,
+  });
+  record.stats.tapBudget = { tokens: allowance.tokens, at: nowMs };
+  const validClicks = allowance.allowed;
   if (validClicks <= 0) return 0;
 
   const prevTotalClicks = record.totalClicks;
@@ -3383,7 +3400,7 @@ export async function handleMissionAction(
       if (record.energy < entryCost.energy) {
         throw new Error(
           isGameplayV3Enabled()
-            ? `Недостаточно CPU Charge: контракт тира ${cfg.tier ?? 1} требует ${entryCost.energy} ⚡ (сейчас ${record.energy}). Заряд копится сам — тапать не нужно.`
+            ? `Недостаточно CPU Charge: контракт тира ${cfg.tier ?? 1} требует ${entryCost.energy} ⚡ (сейчас ${record.energy}). Заряд копится сам (+1 за 2 с), тап тоже тратит 1 заряд.`
             : `Недостаточно Energy для запуска: нужно ${entryCost.energy} ⚡ (сейчас ${record.energy}).`
         );
       }

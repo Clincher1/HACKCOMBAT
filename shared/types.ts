@@ -469,6 +469,11 @@ export interface PlayerProgressStats {
   hackSession?: HackSessionState;
   /** v6.3: сезонный леденец (×2 Data на час, раз в сутки). */
   lollipop?: LollipopState;
+  /**
+   * v6.4: запас тап-цикла (bucket 6 тап/с + пачка 20). Живёт в stats jsonb —
+   * новой таблицы и миграции не требуется, старые сейвы стартуют с полным запасом.
+   */
+  tapBudget?: { tokens: number; at: number };
   /** v3.13: один серверный киберинцидент с выбором в каждые московские сутки. */
   dailyIncident?: DailyIncidentState;
   /** v3.9: прогресс текущей 7-дневной сезонной операции. */

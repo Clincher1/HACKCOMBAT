@@ -59,6 +59,71 @@ export const HEAT_PENALTY_THRESHOLD = 100; // Heat > 100 -> штраф (разд
 export const HEAT_RESET_AFTER_PENALTY = 50;
 export const HEAT_PENALTY_DATA_LOSS_PCT = 0.1; // Потеря 10% Data
 export const HEAT_LOCKDOWN_SECONDS = 60; // Блок кликов на 60 сек
+
+// ============================================================================
+// ТАП-ЦИКЛ (v6.4) — тап снова ядро геймплея
+// ----------------------------------------------------------------------------
+// Один тап = 1 CPU Charge и `clickPower` Data. Доход мгновенный (оптимистичный
+// локальный стейт), а темп ограничен тем же коридором, что и во взломах:
+// HACK_MAX_TAPS_PER_SEC = 6. Запас bucket'а равен одной клиентской пачке
+// (CLICK_MAX_BATCH = 20), чтобы сетевой дребезг не «съедал» честные тапы, а
+// скрипт не получал больше живого пальца. CPU Charge остаётся жёстким потолком:
+// без заряда тап не проходит вообще.
+// ============================================================================
+export const TAP_MAX_PER_SEC = 6;
+/** Паритет с HACK_MAX_TAPS_PER_SEC — проверяется в QA. */
+export const TAP_BURST_CAPACITY = 20;
+export const TAP_MAX_BATCH = 60;
+
+export interface TapBudget {
+  /** Сколько тапов ещё «в запасе» (0..TAP_BURST_CAPACITY). */
+  tokens: number;
+  /** Когда запас последний раз пересчитывался (ms epoch). */
+  at: number;
+}
+
+/**
+ * Серверный расчёт: сколько тапов из пачки принять прямо сейчас.
+ *
+ * Чистая функция (никакого состояния вне аргументов), поэтому её одинаково
+ * используют API, QA и клиентская подсказка «тап готов». Возвращает и новый
+ * запас, чтобы вызывающий сохранил его в stats jsonb (без новых таблиц).
+ */
+export function resolveTapAllowance(input: {
+  requested: number;
+  budget?: TapBudget | null;
+  energy: number;
+  nowMs: number;
+  /**
+   * Минимальный «человеческий» всплеск: хвост кликов, приложенный к покупке,
+   * проходит даже при пустом запасе — иначе игрок, тапнувший 20 раз и сразу
+   * купивший, получал бы ложное «Недостаточно Data».
+   */
+  minBurst?: number;
+}): { allowed: number; tokens: number } {
+  const requested = Math.max(
+    0,
+    Math.min(TAP_MAX_BATCH, Math.floor(Number(input.requested) || 0))
+  );
+  const energy = Math.max(0, Math.floor(Number(input.energy) || 0));
+  const minBurst = Math.max(0, Math.min(requested, Math.floor(Number(input.minBurst) || 0)));
+  const previous = input.budget;
+  const previousTokens =
+    previous && Number.isFinite(previous.tokens)
+      ? Math.max(0, Math.min(TAP_BURST_CAPACITY, previous.tokens))
+      : TAP_BURST_CAPACITY;
+  const idleMs =
+    previous && Number.isFinite(previous.at) ? Math.max(0, input.nowMs - previous.at) : 0;
+  // Простой не копит «сверх лимита»: даже после суток паузы в запасе только capacity.
+  const refilled = Math.min(
+    TAP_BURST_CAPACITY,
+    previousTokens + (idleMs / 1000) * TAP_MAX_PER_SEC
+  );
+  const fromBucket = Math.min(requested, Math.floor(refilled), energy);
+  const allowed = Math.min(requested, energy, Math.max(fromBucket, minBurst));
+  const spent = Math.min(fromBucket, allowed);
+  return { allowed, tokens: Math.round(Math.max(0, refilled - spent) * 1000) / 1000 };
+}
 export const PRESTIGE_REQUIRED_LEVEL = 50;
 /**
  * Числовой safety-horizon для старых импортов. Это больше не игровой cap:

@@ -96,13 +96,15 @@ async function earnTaps(seed, batches = 3) {
 
   const empty = await api('init', {}, 'mission-empty');
   const missionKey = empty.player.availableMissionKeys[0];
-  // В memory fallback новый игрок получает стартовый Data-капитал. Тратим
-  // ровно его на два первых модуля и оставляем меньше минимального взноса.
-  for (let index = 0; index < 10; index += 1) {
-    fakeNow += 3_000;
-    await api('click', { clicks: 60 }, 'mission-empty');
+  // v6.4: тап ограничен 6/с и жжёт CPU. Набираем ровно столько Data, чтобы после
+  // покупки самой дешёвой карточки остаток был меньше минимального взноса (25).
+  // Стартовый капитал 250 + 12 тапов × 30 пачек = 610, клавиатура стоит 600.
+  for (let index = 0; index < 30; index += 1) {
+    fakeNow += 2_000;
+    await api('click', { clicks: 12 }, 'mission-empty');
   }
-  const spent = await api('buy-card', { cardKey: 'monitor' }, 'mission-empty');
+  const spent = await api('buy-card', { cardKey: 'keyboard' }, 'mission-empty');
+  check('после покупки Data меньше взноса', Number(spent.player?.data ?? 0) < 25, String(spent.player?.data));
   const emptyStart = await api('missions', { action: 'start', missionKey }, 'mission-empty');
   const emptyReload = await api('init', {}, 'mission-empty');
   check('без достаточного Data контракт не запускается', emptyStart.ok === false, emptyStart.error);
@@ -259,10 +261,13 @@ async function earnTaps(seed, batches = 3) {
   // если весь Energy уже потрачен тапами.
   let energyPlayer = (await api('init', {}, 'mission-energy')).player;
   const energyMissionKey = energyPlayer.availableMissionKeys[0];
-  for (let index = 0; index < 32; index += 1) {
-    fakeNow += 3_000;
-    const clicked = await api('click', { clicks: 60 }, 'mission-energy');
+  // v6.4: 6 тап/с → 12 тапов за 2 секунды; жжём заряд, пока он не кончится.
+  let drainGuard = 0;
+  while ((energyPlayer?.energy ?? 0) > 0 && drainGuard < 400) {
+    fakeNow += 2_000;
+    const clicked = await api('click', { clicks: 12 }, 'mission-energy');
     energyPlayer = clicked.player;
+    drainGuard += 1;
   }
   const energyStart = await api('missions', { action: 'start', missionKey: energyMissionKey }, 'mission-energy');
   const energyReload = await api('init', {}, 'mission-energy');

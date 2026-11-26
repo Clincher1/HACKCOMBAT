@@ -339,7 +339,19 @@ try {
 
   check('кнопка HACK скрыта флагом (не удалена из кода)', /!gameplayV3 && \(\s*<motion\.button/.test(deskScene));
   check('тап-обработчик остаётся в коде', deskScene.includes('const handleTap'));
-  check('сцена не кликабельна при V3', /onClick=\{gameplayV3 \? undefined : handleTap\}/.test(deskScene));
+  // v6.4: сцена — тап-поверхность при ЛЮБОМ значении флага.
+  check('сцена кликабельна при V3', deskScene.includes('onClick={handleTap}') && !deskScene.includes('onClick={gameplayV3 ? undefined : handleTap}'));
+  check('сцена — кнопка для скринридера и клавиатуры',
+    deskScene.includes('role="button"') && deskScene.includes('onKeyDown={handleTapKey}') && deskScene.includes('tabIndex={0}'));
+  check('тап-поверхность помечена для QA', deskScene.includes('data-qa="desk-tap"') && deskScene.includes('data-tap-state'));
+  check('подсказка тапа видна и не перехватывает клик',
+    deskScene.includes('data-qa="tap-hint"') && /data-qa="tap-hint"[\s\S]{0,160}pointer-events-none/.test(deskScene));
+  check('отклик тапа — только transform/opacity (без layout-анимаций)',
+    deskScene.includes('active:scale-[0.992]') && deskScene.includes("animate={{ opacity: 0, y: -76, scale: 1.12 }}"));
+  check('клиент считает тап оптимистично (Data + clickPower до ответа сервера)',
+    context.includes('data: Math.round((prev.data + prev.derived.clickPower) * 10) / 10') &&
+      context.includes('pendingClicksRef.current += 1'));
+  check('клиент шлёт тапы пачками ≤20', context.includes('const CLICK_MAX_BATCH = 20'));
   check('на столе есть доска контрактов', deskPage.includes('<ContractBoard />'));
   check('доска показывает прогресс и «Забрать»', board.includes('data-qa="contract-card"') && board.includes('collect-contract'));
   check('CPU Charge виден на доске', /CPU/.test(board));
@@ -515,6 +527,98 @@ try {
 } catch (err) {
   check('структурные проверки UI', false, String(err));
 }
+
+// ============================================================================
+// 9. v6.4: тап-цикл вернулся — Data, CPU Charge, темп, контракты, поручения
+// ============================================================================
+if (sharedOk) {
+  check('тап-лимит 6/с — паритет с взломами', cfg.tap.maxPerSec === 6 && cfg.tap.hackMaxPerSec === 6,
+    `tap=${cfg.tap.maxPerSec} hacks=${cfg.tap.hackMaxPerSec}`);
+  check('запас тапа = одна клиентская пачка (20)', cfg.tap.burst === 20 && cfg.tap.maxBatch === 60);
+  check('пустой запас режет тапы', cfg.tap.afterFull === 0, String(cfg.tap.afterFull));
+  check('за секунду простоя возвращается ровно 6 тапов', cfg.tap.afterOneSecond === 6, String(cfg.tap.afterOneSecond));
+  check('без CPU Charge тап не проходит', cfg.tap.noEnergy === 0, String(cfg.tap.noEnergy));
+  check('простой не копит запас сверх лимита', cfg.tap.idleDay === 20 && cfg.tap.fresh === 20,
+    `${cfg.tap.idleDay}/${cfg.tap.fresh}`);
+}
+
+const SEED_TAP = 970000104;
+const tapInit = await init(SEED_TAP);
+const tapPlayer0 = tapInit.player;
+const tapPower = tapPlayer0.derived.clickPower;
+const tapData0 = tapPlayer0.data;
+const tapEnergy0 = tapPlayer0.energy;
+
+const tapFirst = await call(SEED_TAP, 'click', { clicks: 6 });
+check('тап начисляет Data сразу', (tapFirst.player?.data ?? 0) - tapData0 >= 6 * tapPower - 0.01,
+  `+${((tapFirst.player?.data ?? 0) - tapData0).toFixed(2)} Data за ${tapFirst.appliedClicks} тапов (сила ${tapPower})`);
+check('тап списывает CPU Charge 1:1', tapEnergy0 - (tapFirst.player?.energy ?? 0) === (tapFirst.appliedClicks ?? 0),
+  `${tapEnergy0} → ${tapFirst.player?.energy} (принято ${tapFirst.appliedClicks})`);
+check('тап учитывается в totalClicks', (tapFirst.player?.totalClicks ?? 0) - (tapPlayer0.totalClicks ?? 0) === (tapFirst.appliedClicks ?? 0),
+  `${tapPlayer0.totalClicks} → ${tapFirst.player?.totalClicks}`);
+
+// Темп: сразу после 6 тапов запас пуст → лишние тапы не принимаются.
+const tapBurst = await call(SEED_TAP, 'click', { clicks: 60 });
+check('пачка сверх темпа режется (≤ остатка запаса)', (tapBurst.appliedClicks ?? 0) <= 14,
+  `принято ${tapBurst.appliedClicks} из 60`);
+advance(1_000);
+const tapAfterSecond = await call(SEED_TAP, 'click', { clicks: 60 });
+check('через секунду простоя принимается ровно 6 тапов', tapAfterSecond.appliedClicks === 6,
+  `принято ${tapAfterSecond.appliedClicks}`);
+
+// Ежедневное поручение на тапы двигается от реальных тапов.
+const tapState = tapAfterSecond.player?.stats?.dailyTasks;
+const tapTaskKey = (tapState?.taskKeys ?? []).find((key) => String(key).startsWith('tap_'));
+check('день содержит тап-поручение', Boolean(tapTaskKey), (tapState?.taskKeys ?? []).join(', '));
+check('тапы двигают тап-поручение', !tapTaskKey || (tapState?.progress?.[tapTaskKey] ?? 0) > 0,
+  tapTaskKey ? `${tapState.progress[tapTaskKey]}` : 'нет задачи');
+
+// Тап-контракты дня (если такие выпали) — прогресс именно от тапов.
+const tapContracts = (tapAfterSecond.player?.stats?.contracts?.ids ?? [])
+  .map((id) => id)
+  .filter((id) => String(id).startsWith('tap_'));
+const contractProgress = tapAfterSecond.player?.stats?.contracts?.progress ?? {};
+check('тапы двигают тап-контракты дня',
+  tapContracts.every((id) => (contractProgress[id] ?? 0) > 0),
+  tapContracts.map((id) => `${id}:${contractProgress[id] ?? 0}`).join(', ') || 'сегодня без тап-контрактов');
+
+// Достижение за клики: 25 тапов открывают «Hello, World!».
+let tapAchPlayer = tapAfterSecond.player;
+let tapGuard = 0;
+while ((tapAchPlayer?.totalClicks ?? 0) < 30 && tapGuard < 20) {
+  advance(2_000);
+  const more = await call(SEED_TAP, 'click', { clicks: 12 });
+  tapAchPlayer = more.player;
+  tapGuard += 1;
+}
+check('25 тапов открывают достижение first_boot',
+  (tapAchPlayer?.achievements ?? []).includes('first_boot'),
+  `тапов: ${tapAchPlayer?.totalClicks}, ачивок: ${(tapAchPlayer?.achievements ?? []).length}`);
+
+// CPU Charge — жёсткий потолок: тап не работает при нулевом заряде.
+let drainPlayer = tapAchPlayer;
+let drainGuard = 0;
+let lastApplied = 1;
+while ((drainPlayer?.energy ?? 0) > 0 && drainGuard < 600) {
+  advance(2_000);
+  const drained = await call(SEED_TAP, 'click', { clicks: 12 });
+  lastApplied = drained.appliedClicks ?? 0;
+  drainPlayer = drained.player;
+  drainGuard += 1;
+}
+const dataBeforeEmpty = drainPlayer?.data ?? 0;
+check('заряд CPU реально выжигается тапами', (drainPlayer?.energy ?? 1) === 0,
+  `energy=${drainPlayer?.energy} за ${drainGuard} пачек`);
+const tapEmpty = await call(SEED_TAP, 'click', { clicks: 6 });
+check('без CPU Charge тап не начисляет Data', (tapEmpty.appliedClicks ?? 1) === 0 &&
+  Math.abs((tapEmpty.player?.data ?? 0) - dataBeforeEmpty) < 0.01,
+  `принято ${tapEmpty.appliedClicks}, Data ${dataBeforeEmpty} → ${tapEmpty.player?.data}`);
+
+// Регенерация возвращает тап-цикл в строй.
+advance(20_000);
+const tapRegen = await call(SEED_TAP, 'click', { clicks: 6 });
+check('через 20 секунд регенерации тап снова работает', (tapRegen.appliedClicks ?? 0) > 0,
+  `принято ${tapRegen.appliedClicks}, energy=${tapRegen.player?.energy}`);
 
 console.log(`\nИТОГО: ${pass} pass / ${fail} fail`);
 if (fail === 0) console.log(`GAMEPLAY_QA_OK ${pass}`);

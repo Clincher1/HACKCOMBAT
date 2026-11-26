@@ -117,36 +117,52 @@ export const DeskScene: React.FC = () => {
   const sceneUrl = deskBackdrop?.url ?? getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
   const sceneFilter = deskBackdrop ? 'none' : composeSceneFilter(activeSkin.cssFilter, baseTheme);
 
-  const handleTap = (e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const relX = ((e.clientX - rect.left) / rect.width) * 100;
-    const relY = ((e.clientY - rect.top) / rect.height) * 100;
-
-    const ok = tapHack();
-    if (!ok) return;
-
+  /**
+   * v6.4: сцена снова тап-поверхность в ОБОИХ режимах флага.
+   *
+   * Отклик мгновенный и полностью локальный: `tapHack()` сразу двигает Data,
+   * CPU и счётчики в оптимистичном стейте (сервер подтвердит фоном, пачками по
+   * 20 через /api/click). Здесь только визуал — вспышка сцены и плавающее
+   * число; анимируются лишь transform/opacity.
+   */
+  const emitTapFeedback = (x: number, y: number) => {
     setPulseActive(true);
     window.setTimeout(() => setPulseActive(false), 110);
 
     const id = particleSeq++;
     const tag = BYTE_SNIPPETS[id % BYTE_SNIPPETS.length];
-    const x = Number.isFinite(relX) && relX > 0 ? relX : 50 + (Math.random() - 0.5) * 24;
-    const y = Number.isFinite(relY) && relY > 0 ? relY : 55;
-
     setParticles((prev) => [
       ...prev.slice(-16),
-      {
-        id,
-        x,
-        y,
-        text: `+${formatCompact(derived.clickPower)} • ${tag}`,
-      },
+      { id, x, y, text: `+${formatCompact(derived.clickPower)} • ${tag}` },
     ]);
 
     window.setTimeout(() => {
       setParticles((prev) => prev.filter((p) => p.id !== id));
     }, 850);
   };
+
+  const handleTap = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relX = ((e.clientX - rect.left) / rect.width) * 100;
+    const relY = ((e.clientY - rect.top) / rect.height) * 100;
+
+    if (!tapHack()) return;
+
+    const x = Number.isFinite(relX) && relX > 0 ? relX : 50 + (Math.random() - 0.5) * 24;
+    const y = Number.isFinite(relY) && relY > 0 ? relY : 55;
+    emitTapFeedback(x, y);
+  };
+
+  /** Клавиатура: Enter/Space — тот же тап, число всплывает по центру сцены. */
+  const handleTapKey = (e: React.KeyboardEvent<HTMLElement>) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    if (!tapHack()) return;
+    emitTapFeedback(50, 58);
+  };
+
+  /** Тап доступен, пока терминал не в блокировке и есть заряд CPU. */
+  const tapReady = lockdownRemainingSec === 0 && (player?.energy ?? 0) > 0;
 
   return (
     <div className="space-y-3">
@@ -220,26 +236,17 @@ export const DeskScene: React.FC = () => {
       </AnimatePresence>
 
       {/* Центральная интерактивная сцена рабочего стола хакера */}
-      {/* v5.7: при GAMEPLAY_V3 сцена — это декорация, а не кнопка. Тап остаётся
-          в коде (handleTap/tapHack), но без основного UI-поверхности. */}
+      {/* v6.4: сцена — главная тап-поверхность при любом значении флага.
+          Один тап = 1 CPU Charge + clickPower Data; отклик мгновенный. */}
       <div
-        onClick={gameplayV3 ? undefined : handleTap}
-        role={gameplayV3 ? 'img' : 'button'}
-        tabIndex={gameplayV3 ? -1 : 0}
-        aria-label={gameplayV3 ? undefined : 'Взломать цель тапом'}
-        onKeyDown={
-          gameplayV3
-            ? undefined
-            : (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  tapHack();
-                }
-              }
-        }
-        className={`relative rounded-2xl overflow-hidden border select-none aspect-[16/10] bg-[var(--ui-panel-deep)] transition-transform duration-100 ${
-          gameplayV3 ? '' : 'cursor-pointer active:scale-[0.992]'
-        }`}
+        onClick={handleTap}
+        onKeyDown={handleTapKey}
+        role="button"
+        tabIndex={0}
+        aria-label={`Взломать цель тапом: +${formatCompact(derived.clickPower)} Data за 1 CPU Charge. Осталось ${Math.floor(player?.energy ?? 0)} CPU`}
+        data-qa="desk-tap"
+        data-tap-state={tapReady ? 'ready' : 'blocked'}
+        className="relative rounded-2xl overflow-hidden border select-none aspect-[16/10] bg-[var(--ui-panel-deep)] transition-transform duration-100 cursor-pointer touch-manipulation active:scale-[0.992] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ui-primary)]"
         style={{
           borderColor: `${activeSkin.primaryHex}55`,
           boxShadow: pulseActive
@@ -310,7 +317,29 @@ export const DeskScene: React.FC = () => {
           </div>
         )}
 
-        {/* Подпись «что за окном» — маленький HUD южного города */}
+        {/* v6.4: подсказка тап-цикла — что даёт нажатие и сколько стоит.
+            pointer-events-none: не перехватывает сам тап у сцены. */}
+        <div
+          data-qa="tap-hint"
+          className="pointer-events-none absolute left-2.5 bottom-9 z-[3] max-w-[52%]"
+        >
+          <span
+            className={`flex items-center gap-1 truncate rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-wide backdrop-blur-sm ${
+              tapReady
+                ? 'border-[rgba(var(--ui-primary-rgb),0.65)] bg-[var(--ui-panel-deep)]/85 text-[var(--ui-primary)]'
+                : 'border-slate-700/80 bg-[var(--ui-panel-deep)]/85 text-slate-400'
+            }`}
+          >
+            <Zap className="h-3 w-3 shrink-0" />
+            <span className="truncate">
+              {tapReady
+                ? `ТАП · +${formatCompact(derived.clickPower)} DATA · −1⚡`
+                : 'НЕТ CPU · 1 за 2 с'}
+            </span>
+          </span>
+        </div>
+
+
         {/* v5.8: тот же чип «что за окном» теперь и есть вход в смену локации —
             подсвечен рамкой акцента и шевроном, чтобы не читался как подпись. */}
         {deskBackdrop && (
