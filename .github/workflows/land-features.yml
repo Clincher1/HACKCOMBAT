@@ -102,24 +102,25 @@ jobs:
           }
 
           # Идемпотентно: если PR для ветки уже открыт — переиспользуем его.
+          # Номер PR возвращается в глобальной PR_NUM (не через $(...) — иначе
+          # аннотации и текст ошибки gh pr create пропадают в подстановке).
           open_pr() {
-            local head=$1 base=$2 title=$3 body_file=$4 num
+            local head=$1 base=$2 title=$3 body_file=$4
             [ -f "$body_file" ] || die "нет файла с телом PR: $body_file"
-            num=$(pr_number_for "$head")
-            if [ -z "$num" ]; then
+            PR_NUM=$(pr_number_for "$head")
+            if [ -z "$PR_NUM" ]; then
               if ! gh pr create --repo "$REPO" --base "$base" --head "$head" --title "$title" --body-file "$body_file" >"${RUNNER_TEMP:-/tmp}/pr.out" 2>&1; then
                 echo "::error::gh pr create упал для ветки $head"
-                tail -n 6 "${RUNNER_TEMP:-/tmp}/pr.out" | while IFS= read -r line; do echo "::error::  $line"; done
+                tail -n 8 "${RUNNER_TEMP:-/tmp}/pr.out" | while IFS= read -r line; do echo "::error::  $line"; done
                 cat "${RUNNER_TEMP:-/tmp}/pr.out"
                 exit 1
               fi
-              num=$(pr_number_for "$head")
+              PR_NUM=$(pr_number_for "$head")
             else
-              echo "переиспользую открытый PR #$num для $head"
+              echo "переиспользую открытый PR #$PR_NUM для $head"
             fi
-            [ -n "$num" ] || die "не удалось получить номер PR для $head"
-            gh pr ready "$num" --repo "$REPO" >/dev/null 2>&1 || true
-            echo "$num"
+            [ -n "$PR_NUM" ] || die "не удалось получить номер PR для $head"
+            gh pr ready "$PR_NUM" --repo "$REPO" >/dev/null 2>&1 || true
           }
 
           merge_pr() {
@@ -326,9 +327,10 @@ jobs:
           * полный npm run qa:all зелёный на локальной проверке A (Client events QA: 21/0).
           MD
           phase "A: PR + merge"
-          num=$(open_pr "$BR" main \
+          open_pr "$BR" main \
             "analytics: воронка первого сеанса (client_events + /api/track)" \
-            "$RUNNER_TEMP/pr-a.md")
+            "$RUNNER_TEMP/pr-a.md"
+          num=$PR_NUM
 
           echo "PR_A_NUMBER=$num" >> "$GITHUB_ENV"
           gh pr view "$num" --repo "$REPO" --json url --jq '"PR_A_URL=" + .url' >> "$GITHUB_ENV"
@@ -421,9 +423,10 @@ jobs:
           * npm run qa:all — 0 fail, включая Onboarding QA 33/0 и Client events QA 21/0.
           MD
           phase "B: PR + merge"
-          num=$(open_pr "$BR" main \
+          open_pr "$BR" main \
             "feat: onboarding v2 — гейт первого сеанса, locked-вкладки, защита новичка" \
-            "$RUNNER_TEMP/pr-b.md")
+            "$RUNNER_TEMP/pr-b.md"
+          num=$PR_NUM
 
           echo "PR_B_NUMBER=$num" >> "$GITHUB_ENV"
           gh pr view "$num" --repo "$REPO" --json url --jq '"PR_B_URL=" + .url' >> "$GITHUB_ENV"
