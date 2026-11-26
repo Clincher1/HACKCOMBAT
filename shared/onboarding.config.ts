@@ -26,6 +26,22 @@ export const ONBOARDING_MAX_CARDS_WHILE_GATED = 1;
 /** Максимальная длительность первого контракта: новичок должен увидеть награду. */
 export const STARTER_MISSION_MAX_SECONDS = 90;
 
+/**
+ * v5.7: подписи шагов для геймплея v3 (GAMEPLAY_V3 + мир). Шаг 1 больше не про
+ * тап: игрок выходит на улицу и запускает первый контракт. События воронки при
+ * этом НЕ меняются (`first_tap` остаётся флаг-зависимым, `first_move` не тронут).
+ */
+export const ONBOARDING_STEP_TITLES_V3 = ['Контракт', 'Улучшение', 'Ещё контракт'] as const;
+
+/** Текст шага под геймплей v3: без слов «тап» и «тапни». */
+export function onboardingStepCopyV3(step: number, seconds: number | null): string {
+  if (step <= 1) return 'Выбери цель на «Взломах» и запусти первый контракт — он идёт по реальному времени.';
+  if (step === 2) return 'Купи самую дешёвую карточку — она усиливает контракты и открывает новые цели.';
+  return seconds === null
+    ? 'Запусти короткий контракт — награда придёт меньше чем через две минуты.'
+    : `Запусти контракт на ${seconds} секунд — награда придёт почти сразу.`;
+}
+
 /** Три шага воронки первого сеанса. */
 export const ONBOARDING_STEPS = ['first_tap', 'first_upgrade', 'first_mission_start'] as const;
 export type OnboardingStepKey = (typeof ONBOARDING_STEPS)[number];

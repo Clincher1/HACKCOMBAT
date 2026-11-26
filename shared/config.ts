@@ -31,6 +31,12 @@ export interface FeatureFlags {
    * только старая кодовая рефералка v3.5 (она флага не знает).
    */
   referralV1: boolean;
+  /**
+   * v5.7: геймплей v3 — контрактный раннер становится основным доходом.
+   * CPU Charge тратится на запуск контракта (цена по тиру), тап убран с рабочего
+   * стола. Выключено = ровно сегодняшнее поведение: кнопка HACK и тап-доход.
+   */
+  gameplayV3: boolean;
 }
 
 /** Значения по умолчанию. */
@@ -39,6 +45,7 @@ export const FEATURE_FLAGS: FeatureFlags = {
   worldV2: true,
   retentionV1: true,
   referralV1: true,
+  gameplayV3: true,
 };
 
 /** «1/true/on/yes» → true, «0/false/off/no» → false, всё остальное → undefined. */
@@ -68,6 +75,7 @@ export function configureFeatureFlags(next: Partial<FeatureFlags>): void {
   if (typeof next.worldV2 === 'boolean') FEATURE_FLAGS.worldV2 = next.worldV2;
   if (typeof next.retentionV1 === 'boolean') FEATURE_FLAGS.retentionV1 = next.retentionV1;
   if (typeof next.referralV1 === 'boolean') FEATURE_FLAGS.referralV1 = next.referralV1;
+  if (typeof next.gameplayV3 === 'boolean') FEATURE_FLAGS.gameplayV3 = next.gameplayV3;
 }
 
 /** Включён ли гейт первого сеанса прямо сейчас. */
@@ -124,4 +132,21 @@ export function isRetentionV1Enabled(): boolean {
  */
 export function isReferralV1Enabled(): boolean {
   return readEnvFlag('REFERRAL_V1') ?? readWindowFlag('referralV1') ?? FEATURE_FLAGS.referralV1;
+}
+
+/**
+ * Включён ли геймплей v3 (v5.7): контракт = основной доход, тап убран с экрана.
+ *
+ * Цепочка приоритетов та же, что у onboardingV2/worldV2/retentionV1:
+ *   1. серверная переменная GAMEPLAY_V3=false (Vercel → Env) — гасит и сервер, и клиент;
+ *   2. window.__HK_FLAGS__.gameplayV3;
+ *   3. VITE_GAMEPLAY_V3 (читается в src/main.tsx);
+ *   4. значение по умолчанию (true).
+ *
+ * Выключенный флаг обязан быть инертным: сервер списывает прежнюю цену входа
+ * (Energy = длительность контракта), клиент рисует прежнюю кнопку HACK и
+ * тап-доход в HUD.
+ */
+export function isGameplayV3Enabled(): boolean {
+  return readEnvFlag('GAMEPLAY_V3') ?? readWindowFlag('gameplayV3') ?? FEATURE_FLAGS.gameplayV3;
 }

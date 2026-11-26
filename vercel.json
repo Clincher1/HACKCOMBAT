@@ -34,7 +34,8 @@
       "feat/onboarding-v2": false,
       "feat/world-v2": false,
       "feat/retention-referral": false,
-      "fix/backdrop-layer": false
+      "fix/backdrop-layer": false,
+      "feat/gameplay-v3": false
     }
   }
 }

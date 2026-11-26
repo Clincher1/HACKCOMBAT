@@ -172,10 +172,17 @@ async function earnTaps(seed, batches = 3) {
     Number(active?.entryDataCost) === Math.max(25, Math.ceil(Number(active?.reward ?? 0) * 0.12)),
     `${active?.reward} → ${active?.entryDataCost}`
   );
+  // v5.7 (GAMEPLAY_V3, включён по умолчанию): цена входа — CPU Charge по ТИРУ
+  // контракта (таблица в shared/economy.config.ts, её значения проверяет
+  // scripts/qa/gameplay.mjs напрямую). Без флага остаётся прежняя формула
+  // «1 Energy = 1 секунда длительности».
+  const CONTRACT_CPU_COST_BY_TIER = [55, 110, 180, 285, 440, 700];
+  const durationSec = Math.ceil((Date.parse(active?.finishAt) - Date.parse(active?.startedAt)) / 1000);
+  const entryEnergy = Number(active?.entryEnergyCost);
   check(
-    'Energy-взнос совпадает с длительностью контракта',
-    Number(active?.entryEnergyCost) === Math.max(10, Math.ceil((Date.parse(active?.finishAt) - Date.parse(active?.startedAt)) / 1000)),
-    `${active?.startedAt} → ${active?.entryEnergyCost}`
+    'Energy-взнос = CPU-тариф тира (V3) или длительность (флаг off)',
+    CONTRACT_CPU_COST_BY_TIER.includes(entryEnergy) || entryEnergy === Math.max(10, durationSec),
+    `контракт ${durationSec}с → взнос ${entryEnergy}`
   );
   check(
     'запуск списывает ровно Data-взнос',
@@ -259,7 +266,11 @@ async function earnTaps(seed, batches = 3) {
   }
   const energyStart = await api('missions', { action: 'start', missionKey: energyMissionKey }, 'mission-energy');
   const energyReload = await api('init', {}, 'mission-energy');
-  check('нехватка Energy блокирует запуск на сервере', energyStart.ok === false && /Energy/.test(energyStart.error ?? ''), energyStart.error);
+  check(
+    'нехватка Energy блокирует запуск на сервере',
+    energyStart.ok === false && /Energy|CPU Charge/.test(energyStart.error ?? ''),
+    energyStart.error
+  );
   check('нехватка Energy не создаёт активную миссию', energyReload.player?.activeMissions?.length === 0);
 
   Date.now = realNow;

@@ -99,6 +99,8 @@ const CurrencyTile: React.FC<CurrencyTileProps> = ({
 export const TopHud: React.FC = () => {
   const {
     player,
+    gameplayV3,
+    contractIncomePerHour,
     soundMuted,
     toggleSound,
     setDailyModalOpen,
@@ -263,9 +265,14 @@ export const TopHud: React.FC = () => {
               <span
                 className="text-[9px] font-bold shrink-0 whitespace-nowrap"
                 style={{ color: baseTheme.ui.successHex }}
-                title="Скорость пассивного дохода: столько Data добавляется за час"
+                title={
+                  gameplayV3
+                    ? 'Лучший контракт из текущей витрины: столько Data он приносит за час работы'
+                    : 'Скорость пассивного дохода: столько Data добавляется за час'
+                }
               >
-                +{formatCompact(derived.dataPerHour)}/ч доход
+                +{formatCompact(gameplayV3 ? contractIncomePerHour : derived.dataPerHour)}/ч{' '}
+                {gameplayV3 ? 'контракты' : 'доход'}
               </span>
             </div>
             <div

@@ -1,3 +1,5 @@
+import { isGameplayV3Enabled } from './config';
+import { getContractCpuCost } from './economy.config';
 import type { MissionConfig, MissionTargetType } from './types';
 
 // ============================================================================
@@ -291,9 +293,13 @@ export function getMissionEntryCost(
 ): MissionEntryCost {
   const safeReward = Math.max(0, Number(estimatedReward) || 0);
   return {
-    // 1 Energy = 1 секунда подготовки. При длительном контракте Energy
-    // продолжает восстанавливаться, поэтому фактический чистый расход ниже.
-    energy: Math.max(10, Math.ceil(Math.max(0, Number(mission.durationSec) || 0))),
+    // v5.7 (GAMEPLAY_V3): цена входа считается по ТИРУ контракта — CPU Charge
+    // как «заряд на операцию». Без флага остаётся прежняя формула:
+    // 1 Energy = 1 секунда подготовки (при длинном контракте Energy успевает
+    // восстановиться, поэтому фактический чистый расход ниже).
+    energy: isGameplayV3Enabled()
+      ? getContractCpuCost(mission.tier)
+      : Math.max(10, Math.ceil(Math.max(0, Number(mission.durationSec) || 0))),
     data: Math.max(MISSION_ENTRY_MIN_DATA, Math.ceil(safeReward * MISSION_ENTRY_DATA_RATE)),
   };
 }
