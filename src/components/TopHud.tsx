@@ -107,6 +107,7 @@ export const TopHud: React.FC = () => {
     tutorialUnseen,
     nowMs,
     baseTheme,
+    newPlayerMode,
   } = useGame();
   const navigate = useNavigate();
 
@@ -294,7 +295,9 @@ export const TopHud: React.FC = () => {
             Оба в одну строку — панель не должна съедать экран. */}
         <div className="grid grid-cols-4 gap-1.5">
           <div
-            className="rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center justify-between gap-1 min-w-0"
+            className={`${
+              newPlayerMode ? 'col-span-4' : ''
+            } rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center justify-between gap-1 min-w-0`}
             style={{ borderColor: `${CURRENCY_COLORS.rep}55` }}
             title="Rep — репутация: найм элитной команды и ветка Белого хакинга"
           >
@@ -309,6 +312,9 @@ export const TopHud: React.FC = () => {
             </span>
           </div>
 
+          {/* v5.4: новичку Heat не показываем — штрафа для него нет, а шкала
+              риска в первые 60 секунд только пугает. */}
+          {!newPlayerMode && (
           <div
             className="col-span-3 rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center gap-2 min-w-0"
             style={{
@@ -343,6 +349,7 @@ export const TopHud: React.FC = () => {
               {heatRisk ? 'риск' : 'норма'}
             </span>
           </div>
+          )}
         </div>
 
         {/* Шкала CPU Energy (восстановление 1 Energy / 2 сек) */}

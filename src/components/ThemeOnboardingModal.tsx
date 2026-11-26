@@ -17,15 +17,18 @@ function isNewOperator(player: ReturnType<typeof useGame>['player']): boolean {
 
 /** Первый запуск: тема выбирается до начала игры, но сохраняется обычным серверным action. */
 export const ThemeOnboardingModal: React.FC = () => {
-  const { player, setBaseTheme, busyKey } = useGame();
+  const { player, setBaseTheme, busyKey, newPlayerMode } = useGame();
   const [open, setOpen] = useState(false);
   const [pendingTheme, setPendingTheme] = useState<BaseThemeKey | null>(null);
 
   const newOperator = isNewOperator(player);
 
   useEffect(() => {
+    // v5.4: в первом сеансе на экране ровно один вопрос — «тапни». Выбор темы
+    // вернётся после онбординга (stats.baseTheme по-прежнему пуст).
+    if (newPlayerMode) return;
     if (newOperator && !player?.stats.baseTheme) setOpen(true);
-  }, [newOperator, player?.stats.baseTheme]);
+  }, [newOperator, newPlayerMode, player?.stats.baseTheme]);
 
   useEffect(() => {
     if (!pendingTheme || player?.stats.baseTheme !== pendingTheme) return;

@@ -24,6 +24,9 @@ import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
 import { trackFunnel } from '../lib/analytics';
+import { isOnboardingV2Enabled } from '../../shared/config';
+import { ONBOARDING_STEP_COUNT } from '../../shared/onboarding.config';
+import { isStepComplete, onboardingViewState } from '../lib/onboarding';
 import {
   initTelegramMiniApp,
   renameDemoIdentity,
@@ -91,6 +94,12 @@ interface GameContextValue {
   updateDemoName: (newName: string) => Promise<void>;
   /** Последние результаты операций в текущей сессии (локальный UX-архив, без БД). */
   missionHistory: GameAlert[];
+  /** v5.4: гейт первого сеанса активен (онбординг ещё не пройден). */
+  newPlayerMode: boolean;
+  /** v5.4: текущий шаг онбординга 1..3. */
+  onboardingStep: number;
+  /** v5.4: отметить онбординг пройденным — persist в stats, без нового эндпоинта. */
+  completeOnboarding: () => void;
 }
 
 function isMissionOutcomeAlert(alert: GameAlert): boolean {
@@ -1085,6 +1094,49 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => window.clearInterval(interval);
   }, [player?.derived.level, trackEvent]);
 
+  /**
+   * v5.4 — гейт первого сеанса.
+   *
+   * Шаги выводятся из уже существующих счётчиков (totalClicks, totalCardLevels,
+   * totalMissions/activeMissions), которые меняют сами действия в tapHack /
+   * buyCard / startMission. Поэтому воронка в src/lib/analytics.ts остаётся
+   * единственным местом, где эти шаги трекаются: двойного учёта нет.
+   */
+  const onboardingView = useMemo(() => onboardingViewState(player), [player]);
+  const newPlayerMode = onboardingView.visible;
+  const onboardingStep = onboardingView.step;
+  const onboardingSeenRef = useRef(false);
+
+  useEffect(() => {
+    if (onboardingView.visible) onboardingSeenRef.current = true;
+  }, [onboardingView.visible]);
+
+  const completeOnboarding = useCallback(() => {
+    if (!player || player.stats.onboardingV2Completed === true) return;
+    void gameApi
+      .track('onboarding_done')
+      .then((res) => {
+        applyServerSync(res);
+        try {
+          // Третий шаг закрывается именно здесь — вибро живёт рядом с записью.
+          triggerHapticNotification('success');
+        } catch {
+          // вибро — необязательный бонус
+        }
+      })
+      .catch(() => {
+        // аналитика и онбординг не должны мешать игре
+      });
+  }, [applyServerSync, player]);
+
+  useEffect(() => {
+    if (!player || !onboardingSeenRef.current) return;
+    if (!isOnboardingV2Enabled()) return;
+    if (player.stats.onboardingV2Completed === true) return;
+    if (!isStepComplete(player, ONBOARDING_STEP_COUNT)) return;
+    completeOnboarding();
+  }, [completeOnboarding, player]);
+
   const contextValue = useMemo<GameContextValue>(
     () => ({
       player,
@@ -1141,6 +1193,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshLeaderboard,
       updateDemoName,
       missionHistory,
+      newPlayerMode,
+      onboardingStep,
+      completeOnboarding,
     }),
     [
       player,
@@ -1195,6 +1250,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshLeaderboard,
       updateDemoName,
       missionHistory,
+      newPlayerMode,
+      onboardingStep,
+      completeOnboarding,
     ]
   );
 

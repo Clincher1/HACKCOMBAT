@@ -37,6 +37,9 @@ export const CLIENT_ANALYTICS_EVENTS: ReadonlySet<string> = new Set<string>([
  * иначе сломаются бейджи, которые на неё опираются.
  */
 const LEGACY_TRACK_EVENTS: ReadonlySet<string> = new Set<string>([
+  // v5.4: отметка «онбординг пройден» — идёт старым путём handleTrackEvent
+  // (persist в stats). Пайплайн воронки из 2d956d1 не меняется.
+  'onboarding_done',
   'tutorial_open',
   'session',
   'idle_15',
