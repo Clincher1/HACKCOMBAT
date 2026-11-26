@@ -35,7 +35,8 @@
       "feat/world-v2": false,
       "feat/retention-referral": false,
       "fix/backdrop-layer": false,
-      "feat/gameplay-v3": false
+      "feat/gameplay-v3": false,
+      "release/land": false
     }
   }
 }
