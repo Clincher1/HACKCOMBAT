@@ -48,7 +48,8 @@ export const BottomNav: React.FC = () => {
       const lvl = player.cards[c.key] ?? 0;
       return (
         lvl < maxLevel &&
-        player.data >= getCardPrice(c, lvl, totalLevels, player.derived.cardPriceDiscountPct)
+        player.data >=
+          getCardPrice(c, lvl, totalLevels, player.derived.cardPriceDiscountPct, player.derived.level)
       );
     }).length;
   }, [player]);

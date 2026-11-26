@@ -3,7 +3,7 @@
  * ----------------------------------------------------------------------------
  * Один файл — одна правда о трёх вещах:
  *   1. оффлайн-доход (сколько стол заработал, пока игрока не было);
- *   2. daily streak (таблица наград дней 1..7, UTC-день, сброс при пропуске);
+ *   2. daily streak (таблица наград дней 1..7, единый день по Москве, сброс при пропуске);
  *   3. политика напоминаний в Telegram (не чаще раза в сутки, только opt-in).
  *
  * Почему отдельный файл, а не константы внутри движка: те же цифры нужны
@@ -14,7 +14,12 @@
  */
 
 import { CHIP_REWARD_PER_DAILY } from './base.config';
-import { OFFLINE_PASSIVE_RATE_MULT, OFFLINE_TAP_CAP_SECONDS } from './mechanics';
+import {
+  diffGameDayKeys,
+  getGameDayKey,
+  OFFLINE_PASSIVE_RATE_MULT,
+  OFFLINE_TAP_CAP_SECONDS,
+} from './mechanics';
 
 // ============================================================================
 // 1. ОФФЛАЙН-ДОХОД
@@ -160,22 +165,21 @@ export function getDailyStreakReward(day: number): DailyStreakReward {
 }
 
 /**
- * UTC-ключ дня 'YYYY-MM-DD'.
+ * Ключ дня 'YYYY-MM-DD' для стрика и Crypto-бонуса.
  *
- * Почему UTC, а не «день игры» по Москве (как в копилке v3.2): streak
- * проверяется ТОЛЬКО на сервере, а сервер живёт в UTC и не имеет права
- * зависеть от часового пояса клиента (иначе переезд пояса = лишний клайм).
+ * v6.6: ЕДИНЫЙ игровой день. Исторически здесь был UTC-ключ (сброс в 03:00 МСК),
+ * а копилка/леденец/поручения жили по Москве — игрок видел два разных сброса.
+ * Теперь функция просто делегирует в `getGameDayKey` (00:00 МСК), поэтому у
+ * стрика, бонуса, копилки, леденца, поручений и контрактов ОДИН и тот же ключ.
+ * Имя оставлено ради совместимости импортов (retention, StreakBar, QA).
  */
 export function getUtcDayKey(ms: number): string {
-  return new Date(ms).toISOString().slice(0, 10);
+  return getGameDayKey(ms);
 }
 
-/** Разница в календарных днях между двумя UTC-ключами (b - a). */
+/** Разница в календарных днях между двумя ключами дня (b - a). */
 export function diffUtcDayKeys(fromKey: string, toKey: string): number {
-  const a = Date.parse(`${fromKey}T00:00:00.000Z`);
-  const b = Date.parse(`${toKey}T00:00:00.000Z`);
-  if (Number.isNaN(a) || Number.isNaN(b)) return Number.NaN;
-  return Math.round((b - a) / 86_400_000);
+  return diffGameDayKeys(fromKey, toKey);
 }
 
 export interface NextStreakInput {
@@ -201,11 +205,12 @@ export interface NextStreakResult {
 /**
  * Следующее значение стрика по UTC-дню.
  *
- * Правила (именно они проверяются в scripts/qa/retention.mjs):
+ * Правила (именно они проверяются в scripts/qa/retention.mjs и economy.mjs):
  *   • сегодня уже забирали            → стрик не меняется, alreadyClaimedToday;
  *   • последний клайм вчера           → streak + 1, но не больше 7;
  *   • последний клайм сегодня-минус-1 и стрик = 7 → снова 1 (цикл);
  *   • пропуск дня (или первый клайм)  → 1.
+ * «Сегодня» и «вчера» — по единому игровому дню (00:00 МСК), см. getUtcDayKey.
  */
 export function computeNextStreak(input: NextStreakInput): NextStreakResult {
   const current = Math.min(DAILY_STREAK_MAX, Math.max(0, Math.floor(input.currentStreak) || 0));

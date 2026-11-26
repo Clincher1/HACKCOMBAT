@@ -875,7 +875,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         card,
         level,
         prev.derived.totalCardLevels,
-        prev.derived.cardPriceDiscountPct
+        prev.derived.cardPriceDiscountPct,
+        prev.derived.level
       );
       // Не хватает — не рисуем фантазию, сервер всё равно откажет.
       if (prev.data < price) return prev;

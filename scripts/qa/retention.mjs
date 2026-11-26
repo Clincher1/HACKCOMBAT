@@ -129,6 +129,17 @@ const advance = (ms) => {
   fakeNow += ms;
 };
 
+// v6.6: игровые сутки — московские, а не UTC. «+25 часов» больше не гарантирует
+// ровно один день: если время близко к полуночи МСК, можно перепрыгнуть двое.
+// Поэтому стрик двигаем по ключу дня, а не по часам.
+const moscowDayKey = (ms) => new Date(ms + 3 * 3600_000).toISOString().slice(0, 10);
+const advanceGameDay = () => {
+  const from = moscowDayKey(fakeNow);
+  do {
+    fakeNow += 3600_000;
+  } while (moscowDayKey(fakeNow) === from);
+};
+
 /** Поднять ставку пассивного дохода: без карточек dataPerHour = 0. */
 async function ensurePassiveRate(tgId) {
   let res = await init(tgId);
@@ -270,7 +281,7 @@ dispatchApiRequest(req, res).then(() => process.stdout.write(String(res.payload)
   check('повторный клайм в тот же день отклонён', dup.ok !== true || dup._status >= 400, `${dup._status} ${dup.error ?? ''}`);
 
   // ── 7. Стрик: рост на следующий день ─────────────────────────────────────
-  advance(25 * HOUR);
+  advanceGameDay();
   const day2 = await claimDaily(S);
   check('на следующий день стрик = 2', day2.player?.dailyStreak === 2, day2.player?.dailyStreak);
   check('клетка bar сдвинулась', (day2.retention?.dailyStreakDay ?? 0) >= 2 && (day2.retention?.dailyStreakDay ?? 0) <= 7, day2.retention?.dailyStreakDay);
@@ -282,14 +293,14 @@ dispatchApiRequest(req, res).then(() => process.stdout.write(String(res.payload)
 
   // ── 9. Cap 7: цикл замыкается ────────────────────────────────────────────
   for (let i = 0; i < 6; i++) {
-    advance(25 * HOUR);
+    advanceGameDay();
     await claimDaily(S);
   }
   await claimDaily(S);
   const afterSeven = await init(S);
   const streakAtSeven = afterSeven.player?.dailyStreak ?? 0;
   check('стрик доходит до 7', streakAtSeven === 7, streakAtSeven);
-  advance(25 * HOUR);
+  advanceGameDay();
   const cycle = await claimDaily(S);
   check('после 7-го дня цикл начинается с 1', cycle.player?.dailyStreak === 1, cycle.player?.dailyStreak);
 

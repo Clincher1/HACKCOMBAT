@@ -18,6 +18,7 @@ import {
   getReferrerXpReward,
 } from '../../shared/referral.config';
 import { PROFILE_FRAMES } from '../../shared/profileFrames.config';
+import { cryptoDaysForPrice } from '../../shared/pricing.config';
 import {
   FIRST_DONUT_ITEM_KEY,
   GIFT_COLA_ITEM_KEY,
@@ -130,15 +131,25 @@ const eliteFrames = PROFILE_FRAMES.filter((frame) => frame.source.includes('эл
 const newShopSkins = SKINS_CONFIG.filter((skin) =>
   ['aurora_grid', 'black_ice', 'singularity_crown', 'ui_hologram', 'ui_obsidian', 'ui_aurora', 'avatar_cyber_fox', 'avatar_wyrm', 'avatar_starborn'].includes(skin.key)
 );
+// v6.6: витрина Crypto пересчитана в «дни активной игры».
+// Элитные рамки остаются уровенным товаром (45…180), но топ стоит 2–4 недели,
+// а не месяцы: 520 Crypto ≈ 26 дней при ориентире 20 Crypto/день.
+const eliteTopPrice = Math.max(...eliteFrames.map((frame) => frame.cryptoCost ?? 0));
 check(
-  'элитные рамки не покупаются на старте',
-  eliteFrames.length === 6 && eliteFrames.every((frame) => (frame.cryptoCost ?? 0) >= 2_500 && (frame.requiredLevel ?? 0) >= 45)
+  'элитные рамки — уровенный товар с достижимой ценой',
+  eliteFrames.length === 6 &&
+    eliteFrames.every(
+      (frame) =>
+        (frame.cryptoCost ?? 0) >= 200 && (frame.cryptoCost ?? 0) <= 600 && (frame.requiredLevel ?? 0) >= 45
+    ) &&
+    cryptoDaysForPrice(eliteTopPrice) <= 30,
+  `${eliteTopPrice} Crypto ≈ ${cryptoDaysForPrice(eliteTopPrice)} дн`
 );
 check(
-  'новые скины имеют дорогой вход и уникальные ключи',
+  'новые скины остаются премиумом и имеют уникальные ключи',
   newShopSkins.length === 9 &&
     new Set(newShopSkins.map((skin) => skin.key)).size === newShopSkins.length &&
-    newShopSkins.every((skin) => skin.cryptoCost >= 160 && Number.isFinite(skin.clickBonusPct))
+    newShopSkins.every((skin) => skin.cryptoCost >= 60 && skin.cryptoCost <= 400 && Number.isFinite(skin.clickBonusPct))
 );
 
 const deskSource = readFileSync('src/components/DeskScene.tsx', 'utf8');

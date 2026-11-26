@@ -1,6 +1,6 @@
 import type { MissionConfig } from './types';
 
-// 30 вымышленных целей (все 28 прежних ключей сохранены + 2 эндгейм-контракта).
+// 33 вымышленные цели (28 прежних ключей сохранены + 2 эндгейм-контракта + 3 мидгейм L28–L36).
 // ТЗ v3: таймеры 40–780 секунд вместо 5–30, у каждой цели свой тир сложности,
 // требуемая сила железа (requiredPower) и базовый шанс успеха (baseSuccess).
 // Награда в Data = durationSec × множительТира × множительТипа: долгий контракт
@@ -490,4 +490,62 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
     baseSuccess: 0.64,
     minLevel: 26,
     cryptoDropChance: 0.75,
-  },];
+  },
+
+  // ==========================================================================
+  // v6.6: МИЛДГЕЙМ L28–L36 — чем заняться между последним тиром и престижем.
+  // --------------------------------------------------------------------------
+  // Было: на L26 открывался T6, на L40 — последняя локация, а до престижа на
+  // L50 игрок 24 уровня не получал ни одной новой цели. Это «пустая середина».
+  // Здесь три контракта без новой механики: тот же T6, но свои цели, свой
+  // риск и своя награда. Они входят в пул своей локации и в XP-кривую как есть.
+  // ==========================================================================
+  {
+    key: 'orbital_debris_net',
+    locationId: 'techhub',
+    targetName: 'Сеть орбитального мусора',
+    targetType: 'neutral',
+    description: 'Подменить телеметрию спутников-трекеров.',
+    tier: 6,
+    durationSec: 520,
+    baseDataReward: 18640,
+    repDelta: 12,
+    heatDelta: 26,
+    xpReward: 12480,
+    requiredPower: 1400,
+    baseSuccess: 0.82,
+    minLevel: 28,
+  },
+  {
+    key: 'biotech_lab_lockdown',
+    locationId: 'corpquarter',
+    targetName: 'Био-лаборатория',
+    targetType: 'good',
+    description: 'Вынести реестр испытаний из лаборатории.',
+    tier: 6,
+    durationSec: 600,
+    baseDataReward: 22140,
+    repDelta: -18,
+    heatDelta: 38,
+    xpReward: 15870,
+    requiredPower: 1800,
+    baseSuccess: 0.78,
+    minLevel: 32,
+  },
+  {
+    key: 'quantum_foundry_core',
+    locationId: 'techhub',
+    targetName: 'Квантовый литейный цех',
+    targetType: 'bad',
+    description: 'Остановить линию квантов и вывезти прошивки.',
+    tier: 6,
+    durationSec: 660,
+    baseDataReward: 25780,
+    repDelta: 55,
+    heatDelta: 20,
+    xpReward: 18240,
+    requiredPower: 2000,
+    baseSuccess: 0.8,
+    minLevel: 36,
+  },
+];

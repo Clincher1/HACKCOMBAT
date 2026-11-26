@@ -22,6 +22,7 @@ import {
 import { getProfileFrame } from '../../shared/profileFrames.config';
 import { getSkinByKey } from '../../shared/skins.config';
 import { getGameDayKey, getPrestigeMultiplier, getPrestigeRequiredLevel } from '../../shared/mechanics';
+import { PRESTIGE_ONE_LINER, prestigeBonusLabel } from '../../shared/prestige.config';
 import type { LeaderboardSort } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
@@ -732,11 +733,13 @@ export const ProfilePage: React.FC = () => {
           </span>
         </div>
 
-        <p className="text-[11px] text-slate-300 leading-relaxed">
-          На {requiredPrestigeLevel} уровне вы можете перезапустить матрицу: карточки, команда и Data
-          обнулятся, но вы навсегда получите{' '}
-          <strong>множитель ×{nextPrestigeMultiplier} к доходу</strong>, сохраните все{' '}
-          <strong>💎 Crypto, достижения, скины и Rep</strong>!
+        {/* v6.6: правило престижа — из shared/prestige.config.ts, тот же текст,
+            по которому сервер обнуляет запись. Одна строка, без «обнулится всё». */}
+        <p data-qa="prestige-rules" className="text-[11px] text-slate-300 leading-relaxed">
+          {PRESTIGE_ONE_LINER}
+        </p>
+        <p className="text-[11px] font-bold text-purple-300" data-qa="prestige-bonus">
+          {prestigeBonusLabel(player.prestigeCount, player.prestigeCount + 1)} · порог {requiredPrestigeLevel} ур.
         </p>
 
         <button
