@@ -323,7 +323,7 @@ jobs:
           ## Откат
 
           Реверт коммита; флаги `RETENTION_V1`/`REFERRAL_V1` не влияют на слой фона.
-MD
+          MD
           grep -c '' "$RUNNER_TEMP/pr.md"
 
           phase "PR"
