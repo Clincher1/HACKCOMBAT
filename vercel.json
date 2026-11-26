@@ -30,7 +30,8 @@
   ],
   "git": {
     "deploymentEnabled": {
-      "analytics/funnel-v1": false
+      "analytics/funnel-v1": false,
+      "feat/onboarding-v2": false
     }
   }
 }
