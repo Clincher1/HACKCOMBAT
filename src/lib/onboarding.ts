@@ -38,10 +38,10 @@ const EMPTY_SNAPSHOT: NewPlayerSnapshot = { totalCardLevels: 0, totalMissions: 0
 /**
  * Шаг 1 при геймплее v3 — не «тапнул», а «запустил первый контракт».
  *
- * Почему «или тап»: сам оверлей онбординга (src/components/Onboarding.tsx)
- * остаётся нетронутым по требованию задачи и показывает свой учебный тап —
- * значит, шаг обязан закрываться и тапом, и контрактом. Так гейт не может
- * залипнуть ни на одном из двух флагов.
+ * Почему «или тап»: оверлей (src/components/Onboarding.tsx) при v3 показывает
+ * кнопку первого контракта, но шаг остаётся совместимым с легаси-поведением и
+ * закрывается любым из трёх признаков. Так гейт не может залипнуть ни на одном
+ * из двух флагов, ни у игрока, который успел тапнуть до обновления.
  */
 function isFirstStepCompleteUnderV3(player: PlayerState): boolean {
   return player.totalClicks >= 1 || player.totalMissions >= 1 || player.activeMissions.length > 0;
