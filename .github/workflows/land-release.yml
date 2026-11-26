@@ -20,14 +20,9 @@
 name: land-release
 
 on:
-  # Bootstrap: workflow_dispatch работает только для файлов в default-ветке,
-  # поэтому первый запуск идёт по push в arena-ветку и ТОЛЬКО при изменении
-  # этого самого файла (так же выкатывался land-world). Дальше — dispatch.
-  push:
-    branches:
-      - arena/73bdedb2-hackcombat
-    paths:
-      - .github/workflows/land-release.yml
+  # Только ручной запуск. Bootstrap-триггер по push в arena-ветку снят: файл уже
+  # лежит в main, dispatch доступен, а пуш-триггер давал побочный эффект — любая
+  # правка этого файла (например, смена TARGET_BRANCH) запускала полный релиз.
   workflow_dispatch:
     inputs:
       mode:
@@ -46,7 +41,11 @@ concurrency:
 env:
   REPO: ${{ github.repository }}
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  TARGET_BRANCH: feat/gameplay-v3
+  # Ветка выкатки: рабочая ветка релиза, из неё же открывается PR в main.
+  # ВАЖНО: это НЕ база мержа — workflow делает в неё force-with-lease push
+  # (см. шаг «push $TARGET_BRANCH»), поэтому main/master здесь недопустимы:
+  # это были бы прямые пушы в прод в обход PR. Проверяется qa:release.
+  TARGET_BRANCH: release/land
   SOURCE_BRANCH: ${{ github.ref_name }}
   PR_TITLE: 'feat(gameplay): контрактный раннер как основной доход (gameplayV3)'
   PROD_URL: https://hacker-kombat.vercel.app
@@ -182,7 +181,7 @@ jobs:
           cfg.git.deploymentEnabled = cfg.git.deploymentEnabled || {};
           cfg.git.deploymentEnabled['feat/retention-referral'] = false;
           cfg.git.deploymentEnabled['fix/backdrop-layer'] = false;
-          cfg.git.deploymentEnabled['feat/gameplay-v3'] = false;
+          cfg.git.deploymentEnabled[process.env.TARGET_BRANCH || 'release/land'] = false;
           fs.writeFileSync(file, `${JSON.stringify(cfg, null, 2)}\n`);
           console.log('deploymentEnabled: ветки выкатки отключены');
           JS
