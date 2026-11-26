@@ -4,7 +4,13 @@ import path from 'node:path';
 import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
 import { BACKDROPS_CONFIG, isBackdropKey } from '../../shared/backdrops.config';
 import { isNewbieProtectionActive, newPlayerSnapshotFromCounters } from '../../shared/onboarding.config';
-import { isReferralV1Enabled, isRetentionV1Enabled, isWorldV2Enabled } from '../../shared/config';
+import {
+  isGameplayV3Enabled,
+  isReferralV1Enabled,
+  isRetentionV1Enabled,
+  isWorldV2Enabled,
+} from '../../shared/config';
+import { isContractReady } from '../../shared/economy.config';
 import {
   describeLockedLocation,
   getLocation,
@@ -2396,6 +2402,23 @@ export async function handleInitPlayer(
         message: 'Мы напомнили тебе в Telegram забрать дневной бонус — отключить можно в стрике.',
       });
     }
+    // v5.7: контрактный раннер. Если таймеры истекли, игрок узнаёт об этом
+    // сразу на входе — забирать можно вручную на «Взломах» или автоматически
+    // (клиент дергает тот же идемпотентный claim после init). Сервер время не
+    // подкручивает: ранний claim по-прежнему отклоняется проверкой finish_at.
+    const readyContracts = record.activeMissions.filter((mission) => isContractReady(mission.finishAt, Date.now()));
+    if (isGameplayV3Enabled() && readyContracts.length > 0) {
+      const rewardSum = readyContracts.reduce((sum, mission) => sum + Math.max(0, mission.reward), 0);
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `📦 Контрактов готово: ${readyContracts.length}`,
+        message:
+          `${readyContracts.map((mission) => mission.targetName).join(', ')} — ` +
+          `до +${rewardSum.toLocaleString('ru-RU')} Data. Заберите награду на экране «Взломы».`,
+      });
+    }
+
     await savePlayerCore(record, mode);
     return buildResponse(record, mode, alerts, offlineEarned, offlineTaps);
   });
@@ -3169,10 +3192,15 @@ export async function handleMissionAction(
       );
       const repDelta = cfg.repDelta * (whiteHatBonus > 1 && cfg.repDelta > 0 ? 2 : 1);
       const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier);
+      // v5.7 (GAMEPLAY_V3): getMissionEntryCost сам отдаёт цену по ТИРУ
+      // (CPU Charge) при включённом флаге и прежнюю «по секундам» — при выключенном.
+      // Data-взнос не меняется ни в одном режиме.
       const entryCost = getMissionEntryCost(cfg, reward);
       if (record.energy < entryCost.energy) {
         throw new Error(
-          `Недостаточно Energy для запуска: нужно ${entryCost.energy} ⚡ (сейчас ${record.energy}).`
+          isGameplayV3Enabled()
+            ? `Недостаточно CPU Charge: контракт тира ${cfg.tier ?? 1} требует ${entryCost.energy} ⚡ (сейчас ${record.energy}). Заряд копится сам — тапать не нужно.`
+            : `Недостаточно Energy для запуска: нужно ${entryCost.energy} ⚡ (сейчас ${record.energy}).`
         );
       }
       if (record.data < entryCost.data) {
@@ -3268,7 +3296,7 @@ export async function handleMissionAction(
         type: 'info',
         title: `🛰️ Взлом ${cfg.targetName} запущен`,
         message:
-          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data · −${entryCost.energy} Energy. ` +
+          `Взнос: −${entryCost.data.toLocaleString('ru-RU')} Data · −${entryCost.energy} ${isGameplayV3Enabled() ? 'CPU Charge' : 'Energy'}. ` +
           `Шанс успеха ${Math.round(successChance * 100)}% · ` +
           `до ${xpReward.toLocaleString('ru-RU')} XP · ` +
           `чистыми при успехе +${Math.max(0, reward - entryCost.data).toLocaleString('ru-RU')} Data. ` +

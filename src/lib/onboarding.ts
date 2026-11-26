@@ -8,7 +8,7 @@
  */
 
 import { CARDS_CONFIG, getCardPrice, getMaxCardLevel } from '../../shared/cards.config';
-import { isOnboardingV2Enabled } from '../../shared/config';
+import { isGameplayV3Enabled, isOnboardingV2Enabled, isWorldV2Enabled } from '../../shared/config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import {
   ONBOARDING_STEP_COUNT,
@@ -35,8 +35,24 @@ export interface OnboardingViewState {
 
 const EMPTY_SNAPSHOT: NewPlayerSnapshot = { totalCardLevels: 0, totalMissions: 0, totalClicks: 0 };
 
+/**
+ * Шаг 1 при геймплее v3 — не «тапнул», а «запустил первый контракт».
+ *
+ * Почему «или тап»: сам оверлей онбординга (src/components/Onboarding.tsx)
+ * остаётся нетронутым по требованию задачи и показывает свой учебный тап —
+ * значит, шаг обязан закрываться и тапом, и контрактом. Так гейт не может
+ * залипнуть ни на одном из двух флагов.
+ */
+function isFirstStepCompleteUnderV3(player: PlayerState): boolean {
+  return player.totalClicks >= 1 || player.totalMissions >= 1 || player.activeMissions.length > 0;
+}
+
 export function isStepComplete(player: PlayerState, step: number): boolean {
-  if (step <= 1) return player.totalClicks >= 1;
+  if (step <= 1) {
+    return isGameplayV3Enabled() && isWorldV2Enabled()
+      ? isFirstStepCompleteUnderV3(player)
+      : player.totalClicks >= 1;
+  }
   if (step === 2) return player.derived.totalCardLevels >= 1;
   return player.totalMissions >= 1 || player.activeMissions.length > 0;
 }

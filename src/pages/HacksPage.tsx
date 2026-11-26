@@ -91,6 +91,7 @@ export const HacksPage: React.FC = () => {
     nowMs,
     startMission,
     claimMission,
+    gameplayV3,
     skipMission,
     refreshMissions,
     busyKey,
@@ -228,7 +229,9 @@ export const HacksPage: React.FC = () => {
           </span>
         </div>
         <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 px-2.5 py-1.5 text-[10px] leading-snug text-amber-200">
-          Запуск платный: контракт списывает Data и Energy сразу. При успехе награда возвращает вложение с прибылью; при провале взнос не возвращается.
+          {gameplayV3
+            ? 'Запуск тратит Data и CPU Charge по тиру контракта. Заряд копится сам — тапать не нужно. Награда приходит по таймеру, даже если приложение закрыто.'
+            : 'Запуск платный: контракт списывает Data и Energy сразу. При успехе награда возвращает вложение с прибылью; при провале взнос не возвращается.'}
         </div>
       </div>
 
@@ -340,7 +343,7 @@ export const HacksPage: React.FC = () => {
                     </div>
                     <div className="text-[10px] text-amber-300 mt-0.5">
                       {(active.entryDataCost ?? 0) > 0 || (active.entryEnergyCost ?? 0) > 0
-                        ? `Взнос уже списан: −${formatCompact(active.entryDataCost ?? 0)} Data · −${formatCompact(active.entryEnergyCost ?? 0)} Energy`
+                        ? `Взнос уже списан: −${formatCompact(active.entryDataCost ?? 0)} Data · −${formatCompact(active.entryEnergyCost ?? 0)} ${gameplayV3 ? 'CPU' : 'Energy'}`
                         : 'Старый контракт: входной взнос не зафиксирован'}
                     </div>
                     <div className="text-[10px] text-slate-400 mt-0.5">
@@ -593,7 +596,7 @@ export const HacksPage: React.FC = () => {
                     Вход: −{formatCompact(entryCost.data)} Data
                   </span>
                   <span className={energyLocked ? 'text-rose-300' : 'text-amber-300'}>
-                    −{formatCompact(entryCost.energy)} Energy
+                    −{formatCompact(entryCost.energy)} {gameplayV3 ? 'CPU' : 'Energy'}
                   </span>
                   <span className="text-[var(--ui-success)]">
                     Чистыми при успехе: +{formatCompact(netSuccessData)} Data
@@ -671,7 +674,7 @@ export const HacksPage: React.FC = () => {
                 ) : dataLocked ? (
                   `Нужно ${formatCompact(entryCost.data)} Data`
                 ) : energyLocked ? (
-                  `Нужно ${formatCompact(entryCost.energy)} Energy`
+                  `Нужно ${formatCompact(entryCost.energy)} ${gameplayV3 ? 'CPU Charge' : 'Energy'}`
                 ) : scanRefreshing ? (
                   'Скан...'
                 ) : (

@@ -15,6 +15,11 @@ if (onboardingEnvFlag !== undefined) configureFeatureFlags({ onboardingV2: onboa
 const worldEnvFlag = parseFlag(import.meta.env.VITE_WORLD_V2);
 if (worldEnvFlag !== undefined) configureFeatureFlags({ worldV2: worldEnvFlag });
 
+// v5.7: геймплей v3 (контракт — основной доход, тап убран со стола) гасится так же:
+// VITE_GAMEPLAY_V3=false, либо GAMEPLAY_V3=false на сервере, либо window.__HK_FLAGS__.
+const gameplayEnvFlag = parseFlag(import.meta.env.VITE_GAMEPLAY_V3);
+if (gameplayEnvFlag !== undefined) configureFeatureFlags({ gameplayV3: gameplayEnvFlag });
+
 // Опциональная бесплатная аналитика (Umami / Yandex Metrica по разделу 6 ТЗ), если заданы переменные в .env
 const umamiId = import.meta.env.VITE_UMAMI_WEBSITE_ID as string | undefined;
 const umamiSrc = import.meta.env.VITE_UMAMI_SCRIPT_URL as string | undefined;
