@@ -151,15 +151,26 @@ jobs:
           # ── инфраструктурные файлы не едут в main ────────────────────────
           # .github/workflows/** требует отдельного workflow-скоупа у токена, а
           # в релизном диффе ему делать нечего: релиз — это код приложения.
-          # Приводим папку ровно к состоянию origin/main (новые файлы уходят,
-          # изменённые возвращаются). Файл workflow живёт в arena-ветке, как и
-          # land-world в своё время.
+          # Приводим папку ровно к состоянию origin/main: сначала выкидываем её
+          # из индекса и с диска, потом возвращаем версии main.
+          phase "workflows -> origin/main"
+          git rm -r -q --cached .github/workflows >/dev/null 2>&1 || true
           rm -rf .github/workflows
-          git checkout origin/main -- .github/workflows 2>/dev/null || true
+          if ! git checkout origin/main -- .github/workflows > "$RUNNER_TEMP/wf.log" 2>&1; then
+            cat "$RUNNER_TEMP/wf.log"
+            git status --porcelain -- .github/workflows || true
+            git ls-tree -r --name-only origin/main -- .github/workflows || true
+            dump_log "workflows checkout" "$RUNNER_TEMP/wf.log"
+            die "не удалось вернуть .github/workflows из origin/main"
+          fi
           git add -A .github/workflows
-          left=$(git diff --cached --name-only -- .github/workflows | wc -l)
+          left=$(git diff --cached --name-only origin/main -- .github/workflows | wc -l)
           echo "workflow-файлов в релизном диффе: $left"
-          [ "$left" -eq 0 ] || die "в релизном диффе остались .github/workflows"
+          if [ "$left" -ne 0 ]; then
+            git diff --cached --name-only origin/main -- .github/workflows | sed 's/^/::error::wf /'
+            git diff --cached --stat origin/main -- .github/workflows | tail -5
+            die "в релизном диффе остались .github/workflows"
+          fi
 
           # ── vercel.json: ветка выкатки не должна авто-деплоиться ──────────
           phase "patch vercel.json"
