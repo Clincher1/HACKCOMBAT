@@ -24,6 +24,11 @@ import {
   type LocationId,
 } from '../../shared/world.config';
 import {
+  economyLocationId,
+  economyModifiers,
+  type LocationModifiers,
+} from '../../shared/locations';
+import {
   BASE_UPGRADES_CONFIG,
   CHIP_DAILY_CAP,
   CHIP_REWARD_PER_DAILY,
@@ -1369,6 +1374,22 @@ export function offerLocationId(
   if (!isWorldV2Enabled()) return undefined;
   const candidate = resolveLocationId(stats?.locationId);
   return isLocationUnlocked(candidate, level) ? candidate : HOME_LOCATION_ID;
+}
+
+/**
+ * v6.5: множители мира, которые применяет экономика (shared/locations.ts).
+ * Одна точка чтения — миссии, взломы и тапы берут числа отсюда, а UI подписывает
+ * те же значения через locationEffectLabel. При выключенном WORLD_V2 — Комната.
+ */
+function locationEconomy(stats: { locationId?: string } | undefined): {
+  id: LocationId;
+  mods: LocationModifiers;
+} {
+  const enabled = isWorldV2Enabled();
+  return {
+    id: economyLocationId(stats?.locationId, enabled),
+    mods: economyModifiers(stats?.locationId, enabled),
+  };
 }
 
 function computeOfferWindow(
@@ -2890,7 +2911,9 @@ async function applyPendingClicks(
   record.energyUpdated = nowIso;
   // v6.3: сезонный леденец удваивает Data с ручных тапов.
   const clickBoost = lollipopMultiplier(record.stats.lollipop, nowMs);
-  record.data += validClicks * derived.clickPower * clickBoost;
+  // v6.5: место работы множит только Data — CPU/Energy тап тратит как раньше.
+  const tapLocationBoost = locationEconomy(record.stats).mods.data;
+  record.data += Math.round(validClicks * derived.clickPower * clickBoost * tapLocationBoost * 100) / 100;
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
   incrementDailyTaskProgress(record, 'tap', validClicks);
@@ -3366,6 +3389,8 @@ export async function handleMissionAction(
 
       // Шанс успеха фиксируется НА СТАРТЕ и хранится в БД: подкрутить задним числом нельзя.
       // Он зависит от силы железа (hackPower), запаса уровня, опыта по этому классу целей и Heat.
+      // v6.5: место работы входит в шанс и в деньги — см. shared/locations.ts.
+      const where = locationEconomy(record.stats);
       const odds = getHackOdds({
         mission: cfg,
         level: derived.level,
@@ -3373,6 +3398,7 @@ export async function handleMissionAction(
         heat: record.heat,
         tierSuccesses: record.stats.hackSuccessByType[cfg.targetType] ?? 0,
         tierFails: record.stats.hackFailByType[cfg.targetType] ?? 0,
+        successMultiplier: where.mods.success,
       });
       const successChance = Math.round(odds.chance * 1000) / 1000;
 
@@ -3387,12 +3413,14 @@ export async function handleMissionAction(
               getMissionRewardScale(derived.level) *
               whiteHatBonus *
               derived.prestigeMultiplier *
-              (1 + derived.missionRewardBonusPct)
+              (1 + derived.missionRewardBonusPct) *
+              where.mods.data
           )
         )
       );
       const repDelta = cfg.repDelta * (whiteHatBonus > 1 && cfg.repDelta > 0 ? 2 : 1);
-      const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier);
+      // Heat тоже место-зависимый: корп-квартал замечает тебя в 1.5 раза быстрее.
+      const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier * where.mods.heat);
       // v5.7 (GAMEPLAY_V3): getMissionEntryCost сам отдаёт цену по ТИРУ
       // (CPU Charge) при включённом флаге и прежнюю «по секундам» — при выключенном.
       // Data-взнос не меняется ни в одном режиме.
@@ -4108,8 +4136,11 @@ export async function handleHackAction(
     }
 
     // v6.3: тот же сезонный множитель, что и на тапах.
-    const dataGain = hackDataReward(difficulty, safeHits) * lollipopMultiplier(record.stats.lollipop, nowMs);
-    const heatGain = hackHeatGain(difficulty, trapHits);
+    // v6.5: и тот же множитель места — взлом из корп-квартала приносит больше, но шумит.
+    const hackWhere = locationEconomy(record.stats);
+    const hackLoot = hackDataReward(difficulty, safeHits) * lollipopMultiplier(record.stats.lollipop, nowMs);
+    const dataGain = Math.round(hackLoot * hackWhere.mods.data);
+    const heatGain = Math.round(hackHeatGain(difficulty, trapHits) * hackWhere.mods.heat);
     const expectedData = record.data;
 
     record.data = Math.min(MAX_SAFE_DATA_BALANCE, record.data + dataGain);

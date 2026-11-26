@@ -60,6 +60,15 @@ const RouteLoading: React.FC = () => (
   </div>
 );
 
+/**
+ * v6.5: мост к мемоизированному фону. Сам слой читает только локацию и флаг,
+ * поэтому тапы по столу не перерисовывают <img> и не дёргают CSS-переменные.
+ */
+const LocationBackdropLayer: React.FC = () => {
+  const { activeLocation, worldEnabled } = useGame();
+  return <LocationBackdrop location={activeLocation} enabled={worldEnabled} />;
+};
+
 const AppShell: React.FC = () => {
   const { loading, player, initError, retryInit, newPlayerMode } = useGame();
 
@@ -119,7 +128,7 @@ const AppShell: React.FC = () => {
       {/* v5.5: фон и акцент локации. Слой лежит ПОД контентом (z = backdrop =
           -1), мир может быть выключен флагом — тогда компонент не рендерит
           ничего. */}
-      <LocationBackdrop />
+      <LocationBackdropLayer />
       <TopHud />
       <AlertStack />
       {/* v5.4: гейт первого сеанса. Онбординг рисуется над контентом, но под
