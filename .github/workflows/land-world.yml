@@ -244,7 +244,10 @@ jobs:
           # vercel.json: гасим preview-деплой только для своей ветки, остальные
           # ключи (headers, rewrites, framework) сохраняются как есть.
           patch_vercel_json() {
-            local branch=$1
+            local branch=$1 base=${2:-}
+            # База — версия main: существующие deploymentEnabled-ключи
+            # (analytics/funnel-v1, feat/onboarding-v2) обязаны сохраниться.
+            if [ -n "$base" ]; then git checkout "$base" -- vercel.json; fi
             BRANCH="$branch" node -e '
           const fs = require("fs");
           const file = "vercel.json";
@@ -313,8 +316,8 @@ jobs:
           if branch_exists "$BR"; then
             echo "ветка $BR уже есть на origin — переиспользую (идемпотентный ре-ран)"
             git checkout -B "$BR" "origin/$BR"
-            files=$(git diff --name-only origin/main HEAD | grep -v '^vercel.json$' | wc -l)
-            echo "файлов в ветке (без vercel.json): $files"
+            files=$(git diff --name-only origin/main HEAD | wc -l)
+            echo "файлов в ветке (всего): $files"
             echo "FILES_TOTAL=$files" >> "$GITHUB_ENV"
             exit 0
           fi
@@ -338,7 +341,7 @@ jobs:
             fi
 
             files=$(git diff --name-only origin/main HEAD | wc -l)
-            echo "файлов мира (delta): $files"
+            echo "файлов мира (delta, всего): $files"
             git diff --name-only origin/main HEAD
             [ "$files" -eq 21 ] || die "ожидался 21 файл мира, получено $files"
             echo "FILES_TOTAL=$files" >> "$GITHUB_ENV"
@@ -369,17 +372,17 @@ jobs:
             echo "коммит: точная копия дерева $WORLD_SHA (QA 622 PASS / 0 FAIL, World QA 47/0);"
             echo "main до этого содержал только cherry-pick A и B, поэтому 21-файловый delta не собирался"
 
-            files=$(git diff --name-only origin/main HEAD | grep -v '^vercel.json$' | wc -l)
-            echo "файлов синхронизации (без vercel.json): $files"
+            files=$(git diff --name-only origin/main HEAD | wc -l)
+            echo "файлов синхронизации (всего, vercel.json включён): $files"
             git diff --stat origin/main HEAD | tail -n 3
             [ "$files" -eq 102 ] || die "ожидалось 102 файла синхронизации, получено $files"
             echo "FILES_TOTAL=$files" >> "$GITHUB_ENV"
           fi
 
-          patch_vercel_json "$BR"
+          patch_vercel_json "$BR" origin/main
 
-          files=$(git diff --name-only origin/main HEAD | grep -v '^vercel.json$' | wc -l)
-          echo "итог: $files файлов + vercel.json"
+          files=$(git diff --name-only origin/main HEAD | wc -l)
+          echo "итог: $files файлов (vercel.json внутри)"
           # Мир-коммит обязан быть внутри: 21 путь обязан присутствовать в диффе.
           world_files=$(git diff --name-only 4dae307 "$WORLD_SHA" 2>/dev/null || true)
           [ -n "$world_files" ] || world_files=$(git show --name-only --format= "$WORLD_SHA")
