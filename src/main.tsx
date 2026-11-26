@@ -1,8 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { configureFeatureFlags, parseFlag } from '../shared/config';
 import { initErrorTracking, markFirstFrame, trackFunnel } from './lib/analytics';
 import './index.css';
+
+// v5.4: гейт первого сеанса можно выключить без правки кода — VITE_ONBOARDING_V2=false
+// (или ONBOARDING_V2=false на сервере / window.__HK_FLAGS__ в консоли).
+const onboardingEnvFlag = parseFlag(import.meta.env.VITE_ONBOARDING_V2);
+if (onboardingEnvFlag !== undefined) configureFeatureFlags({ onboardingV2: onboardingEnvFlag });
 
 // Опциональная бесплатная аналитика (Umami / Yandex Metrica по разделу 6 ТЗ), если заданы переменные в .env
 const umamiId = import.meta.env.VITE_UMAMI_WEBSITE_ID as string | undefined;
