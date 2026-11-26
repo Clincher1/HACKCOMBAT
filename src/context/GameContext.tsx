@@ -110,6 +110,8 @@ export interface GameContextValue {
    * заданий, чтобы тап отвечал мгновенно и без ожидания API.
    */
   pendingClaims: ReadonlySet<string>;
+  /** v6.1: забор награды за контракт дня (Data / Crypto / Chips). */
+  claimContract: (contractId: string) => Promise<void>;
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery') => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
   buyOrEquipProfileFrame: (frameKey: string) => Promise<void>;
@@ -1040,6 +1042,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runClaim]
   );
 
+  const claimContract = useCallback(
+    (contractId: string) =>
+      runClaim(`contract:${contractId}`, `contract:claim:${contractId}`, (clicks) =>
+        gameApi.claimContract(contractId, clicks)
+      ),
+    [runClaim]
+  );
+
   const claimSeasonEvent = useCallback(
     (action: 'claim_participation' | 'claim_mastery') =>
       runClaim(`season:${action}`, `season-event:${action}`, (clicks) =>
@@ -1447,6 +1457,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyBonus,
       resolveDailyIncident,
       claimDailyTask,
+      claimContract,
       pendingClaims,
       claimSeasonEvent,
       buyOrEquipSkin,
@@ -1517,6 +1528,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyBonus,
       resolveDailyIncident,
       claimDailyTask,
+      claimContract,
       pendingClaims,
       claimSeasonEvent,
       buyOrEquipSkin,

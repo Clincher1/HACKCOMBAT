@@ -2,6 +2,7 @@ import { sendJson, type ApiRequest, type ApiResponse } from './_lib/http';
 import base from './_routes/base';
 import buyCard from './_routes/buy-card';
 import click from './_routes/click';
+import contracts from './_routes/contracts';
 import daily from './_routes/daily';
 import dailyIncident from './_routes/daily-incident';
 import dailyTasks from './_routes/daily-tasks';
@@ -40,6 +41,7 @@ const routes: Record<string, Handler> = {
   base,
   'buy-card': buyCard,
   click,
+  contracts,
   daily,
   'daily-incident': dailyIncident,
   'daily-tasks': dailyTasks,

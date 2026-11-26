@@ -88,6 +88,14 @@ import {
   getDailyTaskDefinition,
   getDailyTaskDefinitions,
 } from '../../shared/dailyTasks.config';
+import {
+  CONTRACTS_PER_DAY,
+  MAX_ACTIVE_CONTRACTS,
+  describeContractReward,
+  getContractDefinition,
+  getDailyContracts,
+  type ContractMetric,
+} from '../../shared/contracts.config';
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import {
   FIRST_DONUT_ITEM_KEY,
@@ -112,6 +120,7 @@ import { getDailyIncidentDefinition } from '../../shared/incidents.config';
 import type {
   ActiveMissionInstance,
   ApiSyncResponse,
+  ContractState,
   DailyTaskKind,
   DailyTaskState,
   DerivedStats,
@@ -293,6 +302,43 @@ function normalizeDailyTaskState(raw: unknown): DailyTaskState | undefined {
     : [];
 
   return { dayKey, taskKeys, progress, claimed };
+}
+
+/**
+ * v6.1: контракты — часть того же stats jsonb. Чистим всё, что не проходит по
+ * конфигу: неизвестный ключ не должен попасть в интерфейс или в награду.
+ */
+function normalizeContractState(raw: unknown): ContractState | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const src = raw as Record<string, unknown>;
+  const dayKey = typeof src.dayKey === 'string' ? src.dayKey.slice(0, 10) : '';
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) return undefined;
+
+  const ids = Array.isArray(src.ids)
+    ? Array.from(
+        new Set(
+          src.ids.map((key) => String(key)).filter((key) => Boolean(getContractDefinition(key)))
+        )
+      ).slice(0, MAX_ACTIVE_CONTRACTS)
+    : [];
+  if (ids.length === 0) return undefined;
+
+  const rawProgress =
+    src.progress && typeof src.progress === 'object' ? (src.progress as Record<string, unknown>) : {};
+  const progress: Record<string, number> = {};
+  for (const id of ids) {
+    const target = getContractDefinition(id)?.target ?? 0;
+    const value = Number(rawProgress[id]);
+    progress[id] = Number.isFinite(value) ? Math.max(0, Math.min(target, Math.floor(value))) : 0;
+  }
+
+  const claimed = Array.isArray(src.claimed)
+    ? Array.from(
+        new Set(src.claimed.map((key) => String(key)).filter((key) => ids.includes(key)))
+      )
+    : [];
+
+  return { dayKey, ids, progress, claimed };
 }
 
 function normalizeSeasonEventState(raw: unknown): SeasonEventState | undefined {
@@ -541,6 +587,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
+    contracts: normalizeContractState(src.contracts),
     dailyIncident: normalizeDailyIncidentState(src.dailyIncident),
     seasonEvent,
     unlockedProfileFrames,
@@ -751,6 +798,43 @@ function ensureDailyTasks(record: StoredPlayerRecord, dayKey: string): DailyTask
   return state;
 }
 
+/**
+ * Выдача контрактов на игровые сутки.
+ *
+ * Смена дня: старый набор просто заменяется новым — незакрытые контракты
+ * сгорают без штрафа, накопленный прогресс не переносится. Это осознанно:
+ * контракт — короткая цель на день, а не долг, который копится.
+ */
+function ensureContracts(record: StoredPlayerRecord, dayKey: string): ContractState {
+  const current = record.stats.contracts;
+  const currentIsValid =
+    current?.dayKey === dayKey &&
+    current.ids.length > 0 &&
+    current.ids.length <= MAX_ACTIVE_CONTRACTS &&
+    current.ids.every((id) => Boolean(getContractDefinition(id)));
+
+  if (!currentIsValid) {
+    const ids = getDailyContracts(record.tgId, dayKey)
+      .map((contract) => contract.key)
+      .slice(0, Math.min(CONTRACTS_PER_DAY, MAX_ACTIVE_CONTRACTS));
+    record.stats.contracts = {
+      dayKey,
+      ids,
+      progress: Object.fromEntries(ids.map((id) => [id, 0])),
+      claimed: [],
+    };
+  }
+
+  const state = record.stats.contracts;
+  if (!state) throw new Error('Не удалось подготовить контракты');
+  for (const id of state.ids) {
+    const target = getContractDefinition(id)?.target ?? 0;
+    state.progress[id] = Math.max(0, Math.min(target, Math.floor(Number(state.progress[id]) || 0)));
+  }
+  state.claimed = state.claimed.filter((id) => state.ids.includes(id));
+  return state;
+}
+
 function createSeasonEventState(weekKey: string): SeasonEventState {
   return {
     version: 2,
@@ -911,6 +995,30 @@ function incrementDailyTaskProgress(
     const task = getDailyTaskDefinition(key);
     if (!task || task.kind !== kind) continue;
     state.progress[key] = Math.min(task.target, (state.progress[key] ?? 0) + Math.floor(amount));
+  }
+}
+
+/**
+ * Прогресс контрактов растёт от уже существующих действий игрока: тап, списание
+ * CPU Charge на запуск контракта, Heat по итогам взлома и закрытие контракта.
+ * Отдельного действия «поиграть в контракт» нет — иначе это была бы вторая
+ * мини-игра поверх первой.
+ */
+function incrementContractProgress(
+  record: StoredPlayerRecord,
+  metric: ContractMetric,
+  amount: number
+): void {
+  const state = record.stats.contracts;
+  if (!state || amount <= 0) return;
+  for (const id of state.ids) {
+    const contract = getContractDefinition(id);
+    if (!contract || contract.metric !== metric) continue;
+    if (state.claimed.includes(id)) continue;
+    state.progress[id] = Math.min(
+      contract.target,
+      (state.progress[id] ?? 0) + Math.floor(amount)
+    );
   }
 }
 
@@ -1910,6 +2018,8 @@ async function syncTimeAndRules(
   // Ежедневные поручения используют те же московские сутки, что и активность
   // и лимит Чипов. Создание/сброс происходит только на сервере.
   ensureDailyTasks(record, nowDayKey);
+  // Контракты дня живут по тем же московским суткам и выдаются здесь же.
+  ensureContracts(record, nowDayKey);
   // Один короткий киберинцидент в сутки добавляет выбор, но не новую валюту
   // и не обязательный гринд. Сценарий фиксируется сервером до смены дня.
   ensureDailyIncident(record.stats, record.tgId, nowDayKey);
@@ -2694,6 +2804,7 @@ async function applyPendingClicks(
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
   incrementDailyTaskProgress(record, 'tap', validClicks);
+  incrementContractProgress(record, 'tap', validClicks);
   incrementSeasonEventProgress(record, 'tap', validClicks);
   return validClicks;
 }
@@ -3289,6 +3400,7 @@ export async function handleMissionAction(
         outcome: 'partial',
       });
       incrementDailyTaskProgress(record, 'mission_start', 1);
+      incrementContractProgress(record, 'cpu', entryCost.energy);
       incrementSeasonEventProgress(record, 'mission_start', 1);
 
       alerts.push({
@@ -3383,6 +3495,8 @@ export async function handleMissionAction(
     record.totalMissions += 1;
     record.stats.totalXpEarned += xpGain;
     incrementDailyTaskProgress(record, 'mission_complete', 1);
+    incrementContractProgress(record, 'mission_complete', 1);
+    incrementContractProgress(record, 'heat', heatGain);
     incrementSeasonEventProgress(record, 'mission_complete', 1);
 
     // Чипы начисляются только за ЧИСТЫЙ успех (частичный результат и пропуск
@@ -3667,6 +3781,68 @@ export async function handleDailyTaskAction(
     });
 
     await savePlayerCore(record, mode, expectedXp);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/**
+ * v6.1: забор награды за контракт.
+ *
+ * Награда считается на сервере из конфига, клиент присылает только id. Набор
+ * контрактов на сутки проверяется заново (ensureContracts), поэтому старый id
+ * из вчерашнего состояния не даст награду.
+ */
+export async function handleContractAction(
+  user: VerifiedTelegramUser,
+  contractId: string,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    // Пачка тапов может сама закрыть контракт — принимаем её до проверки кнопки.
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    const state = ensureContracts(record, getGameDayKey(Date.now()));
+    const contract = getContractDefinition(contractId);
+    if (!contract || !state.ids.includes(contract.key)) {
+      throw new Error('Этого контракта нет в сегодняшнем наборе');
+    }
+    if (state.claimed.includes(contract.key)) {
+      throw new Error('Награда за этот контракт уже получена');
+    }
+    const progress = state.progress[contract.key] ?? 0;
+    if (progress < contract.target) {
+      throw new Error(`Контракт ещё не закрыт: ${progress}/${contract.target}`);
+    }
+
+    const dayKey = getGameDayKey(Date.now());
+    const expectedData = record.data;
+    const reward = contract.reward;
+    if (reward.data) record.data += reward.data;
+    if (reward.crypto) record.crypto += reward.crypto;
+    let chipsGranted = 0;
+    if (reward.chips) chipsGranted = grantChips(record, reward.chips, dayKey).granted;
+    state.claimed.push(contract.key);
+
+    const parts: string[] = [];
+    if (reward.data) parts.push(`+${reward.data.toLocaleString('ru-RU')} Data`);
+    if (reward.crypto) parts.push(`+${reward.crypto} Crypto`);
+    if (chipsGranted > 0) parts.push(`+${chipsGranted} Chips`);
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `${contract.icon} Контракт закрыт`,
+      message:
+        parts.length > 0
+          ? `«${contract.title}» выполнен. ${parts.join(' · ')}.`
+          : `«${contract.title}» выполнен. Награда: ${describeContractReward(reward)}.`,
+    });
+
+    await savePlayerCore(record, mode, undefined, expectedData);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }

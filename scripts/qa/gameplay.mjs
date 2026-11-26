@@ -403,6 +403,43 @@ try {
   check('анимации только transform/opacity',
     !questCard.includes('transition-all') && questCard.includes('scaleX(') && tasksTeaser.includes('scaleX('));
 
+  // --- v6.1: контракты — пассивные цели поверх экрана заданий ----------------
+  const contractsConfig = readSource('shared/contracts.config.ts');
+  const contractsLib = readSource('src/lib/contracts.ts');
+  const engine = readSource('api/_lib/gameEngine.ts');
+  const router = readSource('api/_router.ts');
+  const contractsRoute = readSource('api/_routes/contracts.ts');
+  const tasksPageV61 = readSource('src/pages/TasksPage.tsx');
+
+  check('контракты описаны одним конфигом', contractsConfig.includes('export const CONTRACTS_PER_DAY') &&
+    contractsConfig.includes('export const MAX_ACTIVE_CONTRACTS') &&
+    contractsConfig.includes('export function getDailyContracts'));
+  check('выдача контрактов детерминирована и без дублей',
+    contractsConfig.includes('getDailyContracts(tgId') &&
+      contractsConfig.includes('slice(0, CONTRACTS_PER_DAY)') &&
+      engine.includes('ensureContracts(record, nowDayKey)'));
+  check('прогресс растёт от тапов, CPU Charge и закрытия контрактов',
+    engine.includes("incrementContractProgress(record, 'tap', validClicks)") &&
+      engine.includes("incrementContractProgress(record, 'cpu', entryCost.energy)") &&
+      engine.includes("incrementContractProgress(record, 'mission_complete', 1)") &&
+      engine.includes("incrementContractProgress(record, 'heat', heatGain)"));
+  check('забор награды — серверный, отдельного роута-дубля нет',
+    router.includes("import contracts from './_routes/contracts'") &&
+      router.includes('contracts,') &&
+      contractsRoute.includes('handleContractAction'));
+  check('повторный забор за контракт заблокирован',
+    engine.includes("if (state.claimed.includes(contract.key))") &&
+      engine.includes('Награда за этот контракт уже получена'));
+  check('награда контракта не считается на клиенте',
+    !contractsLib.includes('record.') && contractsLib.includes('describeContractReward'));
+  check('контракты используют общий QuestCard, а не свой тип карточки',
+    tasksPageV61.includes("contract: FileText") &&
+      !contractsLib.includes('data-qa="quest-card"') &&
+      contractsLib.includes("kind: 'contract'"));
+  check('забор контракта идёт через общий runClaim',
+    context.includes("runClaim(`contract:${contractId}`") &&
+      tasksPageV61.includes('claimContract'));
+
   // --- онбординг: первый кадр игры без «тапни» и без кнопки ТАП -------------
   const onboarding = readSource('src/components/Onboarding.tsx');
   check('онбординг: текст шага под флагом геймплея',

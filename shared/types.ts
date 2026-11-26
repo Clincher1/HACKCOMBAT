@@ -338,6 +338,18 @@ export interface DailyTaskDefinition {
   description: string;
 }
 
+/**
+ * Контракты (v6.1): три пассивные цели на игровые сутки.
+ * Хранятся в том же stats jsonb, без новых таблиц и полей верхнего уровня.
+ */
+export interface ContractState {
+  dayKey: string;
+  /** Ключи из shared/contracts.config.ts, не больше MAX_ACTIVE_CONTRACTS. */
+  ids: string[];
+  progress: Record<string, number>;
+  claimed: string[];
+}
+
 /** Постоянная часть ежедневных поручений хранится внутри уже существующего stats jsonb. */
 export interface DailyTaskState {
   dayKey: string;
@@ -421,6 +433,8 @@ export interface PlayerProgressStats {
   activeDayKey?: string | null;
   /** v3.8: три персональных ежедневных поручения и их серверный прогресс. */
   dailyTasks?: DailyTaskState;
+  /** v6.1: контракты дня — пассивные цели на тапы, CPU Charge и Heat. */
+  contracts?: ContractState;
   /** v3.13: один серверный киберинцидент с выбором в каждые московские сутки. */
   dailyIncident?: DailyIncidentState;
   /** v3.9: прогресс текущей 7-дневной сезонной операции. */
