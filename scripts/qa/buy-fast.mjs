@@ -33,6 +33,16 @@ delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const { dispatchApiRequest } = require(CORE);
 
+// v6.4: тап-цикл ограничен 6 тапами/сек, поэтому «накопить Data честным темпом»
+// в реальном времени заняло бы минуты. Игровое время ускоряем (Date.now), как в
+// соседних серверных сьютах: логика остаётся серверной, ждать не нужно.
+const realNow = Date.now;
+let fakeNow = realNow();
+Date.now = () => fakeNow;
+const advance = (ms) => {
+  fakeNow += ms;
+};
+
 let pass = 0;
 let fail = 0;
 const failures = [];
@@ -92,47 +102,43 @@ const priceFromError = (error) => Number(String(error ?? '').replace(/\D+/g, '')
   check('игрок создан', r.ok === true, r.player?.id);
   const clickPower = r.player.derived.clickPower;
 
-  // Набираем Data кликами, как живой игрок: античит разрешает ≤30 кликов/сек,
-  // поэтому пауза между пачками — 2 секунды (реальный клиент шлёт так же).
-  for (let i = 0; i < 10; i++) {
-    await sleep(2000);
-    await api(A, 'click', { clicks: 50 });
-  }
-  r = await api(A, 'init');
-  let p = r.player;
-  check('клики зачлись', p.totalClicks >= 450, p.totalClicks);
-
-  // Проверяем цену «Монитор IPS 240Hz» (пробный запрос без кликов не меняет баланс)
-  const probe = await api(A, 'buy-card', { cardKey: 'monitor', clicks: 0 });
+  // Цену читаем ДО накопления: пока Data не хватает, покупка отклоняется и
+  // возвращает точную цену, ничего не списывая.
+  const probe = await api(A, 'buy-card', { cardKey: 'keyboard', clicks: 0 });
   const price = priceFromError(probe.error);
-  check('цена карточки читается с сервера', price > 0, price || probe.ok);
+  check('цена карточки читается с сервера', price > 0, price || probe.error);
 
-  // Догоняем до «почти хватает»: нехватку в пару десятков Data закроет хвост кликов
-  // (один запрос может привезти максимум 60 кликов).
-  let data = p.data;
+  // v6.4: серверный темп тапа — 6/с (паритет с взломами). Копим Data пачками
+  // по 12 тапов за 2 игровые секунды — ровно на пределе темпа, плюс ежедневный
+  // бонус новичка.
+  await api(A, 'daily');
+  let taps = 0;
   let guard = 0;
-  while (price - data > 18 && guard < 8) {
-    await sleep(2000);
-    await api(A, 'click', { clicks: 50 });
-    data = (await api(A, 'init')).player.data;
-    guard++;
+  let player = (await api(A, 'init')).player;
+  while (price - player.data > 18 && guard < 200) {
+    advance(2000);
+    await api(A, 'click', { clicks: 12 });
+    taps += 12;
+    player = (await api(A, 'init')).player;
+    guard += 1;
   }
+  check('клики зачлись на темпе 6/с', player.totalClicks >= 150, `${player.totalClicks} тапов за ${guard} пачек`);
 
-  const gap = Math.max(0, price - data);
+  const gap = Math.max(0, price - player.data);
   // Клиент прикладывает к покупке не больше 20 кликов (CLICK_MAX_BATCH).
   const clicksToSend = Math.min(20, Math.ceil(gap / clickPower) + 2);
   console.log(`  не хватает ${gap.toFixed(0)} Data → шлём ${clicksToSend} кликов вместе с покупкой`);
 
-  const withTail = await api(A, 'buy-card', { cardKey: 'monitor', clicks: clicksToSend });
+  const withTail = await api(A, 'buy-card', { cardKey: 'keyboard', clicks: clicksToSend });
   check('покупка с хвостом кликов не отклонена', withTail.ok === true, withTail.error ?? '');
   check('сервер сообщил, сколько кликов зачёл', typeof withTail.appliedClicks === 'number', withTail.appliedClicks);
   check('хвост зачтён полностью', withTail.appliedClicks === clicksToSend, `${withTail.appliedClicks} из ${clicksToSend}`);
-  check('карточка куплена', (withTail.player?.cards?.monitor ?? 0) === 1, withTail.player?.cards?.monitor);
+  check('карточка куплена', (withTail.player?.cards?.keyboard ?? 0) === 1, withTail.player?.cards?.keyboard);
 
   // ── Игрок Б: неудачная покупка не должна съедать клики
   const B = 'buy-fast-b';
   r = await api(B, 'init');
-  await sleep(2000);
+  advance(2000);
   await api(B, 'click', { clicks: 20 });
   r = await api(B, 'init');
   const beforeFail = r.player.data;
@@ -149,19 +155,21 @@ const priceFromError = (error) => Number(String(error ?? '').replace(/\D+/g, '')
   // ── Игрок В: античит режет «хвост» и честно сообщает, сколько зачёл
   const C = 'buy-fast-c';
   await api(C, 'init');
-  await sleep(2000);
+  advance(2000);
   const trimmed = await api(C, 'click', { clicks: 60 });
   check('античит не даёт 60 кликов подряд', (trimmed.appliedClicks ?? 0) < 60, trimmed.appliedClicks);
-  await sleep(2000);
+  advance(2000);
   const clk = await api(C, 'click', { clicks: 20 });
-  check('/api/click отдаёт appliedClicks', clk.appliedClicks === 20, clk.appliedClicks);
-  await sleep(2000);
+  // v6.4: за 2 секунды простоя ведро токенов возвращает ровно 6 × 2 = 12 тапов.
+  check('/api/click отдаёт appliedClicks', clk.appliedClicks === 12, clk.appliedClicks);
+  advance(2000);
   const huge = await api(C, 'click', { clicks: 1000 });
   check('сервер не принимает больше 60 кликов за раз', (huge.appliedClicks ?? 0) <= 60, huge.appliedClicks);
 
   console.log(`\n=== ИТОГО: ${pass} passed, ${fail} failed ===`);
   if (fail > 0) console.log('Провалы: ' + failures.join(' | '));
 
+  Date.now = realNow;
   fs.rmSync(sandbox, { recursive: true, force: true });
   process.exitCode = fail > 0 ? 1 : 0;
 })().catch((err) => {

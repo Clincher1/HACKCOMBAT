@@ -11,33 +11,36 @@ export const DAILY_TASKS_PER_DAY = 3;
  * скрытых усилений здесь нет — награда всегда только XP.
  */
 export const DAILY_TASK_POOLS: Record<DailyTaskKind, readonly DailyTaskDefinition[]> = {
+  // v6.4: тап-цели соразмерены с живым темпом (≤6 тап/с): самая дорогая
+  // закрывается за ~100 секунд тапа и 600 CPU Charge — «пара минут», а не
+  // 1000 тапов, которые съедали почти весь суточный заряд.
   tap: [
     {
-      key: 'tap_100',
+      key: 'tap_60',
       kind: 'tap',
-      target: 100,
+      target: 60,
       rewardXp: 10,
       icon: '👆',
       title: 'Разогреть терминал',
-      description: 'Сделай 100 тапов по консоли.',
+      description: 'Сделай 60 тапов по консоли.',
     },
     {
-      key: 'tap_500',
+      key: 'tap_200',
       kind: 'tap',
-      target: 500,
+      target: 200,
       rewardXp: 20,
       icon: '⚡',
       title: 'Пробить ритм',
-      description: 'Сделай 500 тапов по консоли.',
+      description: 'Сделай 200 тапов по консоли.',
     },
     {
-      key: 'tap_1000',
+      key: 'tap_600',
       kind: 'tap',
-      target: 1_000,
+      target: 600,
       rewardXp: 30,
       icon: '🔥',
       title: 'Давить на газ',
-      description: 'Сделай 1 000 тапов по консоли.',
+      description: 'Сделай 600 тапов по консоли.',
     },
   ],
   mission_start: [

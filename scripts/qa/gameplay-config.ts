@@ -22,6 +22,41 @@ import {
 import { MISSION_ENTRY_MIN_DATA, getMissionEntryCost, getMissionRewardScale } from '../../shared/hack.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import { ONBOARDING_STEPS, onboardingStepCopyV3 } from '../../shared/onboarding.config';
+import {
+  TAP_MAX_PER_SEC,
+  TAP_BURST_CAPACITY,
+  TAP_MAX_BATCH,
+  resolveTapAllowance,
+} from '../../shared/mechanics';
+import { HACK_MAX_TAPS_PER_SEC } from '../../shared/hacks.config';
+
+// v6.4: тап-цикл — те же 6 тап/с, что и во взломах.
+const TAP_NOW = 1_000_000;
+const tapFresh = resolveTapAllowance({ requested: 20, budget: null, energy: 1_500, nowMs: TAP_NOW });
+const tapAfterFull = resolveTapAllowance({
+  requested: 20,
+  budget: { tokens: 0, at: TAP_NOW },
+  energy: 1_500,
+  nowMs: TAP_NOW,
+});
+const tapAfterOneSecond = resolveTapAllowance({
+  requested: 20,
+  budget: { tokens: 0, at: TAP_NOW },
+  energy: 1_500,
+  nowMs: TAP_NOW + 1_000,
+});
+const tapNoEnergy = resolveTapAllowance({
+  requested: 20,
+  budget: { tokens: 20, at: TAP_NOW },
+  energy: 0,
+  nowMs: TAP_NOW,
+});
+const tapIdleDay = resolveTapAllowance({
+  requested: 60,
+  budget: { tokens: 0, at: TAP_NOW },
+  energy: 5_000,
+  nowMs: TAP_NOW + 86_400_000,
+});
 
 const starter = MISSIONS_CONFIG.find((mission) => mission.key === 'scam_shop') ?? MISSIONS_CONFIG[0];
 const now = Date.now();
@@ -72,5 +107,16 @@ process.stdout.write(
     steps: ONBOARDING_STEPS.join(','),
     copyV3: [1, 2, 3].map((step) => onboardingStepCopyV3(step, 60)).join(' | '),
     copyV3Step1: onboardingStepCopyV3(1, null),
+    tap: {
+      maxPerSec: TAP_MAX_PER_SEC,
+      hackMaxPerSec: HACK_MAX_TAPS_PER_SEC,
+      burst: TAP_BURST_CAPACITY,
+      maxBatch: TAP_MAX_BATCH,
+      fresh: tapFresh.allowed,
+      afterFull: tapAfterFull.allowed,
+      afterOneSecond: tapAfterOneSecond.allowed,
+      noEnergy: tapNoEnergy.allowed,
+      idleDay: tapIdleDay.allowed,
+    },
   })
 );

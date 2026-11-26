@@ -42,11 +42,16 @@ const ModalsAndOverlays = React.lazy(async () => {
   const module = await import('./components/Modals');
   return { default: module.ModalsAndOverlays };
 });
-// v4.3: демо-витрина всех открытий. Отдельный чанк: в игровую сессию не грузится.
-const DemoPage = React.lazy(async () => {
-  const module = await import('./pages/DemoPage');
-  return { default: module.DemoPage };
-});
+// v4.3: демо-витрина всех открытий.
+// v6.4: билд-тайм флаг __HK_DEMO__ (см. vite.config.mts) — в прод-сборке он
+// false, поэтому динамический import вырезается и чанк витрины не эмитится.
+// Для отладки: VITE_ENABLE_DEMO=1 npm run build (или npm run dev — там true).
+const DemoPage = __HK_DEMO__
+  ? React.lazy(async () => {
+      const module = await import('./pages/DemoPage');
+      return { default: module.DemoPage };
+    })
+  : null;
 
 const RouteLoading: React.FC = () => (
   <div className="min-h-[55vh] flex flex-col items-center justify-center text-center">
@@ -169,7 +174,7 @@ const AppRoutes: React.FC = () => {
   const { pathname } = useLocation();
   const normalized = pathname.replace(/\/+$/, '') || '/';
 
-  if (normalized === '/demo') {
+  if (__HK_DEMO__ && DemoPage && normalized === '/demo') {
     return (
       <Suspense
         fallback={

@@ -44,7 +44,7 @@ export const ContractBoard: React.FC = () => {
           <Cpu className="h-3.5 w-3.5" /> Контракты
         </div>
         <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--ui-text-muted)]">
-          <span className="flex items-center gap-1 text-[var(--ui-primary)]" title="CPU Charge — заряд на запуск контракта. Копится сам, тапать не нужно.">
+          <span className="flex items-center gap-1 text-[var(--ui-primary)]" title="CPU Charge — заряд на тап и запуск контракта. Копится сам, +1 за 2 секунды.">
             <Zap className="h-3 w-3" />
             {formatCompact(player.energy)}/{formatCompact(player.derived.maxEnergy)} CPU
           </span>
