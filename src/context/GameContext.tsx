@@ -104,6 +104,12 @@ export interface GameContextValue {
   claimDailyBonus: () => Promise<void>;
   resolveDailyIncident: (choiceKey: string) => Promise<void>;
   claimDailyTask: (taskKey: string) => Promise<void>;
+  /**
+   * Оптимистичные заборы наград: id (`daily:<key>`, `season:<action>`) уже
+   * отмечены как полученные в UI, ответ сервера ещё летит. Нужен карточкам
+   * заданий, чтобы тап отвечал мгновенно и без ожидания API.
+   */
+  pendingClaims: ReadonlySet<string>;
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery') => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
   buyOrEquipProfileFrame: (frameKey: string) => Promise<void>;
@@ -250,6 +256,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  // v6.0: оптимистичные заборы наград. Ключ попадает сюда ДО запроса, поэтому
+  // карточка задания переключается в «Получено» в том же кадре, что и тап.
+  const [pendingClaims, setPendingClaims] = useState<ReadonlySet<string>>(() => new Set());
   const busyKeyRef = useRef<string | null>(null);
   // Все изменяющие состояние действия идут через одну клиентскую очередь.
   // Иначе быстрый тап по двум разным карточкам мог отправить два POST
@@ -996,16 +1005,47 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  /**
+   * Обёртка над runAction для заборов наград: сначала помечаем claimId готовым
+   * (оптимистичный UI), затем ждём сервер. Если запрос упал — снимаем метку,
+   * карточка возвращается в «Готово к забору» без перезагрузки экрана.
+   */
+  const runClaim = useCallback(
+    async (claimId: string, key: string, fn: (clicks: number) => Promise<ApiSyncResponse>): Promise<void> => {
+      setPendingClaims((prev) => {
+        if (prev.has(claimId)) return prev;
+        const next = new Set(prev);
+        next.add(claimId);
+        return next;
+      });
+      try {
+        await runAction(key, fn, true, 'light');
+      } finally {
+        setPendingClaims((prev) => {
+          if (!prev.has(claimId)) return prev;
+          const next = new Set(prev);
+          next.delete(claimId);
+          return next;
+        });
+      }
+    },
+    [runAction]
+  );
+
   const claimDailyTask = useCallback(
     (taskKey: string) =>
-      runAction(`daily-task:claim:${taskKey}`, (clicks) => gameApi.claimDailyTask(taskKey, clicks), true, 'light'),
-    [runAction]
+      runClaim(`daily:${taskKey}`, `daily-task:claim:${taskKey}`, (clicks) =>
+        gameApi.claimDailyTask(taskKey, clicks)
+      ),
+    [runClaim]
   );
 
   const claimSeasonEvent = useCallback(
     (action: 'claim_participation' | 'claim_mastery') =>
-      runAction(`season-event:${action}`, (clicks) => gameApi.claimSeasonEvent(action, clicks), true, 'light'),
-    [runAction]
+      runClaim(`season:${action}`, `season-event:${action}`, (clicks) =>
+        gameApi.claimSeasonEvent(action, clicks)
+      ),
+    [runClaim]
   );
 
   const buyOrEquipSkin = useCallback(
@@ -1407,6 +1447,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyBonus,
       resolveDailyIncident,
       claimDailyTask,
+      pendingClaims,
       claimSeasonEvent,
       buyOrEquipSkin,
       buyOrEquipProfileFrame,
@@ -1476,6 +1517,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyBonus,
       resolveDailyIncident,
       claimDailyTask,
+      pendingClaims,
       claimSeasonEvent,
       buyOrEquipSkin,
       buyOrEquipProfileFrame,
