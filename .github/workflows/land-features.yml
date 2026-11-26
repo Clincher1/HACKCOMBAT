@@ -110,6 +110,15 @@ jobs:
             PR_NUM=$(pr_number_for "$head")
             if [ -z "$PR_NUM" ]; then
               if ! gh pr create --repo "$REPO" --base "$base" --head "$head" --title "$title" --body-file "$body_file" >"${RUNNER_TEMP:-/tmp}/pr.out" 2>&1; then
+                if grep -qi "not permitted to create or approve pull requests" "${RUNNER_TEMP:-/tmp}/pr.out"; then
+                  # Repo-setting "Allow GitHub Actions to create and approve pull requests"
+                  # выключен, а GITHUB_TOKEN не имеет administration:write, чтобы его включить.
+                  # Ветка уже лежит на origin — PR создаётся владельцем репозитория.
+                  echo "::error::ACTION REQUIRED: создайте PR вручную и перезапустите workflow"
+                  echo "::error::ветка=$head база=$base"
+                  grep -o "GitHub Actions is not permitted[^)]*)" "${RUNNER_TEMP:-/tmp}/pr.out" | head -1 | while IFS= read -r line; do echo "::error::github: $line"; done
+                  return 1
+                fi
                 echo "::error::gh pr create упал для ветки $head"
                 tail -n 8 "${RUNNER_TEMP:-/tmp}/pr.out" | while IFS= read -r line; do echo "::error::  $line"; done
                 cat "${RUNNER_TEMP:-/tmp}/pr.out"
@@ -121,6 +130,7 @@ jobs:
             fi
             [ -n "$PR_NUM" ] || die "не удалось получить номер PR для $head"
             gh pr ready "$PR_NUM" --repo "$REPO" >/dev/null 2>&1 || true
+            return 0
           }
 
           merge_pr() {
@@ -327,9 +337,13 @@ jobs:
           * полный npm run qa:all зелёный на локальной проверке A (Client events QA: 21/0).
           MD
           phase "A: PR + merge"
-          open_pr "$BR" main \
+          if ! open_pr "$BR" main \
             "analytics: воронка первого сеанса (client_events + /api/track)" \
-            "$RUNNER_TEMP/pr-a.md"
+            "$RUNNER_TEMP/pr-a.md"; then
+            echo "::warning::PR A нужно создать вручную: gh pr create --base main --head $BR"
+            echo "PR_A_PENDING=$BR" >> "$GITHUB_ENV"
+            exit 0
+          fi
           num=$PR_NUM
 
           echo "PR_A_NUMBER=$num" >> "$GITHUB_ENV"
@@ -423,9 +437,13 @@ jobs:
           * npm run qa:all — 0 fail, включая Onboarding QA 33/0 и Client events QA 21/0.
           MD
           phase "B: PR + merge"
-          open_pr "$BR" main \
+          if ! open_pr "$BR" main \
             "feat: onboarding v2 — гейт первого сеанса, locked-вкладки, защита новичка" \
-            "$RUNNER_TEMP/pr-b.md"
+            "$RUNNER_TEMP/pr-b.md"; then
+            echo "::warning::PR B нужно создать вручную: gh pr create --base main --head $BR"
+            echo "PR_B_PENDING=$BR" >> "$GITHUB_ENV"
+            exit 0
+          fi
           num=$PR_NUM
 
           echo "PR_B_NUMBER=$num" >> "$GITHUB_ENV"
@@ -552,8 +570,8 @@ jobs:
             echo "| --- | --- |"
             echo "| run | ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} |"
             echo "| features | ${FEATURES} |"
-            echo "| PR A | ${PR_A_URL:-—} |"
-            echo "| PR B | ${PR_B_URL:-—} |"
+            echo "| PR A | ${PR_A_URL:-${PR_A_PENDING:+ветка ${PR_A_PENDING} ждёт PR}} |"
+            echo "| PR B | ${PR_B_URL:-${PR_B_PENDING:+ветка ${PR_B_PENDING} ждёт PR}} |"
             echo "| main HEAD | ${MAIN_SHA:-—} |"
             echo "| deployment | ${DEPLOY_URL:-—} |"
             echo "| production | ${PROD_URL} |"
