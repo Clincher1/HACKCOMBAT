@@ -181,8 +181,9 @@ jobs:
           cfg.git = cfg.git || {};
           cfg.git.deploymentEnabled = cfg.git.deploymentEnabled || {};
           cfg.git.deploymentEnabled['feat/retention-referral'] = false;
+          cfg.git.deploymentEnabled['fix/backdrop-layer'] = false;
           fs.writeFileSync(file, `${JSON.stringify(cfg, null, 2)}\n`);
-          console.log('deploymentEnabled[feat/retention-referral] = false');
+          console.log('deploymentEnabled: ветки выкатки отключены');
           JS
           git add vercel.json
           if ! git diff --cached --quiet; then
