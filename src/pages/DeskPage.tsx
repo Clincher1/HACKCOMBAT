@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Flame,
+  MapPin,
 } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -46,8 +47,10 @@ const DeskLocationBar: React.FC = () => {
     <>
       <button
         type="button"
+        data-qa="change-location-bar"
+        aria-label="Сменить локацию"
         onClick={() => setOpen(true)}
-        className="w-full rounded-2xl border border-white/10 bg-[var(--ui-panel)] px-3 py-2 text-left transition hover:border-[var(--ui-primary)]/45 cursor-pointer"
+        className="w-full rounded-2xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[var(--ui-panel)] px-3 py-2 text-left shadow-[0_0_18px_rgba(var(--ui-primary-rgb),0.14)] transition hover:border-[var(--ui-primary)] active:scale-[0.995] cursor-pointer"
       >
         <span className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2">
@@ -71,7 +74,8 @@ const DeskLocationBar: React.FC = () => {
               </span>
             </span>
           </span>
-          <span className="shrink-0 rounded-lg bg-[var(--ui-primary)] px-2 py-1 text-[10px] font-extrabold text-[var(--ui-on-primary)]">
+          <span className="flex shrink-0 items-center gap-1 rounded-xl bg-[var(--ui-primary)] px-2.5 py-1.5 text-[11px] font-extrabold text-[var(--ui-on-primary)] shadow-[0_0_16px_rgba(var(--ui-primary-rgb),0.45)]">
+            <MapPin className="h-3.5 w-3.5" />
             Сменить
           </span>
         </span>
@@ -141,10 +145,11 @@ export const DeskPage: React.FC = () => {
   return (
     <div className="space-y-3.5 pb-4">
       <DeskScene />
+      {/* v5.8: локация — сразу под сценой, которую она меняет (раньше уезжала под доску) */}
+      <DeskLocationBar />
       {/* v5.7: контрактная доска — основная поверхность дохода вместо кнопки HACK */}
       <ContractBoard />
       <WorldExitBar />
-      <DeskLocationBar />
       {/* v5.6: streak bar — 7 клеток дневного цикла. Скрыт при активном онбординге. */}
       <StreakBar />
 

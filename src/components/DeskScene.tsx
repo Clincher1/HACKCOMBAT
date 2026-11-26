@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Eye, Lock, Sparkles, Terminal, Zap } from 'lucide-react';
+import { ChevronRight, Eye, Lock, MapPin, Sparkles, Terminal, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ENERGY_REGEN_SECONDS,
@@ -13,6 +13,7 @@ import {
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
 import { BackdropWeather } from './BackdropWeather';
+import { LocationPickerModal } from './LocationPicker';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
@@ -47,6 +48,8 @@ export const DeskScene: React.FC = () => {
   const [pulseActive, setPulseActive] = useState(false);
   const [previewStage, setPreviewStage] = useState<1 | 5 | 10 | 15 | 20 | 25 | 30 | null>(null);
   const [showStageBar, setShowStageBar] = useState(false);
+  // v5.8: смена локации доступна прямо со сцены (чип «что за окном»).
+  const [locationOpen, setLocationOpen] = useState(false);
 
   // Автономная визуальная вспышка Botmaster (автоклик 1/сек).
   // v3.5: зависимость сузили до autoClickPerSec. Раньше в deps лежал весь
@@ -303,21 +306,33 @@ export const DeskScene: React.FC = () => {
         )}
 
         {/* Подпись «что за окном» — маленький HUD южного города */}
+        {/* v5.8: тот же чип «что за окном» теперь и есть вход в смену локации —
+            подсвечен рамкой акцента и шевроном, чтобы не читался как подпись. */}
         {deskBackdrop && (
-          <div className="absolute right-2.5 bottom-2.5 z-[2] pointer-events-none flex items-center gap-1.5 rounded-full bg-[var(--ui-panel-deep)]/70 border border-white/15 px-2.5 py-1">
+          <button
+            type="button"
+            data-qa="scene-location-chip"
+            aria-label="Сменить локацию"
+            onClick={(event) => {
+              event.stopPropagation();
+              setLocationOpen(true);
+            }}
+            className="absolute right-2.5 bottom-9 z-[3] flex items-center gap-1.5 rounded-full bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-primary-rgb),0.6)] px-2.5 py-1 shadow-[0_0_14px_rgba(var(--ui-primary-rgb),0.28)] backdrop-blur-sm transition hover:border-[var(--ui-primary)] active:scale-[0.97] cursor-pointer"
+          >
             <span
               className="w-1.5 h-1.5 rounded-full"
               style={{ background: deskBackdrop.accent, boxShadow: `0 0 8px ${deskBackdrop.accent}` }}
             />
-            <span className="text-[10px] font-semibold tracking-wide text-white/80">{deskBackdrop.weatherLabel}</span>
-          </div>
+            <span className="text-[10px] font-bold tracking-wide text-white/90">{deskBackdrop.weatherLabel}</span>
+            <ChevronRight className="h-3 w-3 text-[var(--ui-primary)]" />
+          </button>
         )}
 
         {/* CRT скан-линии и виньетка */}
         <div className="scanline-overlay absolute inset-0" />
         <div
           className={`absolute inset-0 pointer-events-none bg-gradient-to-t ${
-            'from-[var(--ui-panel-deep)]/85 via-transparent to-[var(--ui-panel-deep)]/30'
+            'from-[var(--ui-panel-deep)]/55 via-transparent to-[var(--ui-panel-deep)]/20'
           }`}
         />
 
@@ -403,6 +418,9 @@ export const DeskScene: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Модалка локаций живёт вне карточки сцены: у той overflow-hidden. */}
+      <LocationPickerModal open={locationOpen} onClose={() => setLocationOpen(false)} />
 
       {/* Главная тактильная кнопка «HACK» (Центр-низ по п. 4.1 ТЗ).
           v5.7: при GAMEPLAY_V3 её нет — доход идёт из контрактов. */}
