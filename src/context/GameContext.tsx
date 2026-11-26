@@ -17,12 +17,14 @@ import type {
   LeaderboardSelf,
   LeaderboardSort,
   PlayerState,
+  RetentionSnapshotPayload,
 } from '../../shared/types';
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
 import { getBackdrop, type BackdropConfig } from '../../shared/backdrops.config';
 import { isWorldV2Enabled } from '../../shared/config';
 import type { WorldLocation } from '../../shared/world.config';
+
 import { readActiveLocation } from '../lib/world';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
@@ -31,6 +33,7 @@ import { trackFunnel } from '../lib/analytics';
 import { isOnboardingV2Enabled } from '../../shared/config';
 import { ONBOARDING_STEP_COUNT } from '../../shared/onboarding.config';
 import { isStepComplete, onboardingViewState } from '../lib/onboarding';
+import { trackReferralFirstSession } from '../lib/referralTracking';
 import {
   initTelegramMiniApp,
   renameDemoIdentity,
@@ -50,7 +53,15 @@ interface GameContextValue {
   alerts: GameAlert[];
   offlineModalEarned: number | null;
   offlineModalTaps: number;
+  /** v5.6: модал показывает оффлайн-копилку retention (кнопка = реальный claim). */
+  offlineModalRetention: boolean;
   dismissOfflineModal: () => void;
+  /** v5.6: снимок retention-петли из init-ответа (оффлайн, стрик, напоминания). */
+  retention: RetentionSnapshotPayload | null;
+  /** v5.6: забрать оффлайн-копилку (идемпотентно, платит сервер). */
+  claimOffline: () => Promise<void>;
+  /** v5.6: галочка «напоминать в Telegram» (default OFF). */
+  setReminderOptIn: (value: boolean) => Promise<void>;
   dismissAlert: (id: string) => void;
   pushClientAlert: (alert: Omit<GameAlert, 'id'>) => void;
   lockdownRemainingSec: number;
@@ -234,6 +245,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Это намеренно не PlayerState: экономика и постоянные данные остаются на сервере.
   const [missionHistory, setMissionHistory] = useState<GameAlert[]>([]);
   const [offlineModalEarned, setOfflineModalEarned] = useState<number | null>(null);
+  // v5.6: retention-снимок живёт рядом с игроком: модал и streak bar читают его.
+  const [retention, setRetention] = useState<RetentionSnapshotPayload | null>(null);
+  const [offlineModalRetention, setOfflineModalRetention] = useState(false);
   const [offlineModalTaps, setOfflineModalTaps] = useState<number>(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [soundMuted, setSoundMuted] = useState(() => cyberSound.isMuted());
@@ -373,9 +387,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           : res.player;
 
       setPlayer(adjustedPlayer);
-      if (showOfflineModal && res.offlineEarned && res.offlineEarned >= 10) {
+      // v5.6: retention-снимок из того же ответа (нового запроса не нужно).
+      const retentionSnapshot = res.retention ?? null;
+      if (retentionSnapshot) setRetention(retentionSnapshot);
+
+      // v5.6: приглашённый реально начал играть (онбординг закрыт) — событие
+      // уходит один раз за сессию. Новых запросов не появляется: track() сам
+      // отправляет POST /api/track и глушит ошибки.
+      if (adjustedPlayer.stats.onboardingV2Completed === true || !isOnboardingV2Enabled()) {
+        trackReferralFirstSession(adjustedPlayer);
+      }
+
+      // v5.6: приоритет у retention-копилки — это реальный claim, а не
+      // «показали и забыли». Модал скрыт, пока активен гейт онбординга:
+      // новичок сначала проходит первые шаги, иначе два оверлея конфликтуют.
+      const pendingOffline = retentionSnapshot?.enabled ? retentionSnapshot.pendingOffline?.data ?? 0 : 0;
+      const onboardingGateActive =
+        isOnboardingV2Enabled() && adjustedPlayer.stats.onboardingV2Completed !== true;
+
+      if (showOfflineModal && pendingOffline >= 10 && !onboardingGateActive) {
+        setOfflineModalEarned(pendingOffline);
+        setOfflineModalTaps(0);
+        setOfflineModalRetention(true);
+      } else if (showOfflineModal && res.offlineEarned && res.offlineEarned >= 10) {
+        // Легаси-копилка v3.2 (короткие отсутствия): показываем как раньше.
         setOfflineModalEarned(res.offlineEarned);
         setOfflineModalTaps(res.offlineTaps ?? 0);
+        setOfflineModalRetention(false);
       }
       const missionResults = (res.alerts ?? []).filter(isMissionOutcomeAlert);
       if (missionResults.length > 0) {
@@ -1021,10 +1059,46 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSoundMuted(muted);
   }, []);
 
+  /**
+   * v5.6: «Забрать» в welcome-back модале. Для retention-копилки это реальный
+   * серверный claim_offline (идемпотентный), для легаси-модалки — просто закрыть.
+   */
+  const claimOffline = useCallback(async () => {
+    try {
+      const res = await gameApi.retentionAction('claim_offline');
+      applyServerSync(res, false);
+    } catch (err) {
+      pushClientAlert({
+        type: 'warning',
+        title: 'Не удалось забрать оффлайн',
+        message: err instanceof Error ? err.message : 'Попробуй ещё раз чуть позже.',
+      });
+    }
+  }, [applyServerSync, pushClientAlert]);
+
   const dismissOfflineModal = useCallback(() => {
+    const wasRetention = offlineModalRetention;
     setOfflineModalEarned(null);
     setOfflineModalTaps(0);
-  }, []);
+    setOfflineModalRetention(false);
+    if (wasRetention) void claimOffline();
+  }, [claimOffline, offlineModalRetention]);
+
+  const setReminderOptIn = useCallback(
+    async (value: boolean) => {
+      try {
+        const res = await gameApi.retentionAction('reminder_opt_in', value);
+        applyServerSync(res, false);
+      } catch (err) {
+        pushClientAlert({
+          type: 'warning',
+          title: 'Настройка не сохранилась',
+          message: err instanceof Error ? err.message : 'Попробуй ещё раз.',
+        });
+      }
+    },
+    [applyServerSync, pushClientAlert]
+  );
 
   // v3.6.1: палитра берётся из БАЗОВОЙ ТЕМЫ, а скин стола накладывается в сцене.
   // Раньше переменные прибивались к скину: надел аватар — перекрасился весь UI.
@@ -1221,7 +1295,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       alerts,
       offlineModalEarned,
       offlineModalTaps,
+      offlineModalRetention,
       dismissOfflineModal,
+      retention,
+      claimOffline,
+      setReminderOptIn,
       dismissAlert,
       pushClientAlert,
       lockdownRemainingSec,
@@ -1285,7 +1363,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       alerts,
       offlineModalEarned,
       offlineModalTaps,
+      offlineModalRetention,
       dismissOfflineModal,
+      retention,
+      claimOffline,
+      setReminderOptIn,
       dismissAlert,
       pushClientAlert,
       lockdownRemainingSec,

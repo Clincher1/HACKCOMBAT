@@ -84,3 +84,74 @@ export const REFERRAL_INVITEE_DATA_REWARD = REFERRAL_INVITEE_DATA;
 export const REFERRAL_RULES_SHORT =
   'Друг должен сыграть 8 минут. За каждого засчитанного друга: половина твоего уровня в XP ' +
   'и час пассивного дохода в Data. Другу — стартовый бонус. Лимит: 3 друга в сутки, 10 в неделю.';
+
+// ============================================================================
+// v5.6 — DEEP LINKS ПО TELEGRAM ID (?start=ref_<tgId>)
+// ----------------------------------------------------------------------------
+// Старая ссылка v3.5 (?startapp=ref_ab12cd34) требует таблицы referral_codes
+// и уникальна на игрока. Новая — читаемый tgId: человек видит, кого зовёт:
+//   https://t.me/<bot>?start=ref_123456789
+// Атрибуция остаётся серверной: код находится по tgId, а привязку делает тот
+// же движок v3.5 (PK(invitee_tg) — двойной привязки быть не может).
+// ============================================================================
+
+/** Префикс tgId-ссылки. Совпадает с кодовым — различает только содержимое. */
+export const REFERRAL_TG_ID_PREFIX = 'ref_';
+
+/** Telegram IDs короче 5 и длиннее 15 цифр не бывает. */
+export const REFERRAL_TG_ID_MIN = 10_000;
+export const REFERRAL_TG_ID_MAX = 9_999_999_999_999_999;
+
+/**
+ * K: сколько успешных приглашений засчитываем одному рефереру в неделю.
+ * Жёстче общего REFERRAL_WEEKLY_LIMIT=10 осознанно: tgId-ссылка расшаривается
+ * в чаты, и без отдельного потолка «пригласи всех» превращается в спам-акцию.
+ */
+export const REFERRAL_TG_WEEKLY_CAP = 3;
+
+/** Приглашённому — разовый welcome-бонус в первый заход по ссылке. */
+export const REFERRAL_TG_WELCOME_DATA = 1_000;
+export const REFERRAL_TG_WELCOME_CHIPS = 1;
+
+/** Пригласившему — M Чипов сверх обычной выплаты v3.5 за первого сеанс друга. */
+export const REFERRAL_TG_REFERRER_CHIPS = 2;
+
+/** Есть ли в start_param tgId-ссылка. */
+export function isReferralTgStartParam(startParam: unknown): boolean {
+  return parseReferrerTgId(startParam) !== null;
+}
+
+/**
+ * Достаёт Telegram ID пригласившего из start_param вида "ref_123456789".
+ * Возвращает null для кодовой ссылки v3.5 (8 hex-символов) и мусора.
+ */
+export function parseReferrerTgId(startParam: unknown): number | null {
+  if (typeof startParam !== 'string') return null;
+  const raw = startParam.trim().toLowerCase();
+  if (!raw.startsWith(REFERRAL_TG_ID_PREFIX)) return null;
+  const digits = raw.slice(REFERRAL_TG_ID_PREFIX.length);
+  if (!/^\d+$/.test(digits)) return null;
+  // Код v3.5 тоже может состоять из 8 цифр — такие значения не считаем tgId,
+  // если они не проходят вилку Telegram ID.
+  const value = Number(digits);
+  if (!Number.isSafeInteger(value) || value < REFERRAL_TG_ID_MIN || value > REFERRAL_TG_ID_MAX) return null;
+  return value;
+}
+
+/**
+ * Ссылка приглашения. Бот берётся из TELEGRAM_BOT_USERNAME; fallback —
+ * публичный юзернейм текущего прод-бота, чтобы ссылка не была пустой, если
+ * переменная не заведена (см. api/_lib/retention.ts).
+ */
+export const REFERRAL_FALLBACK_BOT_USERNAME = 'HackerKombatBot';
+
+export function buildReferralTgLink(botUsername: string | null | undefined, tgId: number): string {
+  const bot = (botUsername || REFERRAL_FALLBACK_BOT_USERNAME).replace(/^@/, '').trim();
+  return `https://t.me/${bot}?start=${REFERRAL_TG_ID_PREFIX}${tgId}`;
+}
+
+/** Правила v5.6 — одна строка для карточки в профиле. */
+export const REFERRAL_TG_RULES_SHORT =
+  `Ссылка вида ?start=ref_<твой ID>: друг заходит по ней, играет 8 минут — ты получаешь ` +
+  `награду v3.5 плюс ${REFERRAL_TG_REFERRER_CHIPS} Чипа, а друг — ${REFERRAL_TG_WELCOME_DATA} Data ` +
+  `на старт. Не больше ${REFERRAL_TG_WEEKLY_CAP} друзей в неделю.`;

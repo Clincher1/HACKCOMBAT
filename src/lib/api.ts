@@ -74,6 +74,9 @@ export const gameApi = {
   hireNpc: (npcKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/hire', 'POST', { npcKey, clicks }),
   claimDaily: (clicks = 0) => apiRequest<ApiSyncResponse>('/api/daily', 'POST', { clicks }),
+  // v5.6: retention — забрать оффлайн (идемпотентно) и галочка напоминаний.
+  retentionAction: (action: 'claim_offline' | 'reminder_opt_in', value?: boolean) =>
+    apiRequest<ApiSyncResponse>('/api/retention', 'POST', value === undefined ? { action } : { action, value }),
   resolveDailyIncident: (choiceKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/daily-incident', 'POST', { choiceKey, clicks }),
   claimDailyTask: (taskKey: string, clicks = 0) =>
@@ -140,6 +143,10 @@ export const gameApi = {
       qualifySeconds: number;
       dailyLimit: number;
       weeklyLimit: number;
+      /** v5.6: ссылка по Telegram ID (?start=ref_<tgId>) и её недельный кап. */
+      tgLink?: string | null;
+      tgWeeklyCap?: number;
+      referralV1?: boolean;
     }>('/api/referral', 'GET'),
   donateLink: (stars: number) =>
     apiRequest<{

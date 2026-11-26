@@ -13,6 +13,7 @@ import { DailyTasksPanel } from '../components/DailyTasksPanel';
 import { DeskScene, OfflineBankNote } from '../components/DeskScene';
 import { DEVICE_LABEL, LocationPickerModal } from '../components/LocationPicker';
 import { SeasonEventPanel } from '../components/SeasonEventPanel';
+import { StreakBar } from '../components/StreakBar';
 import { useGame } from '../context/GameContext';
 import { nextLocationHint } from '../lib/world';
 
@@ -141,6 +142,8 @@ export const DeskPage: React.FC = () => {
       <DeskScene />
       <WorldExitBar />
       <DeskLocationBar />
+      {/* v5.6: streak bar — 7 клеток дневного цикла. Скрыт при активном онбординге. */}
+      <StreakBar />
 
       {/* Главные активности Desk: ивент и задания оператора видны сразу после сцены. */}
       <SeasonEventPanel state={player.stats.seasonEvent} />

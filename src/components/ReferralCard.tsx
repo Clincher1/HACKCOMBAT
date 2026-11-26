@@ -21,6 +21,10 @@ interface ReferralInfo {
   qualifySeconds: number;
   dailyLimit: number;
   weeklyLimit: number;
+  /** v5.6: ссылка по Telegram ID и её недельный кап. */
+  tgLink?: string | null;
+  tgWeeklyCap?: number;
+  referralV1?: boolean;
 }
 
 export const ReferralCard: React.FC = () => {
@@ -60,14 +64,19 @@ export const ReferralCard: React.FC = () => {
     };
   }, []);
 
-  const shareText = info?.link
-    ? `Залетай в HACKER KOMBAT — киберпанк-кликер в Telegram. Мой код приглашения внутри ссылки ⚡`
+  // v5.6: приоритет у ссылки по Telegram ID (?start=ref_<tgId>) — её видно в
+  // чате и понятно, кого зовёшь. Кодовая ссылка v3.5 остаётся как резерв
+  // (флаг referralV1 выключен или сервер её не выдал).
+  const shareLink = info?.tgLink ?? info?.link ?? null;
+
+  const shareText = shareLink
+    ? `Залетай в HACKER KOMBAT — киберпанк-кликер в Telegram. Ссылка приглашения внутри ⚡`
     : '';
 
   const handleShare = useCallback(async () => {
-    if (!info?.link) return;
+    if (!shareLink) return;
     try {
-      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(info.link)}&text=${encodeURIComponent(shareText)}`;
+      const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareLink)}&text=${encodeURIComponent(shareText)}`;
       const { openTelegramLink } = await import('@telegram-apps/sdk-react');
       if (openTelegramLink.isAvailable()) {
         openTelegramLink(shareUrl);
@@ -78,10 +87,10 @@ export const ReferralCard: React.FC = () => {
       // Вне Telegram или старый клиент — обычный системный шит.
       try {
         if (navigator.share) {
-          await navigator.share({ title: 'HACKER KOMBAT', text: shareText, url: info.link });
+          await navigator.share({ title: 'HACKER KOMBAT', text: shareText, url: shareLink });
           return;
         }
-        await navigator.clipboard.writeText(info.link);
+        await navigator.clipboard.writeText(shareLink);
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2000);
         pushClientAlert({
@@ -97,18 +106,18 @@ export const ReferralCard: React.FC = () => {
         });
       }
     }
-  }, [info?.link, pushClientAlert, shareText]);
+  }, [pushClientAlert, shareLink, shareText]);
 
   const handleCopy = useCallback(async () => {
-    if (!info?.link) return;
+    if (!shareLink) return;
     try {
-      await navigator.clipboard.writeText(info.link);
+      await navigator.clipboard.writeText(shareLink);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       // clipboard может быть недоступен — игрок скопирует вручную.
     }
-  }, [info?.link]);
+  }, [shareLink]);
 
   const invited = info?.stats.invited ?? 0;
   const qualified = info?.stats.qualified ?? 0;
@@ -131,17 +140,17 @@ export const ReferralCard: React.FC = () => {
 
       {loading && <div className="text-[11px] text-slate-500">Готовлю твою ссылку…</div>}
 
-      {!loading && !info?.link && (
+      {!loading && !shareLink && (
         <div className="text-[11px] text-amber-300/90">
           Ссылка станет доступна внутри Telegram — в превью браузера приглашения не работают.
         </div>
       )}
 
-      {info?.link && (
+      {shareLink && info && (
         <>
           <div className="flex items-center gap-1.5 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 px-2.5 py-2">
             <Link2 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-            <span className="text-[10px] text-slate-300 truncate flex-1">{info.link}</span>
+            <span className="text-[10px] text-slate-300 truncate flex-1">{shareLink}</span>
             <button
               type="button"
               onClick={() => void handleCopy()}
@@ -180,14 +189,15 @@ export const ReferralCard: React.FC = () => {
           <div className="flex items-start gap-1.5 text-[10px] text-slate-400">
             <Gift className="w-3.5 h-3.5 text-[var(--ui-primary)] mt-0.5 shrink-0" />
             <span>
-              Лимит: {info.dailyLimit} друга в сутки, {info.weeklyLimit} в неделю — чтобы рефералка
-              не заменяла игру. Открыть свой код в боте: <code>/invite</code>.
+              Лимит: {info.dailyLimit} друга в сутки, {info.weeklyLimit} в неделю
+              {typeof info.tgWeeklyCap === 'number' ? ` (по личной ссылке — ${info.tgWeeklyCap})` : ''} —
+              чтобы рефералка не заменяла игру. Открыть свой код в боте: <code>/invite</code>.
             </span>
           </div>
         </>
       )}
 
-      {tgProfile.isInsideTelegram && !info?.link && !loading && (
+      {tgProfile.isInsideTelegram && !shareLink && !loading && (
         <div className="text-[10px] text-slate-500">
           Если ссылки нет — проверь, что бот настроен (нужен BOT_TOKEN на сервере).
         </div>

@@ -31,3 +31,25 @@ export function isWorldFunnelEvent(event: string): boolean {
 export function isWorldFunnelStepUnthrottled(event: string): boolean {
   return isWorldFunnelEvent(event);
 }
+
+// ============================================================================
+// v5.6 — СОБЫТИЯ РЕФЕРАЛКИ
+// ----------------------------------------------------------------------------
+// referral_first_session: приглашённый впервые реально играет (закрыл
+// онбординг и сделал первый шаг). Это не шаг воронки, поэтому дедупликации
+// индекса нет: событие идёт обычным путём client_events и режется штатным
+// пятисекундным антифлудом insert_client_event() — ровно как остальные
+// неворовочные события. Отдельная миграция НЕ нужна: SQL-функция принимает
+// любое имя события длиной 1..64 символа.
+// ============================================================================
+
+export const REFERRAL_CLIENT_EVENTS = ['referral_first_session'] as const;
+
+export type ReferralClientEventName = (typeof REFERRAL_CLIENT_EVENTS)[number];
+
+const REFERRAL_CLIENT_SET: ReadonlySet<string> = new Set<string>([...REFERRAL_CLIENT_EVENTS]);
+
+/** Является ли событие клиентским событием рефералки (v5.6). */
+export function isReferralClientEvent(event: string): boolean {
+  return REFERRAL_CLIENT_SET.has(event);
+}
