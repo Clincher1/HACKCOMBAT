@@ -263,15 +263,20 @@ export const DeskScene: React.FC = () => {
         {/* Погода за окном: солнце, облака, чайки, дождь или ночные огни */}
         {deskBackdrop && <BackdropWeather kind={deskBackdrop.weather} />}
 
-        {/* Вуаль темы: мягко подкрашивает сцену под палитру базы */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: deskBackdrop
-              ? `radial-gradient(120% 95% at 50% 100%, ${baseTheme.sceneVignette}55 0%, transparent 58%)`
-              : `radial-gradient(120% 90% at 50% 100%, ${baseTheme.sceneVignette} 0%, transparent 62%)`,
-          }}
-        />
+        {/* Вуаль темы: мягко подкрашивает сцену под палитру базы.
+            Только для сцен по уровню: у выбранной локации свой арт и своя погода,
+            поверх них ещё один слой не нужен. Раньше здесь была отдельная ветка
+            для локации: к rgba-строке темы дописывался суффикс прозрачности, цвет
+            становился невалидным и браузер выбрасывал весь градиент. Ветка
+            удалена — визуал не изменился ни в одном из двух режимов. */}
+        {!deskBackdrop && (
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `radial-gradient(120% 90% at 50% 100%, ${baseTheme.sceneVignette} 0%, transparent 62%)`,
+            }}
+          />
+        )}
 
 
 

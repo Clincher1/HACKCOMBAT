@@ -1163,7 +1163,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--cyber-bg', theme.palette.bg);
     root.setProperty('--cyber-panel', theme.palette.panel);
     root.setProperty('--cyber-panel-deep', theme.palette.panelDeep);
-    root.setProperty('--theme-vignette', theme.sceneVignette);
     // v5.0: характер темы — не только цвет, но и «воздух».
     // У тёплой «Сан-Мираж» нет скан-линий и сетки, у «Неон-Сити» есть.
     root.setProperty('--ui-success', theme.ui.successHex);
