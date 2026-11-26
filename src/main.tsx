@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App';
+import { initErrorTracking, markFirstFrame, trackFunnel } from './lib/analytics';
 import './index.css';
 
 // Опциональная бесплатная аналитика (Umami / Yandex Metrica по разделу 6 ТЗ), если заданы переменные в .env
@@ -14,8 +15,19 @@ if (umamiId && umamiSrc) {
   document.head.appendChild(s);
 }
 
+// Воронка: обработчики ошибок ставим до первого рендера, чтобы поймать и сбой
+// монтирования. app_opened — самая первая точка: «приложение вообще открылось».
+initErrorTracking();
+trackFunnel('app_opened', {
+  mode: import.meta.env.MODE,
+  telegram: 'Telegram' in window,
+});
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
 );
+
+// first_frame — первый отрисованный кадр (двойной rAF уже внутри markFirstFrame).
+markFirstFrame();
