@@ -48,7 +48,7 @@ env:
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   TARGET_BRANCH: fix/backdrop-layer
   SOURCE_BRANCH: ${{ github.ref_name }}
-  PR_TITLE: 'feat: retention loop + referral deep links (v5.6)'
+  PR_TITLE: 'fix(world): фон локации под контентом + инвариант «подложка только с карточкой»'
   PROD_URL: https://hacker-kombat.vercel.app
   # Уникальный на прогон демо-игрок: события помечаются этим session-маркером и
   # удаляются одним SQL-запросом вместе с игроком.
@@ -278,46 +278,52 @@ jobs:
           source "$RUNNER_TEMP/lib.sh"
 
           cat > "$RUNNER_TEMP/pr.md" <<'MD'
-          ## Что внутри (v5.6: retention + referral)
+          ## Root cause
 
-          * **Оффлайн-доход по `lastSeenAt`.** На init считается (ставка ×0.5, кап 8 ч,
-            минимум 3 ч отсутствия) и кладётся в `stats.pendingOffline`; деньги
-            начисляет только `POST /api/retention {action:'claim_offline'}` — идемпотентно.
-            Пока идут активные миссии оффлайн не начисляется (миссия уже платит за время).
-            Формула одна на сервер и клиент — `shared/economy.config.ts`.
-          * **Daily streak по UTC.** `stats.lastDailyClaim` ('YYYY-MM-DD') пишет только
-            сервер; пропуск дня → 1, cap 7, таблица наград дней 1..7 в
-            `shared/economy.config.ts`. Стрик-бар на столе, снимок едет в init-ответе
-            (`response.retention`) — нового эндпоинта не появилось.
-          * **Напоминание в Telegram (opt-in, default OFF).** Не чаще раза в сутки,
-            ~24 ч после последней сессии, только если дневной бонус не забран;
-            `lastReminderSentAt` в jsonb. Без `TELEGRAM_BOT_TOKEN` — no-op с логом и
-            UI-заглушка.
-          * **Реферальные deep links `?start=ref_<tgId>` (`referralV1`).** Атрибуция
-            только серверная и поверх движка v3.5 (та же таблица `referrals`:
-            PK(invitee_tg) не даёт двойной привязки): новый игрок, `tg_id > 0`,
-            не self-referral, недельный кап K=3. Журнал — `stats.referrals`,
-            welcome-бонус приглашённому, +2 Чипа пригласившему за засчитанный сеанс.
-            Событие `referral_first_session` — через `/api/track` (whitelisted).
-          * **Флаги `retentionV1` / `referralV1`** в `shared/config.ts` (env
-            `RETENTION_V1` / `REFERRAL_V1`, тот же порядок приоритетов). Выключено —
-            инертно: ни полей, ни выплат, ни сообщений.
-          * **UI не конфликтует с онбордингом:** welcome-back модал и streak bar
-            скрыты, пока активен гейт первого сеанса.
+          `.loc-bg` (`src/components/LocationBackdrop.tsx`, стили в `src/index.css`) —
+          `position: fixed; inset: 0; opacity: .9` с тёмным градиентом локации — имел
+          **`z-index: 0`** (`WORLD_Z_INDEX.backdrop`). По CSS 2.1 (приложение E)
+          позиционированный потомок с `z-index: 0` рисуется *после* контента обычного
+          потока, поэтому весь контент ниже HUD уезжал под этот слой: выглядел
+          затемнённым и не принимал тапы. `TopHud` (`sticky z-30`), `BottomNav`
+          (`fixed z-30`) и `Onboarding` (`z-20`) оставались над слоем — ровно картина
+          со скриншота прода.
 
-          ### Гейты
-          * `npx tsc -b` — 0 ошибок; `npm run build` — успешно; main chunk в бюджете.
-          * `qa:all` — 0 FAIL, включая `overlays.ts` (слои + инвариант «подложка только с карточкой»).
+          Баг появился в v5.5 (`21177e8`, «мир»), **не** в retention-патче: PR #51
+          (`93902a85f..dfa4bb7`) не менял `App.tsx`, `LocationBackdrop.tsx` и `index.css`.
 
-          ### Миграции
-          **Не нужны.** Все новые поля живут в `players.stats` jsonb; `client_events`
-          принимает `referral_first_session` существующей `insert_client_event()`
-          (ограничение только по длине имени 1..64).
+          ## Фикс
 
-          ### Откат
-          Флаги `RETENTION_V1=false` / `REFERRAL_V1=false` в Vercel → env и redeploy:
-          поведение возвращается к v5.5 без изменения кода.
-          MD
+          * Фон уведён в отрицательный слой: `WORLD_Z_INDEX = { shell: -2, backdrop: -1, ... }`.
+          * `App.tsx`: базовый фон вынесен в отдельный `fixed` слой, корневой шелл
+            прозрачный; `<main>` намеренно **без** z-index — стек-контекст запер бы
+            модалы страниц (`LocationPicker` z-70, профиль z-50) под навигацией (z-30).
+          * `index.css`: `body`/`#root` прозрачны (canvas-фон остаётся на `html`), иначе
+            их `background` перекрывает отрицательный слой.
+          * Новый `ModalFrame` + `hasRenderableContent`: подложка модала физически не
+            может отрендериться без видимой карточки (инвариант класса «dim без
+            содержимого»). Welcome-back модал переведён на него, гейт по
+            `newPlayerMode` и порогу `RETENTION_OFFLINE_MIN_CLAIM_DATA`; `claimOffline`
+            чистит состояние модала.
+
+          ## Проверки
+
+          * `npx tsc -b` — 0; `npm run build` — успешно, main chunk 110.6 kB gzip (бюджет 112).
+          * `qa:all` — 0 FAIL: `overlays.ts` (44, новый: слои, wiring, инвариант подложек,
+            streak bar), `retention.mjs` (63: + seeded-кейс «12 уровень, оффлайн забран»,
+            сквозной claim-поток), `referral` 39, `world` 47, `onboarding` 33 и остальные.
+          * Seed-кейс подтверждает немигающий стол у игрока, который уже забрал
+            оффлайн-бонус: `pendingOffline = null`, `lastOfflineClaimAt` записан,
+            разметка оверлеев без `data-qa-backdrop`/`data-qa-modal-card`.
+
+          ## Миграции
+
+          **Нет.** Изменения чисто фронтовые + QA.
+
+          ## Откат
+
+          Реверт коммита; флаги `RETENTION_V1`/`REFERRAL_V1` не влияют на слой фона.
+MD
           grep -c '' "$RUNNER_TEMP/pr.md"
 
           phase "PR"
