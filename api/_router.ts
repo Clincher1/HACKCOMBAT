@@ -11,6 +11,7 @@ import hacks from './_routes/hacks';
 import hire from './_routes/hire';
 import init from './_routes/init';
 import inventory from './_routes/inventory';
+import lollipop from './_routes/lollipop';
 import leaderboard from './_routes/leaderboard';
 import missions from './_routes/missions';
 import pets from './_routes/pets';
@@ -52,6 +53,7 @@ const routes: Record<string, Handler> = {
   init,
   inventory,
   leaderboard,
+  lollipop,
   missions,
   pets,
   ping,

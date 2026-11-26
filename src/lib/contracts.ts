@@ -49,6 +49,8 @@ export function buildContractSection(player: PlayerState): QuestSection {
         status: claimed ? 'closed' : ready ? 'ready' : current > 0 ? 'active' : 'available',
         claimKey: definition.key,
         claimId: `contract:${definition.key}`,
+        // Тап-контракты растут от тех же действий, что и леденец.
+        boostEligible: definition.metric === 'tap',
         hint: claimed
           ? 'Награда получена'
           : ready

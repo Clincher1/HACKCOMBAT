@@ -3,6 +3,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
+import { LollipopBadge } from './LollipopBadge';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 
@@ -276,11 +277,16 @@ export const TopHud: React.FC = () => {
               </span>
             </div>
             <div
-              className="text-[9px] font-bold uppercase tracking-[0.08em] leading-none mt-1 flex items-center gap-1"
+              className="text-[9px] font-bold uppercase tracking-[0.08em] leading-none mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5"
               style={{ color: CURRENCY_COLORS.data }}
             >
               <Sparkles className="w-2.5 h-2.5 shrink-0" />
               Data · баланс
+              {/* v6.3: сезонный леденец живёт рядом с балансом — там, где игрок
+                  и так смотрит на добычу. */}
+              <span className="ml-auto normal-case tracking-normal">
+                <LollipopBadge />
+              </span>
             </div>
           </div>
 

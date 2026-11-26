@@ -50,6 +50,8 @@ export interface Quest {
   href?: string;
   /** Служебная подпись состояния: «до сброса», «выдаётся автоматически». */
   hint?: string;
+  /** Прогресс идёт от ручных Data-действий — на такой карточке видно ×2 леденца. */
+  boostEligible?: boolean;
 }
 
 export interface QuestSection {

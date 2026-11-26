@@ -89,6 +89,14 @@ import {
   getDailyTaskDefinitions,
 } from '../../shared/dailyTasks.config';
 import {
+  LOLLIPOP_BOOST_MS,
+  canActivateLollipop,
+  isLollipopActive,
+  isSeasonActive,
+  lollipopCooldownMs,
+  lollipopMultiplier,
+} from '../../shared/season.config';
+import {
   HACK_FINISH_GRACE_SEC,
   HACK_MAX_TAPS_PER_SEC,
   HACK_SESSION_SECONDS,
@@ -131,6 +139,7 @@ import type {
   ApiSyncResponse,
   ContractState,
   HackSessionState,
+  LollipopState,
   DailyTaskKind,
   DailyTaskState,
   DerivedStats,
@@ -382,6 +391,25 @@ function normalizeHackSession(raw: unknown): HackSessionState | undefined {
   };
 }
 
+/**
+ * v6.3: состояние леденца. Протухшее окно сохраняем как есть (оно само истечёт),
+ * но мусорные даты выбрасываем, чтобы UI не показывал NaN.
+ */
+function normalizeLollipopState(raw: unknown): LollipopState | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const src = raw as Record<string, unknown>;
+  const activeUntil =
+    typeof src.activeUntil === 'string' && !Number.isNaN(new Date(src.activeUntil).getTime())
+      ? src.activeUntil
+      : null;
+  const lastActivatedDayKey =
+    typeof src.lastActivatedDayKey === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(src.lastActivatedDayKey)
+      ? src.lastActivatedDayKey
+      : null;
+  if (!activeUntil && !lastActivatedDayKey) return undefined;
+  return { activeUntil, lastActivatedDayKey };
+}
+
 function normalizeSeasonEventState(raw: unknown): SeasonEventState | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const src = raw as Record<string, unknown>;
@@ -630,6 +658,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
     contracts: normalizeContractState(src.contracts),
     hackSession: normalizeHackSession(src.hackSession),
+    lollipop: normalizeLollipopState(src.lollipop),
     dailyIncident: normalizeDailyIncidentState(src.dailyIncident),
     seasonEvent,
     unlockedProfileFrames,
@@ -2842,7 +2871,9 @@ async function applyPendingClicks(
 
   record.energy = Math.max(0, record.energy - validClicks);
   record.energyUpdated = nowIso;
-  record.data += validClicks * derived.clickPower;
+  // v6.3: сезонный леденец удваивает Data с ручных тапов.
+  const clickBoost = lollipopMultiplier(record.stats.lollipop, nowMs);
+  record.data += validClicks * derived.clickPower * clickBoost;
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
   incrementDailyTaskProgress(record, 'tap', validClicks);
@@ -3890,6 +3921,57 @@ export async function handleContractAction(
 }
 
 /**
+ * v6.3: активация сезонного леденца.
+ *
+ * Одна кнопка, одно правило: раз в игровые сутки и только если сейчас нет
+ * активного окна. Буст не копится — он просто открывает ровно час ×2 Data,
+ * поэтому здесь нет ни счётчика зарядов, ни покупок.
+ */
+export async function handleLollipopAction(
+  user: VerifiedTelegramUser,
+  action: 'activate',
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    if (action !== 'activate') throw new Error('Неизвестное действие леденца');
+    if (!isSeasonActive) throw new Error('Сезон леденца уже закрыт');
+
+    const nowMs = Date.now();
+    const state = record.stats.lollipop ?? { activeUntil: null, lastActivatedDayKey: null };
+
+    if (isLollipopActive(state, nowMs)) {
+      throw new Error('Леденец уже работает — Data ×2 идёт прямо сейчас');
+    }
+    if (!canActivateLollipop(state, nowMs)) {
+      const leftMin = Math.ceil(lollipopCooldownMs(state, nowMs) / 60_000);
+      throw new Error(`Сегодня леденец уже был — следующий через ${leftMin} мин.`);
+    }
+
+    record.stats.lollipop = {
+      activeUntil: new Date(nowMs + LOLLIPOP_BOOST_MS).toISOString(),
+      lastActivatedDayKey: getGameDayKey(nowMs),
+    };
+
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: '🍭 Леденец активирован: ×2 Data на час',
+      message:
+        'Час удвоенной добычи: тапы и закрытые взломы приносят вдвое больше Data. Дальше леденец снова будет доступен только завтра.',
+    });
+
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/**
  * v6.2 — АКТИВНЫЙ ВЗЛОМ.
  *
  * Два действия:
@@ -4008,7 +4090,8 @@ export async function handleHackAction(
       throw new Error('Слишком много узлов за это время — результат отклонён');
     }
 
-    const dataGain = hackDataReward(difficulty, safeHits);
+    // v6.3: тот же сезонный множитель, что и на тапах.
+    const dataGain = hackDataReward(difficulty, safeHits) * lollipopMultiplier(record.stats.lollipop, nowMs);
     const heatGain = hackHeatGain(difficulty, trapHits);
     const expectedData = record.data;
 

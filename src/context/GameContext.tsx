@@ -113,6 +113,8 @@ export interface GameContextValue {
   pendingClaims: ReadonlySet<string>;
   /** v6.1: забор награды за контракт дня (Data / Crypto / Chips). */
   claimContract: (contractId: string) => Promise<void>;
+  /** v6.3: активировать сезонный леденец (×2 Data на час, раз в сутки). */
+  activateLollipop: () => Promise<void>;
   /**
    * v6.2: активный взлом. start списывает CPU Charge и открывает сессию,
    * finish отправляет итог и возвращает подтверждённые сервером числа.
@@ -1091,6 +1093,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [applyServerSync, pushClientAlert]
   );
 
+  const activateLollipop = useCallback(
+    () => runAction('lollipop:activate', (clicks) => gameApi.activateLollipop(clicks), true, 'light'),
+    [runAction]
+  );
+
   const startHack = useCallback(
     async (difficulty: string): Promise<HackSessionState | null> => {
       const res = await runHackRequest(`hack:start:${difficulty}`, (clicks) =>
@@ -1531,6 +1538,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resolveDailyIncident,
       claimDailyTask,
       claimContract,
+      activateLollipop,
       startHack,
       finishHack,
       pendingClaims,
@@ -1604,6 +1612,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resolveDailyIncident,
       claimDailyTask,
       claimContract,
+      activateLollipop,
       startHack,
       finishHack,
       pendingClaims,

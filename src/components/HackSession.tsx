@@ -34,6 +34,8 @@ interface SessionView {
 
 interface HackSessionProps {
   session: SessionView;
+  /** Идёт сезонный леденец — сервер уже отдаёт удвоенную добычу. */
+  boostActive?: boolean;
   /** Возвращает подтверждённый сервером итог или null при отказе. */
   onFinish: (sessionId: string, safeHits: number, trapHits: number) => Promise<HackSessionState | null>;
   onRestart: (difficulty: HackDifficultyKey) => void;
@@ -98,7 +100,13 @@ const HackNode = React.memo(function HackNode({
   );
 });
 
-export const HackSession: React.FC<HackSessionProps> = ({ session, onFinish, onRestart, busy }) => {
+export const HackSession: React.FC<HackSessionProps> = ({
+  session,
+  boostActive = false,
+  onFinish,
+  onRestart,
+  busy,
+}) => {
   const difficulty = getHackDifficulty(session.difficulty);
   const endsAtMs = new Date(session.endsAt).getTime();
   const nodes = difficulty ? countHackNodes(session.seed, difficulty) : { total: 0, traps: 0, safe: 0 };
@@ -195,6 +203,15 @@ export const HackSession: React.FC<HackSessionProps> = ({ session, onFinish, onR
           style={{ transform: 'scaleX(1)' }}
         />
       </div>
+
+      {boostActive && (
+        <p
+          data-qa="hack-boost"
+          className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-200"
+        >
+          🍭 Леденец активен — Data ×2
+        </p>
+      )}
 
       <div className="mt-2 flex items-center gap-2 text-[10px] font-bold tabular-nums">
         <span className="inline-flex items-center gap-1 rounded-md bg-[rgba(var(--ui-success-rgb),0.14)] px-1.5 py-0.5 text-[var(--ui-success)]">

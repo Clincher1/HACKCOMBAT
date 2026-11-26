@@ -41,10 +41,12 @@ interface QuestCardProps {
   quest: Quest;
   /** Оптимистичный флаг: награда уже «забрана» в UI, ответ сервера ещё летит. */
   pending: boolean;
+  /** Идёт сезонный леденец — на Data-целях показываем «×2 сейчас». */
+  boostActive?: boolean;
   onClaim: (quest: Quest) => void;
 }
 
-const QuestCardBase: React.FC<QuestCardProps> = ({ quest, pending, onClaim }) => {
+const QuestCardBase: React.FC<QuestCardProps> = ({ quest, pending, boostActive = false, onClaim }) => {
   const status: QuestStatus = pending ? 'closed' : quest.status;
   const styles = STATUS_STYLES[status];
   const ratio = quest.target > 0 ? Math.min(1, Math.max(0, quest.current / quest.target)) : 0;
@@ -69,6 +71,14 @@ const QuestCardBase: React.FC<QuestCardProps> = ({ quest, pending, onClaim }) =>
             </span>
           </div>
           <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-slate-400">{quest.description}</p>
+          {boostActive && quest.boostEligible && (
+            <span
+              data-qa="quest-boost"
+              className="mt-1 inline-flex items-center gap-1 rounded bg-amber-300/15 px-1 py-0.5 text-[9px] font-extrabold leading-none text-amber-200"
+            >
+              🍭 ×2 сейчас
+            </span>
+          )}
         </div>
       </div>
 

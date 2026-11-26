@@ -81,6 +81,9 @@ export const gameApi = {
     apiRequest<ApiSyncResponse>('/api/daily-incident', 'POST', { choiceKey, clicks }),
   claimDailyTask: (taskKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/daily-tasks', 'POST', { action: 'claim', taskKey, clicks }),
+  /** v6.3: активация сезонного леденца (×2 Data на час, раз в сутки). */
+  activateLollipop: (clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/lollipop', 'POST', { action: 'activate', clicks }),
   /** v6.2: вход в сессию взлома — сервер списывает CPU Charge и выдаёт seed. */
   startHack: (difficulty: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/hacks', 'POST', { action: 'start', difficulty, clicks }),

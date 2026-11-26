@@ -339,6 +339,15 @@ export interface DailyTaskDefinition {
 }
 
 /**
+ * Сезонный буст «Леденец» (v6.3): окно ×2 Data и день последней активации.
+ * Ничего не копится — только временная метка.
+ */
+export interface LollipopState {
+  activeUntil: string | null;
+  lastActivatedDayKey: string | null;
+}
+
+/**
  * Взлом (v6.2): одна активная сессия на 30 секунд.
  * Хранится в stats jsonb; seed детерминирует раскладку узлов, поэтому сервер
  * может проверить итог, не храня сетку.
@@ -458,6 +467,8 @@ export interface PlayerProgressStats {
   contracts?: ContractState;
   /** v6.2: текущая/последняя сессия взлома. */
   hackSession?: HackSessionState;
+  /** v6.3: сезонный леденец (×2 Data на час, раз в сутки). */
+  lollipop?: LollipopState;
   /** v3.13: один серверный киберинцидент с выбором в каждые московские сутки. */
   dailyIncident?: DailyIncidentState;
   /** v3.9: прогресс текущей 7-дневной сезонной операции. */
