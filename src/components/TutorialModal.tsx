@@ -407,8 +407,8 @@ export const TutorialModal: React.FC = () => {
                       🌐 Многоступенчатый GLOBAL HACK (Престиж)
                     </div>
                     <p>
-                      Игра рассчитана на долгую прогрессию из <strong>8 рангов</strong> (от{' '}
-                      <em>Script Kiddie</em> до <em>Cyber Overlord</em>) и уровней вплоть до{' '}
+                      Игра рассчитана на долгую прогрессию из <strong>12 званий</strong> (от{' '}
+                      <em>Первокурсник</em> до <em>Хранитель архива</em>) и уровней без предела:{' '}
                       <strong>97+</strong>!
                     </p>
                     <p>
@@ -418,7 +418,7 @@ export const TutorialModal: React.FC = () => {
                     </p>
                     <ul className="list-disc pl-4 space-y-0.5 text-slate-200">
                       <li>Вечный удваивающийся множитель дохода (<strong>×2 → ×4 → ×8...</strong>)</li>
-                      <li>Эксклюзивный скин стола <strong>Omega Singularity (+22% тап)</strong></li>
+                      <li>Эксклюзивный скин стола <strong>«Вечерний Лофт» (+22% тап)</strong></li>
                       <li>
                         <strong>100% сохранение</strong> всех твоих <strong>💎 Crypto</strong>,{' '}
                         <strong>достижений</strong>, <strong>купленных скинов</strong> и{' '}
