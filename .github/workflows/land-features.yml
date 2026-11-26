@@ -430,11 +430,30 @@ jobs:
           step_run "tsc -b" npx tsc -b
           phase "B: build"
           step_run "build" npm run build
+          # qa:profile-inventory (внутри qa:all) — единственный сьют, который ходит
+          # по HTTP на /api/*: ему нужен живой dev-сервер (vercel-api-dev-plugin).
+          phase "B: dev server"
+          npm run dev > "$RUNNER_TEMP/dev.log" 2>&1 &
+          dev_pid=$!
+          ready=0
+          for i in $(seq 1 90); do
+            if curl -sf -o /dev/null "http://127.0.0.1:5173/"; then ready=1; break; fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            tail -n 20 "$RUNNER_TEMP/dev.log"
+            dump_log "dev server 5173" "$RUNNER_TEMP/dev.log"
+            die "dev-сервер не поднялся на 127.0.0.1:5173 за 90 с"
+          fi
+          echo "dev-сервер готов (pid $dev_pid)"
+          export API_BASE="http://127.0.0.1:5173"
+
           phase "B: qa:all"
           set +e
           npm run qa:all > "$RUNNER_TEMP/qa-b.log" 2>&1
           qa_code=$?
           set -e
+          kill "$dev_pid" 2>/dev/null || true
           tail -60 "$RUNNER_TEMP/qa-b.log"
           if [ "$qa_code" -ne 0 ]; then
             echo "::error::QA упал (exit $qa_code)"
