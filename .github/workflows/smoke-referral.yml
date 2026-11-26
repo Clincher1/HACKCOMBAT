@@ -1,0 +1,40 @@
+# Разовая проверка прод-события referral_first_session (v5.6).
+# Антифлуд client_events режет события чаще 5 секунд, поэтому отправляем
+# app_opened, ждём 7 секунд и только потом referral_first_session — иначе
+# строка не появится и проверка ничего не докажет.
+name: smoke-referral
+on:
+  push:
+    branches: [arena/73bdedb2-hackcombat]
+    paths: [.github/workflows/smoke-referral.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Post two events with a 7s gap
+        run: |
+          set -euo pipefail
+          PROD=https://hacker-kombat.vercel.app
+          SESSION="ci-smoke-rr2-run${GITHUB_RUN_ID}"
+          echo "SESSION=$SESSION"
+          home=$(curl -sS -o /tmp/home.html -w '%{http_code}' "$PROD/")
+          echo "GET / => $home"; grep -qi 'Init error' /tmp/home.html && echo 'INIT ERROR PRESENT' || echo 'no Init error'
+          c1=$(curl -sS -o /tmp/a.out -w '%{http_code}' -X POST "$PROD/api/track" -H 'Content-Type: application/json' \
+            -H "Origin: $PROD" -H 'user-agent: QA/1.0 (ci-smoke-rr2)' \
+            -H "x-demo-user-id: $SESSION" -H 'x-demo-username: CISmokeRR2' \
+            --data "{\"event\":\"app_opened\",\"meta\":{\"session\":\"ci-smoke-rr2\"}}")
+          echo "app_opened => $c1"
+          sleep 7
+          c2=$(curl -sS -o /tmp/b.out -w '%{http_code}' -X POST "$PROD/api/track" -H 'Content-Type: application/json' \
+            -H "Origin: $PROD" -H 'user-agent: QA/1.0 (ci-smoke-rr2)' \
+            -H "x-demo-user-id: $SESSION" -H 'x-demo-username: CISmokeRR2' \
+            --data "{\"event\":\"referral_first_session\",\"meta\":{\"session\":\"ci-smoke-rr2\",\"referrerTgId\":111}}")
+          echo "referral_first_session => $c2"
+          [ "$home" = "200" ] || exit 1
+          [ "$c1" = "204" ] || exit 1
+          [ "$c2" = "204" ] || exit 1
+          echo "smoke ok"
