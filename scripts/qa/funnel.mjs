@@ -1,12 +1,18 @@
 /**
- * HACKER KOMBAT — QA: событийная воронка и клиентские ошибки (v5.2).
+ * HACKER KOMBAT — QA: /api/track для воронки и клиентских ошибок (v5.3).
  *
- * Проверяет серверную часть src/lib/analytics.ts:
- *  • шесть шагов воронки (app_opened → first_mission_start) доходят до сейва;
- *  • неизвестное событие по-прежнему отбрасывается (whitelist не сломан);
- *  • client_error сохраняет message/url/line/column/stack в агрегат;
- *  • meta мусорного типа не ломает запрос;
- *  • счётчики воронки инкрементальные и не сбрасывают другие поля stats.
+ * Проверяет роут целиком в memory-режиме (без Supabase):
+ *  • 6 шагов воронки и client_error проходят валидацию и отдают 204 без тела;
+ *  • неизвестное событие и пустой event — 400;
+ *  • client_error без meta.message — 400;
+ *  • служебные поля (initData) не возвращаются клиенту;
+ *  • legacy-телеметрия (tab:*, tutorial_open, session) по-прежнему отдаёт 200
+ *    с синком игрока — на ней держатся ачивки;
+ *  • GET → 405, мусорное тело → 400.
+ *
+ * SQL-часть (антифлуд 5 c, дедупликация воронки, маппинг ошибок) живёт в
+ * supabase/migrations/019_client_events.sql и проверяется на живой базе
+ * запросами к public.insert_client_event(...).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -20,10 +26,11 @@ if (!fs.existsSync(CORE)) {
   process.exit(1);
 }
 
-const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'hk-funnel-'));
+const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'hk-client-events-'));
 process.chdir(sandbox);
 delete process.env.SUPABASE_URL;
 delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+delete process.env.VITE_SUPABASE_URL;
 
 const { dispatchApiRequest } = require(CORE);
 
@@ -44,23 +51,29 @@ function check(name, condition, extra = '') {
 function makeRes() {
   return {
     statusCode: 200,
-    payload: '',
-    setHeader() {},
+    payload: undefined,
+    headers: {},
+    setHeader(name, value) {
+      this.headers[String(name).toLowerCase()] = value;
+    },
     end(chunk) {
-      this.payload = chunk ?? '';
+      this.payload = chunk;
     },
   };
 }
 
-async function api(route, body = {}, seed = 'funnel-qa') {
+async function request(route, body, options = {}) {
+  const method = options.method ?? 'POST';
+  const seed = options.seed ?? 'client-events-qa';
   const req = {
     url: `/api/${route}`,
-    method: 'POST',
+    method,
     headers: {
       host: 'localhost:5173',
       'x-demo-user-id': seed,
-      'x-demo-username': 'FunnelTester',
-      'x-forwarded-for': '10.47.0.1',
+      'x-demo-username': 'EventsTester',
+      'x-forwarded-for': '10.51.0.1',
+      'user-agent': 'QA/1.0 (client-events)',
     },
     body,
     socket: { remoteAddress: '127.0.0.1' },
@@ -68,34 +81,29 @@ async function api(route, body = {}, seed = 'funnel-qa') {
   };
   const res = makeRes();
   await dispatchApiRequest(req, res);
+  let parsed;
   try {
-    return { ...JSON.parse(res.payload), _status: res.statusCode };
+    parsed = res.payload === undefined || res.payload === '' ? undefined : JSON.parse(res.payload);
   } catch {
-    return { ok: false, error: String(res.payload), _status: res.statusCode };
+    parsed = undefined;
   }
+  return { status: res.statusCode, payload: res.payload, json: parsed, headers: res.headers };
 }
 
 const FUNNEL = ['app_opened', 'init_ok', 'first_frame', 'first_tap', 'first_upgrade', 'first_mission_start'];
 
-const init = await api('init', {});
-check('игрок инициализируется', init.ok === true);
+const init = await request('init', {});
+check('игрок инициализируется', init.json?.ok === true, `status ${init.status}`);
 
 for (const event of FUNNEL) {
-  const res = await api('track', { event, timestamp: 1, userAgent: 'qa', initData: '', meta: { level: 2 } });
-  check(`событие воронки сохраняется: ${event}`, res.ok === true && res.player?.stats?.funnel?.[event] === 1);
+  const res = await request('track', { event, timestamp: Date.now(), userAgent: 'QA/1.0', initData: '', meta: { level: 2 } });
+  check(`шаг воронки принимается без тела: ${event}`, res.status === 204 && res.payload === undefined);
 }
 
-const again = await api('track', { event: 'first_tap' });
-check('повторный шаг инкрементит счётчик', again.player?.stats?.funnel?.first_tap === 2);
-
-const unknown = await api('track', { event: 'totally_unknown_event' });
-check(
-  'неизвестное событие отбрасывается',
-  unknown.ok === true && unknown.player?.stats?.funnel?.totally_unknown_event === undefined
-);
-
-const errorRes = await api('track', {
+const errorEvent = await request('track', {
   event: 'client_error',
+  timestamp: Date.now(),
+  userAgent: 'QA/1.0',
   meta: {
     kind: 'unhandledrejection',
     message: 'Cannot read properties of undefined',
@@ -105,24 +113,48 @@ const errorRes = await api('track', {
     stack: 'TypeError: x is undefined\n  at HacksPage',
   },
 });
-const stored = errorRes.player?.stats?.lastClientError;
-check('client_error сохраняет message', stored?.message === 'Cannot read properties of undefined');
-check('client_error сохраняет координаты', stored?.line === 42 && stored?.['column'] === 7);
-check('client_error сохраняет stack', typeof stored?.stack === 'string' && stored.stack.includes('HacksPage'));
-check('client_error хранит ISO-время', typeof stored?.at === 'string' && !Number.isNaN(Date.parse(stored.at)));
+check('client_error принимается и отдаёт 204', errorEvent.status === 204 && errorEvent.payload === undefined);
 
-const garbageMeta = await api('track', { event: 'client_error', meta: 'not-an-object' });
-check('мусорный meta не ломает запрос', garbageMeta.ok === true);
+const noBodyEcho = await request('track', { event: 'init_ok', initData: 'query_id=AAH...&hash=deadbeef' });
+check('initData не возвращается клиенту', noBodyEcho.status === 204 && noBodyEcho.payload === undefined);
 
-const longName = 'x'.repeat(120);
-const longRes = await api('track', { event: longName });
-check('длинное имя события не ломает запрос', longRes.ok === true);
-check('длинное имя не попадает в воронку', longRes.player?.stats?.funnel?.[longName] === undefined);
+const noMessage = await request('track', { event: 'client_error', meta: { url: 'https://x' } });
+check('client_error без message — 400', noMessage.status === 400 && noMessage.json?.ok === false);
 
-const other = await api('track', { event: 'app_opened' }, 'funnel-qa-2');
-check('другой игрок получает свой счётчик', other.player?.stats?.funnel?.app_opened === 1);
+const badMeta = await request('track', { event: 'client_error', meta: 'not-an-object' });
+check('client_error с мусорным meta — 400', badMeta.status === 400);
 
-console.log(`\nFunnel QA: ${pass} pass / ${fail} fail`);
+const unknown = await request('track', { event: 'totally_unknown_event' });
+check('неизвестное событие — 400', unknown.status === 400 && unknown.json?.error === 'event is not allowed');
+
+const named = await request('track', { event: 'x'.repeat(120) });
+check('слишком длинное имя события — 400', named.status === 400);
+
+const empty = await request('track', {});
+check('пустой event — 400', empty.status === 400);
+
+const injection = await request('track', { event: "app_opened'; drop table players; --" });
+check('SQL-подобное имя события не проходит whitelist', injection.status === 400);
+
+const getRequest = await request('track', { event: 'app_opened' }, { method: 'GET' });
+check('GET — 405', getRequest.status === 405);
+
+const garbageBody = await request('track', 'not-json');
+check('мусорное тело — 400', garbageBody.status === 400);
+
+const legacyTab = await request('track', { event: 'tab:/hacks' });
+check('legacy tab:* отдаёт синк игрока (200)', legacyTab.status === 200 && legacyTab.json?.player?.derived?.level >= 1);
+
+const legacyTutorial = await request('track', { event: 'tutorial_open' });
+check('legacy tutorial_open принимается (200)', legacyTutorial.status === 200 && legacyTutorial.json?.ok === true);
+
+const legacySession = await request('track', { event: 'session', value: 12 });
+check('legacy session принимается (200)', legacySession.status === 200 && legacySession.json?.ok === true);
+
+const legacyBadArg = await request('track', { event: 'tab:/nope' });
+check('legacy tab с чужим путём не ломает запрос', legacyBadArg.status === 200);
+
+console.log(`\nClient events QA: ${pass} pass / ${fail} fail`);
 if (fail > 0) {
   console.error(failures.join('\n'));
   process.exit(1);
