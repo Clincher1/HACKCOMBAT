@@ -23,6 +23,7 @@ import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../sha
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
+import { trackFunnel } from '../lib/analytics';
 import {
   initTelegramMiniApp,
   renameDemoIdentity,
@@ -460,6 +461,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const res = await gameApi.init();
         setAlerts([]);
         applyServerSync(res, true);
+        // Воронка: профиль реально загрузился (а не «крутится спиннер»).
+        trackFunnel('init_ok', {
+          level: res.player.derived.level,
+          storage: res.storageMode,
+          fresh: res.player.totalClicks === 0 && res.player.totalMissions === 0,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Не удалось загрузить профиль';
         setInitError(message);
@@ -598,6 +605,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } else {
       scheduleFlush(CLICK_FLUSH_DELAY_MS);
     }
+
+    // Воронка: первый успешный тап (до этого 97% игроков не доходят).
+    trackFunnel('first_tap', { clickPower: player.derived.clickPower, level: player.derived.level });
 
     return true;
   }, [flushClicks, scheduleFlush, lockdownRemainingSec, player]);
@@ -742,25 +752,48 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const buyCard = useCallback(
     (cardKey: string) => {
+      // «Первое улучшение» считаем до оптимистичного апдейта: если карточек ещё нет,
+      // именно эта покупка — первая в жизни аккаунта.
+      const isFirstUpgrade = (player?.derived.totalCardLevels ?? 0) === 0;
       applyOptimisticCard(cardKey);
       return runAction(
         `card:${cardKey}`,
-        (clicks) => gameApi.buyCard(cardKey, clicks),
+        async (clicks) => {
+          const res = await gameApi.buyCard(cardKey, clicks);
+          // Пишем только после подтверждения сервером: отказ не должен врать воронке.
+          if (isFirstUpgrade) {
+            trackFunnel('first_upgrade', {
+              cardKey,
+              totalCardLevels: res.player.derived.totalCardLevels,
+            });
+          }
+          return res;
+        },
         true,
         'light'
       );
     },
-    [applyOptimisticCard, runAction]
+    [applyOptimisticCard, player?.derived.totalCardLevels, runAction]
   );
 
   const startMission = useCallback(
-    (missionKey: string) =>
-      runAction(`mission:start:${missionKey}`, (clicks) =>
-        gameApi.missionAction('start', { missionKey }, clicks),
+    (missionKey: string) => {
+      // Первый запуск миссии = ни одной активной и ни одной завершённой ранее.
+      const isFirstMission = (player?.activeMissions.length ?? 0) === 0 && (player?.totalMissions ?? 0) === 0;
+      return runAction(
+        `mission:start:${missionKey}`,
+        async (clicks) => {
+          const res = await gameApi.missionAction('start', { missionKey }, clicks);
+          if (isFirstMission) {
+            trackFunnel('first_mission_start', { missionKey, level: res.player.derived.level });
+          }
+          return res;
+        },
         true,
         'light'
-      ),
-    [runAction]
+      );
+    },
+    [runAction, player?.activeMissions.length, player?.totalMissions]
   );
 
   const claimMission = useCallback(

@@ -14,7 +14,13 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendJson(res, 405, { ok: false, error: 'Method Not Allowed' });
   }
   try {
-    const body = await readJsonBody<{ event?: string; value?: number; initData?: string }>(req);
+    const body = await readJsonBody<{
+      event?: string;
+      value?: number;
+      initData?: string;
+      /** v5.2: необязательный контекст события (для client_error — message/url/line/stack). */
+      meta?: unknown;
+    }>(req);
     const user = authenticateRequest(req, body);
     if (!body.event || typeof body.event !== 'string') {
       return sendJson(res, 400, { ok: false, error: 'event is required' });
@@ -22,7 +28,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const result = await handleTrackEvent(
       user,
       body.event,
-      Number.isFinite(Number(body.value)) ? Number(body.value) : undefined
+      Number.isFinite(Number(body.value)) ? Number(body.value) : undefined,
+      body.meta
     );
     return sendJson(res, 200, result);
   } catch (err) {
