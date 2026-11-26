@@ -20,6 +20,14 @@
 name: land-release
 
 on:
+  # Bootstrap: workflow_dispatch работает только для файлов в default-ветке,
+  # поэтому первый запуск идёт по push в arena-ветку и ТОЛЬКО при изменении
+  # этого самого файла (так же выкатывался land-world). Дальше — dispatch.
+  push:
+    branches:
+      - arena/73bdedb2-hackcombat
+    paths:
+      - .github/workflows/land-release.yml
   workflow_dispatch:
     inputs:
       mode:
@@ -134,7 +142,7 @@ jobs:
             dump_log "merge --squash" "$RUNNER_TEMP/merge.log"
             die "конфликт при переносе дельты на origin/main"
           fi
-          git commit -q -m "$PR_TITLE" || die "commit"
+          git commit -q -m "$PR_TITLE" -m "source: $SOURCE_SHA (arena $SOURCE_BRANCH)" || die "commit"
 
           # ── vercel.json: ветка выкатки не должна авто-деплоиться ──────────
           phase "patch vercel.json"
