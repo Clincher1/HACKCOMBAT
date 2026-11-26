@@ -394,6 +394,11 @@ export interface PlayerProgressStats {
   lastPetFeedDay: string | null;
   trackEventsToday: number;
   trackEventsDay: string | null;
+  /**
+   * v5.4: гейт первого сеанса пройден. Хранится в существующем stats jsonb —
+   * новой таблицы и миграции не требуется, старые сейвы читаются как false.
+   */
+  onboardingV2Completed?: boolean;
   /** Опыт по классам целей: сколько успехов и провалов было для каждого типа. */
   hackSuccessByType: Record<string, number>;
   hackFailByType: Record<string, number>;

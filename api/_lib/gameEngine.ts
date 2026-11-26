@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
 import { BACKDROPS_CONFIG, isBackdropKey } from '../../shared/backdrops.config';
+import { isNewbieProtectionActive, newPlayerSnapshotFromCounters } from '../../shared/onboarding.config';
 import {
   BASE_UPGRADES_CONFIG,
   CHIP_DAILY_CAP,
@@ -478,6 +479,8 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     lastPetFeedDay: typeof src.lastPetFeedDay === 'string' ? src.lastPetFeedDay.slice(0, 10) : null,
     trackEventsToday: num(src.trackEventsToday, 10_000),
     trackEventsDay: typeof src.trackEventsDay === 'string' ? src.trackEventsDay.slice(0, 10) : null,
+    // v5.4: пройден ли гейт первого сеанса (иначе оверлей показывался бы снова).
+    onboardingV2Completed: src.onboardingV2Completed === true,
     hackSuccessByType: numRecord(src.hackSuccessByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     hackFailByType: numRecord(src.hackFailByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     totalXpEarned: num(src.totalXpEarned, 1e12),
@@ -1755,7 +1758,21 @@ async function syncTimeAndRules(
   }
 
   // 5. Проверка штрафа Heat > 100
-  if (record.heat > HEAT_PENALTY_THRESHOLD) {
+  // v5.4: новичок (ни карточки, ни миссии) не получает штраф вообще. Иначе
+  // первый же Heat-всплеск отбирал 10% Data и блокировал клики на 60 секунд до
+  // того, как игрок увидел первую награду (аудит: 97% не сделали ни одного тапа).
+  const newbieProtection = isNewbieProtectionActive(
+    newPlayerSnapshotFromCounters({
+      totalCardLevels: derived.totalCardLevels,
+      totalMissions: record.totalMissions,
+      totalClicks: record.totalClicks,
+    })
+  );
+  if (newbieProtection && record.heat > HEAT_PENALTY_THRESHOLD) {
+    // Heat держим на пороге: ни блокировки, ни списания, ни алерта.
+    record.heat = HEAT_PENALTY_THRESHOLD;
+  }
+  if (!newbieProtection && record.heat > HEAT_PENALTY_THRESHOLD) {
     const lostData = Math.floor(record.data * HEAT_PENALTY_DATA_LOSS_PCT);
     record.data = Math.max(0, record.data - lostData);
     record.heat = HEAT_RESET_AFTER_PENALTY;
@@ -3883,6 +3900,14 @@ export async function handleTrackEvent(
         const minutes = Math.max(0, Math.min(240, Math.floor(Number(value) || 0)));
         if (minutes > record.stats.maxSessionMinutes) {
           record.stats.maxSessionMinutes = minutes;
+          touched = true;
+        }
+        break;
+      }
+      case 'onboarding_done': {
+        // v5.4: гейт первого сеанса пройден — оверлей больше не показываем.
+        if (record.stats.onboardingV2Completed !== true) {
+          record.stats.onboardingV2Completed = true;
           touched = true;
         }
         break;

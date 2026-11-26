@@ -1,6 +1,7 @@
-import { Backpack, Cpu, Crosshair, Monitor, UserCheck, Users } from 'lucide-react';
+import { Backpack, Cpu, Crosshair, Lock, Monitor, UserCheck, Users } from 'lucide-react';
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import { ONBOARDING_UNLOCK_LEVEL } from '../../shared/onboarding.config';
 import { CARDS_CONFIG, getCardPrice, MAX_CARD_LEVEL } from '../../shared/cards.config';
 import { getMissionEntryCost, getMissionRewardScale } from '../../shared/hack.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
@@ -16,9 +17,26 @@ const TABS = [
   { to: '/profile?tab=inventory', label: 'Инвентарь', icon: Backpack },
 ];
 
+const LOCK_HINT_MS = 2400;
+
 export const BottomNav: React.FC = () => {
-  const { player, nowMs } = useGame();
+  const { player, nowMs, newPlayerMode } = useGame();
   const location = useLocation();
+  const [lockHint, setLockHint] = React.useState<string | null>(null);
+  const lockTimerRef = React.useRef<number | null>(null);
+
+  React.useEffect(
+    () => () => {
+      if (lockTimerRef.current !== null) window.clearTimeout(lockTimerRef.current);
+    },
+    []
+  );
+
+  const showLockHint = (label: string): void => {
+    setLockHint(label);
+    if (lockTimerRef.current !== null) window.clearTimeout(lockTimerRef.current);
+    lockTimerRef.current = window.setTimeout(() => setLockHint(null), LOCK_HINT_MS);
+  };
   const inventoryTabActive =
     location.pathname === '/profile' && new URLSearchParams(location.search).get('tab') === 'inventory';
 
@@ -83,9 +101,19 @@ export const BottomNav: React.FC = () => {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.95)] border-t border-[rgba(var(--ui-primary-rgb),0.20)] pb-[env(safe-area-inset-bottom)]">
+      {lockHint !== null && (
+        <div
+          role="status"
+          className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[rgba(var(--ui-primary-rgb),0.35)] bg-[var(--ui-panel-deep)] px-2.5 py-1 text-[10px] font-semibold text-slate-200 shadow-lg"
+        >
+          {lockHint} · откроется на {ONBOARDING_UNLOCK_LEVEL} уровне
+        </div>
+      )}
       <div className="max-w-xl mx-auto grid grid-cols-6 px-1 py-1.5 gap-1">
         {TABS.map(({ to, label, icon: Icon }) => {
           const isInventoryTab = to.includes('?tab=inventory');
+          // v5.4: в первом сеансе открыт только стол, остальные вкладки залочены.
+          const isLocked = newPlayerMode && to !== '/';
           const isProfileTab = to === '/profile';
           const tabActive = isInventoryTab
             ? inventoryTabActive
@@ -104,18 +132,35 @@ export const BottomNav: React.FC = () => {
               key={to}
               to={to}
               end={to === '/'}
-              onClick={() => triggerHapticSelection()}
+              aria-disabled={isLocked}
+              title={isLocked ? `Откроется на ${ONBOARDING_UNLOCK_LEVEL} уровне` : label}
+              onClick={(event) => {
+                if (isLocked) {
+                  // Навигация не происходит: игрок остаётся на столе и видит подсказку.
+                  event.preventDefault();
+                  showLockHint(label);
+                  try {
+                    triggerHapticSelection();
+                  } catch {
+                    // вибро — необязательный бонус
+                  }
+                  return;
+                }
+                triggerHapticSelection();
+              }}
               className={() =>
                 `relative flex flex-col items-center justify-center py-1.5 px-1 rounded-xl text-[11px] font-semibold transition ${
-                  tabActive
-                    ? 'bg-[rgba(var(--ui-primary-rgb),0.14)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)] shadow-[0_0_15px_rgba(var(--ui-primary-rgb),0.16)]'
-                    : 'text-slate-400 hover:text-slate-200 border border-transparent'
+                  isLocked
+                    ? 'text-slate-600 border border-transparent cursor-not-allowed opacity-70'
+                    : tabActive
+                      ? 'bg-[rgba(var(--ui-primary-rgb),0.14)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)] shadow-[0_0_15px_rgba(var(--ui-primary-rgb),0.16)]'
+                      : 'text-slate-400 hover:text-slate-200 border border-transparent'
                 }`
               }
             >
-              <Icon className="w-5 h-5 mb-0.5" />
+              {isLocked ? <Lock className="w-5 h-5 mb-0.5" /> : <Icon className="w-5 h-5 mb-0.5" />}
               <span className="truncate max-w-full">{label}</span>
-              {badge > 0 && (
+              {!isLocked && badge > 0 && (
                 <span className="absolute top-1 right-2 min-w-[16px] h-4 px-1 rounded-full bg-[var(--ui-secondary)] text-white text-[9px] font-extrabold flex items-center justify-center leading-none">
                   {badge > 9 ? '9+' : badge}
                 </span>

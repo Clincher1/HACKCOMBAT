@@ -3,6 +3,8 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
 import { BottomNav } from './components/BottomNav';
+import { LockedTab } from './components/LockedTab';
+import { Onboarding } from './components/Onboarding';
 import { TopHud } from './components/TopHud';
 import { GameProvider, useGame } from './context/GameContext';
 
@@ -47,7 +49,7 @@ const RouteLoading: React.FC = () => (
 );
 
 const AppShell: React.FC = () => {
-  const { loading, player, initError, retryInit } = useGame();
+  const { loading, player, initError, retryInit, newPlayerMode } = useGame();
 
   if (loading) {
     return (
@@ -95,14 +97,29 @@ const AppShell: React.FC = () => {
     <div className="min-h-screen cyber-grid-bg flex flex-col">
       <TopHud />
       <AlertStack />
+      {/* v5.4: гейт первого сеанса. Онбординг рисуется над контентом, но под
+          навигацией — залоченные вкладки остаются видны. */}
+      <Onboarding />
       <main className="flex-1 w-full max-w-xl mx-auto px-3 pt-3 pb-24">
         <Suspense fallback={<RouteLoading />}>
           <Routes>
             <Route path="/" element={<DeskPage />} />
-            <Route path="/upgrades" element={<UpgradesPage />} />
-            <Route path="/hacks" element={<HacksPage />} />
-            <Route path="/team" element={<TeamPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+            <Route
+              path="/upgrades"
+              element={newPlayerMode ? <LockedTab title="Улучшения" hint="Пока — одна подсказка на столе." /> : <UpgradesPage />}
+            />
+            <Route
+              path="/hacks"
+              element={newPlayerMode ? <LockedTab title="Взломы" hint="Первый контракт запускается прямо с экрана знакомства." /> : <HacksPage />}
+            />
+            <Route
+              path="/team"
+              element={newPlayerMode ? <LockedTab title="Команда" hint="Специалисты появятся позже." /> : <TeamPage />}
+            />
+            <Route
+              path="/profile"
+              element={newPlayerMode ? <LockedTab title="Профиль" hint="Сначала — первый заказ." /> : <ProfilePage />}
+            />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
