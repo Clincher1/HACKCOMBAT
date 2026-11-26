@@ -32,6 +32,7 @@ import { cyberSound } from '../lib/sound';
 import { trackFunnel } from '../lib/analytics';
 import { isOnboardingV2Enabled } from '../../shared/config';
 import { ONBOARDING_STEP_COUNT } from '../../shared/onboarding.config';
+import { RETENTION_OFFLINE_MIN_CLAIM_DATA } from '../../shared/economy.config';
 import { isStepComplete, onboardingViewState } from '../lib/onboarding';
 import { trackReferralFirstSession } from '../lib/referralTracking';
 import {
@@ -42,7 +43,7 @@ import {
   type TelegramProfileInfo,
 } from '../lib/telegram';
 
-interface GameContextValue {
+export interface GameContextValue {
   player: PlayerState | null;
   tgProfile: TelegramProfileInfo;
   loading: boolean;
@@ -188,7 +189,12 @@ function hexToRgbTriplet(hex: string): string {
   return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
-const GameContext = createContext<GameContextValue | null>(null);
+/**
+ * v5.6-fix: контекст экспортируется, чтобы QA мог отрендерить оверлеи на
+ * подготовленном состоянии игрока (scripts/qa/overlays.ts) и проверить
+ * инвариант «подложка только вместе с карточкой» без живой сети.
+ */
+export const GameContext = createContext<GameContextValue | null>(null);
 
 // ============================================================================
 // Настройки отправки кликов (v3.1).
@@ -405,11 +411,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const onboardingGateActive =
         isOnboardingV2Enabled() && adjustedPlayer.stats.onboardingV2Completed !== true;
 
-      if (showOfflineModal && pendingOffline >= 10 && !onboardingGateActive) {
+      if (showOfflineModal && pendingOffline >= RETENTION_OFFLINE_MIN_CLAIM_DATA && !onboardingGateActive) {
         setOfflineModalEarned(pendingOffline);
         setOfflineModalTaps(0);
         setOfflineModalRetention(true);
-      } else if (showOfflineModal && res.offlineEarned && res.offlineEarned >= 10) {
+      } else if (showOfflineModal && res.offlineEarned && res.offlineEarned >= RETENTION_OFFLINE_MIN_CLAIM_DATA) {
         // Легаси-копилка v3.2 (короткие отсутствия): показываем как раньше.
         setOfflineModalEarned(res.offlineEarned);
         setOfflineModalTaps(res.offlineTaps ?? 0);
@@ -1066,7 +1072,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const claimOffline = useCallback(async () => {
     try {
       const res = await gameApi.retentionAction('claim_offline');
+      // Модал закрываем ДО применения синка и не даём ему воскреснуть:
+      // pendingOffline в ответе уже null, а showOfflineModal=false гарантирует,
+      // что подложка не вернётся без карточки.
       applyServerSync(res, false);
+      setOfflineModalEarned(null);
+      setOfflineModalTaps(0);
+      setOfflineModalRetention(false);
     } catch (err) {
       pushClientAlert({
         type: 'warning',

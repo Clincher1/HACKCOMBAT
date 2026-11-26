@@ -56,6 +56,15 @@ body,
   overscroll-behavior-y: none;
 }
 
+/* v5.6-fix: фон локации (.loc-bg) лежит в ОТРИЦАТЕЛЬНОМ слое, чтобы не
+   перекрывать контент. Отрицательные слои рисуются под фонами обычного потока,
+   поэтому база остаётся только на html (canvas), а body и #root прозрачны —
+   иначе их background снова спрячет фон локации. */
+body,
+#root {
+  background-color: transparent;
+}
+
 .font-display {
   font-family: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
   letter-spacing: -0.01em;
