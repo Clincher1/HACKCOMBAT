@@ -416,14 +416,19 @@ function offersRespectLocation(keys, level) {
   const cssSrc = read('src/index.css');
 
   check('карта уважает флаг мира', /!worldEnabled/.test(worldMapSrc));
-  check('фон уважает флаг мира', /!worldEnabled/.test(backdropSrc));
   check(
-    'кнопка «Выйти» на столе под флагом',
-    /WorldExitBar/.test(deskSrc) && /!worldEnabled \|\| !player/.test(deskSrc)
+    'фон локации уважает флаг мира (prop enabled + ранний return)',
+    /enabled/.test(backdropSrc) && /if \(!enabled\) return null;/.test(backdropSrc)
+  );
+  // v6.5: двери «Выйти» и ленивой карты со стола убраны — вход один (LocationStrip).
+  check(
+    'легаси-кнопки «Выйти» больше нет в рендере стола',
+    !/WorldExitBar/.test(deskSrc) && /<LocationStrip \/>/.test(deskSrc)
   );
   check(
-    'WorldMap грузится лениво (React.lazy в DeskPage)',
-    /React\.lazy/.test(deskSrc) && /import\('\.\.\/components\/WorldMap'\)/.test(deskSrc)
+    'карта города осталась легаси-файлом, но не тянется на стол',
+    fs.existsSync(path.join(REPO, 'src/components/WorldMap.tsx')) &&
+      !/components\/WorldMap/.test(deskSrc)
   );
   check(
     'first_tap заменён на first_move под флагом',

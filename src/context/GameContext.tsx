@@ -26,7 +26,8 @@ import { getBackdrop, type BackdropConfig } from '../../shared/backdrops.config'
 import { isWorldV2Enabled } from '../../shared/config';
 import type { WorldLocation } from '../../shared/world.config';
 
-import { readActiveLocation } from '../lib/world';
+import { readActiveLocationById } from '../lib/world';
+import { economyModifiers } from '../../shared/locations';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
@@ -247,6 +248,14 @@ const CLICK_FLUSH_DELAY_MS = 250;
 const CLICK_QUEUE_LIMIT = 600;
 
 
+/**
+ * v6.5: множитель Data от места работы для оптимистичного тапа. Сервер считает
+ * так же (gameEngine → locationEconomy), поэтому счётчик не прыгает назад.
+ */
+export function tapDataBoost(player: PlayerState): number {
+  return economyModifiers(player.stats.locationId, isWorldV2Enabled()).data;
+}
+
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
   const [player, setPlayer] = useState<PlayerState | null>(null);
@@ -260,9 +269,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // v5.5: мир «День хакера». Флаг читается один раз за рендер — он статичный,
   // но env/window-переменные могут меняться в рантайме без перезагрузки.
   const worldEnabled = isWorldV2Enabled();
+  // v6.5: зависимость — только id локации. Раньше мемо зависело от всего
+  // объекта stats, поэтому бэкдроп и полоса локаций пересобирались на каждом
+  // тапе, хотя место не менялось.
   const activeLocation = useMemo<WorldLocation>(
-    () => readActiveLocation(player?.stats),
-    [player?.stats]
+    () => readActiveLocationById(player?.stats.locationId),
+    [player?.stats.locationId]
   );
 
   const baseTheme = useMemo<BaseThemeConfig>(
@@ -375,7 +387,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         unsent > 0
           ? {
               ...res.player,
-              data: res.player.data + unsent * res.player.derived.clickPower,
+              data:
+                Math.round((res.player.data + unsent * res.player.derived.clickPower * tapDataBoost(res.player)) * 100) /
+                100,
               energy: Math.max(0, res.player.energy - unsent),
               totalClicks: res.player.totalClicks + unsent,
               // Показатели тап-поручения и сезонной цели тоже двигаются сразу,
@@ -711,7 +725,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!prev || prev.energy <= 0) return prev;
       return {
         ...prev,
-        data: Math.round((prev.data + prev.derived.clickPower) * 10) / 10,
+        data: Math.round((prev.data + prev.derived.clickPower * tapDataBoost(prev)) * 10) / 10,
         energy: Math.max(0, prev.energy - 1),
         totalClicks: prev.totalClicks + 1,
         stats: incrementOptimisticTapProgress(prev.stats),

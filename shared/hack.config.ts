@@ -114,6 +114,11 @@ export interface HackOddsInput {
   heat: number;
   tierSuccesses: number;
   tierFails: number;
+  /**
+   * Множитель места (shared/locations.ts): в шумном квартале шанс ниже, в своей
+   * комнате — чуть выше. По умолчанию 1 — старые вызовы не меняют поведение.
+   */
+  successMultiplier?: number;
 }
 
 export interface HackOdds {
@@ -124,6 +129,8 @@ export interface HackOdds {
   heatFactor: number;
   baseChance: number;
   gearRatio: number;
+  /** Множитель локации, уже вкатанный в chance. */
+  locationFactor: number;
 }
 
 /**
@@ -134,10 +141,14 @@ export interface HackOdds {
  *  • levelFactor — запас уровня над минимальным для контракта;
  *  • experienceFactor — сколько раз ты уже закрывал цели ЭТОГО класса
  *    (провалы штрафуют вдвое сильнее, чем успехи помогают);
- *  • heatFactor — с высоким розыском спокойно работать невозможно.
+ *  • heatFactor — с высоким розыском спокойно работать невозможно;
+ *  • locationFactor — место работы: корп-квартал шумит, своя комната прикрывает.
  */
 export function getHackOdds(input: HackOddsInput): HackOdds {
   const { mission, level, hackPower, heat, tierSuccesses, tierFails } = input;
+  const locationFactor = Number.isFinite(input.successMultiplier)
+    ? Math.max(0.5, Math.min(1.5, input.successMultiplier as number))
+    : 1;
   const baseChance =
     mission.baseSuccess ?? HACK_BASE_SUCCESS[mission.targetType] ?? 0.8;
   const requiredPower = Math.max(1, mission.requiredPower ?? 10);
@@ -154,7 +165,7 @@ export function getHackOdds(input: HackOddsInput): HackOdds {
   const heatFactor = clamp(1 - Math.max(0, heat) / 250, 0.72, 1);
 
   const chance = clamp(
-    baseChance * gearFactor * levelFactor * experienceFactor * heatFactor,
+    baseChance * gearFactor * levelFactor * experienceFactor * heatFactor * locationFactor,
     HACK_MIN_CHANCE,
     HACK_MAX_CHANCE
   );
@@ -167,6 +178,7 @@ export function getHackOdds(input: HackOddsInput): HackOdds {
     heatFactor,
     baseChance,
     gearRatio,
+    locationFactor,
   };
 }
 

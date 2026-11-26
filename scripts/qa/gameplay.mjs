@@ -348,8 +348,9 @@ try {
     deskScene.includes('data-qa="tap-hint"') && /data-qa="tap-hint"[\s\S]{0,160}pointer-events-none/.test(deskScene));
   check('отклик тапа — только transform/opacity (без layout-анимаций)',
     deskScene.includes('active:scale-[0.992]') && deskScene.includes("animate={{ opacity: 0, y: -76, scale: 1.12 }}"));
+  // v6.5: оптимистичный тап считает тот же множитель локации, что и сервер.
   check('клиент считает тап оптимистично (Data + clickPower до ответа сервера)',
-    context.includes('data: Math.round((prev.data + prev.derived.clickPower) * 10) / 10') &&
+    context.includes('prev.derived.clickPower * tapDataBoost(prev)') &&
       context.includes('pendingClicksRef.current += 1'));
   check('клиент шлёт тапы пачками ≤20', context.includes('const CLICK_MAX_BATCH = 20'));
   check('на столе есть доска контрактов', deskPage.includes('<ContractBoard />'));
@@ -363,14 +364,13 @@ try {
   check('подложка стола смягчена (низ 55%, верх 20%)',
     deskScene.includes('from-[var(--ui-panel-deep)]/55') && deskScene.includes('to-[var(--ui-panel-deep)]/20'),
     (deskScene.match(/from-\[var\(--ui-panel-deep\)\]\/\d+/g) ?? []).join(' '));
-  check('чип «что за окном» работает как смена локации',
-    deskScene.includes('data-qa="scene-location-chip"') && deskScene.includes('setLocationOpen(true)'));
-  check('модалка локаций вне карточки сцены (overflow-hidden)',
-    deskScene.indexOf('data-qa="scene-location-chip"') < deskScene.indexOf('<LocationPickerModal'));
-  check('бар локации стоит сразу под сценой и имеет CTA',
-    deskPage.indexOf('<DeskScene />') < deskPage.indexOf('<DeskLocationBar />') &&
-      deskPage.indexOf('<DeskLocationBar />') < deskPage.indexOf('<ContractBoard />') &&
-      deskPage.includes('data-qa="change-location-bar"'));
+  // v6.5: третьей двери в локации на сцене нет — только полоса под сценой.
+  check('на сцене нет второй двери в локации',
+    !deskScene.includes('scene-location-chip') && !deskScene.includes('<LocationPickerModal'));
+  check('полоса локаций стоит под сценой и над доской',
+    deskPage.indexOf('<DeskScene />') < deskPage.indexOf('<LocationStrip />') &&
+      deskPage.indexOf('<LocationStrip />') < deskPage.indexOf('<ContractBoard />') &&
+      !deskPage.includes('change-location-bar'));
 
   // --- v5.9: мёртвая «вуаль темы» убрана, рабочая — только для сцен по уровню
   check('вуаль темы без битого цвета (нет суффикса после rgba строки)',

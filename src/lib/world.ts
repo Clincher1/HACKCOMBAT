@@ -31,7 +31,16 @@ export function isWorldEnabled(): boolean {
 
 /** Локация игрока. Пустое или неизвестное значение — это Комната, а не ошибка. */
 export function readActiveLocation(stats: PlayerProgressStats | undefined): WorldLocation {
-  return getLocation(resolveLocationId(stats?.locationId)) ?? HOME_LOCATION;
+  return readActiveLocationById(stats?.locationId);
+}
+
+/**
+ * v6.5: та же локация, но по голому id. Нужна мемоизации: identity объекта
+ * мира меняется только при переезде, а не на каждом тапе (stats — новый объект
+ * после каждого ответа сервера).
+ */
+export function readActiveLocationById(locationId: unknown): WorldLocation {
+  return getLocation(resolveLocationId(locationId)) ?? HOME_LOCATION;
 }
 
 /** Открытые на этом уровне локации (для карты и подсказок). */

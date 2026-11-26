@@ -13,7 +13,6 @@ import {
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
 import { BackdropWeather } from './BackdropWeather';
-import { LocationPickerModal } from './LocationPicker';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
@@ -48,8 +47,6 @@ export const DeskScene: React.FC = () => {
   const [pulseActive, setPulseActive] = useState(false);
   const [previewStage, setPreviewStage] = useState<1 | 5 | 10 | 15 | 20 | 25 | 30 | null>(null);
   const [showStageBar, setShowStageBar] = useState(false);
-  // v5.8: смена локации доступна прямо со сцены (чип «что за окном»).
-  const [locationOpen, setLocationOpen] = useState(false);
 
   // Автономная визуальная вспышка Botmaster (автоклик 1/сек).
   // v3.5: зависимость сузили до autoClickPerSec. Раньше в deps лежал весь
@@ -340,27 +337,9 @@ export const DeskScene: React.FC = () => {
         </div>
 
 
-        {/* v5.8: тот же чип «что за окном» теперь и есть вход в смену локации —
-            подсвечен рамкой акцента и шевроном, чтобы не читался как подпись. */}
-        {deskBackdrop && (
-          <button
-            type="button"
-            data-qa="scene-location-chip"
-            aria-label="Сменить локацию"
-            onClick={(event) => {
-              event.stopPropagation();
-              setLocationOpen(true);
-            }}
-            className="absolute right-2.5 bottom-9 z-[3] flex items-center gap-1.5 rounded-full bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-primary-rgb),0.6)] px-2.5 py-1 shadow-[0_0_14px_rgba(var(--ui-primary-rgb),0.28)] backdrop-blur-sm transition hover:border-[var(--ui-primary)] active:scale-[0.97] cursor-pointer"
-          >
-            <span
-              className="w-1.5 h-1.5 rounded-full"
-              style={{ background: deskBackdrop.accent, boxShadow: `0 0 8px ${deskBackdrop.accent}` }}
-            />
-            <span className="text-[10px] font-bold tracking-wide text-white/90">{deskBackdrop.weatherLabel}</span>
-            <ChevronRight className="h-3 w-3 text-[var(--ui-primary)]" />
-          </button>
-        )}
+        {/* v6.5: чип «что за окном» убран со сцены. Смена места теперь живёт
+            в одной полосе локаций под сценой (LocationStrip) — третьей двери в
+            тот же экран больше нет. Косметические бэкдропы остались в профиле. */}
 
         {/* CRT скан-линии и виньетка */}
         <div className="scanline-overlay absolute inset-0" />
@@ -452,9 +431,6 @@ export const DeskScene: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Модалка локаций живёт вне карточки сцены: у той overflow-hidden. */}
-      <LocationPickerModal open={locationOpen} onClose={() => setLocationOpen(false)} />
 
       {/* Главная тактильная кнопка «HACK» (Центр-низ по п. 4.1 ТЗ).
           v5.7: при GAMEPLAY_V3 её нет — доход идёт из контрактов. */}
