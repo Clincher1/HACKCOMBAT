@@ -394,6 +394,22 @@ export interface PlayerProgressStats {
   lastPetFeedDay: string | null;
   trackEventsToday: number;
   trackEventsDay: string | null;
+  /**
+   * v5.2: агрегаты событийной воронки (app_opened → … → first_mission_start).
+   * Хранятся счётчиками, без персональных данных: по ним видно, где отваливаются
+   * новые игроки (97% не делают ни одного тапа).
+   */
+  funnel?: Record<string, number>;
+  /** v5.2: последняя клиентская ошибка из браузера — для разбора без консоли игрока. */
+  lastClientError?: {
+    message: string;
+    url: string;
+    line: number;
+    column: number;
+    kind: string;
+    stack: string;
+    at: string;
+  } | null;
   /** Опыт по классам целей: сколько успехов и провалов было для каждого типа. */
   hackSuccessByType: Record<string, number>;
   hackFailByType: Record<string, number>;
