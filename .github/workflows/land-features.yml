@@ -64,6 +64,20 @@ jobs:
           die() { echo "::error::$*"; exit 1; }
           phase() { echo "::notice::PHASE $*"; }
 
+          # Логи раннера из песочницы не читаются (results-receiver вне egress),
+          # поэтому хвост важного лога кладём в commit comment — он доступен по API.
+          dump_log() {
+            local label=$1 file=$2 sha body
+            [ -f "$file" ] || { echo "::warning::нет файла лога для $label"; return 0; }
+            sha=$(git rev-parse HEAD)
+            body=$(printf 'CI diagnostics: %s\n\n```\n%s\n```\n' "$label" "$(tail -n 120 "$file")")
+            if gh api "repos/$REPO/commits/$sha/comments" -f body="$body" >/dev/null 2>&1; then
+              echo "лог «$label» выгружен в commit comment $sha"
+            else
+              echo "::warning::не удалось выгрузить лог «$label»"
+            fi
+          }
+
           # Любая команда: вывод в файл, при падении — последние строки в аннотации
           # (лог раннера из песочницы не читается, аннотации читаются через API).
           step_run() {
@@ -72,9 +86,10 @@ jobs:
             local out="${RUNNER_TEMP:-/tmp}/cmd.out"
             if ! "$@" >"$out" 2>&1; then
               echo "::error::ПРОВАЛ: $label"
-              tail -n 12 "$out" | while IFS= read -r line; do echo "::error::  $line"; done
+              tail -n 6 "$out" | while IFS= read -r line; do echo "::error::  $line"; done
               echo "---- последние 40 строк вывода ----"
               tail -n 40 "$out"
+              dump_log "$label" "$out"
               exit 1
             fi
             echo "ok: $label"
@@ -290,6 +305,12 @@ jobs:
           BR=analytics/funnel-v1
           git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
 
+          if git cat-file -e origin/main:api/_lib/clientEvents.ts 2>/dev/null; then
+            echo "фича A уже в main — шаг пропущен"
+            echo "A_ALREADY_MERGED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
           if branch_exists "$BR"; then
             echo "ветка $BR уже есть на origin — переиспользую"
             git checkout -B "$BR" "origin/$BR"
@@ -351,7 +372,7 @@ jobs:
           merge_pr "$num"
 
       - name: Wait until main contains clientEvents.ts (A merged)
-        if: contains(env.FEATURES, 'A')
+        if: contains(env.FEATURES, 'A') && env.A_ALREADY_MERGED != '1'
         run: |
           set -euo pipefail
           source "$RUNNER_TEMP/lib.sh"
@@ -368,6 +389,12 @@ jobs:
 
           BR=feat/onboarding-v2
           git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
+
+          if git cat-file -e origin/main:src/lib/onboarding.ts 2>/dev/null; then
+            echo "фича B уже в main — шаг пропущен"
+            echo "B_ALREADY_MERGED=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
 
           if branch_exists "$BR"; then
             echo "ветка $BR уже есть на origin — переиспользую"
@@ -411,7 +438,8 @@ jobs:
           tail -60 "$RUNNER_TEMP/qa-b.log"
           if [ "$qa_code" -ne 0 ]; then
             echo "::error::QA упал (exit $qa_code)"
-            grep -E 'FAIL' "$RUNNER_TEMP/qa-b.log" | head -10 | while IFS= read -r line; do echo "::error::  $line"; done
+            grep -E 'FAIL|Error|error' "$RUNNER_TEMP/qa-b.log" | head -5 | while IFS= read -r line; do echo "::error::  $line"; done
+            dump_log "qa:all на ветке feat/onboarding-v2" "$RUNNER_TEMP/qa-b.log"
             exit 1
           fi
           echo "PASS-строк: $(grep -c 'PASS' "$RUNNER_TEMP/qa-b.log" || true)"
@@ -451,7 +479,7 @@ jobs:
           merge_pr "$num"
 
       - name: Wait until B PR is merged
-        if: contains(env.FEATURES, 'B')
+        if: contains(env.FEATURES, 'B') && env.B_ALREADY_MERGED != '1'
         run: |
           set -euo pipefail
           source "$RUNNER_TEMP/lib.sh"
