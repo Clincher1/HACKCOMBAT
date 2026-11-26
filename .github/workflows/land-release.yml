@@ -35,6 +35,10 @@ on:
         required: false
         default: full
 
+permissions:
+  contents: write
+  pull-requests: write
+
 concurrency:
   group: land-release
   cancel-in-progress: false
@@ -81,7 +85,7 @@ jobs:
             [ -f "$file" ] || { echo "::warning::нет лога для $label"; return 0; }
             sha=$(git rev-parse HEAD)
             body=$(printf 'land-release: %s\n\n```\n%s\n```\n' "$label" "$(tail -n 120 "$file")")
-            gh api -X POST "repos/$REPO/commits/$sha/comments" -f body="$body" >/dev/null 2>&1 || true
+            gh api --method POST "repos/$REPO/commits/$sha/comments" -f body="$body" >/dev/null 2>&1 || true
           }
 
           open_pr() { # $1 head $2 base $3 title $4 body-file
@@ -143,6 +147,19 @@ jobs:
             die "конфликт при переносе дельты на origin/main"
           fi
           git commit -q -m "$PR_TITLE" -m "source: $SOURCE_SHA (arena $SOURCE_BRANCH)" || die "commit"
+
+          # ── инфраструктурные файлы не едут в main ────────────────────────
+          # .github/workflows/** требует отдельного workflow-скоупа у токена, а
+          # в релизном диффе ему делать нечего: релиз — это код приложения.
+          # Приводим папку ровно к состоянию origin/main (новые файлы уходят,
+          # изменённые возвращаются). Файл workflow живёт в arena-ветке, как и
+          # land-world в своё время.
+          rm -rf .github/workflows
+          git checkout origin/main -- .github/workflows 2>/dev/null || true
+          git add -A .github/workflows
+          left=$(git diff --cached --name-only -- .github/workflows | wc -l)
+          echo "workflow-файлов в релизном диффе: $left"
+          [ "$left" -eq 0 ] || die "в релизном диффе остались .github/workflows"
 
           # ── vercel.json: ветка выкатки не должна авто-деплоиться ──────────
           phase "patch vercel.json"
