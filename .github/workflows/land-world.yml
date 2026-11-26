@@ -241,13 +241,25 @@ jobs:
             git add package.json
           }
 
+          # Логи раннера из песочницы не читаются вообще, а у «тихих» падений
+          # (git/node) нет аннотации. Поэтому весь вывод шага идёт в файл + tee,
+          # а ERR-trap выгружает хвост в commit comment — его видно по API.
+          trace_step() {
+            local label=$1
+            exec > >(tee "${RUNNER_TEMP:-/tmp}/step.log") 2>&1
+            set -E
+            trap 'rc=$?; echo "::error::шаг «$label» упал на строке $LINENO (rc=$rc)"; dump_log "$label" "${RUNNER_TEMP:-/tmp}/step.log" || true; exit $rc' ERR
+          }
+
           # vercel.json: гасим preview-деплой только для своей ветки, остальные
           # ключи (headers, rewrites, framework) сохраняются как есть.
           patch_vercel_json() {
             local branch=$1 base=${2:-}
             # База — версия main: существующие deploymentEnabled-ключи
             # (analytics/funnel-v1, feat/onboarding-v2) обязаны сохраниться.
-            if [ -n "$base" ]; then git checkout "$base" -- vercel.json; fi
+            if [ -n "$base" ]; then
+              git checkout "$base" -- vercel.json || die "не удалось взять vercel.json из $base"
+            fi
             BRANCH="$branch" node -e '
           const fs = require("fs");
           const file = "vercel.json";
@@ -256,9 +268,9 @@ jobs:
           cfg.git.deploymentEnabled = cfg.git.deploymentEnabled || {};
           cfg.git.deploymentEnabled[process.env.BRANCH] = false;
           fs.writeFileSync(file, JSON.stringify(cfg, null, 2) + "\n");
-          '
-            git add vercel.json
-            git commit -m "ci: выключить Vercel preview для ветки $branch"
+          ' || die "node не пропатчил vercel.json"
+            git add vercel.json || die "git add vercel.json"
+            git commit -m "ci: выключить Vercel preview для ветки $branch" || die "commit vercel.json"
           }
 
           # Любой конфликт вне разрешённого списка — это стоп, а не повод угадывать.
@@ -303,6 +315,8 @@ jobs:
           set -euo pipefail
           source "$RUNNER_TEMP/lib.sh"
 
+          trace_step "prepare $TARGET_BRANCH"
+
           BR="$TARGET_BRANCH"
           git fetch --no-tags origin '+refs/heads/*:refs/remotes/origin/*' --prune
 
@@ -325,7 +339,7 @@ jobs:
           git checkout -B "$BR" origin/main
 
           if [ "$MODE" = "delta" ]; then
-            # ── delta: только 21 файл мира поверх main ────────────────────────
+            # ── delta: только 23 файла коммита мира поверх main ───────────────
             # Конфликты детерминированы: правки мира лежат на линии v4.3–v5.4,
             # поэтому для перечисленных файлов берём версию самого коммита мира.
             if ! git cherry-pick "$WORLD_SHA"; then
@@ -343,7 +357,7 @@ jobs:
             files=$(git diff --name-only origin/main HEAD | wc -l)
             echo "файлов мира (delta, всего): $files"
             git diff --name-only origin/main HEAD
-            [ "$files" -eq 21 ] || die "ожидался 21 файл мира, получено $files"
+            [ "$files" -eq 23 ] || die "ожидалось 23 файла коммита мира, получено $files"
             echo "FILES_TOTAL=$files" >> "$GITHUB_ENV"
 
             # Гейт правды: если main не содержит линию v4.3–v5.4, delta не собирается.
@@ -360,17 +374,17 @@ jobs:
             # ── full: точная копия дерева коммита мира ────────────────────────
             # Единственный способ отдать main и линию v4.3–v5.4, и фазу 1 мира:
             # main (b288f11) содержит только A+B cherry-pick, а не всю линию,
-            # поэтому 21-файловый delta даёт 13+ ошибок tsc (нет backdrops.config,
+            # поэтому 23-файловый delta даёт 13+ ошибок tsc (нет backdrops.config,
             # LocationPicker, stats.deskBackdrop).
-            git read-tree -u --reset "$WORLD_SHA"
+            git read-tree -u --reset "$WORLD_SHA" || die "git read-tree упал на $WORLD_SHA"
             if ! git diff --quiet "$WORLD_SHA" -- . ':(exclude)vercel.json'; then
               die "дерево ветки не совпало с $WORLD_SHA — стоп (не угадываем)"
             fi
             echo "дерево ветки байт-в-байт равно $WORLD_SHA"
-            git commit -q -m "feat: world v2 phase 1 — локации, карта, first_move (дерево $WORLD_SHA)"
+            git commit -q -m "feat: world v2 phase 1 — локации, карта, first_move (дерево $WORLD_SHA)" || die "commit дерева мира"
             git log -1 --format='%s'
             echo "коммит: точная копия дерева $WORLD_SHA (QA 622 PASS / 0 FAIL, World QA 47/0);"
-            echo "main до этого содержал только cherry-pick A и B, поэтому 21-файловый delta не собирался"
+            echo "main до этого содержал только cherry-pick A и B, поэтому 23-файловый delta не собирался"
 
             files=$(git diff --name-only origin/main HEAD | wc -l)
             echo "файлов синхронизации (всего, vercel.json включён): $files"
@@ -383,7 +397,7 @@ jobs:
 
           files=$(git diff --name-only origin/main HEAD | wc -l)
           echo "итог: $files файлов (vercel.json внутри)"
-          # Мир-коммит обязан быть внутри: 21 путь обязан присутствовать в диффе.
+          # Мир-коммит обязан быть внутри: все 23 его пути обязаны быть в диффе.
           world_files=$(git diff --name-only 4dae307 "$WORLD_SHA" 2>/dev/null || true)
           [ -n "$world_files" ] || world_files=$(git show --name-only --format= "$WORLD_SHA")
           echo "файлов в коммите мира: $(echo "$world_files" | wc -l)"
@@ -394,8 +408,6 @@ jobs:
           echo "недостающих файлов мира: $missing"
           [ "$missing" -eq 0 ] || die "в диффе не хватает файлов мира ($missing)"
           echo "WORLD_FILES=$(echo "$world_files" | wc -l)" >> "$GITHUB_ENV"
-          echo "недостающих файлов мира: $miss"
-          [ "$miss" -eq 0 ] || die "в диффе не хватает файлов мира ($miss)"
         env:
           MODE: ${{ env.MODE }}
 
@@ -404,6 +416,8 @@ jobs:
         run: |
           set -euo pipefail
           source "$RUNNER_TEMP/lib.sh"
+
+          trace_step "gate $TARGET_BRANCH"
 
           phase "npm ci"
           step_run "npm ci" npm ci --no-audit --no-fund
@@ -482,7 +496,7 @@ jobs:
           {
             echo "## ACTION REQUIRED — delta-режим невозможен"
             echo ""
-            echo "Коммит мира нельзя положить на main 21 файлом: main (b288f11) содержит"
+            echo "Коммит мира нельзя положить на main 23 файлами: main (b288f11) содержит"
             echo "только cherry-pick A и B, без линии v4.3–v5.4. Не хватает"
             echo "\`shared/backdrops.config.ts\`, \`src/components/LocationPicker.tsx\`,"
             echo "\`stats.deskBackdrop\`, полей темы — tsc падает на 13+ ошибках."
