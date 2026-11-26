@@ -317,6 +317,9 @@ if (sharedOk) {
   check('события воронки не переименованы', cfg.steps === 'first_tap,first_upgrade,first_mission_start', cfg.steps);
   check('текст шагов V3 не зовёт тапать', !/тап/i.test(cfg.copyV3), cfg.copyV3.slice(0, 60));
   check('шаг 1 V3 ведёт к контракту', /контракт/i.test(cfg.copyV3Step1), cfg.copyV3Step1.slice(0, 60));
+  check('шаг 1 V3: текст задачи «контракт + реальное время»',
+    /^Выбери первый контракт\. Миссия идёт в реальном времени — можно закрыть игру и вернуться позже\.$/.test(cfg.copyV3Step1),
+    cfg.copyV3Step1);
   const onb = await init(SEED_ONB);
   check('онбординг-игрок получает витрину', (onb.player?.availableMissionKeys?.length ?? 0) > 0);
 }
@@ -343,6 +346,20 @@ try {
   check('HUD: доход по контрактам, а не тап', topHud.includes('contractIncomePerHour') && topHud.includes('gameplayV3'));
   check('авто-сбор на init реализован', context.includes('autoClaimedRef') && context.includes('isContractReady'));
   check('авто-сбор уважает флаг', /if \(!isGameplayV3Enabled\(\) \|\| !player \|\| loading\) return;/.test(context));
+
+  // --- онбординг: первый кадр игры без «тапни» и без кнопки ТАП -------------
+  const onboarding = readSource('src/components/Onboarding.tsx');
+  check('онбординг: текст шага под флагом геймплея',
+    onboarding.includes('isGameplayV3Enabled()') && onboarding.includes('onboardingStepCopyV3'));
+  check('онбординг: легаси-текст про тап не удалён (флаг off)',
+    onboarding.includes('Тапни по столу'));
+  check('онбординг: шаг 1 при V3 запускает контракт',
+    onboarding.includes('data-qa="onboarding-first-contract"') && onboarding.includes('Запустить контракт'));
+  check('онбординг: кнопок тапа ровно две и обе в легаси-ветках',
+    (onboarding.match(/onClick=\{handleTap\}/g) ?? []).length === 2,
+    `handleTap-кнопок: ${(onboarding.match(/onClick=\{handleTap\}/g) ?? []).length}`);
+  check('онбординг: заголовки шагов V3 из shared-конфига',
+    onboarding.includes('ONBOARDING_STEP_TITLES_V3') && onboarding.includes('stepTitles.map((title, index)'));
 } catch (err) {
   check('структурные проверки UI', false, String(err));
 }
