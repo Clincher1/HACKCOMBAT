@@ -289,3 +289,110 @@ export function canSendReminder(input: ReminderDecisionInput): ReminderDecision 
 /** Текст напоминания. Один и тот же на сервере и в UI-заглушке. */
 export const RETENTION_REMINDER_TEXT =
   '🎁 Стол ждёт: дневной бонус не забран, а карточки копили Data. Заходи в Hacker Kombat.';
+
+// ============================================================================
+// 4. ГЕЙМПЛЕЙ V3 (v5.7): КОНТРАКТНЫЙ РАННЕР — ОСНОВНОЙ ДОХОД
+// ============================================================================
+//
+// Что меняется при включённом GAMEPLAY_V3:
+//   • CPU Charge (в коде — Energy ⚡) — ресурс, который ТРАТИТСЯ на запуск
+//     контракта. Цена зависит от тира контракта, а не от его длительности:
+//     игрок заранее понимает, «сколько заряда стоит этот класс работы».
+//   • Тап убран с рабочего стола: доход идёт из завершённых контрактов.
+//   • Доход в HUD считается по контрактам, а не по силе тапа.
+//
+// Цифры подобраны как округлённая средняя длительность контрактов тира из
+// shared/missions.config.ts (тир 1: 40–65 c, тир 2: 95–120, тир 3: 150–210,
+// тир 4: 240–330, тир 5: 400–480, тир 6: 600–780). Регенерация прежняя:
+// 1 ⚡ / ENERGY_REGEN_SECONDS, поэтому суммарный расход за игру не вырос —
+// изменилась только «форма» цены (по тиру вместо по секундам).
+
+/** Цена запуска контракта в CPU Charge по тиру сложности. */
+export const CONTRACT_CPU_COST_BY_TIER: Record<number, number> = {
+  1: 55,
+  2: 110,
+  3: 180,
+  4: 285,
+  5: 440,
+  6: 700,
+};
+
+/** Цена для контракта без тира (старые записи) — как у первого тира. */
+export const CONTRACT_CPU_COST_FALLBACK = CONTRACT_CPU_COST_BY_TIER[1];
+
+/**
+ * Цена контракта в CPU Charge. Чистая функция: её вызывают сервер (списание),
+ * клиент (витрина и онбординг) и QA — расхождений быть не может.
+ */
+export function getContractCpuCost(tier: number | undefined | null): number {
+  const raw = Number(tier);
+  if (!Number.isFinite(raw)) return CONTRACT_CPU_COST_FALLBACK;
+  const normalized = Math.min(6, Math.max(1, Math.floor(raw)));
+  return CONTRACT_CPU_COST_BY_TIER[normalized] ?? CONTRACT_CPU_COST_FALLBACK;
+}
+
+/**
+ * Сколько Data/час приносит конкретный контракт «в пересчёте на время».
+ *
+ * Считаем ЧИСТЫМИ: из награды вычитаем входной Data-взнос (он уже списан на
+ * старте), и учитываем шанс успеха — доход, который игрок реально увидит, а не
+ * лотерейный максимум. Длительность берём как минимум минуту, чтобы короткие
+ * контракты не давали бесконечно большие числа в UI.
+ */
+export function contractIncomePerHour(input: {
+  baseDataReward: number;
+  rewardScale: number;
+  successChance: number;
+  durationSec: number;
+  dataDeposit: number;
+}): number {
+  const durationSec = Math.max(60, Number(input.durationSec) || 0);
+  const gross = Math.max(0, Number(input.baseDataReward) || 0) * Math.max(0, Number(input.rewardScale) || 0);
+  const chance = Math.min(1, Math.max(0, Number(input.successChance) || 0));
+  const deposit = Math.max(0, Number(input.dataDeposit) || 0);
+  const net = gross * chance - deposit * (1 - chance);
+  return Math.max(0, Math.round((net / (durationSec / 3600)) * 10) / 10);
+}
+
+/**
+ * Доход в час по лучшему доступному контракту — то, что видит игрок в HUD вместо
+ * «силы тапа». Возвращает 0, если контрактов нет (витрина пустая).
+ */
+export function bestContractIncomePerHour(
+  contracts: Array<{ tier: number; durationSec: number; baseDataReward: number; successChance: number; dataDeposit: number }>,
+  rewardScale: number
+): number {
+  let best = 0;
+  for (const contract of contracts) {
+    const value = contractIncomePerHour({
+      baseDataReward: contract.baseDataReward,
+      rewardScale,
+      successChance: contract.successChance,
+      durationSec: contract.durationSec,
+      dataDeposit: contract.dataDeposit,
+    });
+    if (value > best) best = value;
+  }
+  return best;
+}
+
+/**
+ * Контракт можно забрать прямо сейчас (таймер истёк).
+ *
+ * Допуск 250 мс — тот же, что у серверной проверки claim: клиент не должен
+ * показывать «Забрать» на пол-секунды раньше сервера, иначе кнопка даёт ошибку.
+ */
+export const CONTRACT_READY_TOLERANCE_MS = 250;
+
+export function isContractReady(finishAtIso: string, nowMs: number): boolean {
+  const finishMs = new Date(finishAtIso).getTime();
+  if (!Number.isFinite(finishMs)) return false;
+  return nowMs + CONTRACT_READY_TOLERANCE_MS >= finishMs;
+}
+
+/** Сколько секунд осталось до готовности контракта (0 — уже готов). */
+export function contractSecondsLeft(finishAtIso: string, nowMs: number): number {
+  const finishMs = new Date(finishAtIso).getTime();
+  if (!Number.isFinite(finishMs)) return 0;
+  return Math.max(0, Math.ceil((finishMs - nowMs) / 1000));
+}

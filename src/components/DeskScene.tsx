@@ -40,6 +40,7 @@ export const DeskScene: React.FC = () => {
     busyKey,
     baseTheme,
     deskBackdrop,
+    gameplayV3,
   } = useGame();
 
   const [particles, setParticles] = useState<ByteParticle[]>([]);
@@ -216,17 +217,26 @@ export const DeskScene: React.FC = () => {
       </AnimatePresence>
 
       {/* Центральная интерактивная сцена рабочего стола хакера */}
+      {/* v5.7: при GAMEPLAY_V3 сцена — это декорация, а не кнопка. Тап остаётся
+          в коде (handleTap/tapHack), но без основного UI-поверхности. */}
       <div
-        onClick={handleTap}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            tapHack();
-          }
-        }}
-        className="relative rounded-2xl overflow-hidden border select-none cursor-pointer aspect-[16/10] bg-[var(--ui-panel-deep)] transition-transform duration-100 active:scale-[0.992]"
+        onClick={gameplayV3 ? undefined : handleTap}
+        role={gameplayV3 ? 'img' : 'button'}
+        tabIndex={gameplayV3 ? -1 : 0}
+        aria-label={gameplayV3 ? undefined : 'Взломать цель тапом'}
+        onKeyDown={
+          gameplayV3
+            ? undefined
+            : (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  tapHack();
+                }
+              }
+        }
+        className={`relative rounded-2xl overflow-hidden border select-none aspect-[16/10] bg-[var(--ui-panel-deep)] transition-transform duration-100 ${
+          gameplayV3 ? '' : 'cursor-pointer active:scale-[0.992]'
+        }`}
         style={{
           borderColor: `${activeSkin.primaryHex}55`,
           boxShadow: pulseActive
@@ -394,7 +404,9 @@ export const DeskScene: React.FC = () => {
         )}
       </div>
 
-      {/* Главная тактильная кнопка «HACK» (Центр-низ по п. 4.1 ТЗ) */}
+      {/* Главная тактильная кнопка «HACK» (Центр-низ по п. 4.1 ТЗ).
+          v5.7: при GAMEPLAY_V3 её нет — доход идёт из контрактов. */}
+      {!gameplayV3 && (
       <motion.button
         type="button"
         whileTap={{ scale: 0.96 }}
@@ -448,13 +460,17 @@ export const DeskScene: React.FC = () => {
           </span>
         )}
       </motion.button>
+      )}
 
       {/* Быстрая сводка бустов под кнопкой HACK */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-[var(--ui-panel)]/85 border border-slate-800/90 p-2">
-          <div className="text-[10px] text-slate-400">Сила тапа</div>
+          <div className="text-[10px] text-slate-400">{gameplayV3 ? 'CPU Charge' : 'Сила тапа'}</div>
           <div className="text-xs font-bold text-[var(--ui-primary)] flex items-center justify-center gap-1 mt-0.5">
-            <Zap className="w-3 h-3" /> +{formatCompact(derived.clickPower)}
+            <Zap className="w-3 h-3" />{' '}
+            {gameplayV3
+              ? `${formatCompact(player.energy)}/${formatCompact(derived.maxEnergy)}`
+              : `+${formatCompact(derived.clickPower)}`}
           </div>
         </div>
         <div className="rounded-xl bg-[var(--ui-panel)]/85 border border-slate-800/90 p-2">

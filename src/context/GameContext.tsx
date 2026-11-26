@@ -32,7 +32,14 @@ import { cyberSound } from '../lib/sound';
 import { trackFunnel } from '../lib/analytics';
 import { isOnboardingV2Enabled } from '../../shared/config';
 import { ONBOARDING_STEP_COUNT } from '../../shared/onboarding.config';
-import { RETENTION_OFFLINE_MIN_CLAIM_DATA } from '../../shared/economy.config';
+import {
+  bestContractIncomePerHour,
+  isContractReady,
+  RETENTION_OFFLINE_MIN_CLAIM_DATA,
+} from '../../shared/economy.config';
+import { getMissionEntryCost, getMissionRewardScale } from '../../shared/hack.config';
+import { MISSIONS_CONFIG } from '../../shared/missions.config';
+import { isGameplayV3Enabled } from '../../shared/config';
 import { isStepComplete, onboardingViewState } from '../lib/onboarding';
 import { trackReferralFirstSession } from '../lib/referralTracking';
 import {
@@ -83,6 +90,12 @@ export interface GameContextValue {
   claimMission: (missionId: string) => Promise<void>;
   skipMission: (missionId: string) => Promise<void>;
   refreshMissions: () => Promise<void>;
+  /** v5.7: геймплей v3 — контракт основной доход, тап убран со стола. */
+  gameplayV3: boolean;
+  /** Доход в час по лучшему доступному контракту (для HUD вместо силы тапа). */
+  contractIncomePerHour: number;
+  /** Сколько активных контрактов уже готовы к сбору награды. */
+  readyContracts: number;
   hireNpc: (npcKey: string) => Promise<void>;
   unlockTier: () => Promise<void>;
   buyBaseUpgrade: (upgradeKey: string) => Promise<void>;
@@ -905,6 +918,32 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  // ==========================================================================
+  // v5.7 (GAMEPLAY_V3): авто-сбор завершённых контрактов.
+  // --------------------------------------------------------------------------
+  // Игрок возвращается в игру через 5 минут и не должен искать кнопку: init уже
+  // знает, что таймер истёк, и клиент сразу забирает награду тем же
+  // идемпотентным /api/missions {action:'claim'}. Сервер по-прежнему проверяет
+  // finish_at: ранний сбор отклоняется, поэтому «авто» ничего не ломает в
+  // анти-чите. Каждая миссия пробуется ровно один раз за сессию — иначе
+  // отклонённая заявка превратилась бы в бесконечный цикл запросов.
+  // ==========================================================================
+  const autoClaimedRef = useRef<Set<string>>(new Set());
+  const autoClaimBusyRef = useRef(false);
+
+  useEffect(() => {
+    if (!isGameplayV3Enabled() || !player || loading) return;
+    const candidate = player.activeMissions.find(
+      (mission) => isContractReady(mission.finishAt, nowMs) && !autoClaimedRef.current.has(mission.id)
+    );
+    if (!candidate || autoClaimBusyRef.current) return;
+    autoClaimedRef.current.add(candidate.id);
+    autoClaimBusyRef.current = true;
+    void claimMission(candidate.id).finally(() => {
+      autoClaimBusyRef.current = false;
+    });
+  }, [player, nowMs, loading, claimMission]);
+
   const hireNpc = useCallback(
     (npcKey: string) => runAction(`hire:${npcKey}`, (clicks) => gameApi.hireNpc(npcKey, clicks), true, 'light'),
     [runAction]
@@ -1295,6 +1334,32 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     completeOnboarding();
   }, [completeOnboarding, player]);
 
+  // v5.7: доход в час по контрактам вместо «силы тапа» (HUD, витрина взломов).
+  const gameplayV3 = isGameplayV3Enabled();
+  const contractIncomePerHour = useMemo(() => {
+    if (!player || !gameplayV3) return 0;
+    const rewardScale = getMissionRewardScale(player.derived.level);
+    const offers = player.availableMissionKeys
+      .map((key) => MISSIONS_CONFIG.find((mission) => mission.key === key))
+      .filter((mission): mission is (typeof MISSIONS_CONFIG)[number] => Boolean(mission))
+      .map((mission) => {
+        const estimatedReward = Math.round(mission.baseDataReward * rewardScale);
+        return {
+          tier: mission.tier ?? 1,
+          durationSec: mission.durationSec,
+          baseDataReward: mission.baseDataReward,
+          successChance: mission.baseSuccess ?? 0.8,
+          dataDeposit: getMissionEntryCost(mission, estimatedReward).data,
+        };
+      });
+    return bestContractIncomePerHour(offers, rewardScale);
+  }, [player, gameplayV3]);
+
+  const readyContracts = useMemo(
+    () => (player ? player.activeMissions.filter((mission) => isContractReady(mission.finishAt, nowMs)).length : 0),
+    [player, nowMs]
+  );
+
   const contextValue = useMemo<GameContextValue>(
     () => ({
       player,
@@ -1332,6 +1397,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimMission,
       skipMission,
       refreshMissions,
+      gameplayV3,
+      contractIncomePerHour,
+      readyContracts,
       hireNpc,
       unlockTier,
       buyBaseUpgrade,
@@ -1398,6 +1466,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimMission,
       skipMission,
       refreshMissions,
+      gameplayV3,
+      contractIncomePerHour,
+      readyContracts,
       hireNpc,
       unlockTier,
       buyBaseUpgrade,

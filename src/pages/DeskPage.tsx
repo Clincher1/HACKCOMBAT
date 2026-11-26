@@ -9,6 +9,7 @@ import {
 import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getFirstChapterState, type FirstChapterState } from '../../shared/chapter.config';
+import { ContractBoard } from '../components/ContractBoard';
 import { DailyTasksPanel } from '../components/DailyTasksPanel';
 import { DeskScene, OfflineBankNote } from '../components/DeskScene';
 import { DEVICE_LABEL, LocationPickerModal } from '../components/LocationPicker';
@@ -140,6 +141,8 @@ export const DeskPage: React.FC = () => {
   return (
     <div className="space-y-3.5 pb-4">
       <DeskScene />
+      {/* v5.7: контрактная доска — основная поверхность дохода вместо кнопки HACK */}
+      <ContractBoard />
       <WorldExitBar />
       <DeskLocationBar />
       {/* v5.6: streak bar — 7 клеток дневного цикла. Скрыт при активном онбординге. */}

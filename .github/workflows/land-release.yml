@@ -46,13 +46,13 @@ concurrency:
 env:
   REPO: ${{ github.repository }}
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  TARGET_BRANCH: fix/backdrop-layer
+  TARGET_BRANCH: feat/gameplay-v3
   SOURCE_BRANCH: ${{ github.ref_name }}
-  PR_TITLE: 'fix(world): фон локации под контентом + инвариант «подложка только с карточкой»'
+  PR_TITLE: 'feat(gameplay): контрактный раннер как основной доход (gameplayV3)'
   PROD_URL: https://hacker-kombat.vercel.app
   # Уникальный на прогон демо-игрок: события помечаются этим session-маркером и
   # удаляются одним SQL-запросом вместе с игроком.
-  SMOKE_SESSION: ci-smoke-fix
+  SMOKE_SESSION: ci-smoke-v3
   # Бюджет главного чанка: было 106 KB gzip (main 93902a85f), разрешено +5 KB.
   CHUNK_MAIN_MAX_KB: 112
 
@@ -182,6 +182,7 @@ jobs:
           cfg.git.deploymentEnabled = cfg.git.deploymentEnabled || {};
           cfg.git.deploymentEnabled['feat/retention-referral'] = false;
           cfg.git.deploymentEnabled['fix/backdrop-layer'] = false;
+          cfg.git.deploymentEnabled['feat/gameplay-v3'] = false;
           fs.writeFileSync(file, `${JSON.stringify(cfg, null, 2)}\n`);
           console.log('deploymentEnabled: ветки выкатки отключены');
           JS
@@ -260,8 +261,9 @@ jobs:
           grep -q 'RETENTION_QA_OK' "$RUNNER_TEMP/qa.log" || die "Retention QA не отдал зелёный маркер"
           grep -q 'REFERRAL_QA_OK' "$RUNNER_TEMP/qa.log" || die "Referral QA не отдал зелёный маркер"
           grep -q 'OVERLAYS_QA_OK' "$RUNNER_TEMP/qa.log" || die "Overlays QA (слои/подложки) не отдал зелёный маркер"
+          grep -q 'GAMEPLAY_QA_OK' "$RUNNER_TEMP/qa.log" || die "Gameplay QA (контрактный раннер) не отдал зелёный маркер"
           grep -q 'QA: 47 checks' "$RUNNER_TEMP/qa.log" || die "World QA не на месте"
-          echo "наборы: retention/overlays/referral/world — все зелёные"
+          echo "наборы: retention/overlays/gameplay/referral/world — все зелёные"
 
       - name: Push branch
         run: |
@@ -394,7 +396,7 @@ jobs:
           done
           die "таймаут 40 мин: commit status Vercel на $SHA не появился"
 
-      - name: Smoke production (app_opened + referral_first_session)
+      - name: Smoke production (app_opened + контрактный цикл v3)
         run: |
           set -euo pipefail
           PROD="${PROD_URL%/}"
@@ -406,33 +408,91 @@ jobs:
             curl -sS -o "$2" -w '%{http_code}' -X POST "$PROD/api/track" \
               -H 'Content-Type: application/json' \
               -H "Origin: $PROD" \
-              -H 'user-agent: QA/1.0 (ci-smoke-rr)' \
-              -H "x-demo-user-id: $SMOKE_ID" -H 'x-demo-username: CISmokeRR' \
+              -H 'user-agent: QA/1.0 (ci-smoke-v3)' \
+              -H "x-demo-user-id: $SMOKE_ID" -H 'x-demo-username: CISmokeV3' \
               --data "$1" || echo 000
           }
 
-          ok_home=0; ok_open=0; ok_ref=0
+          # API-хелпер: подпись не нужна — гостевой демо-заголовок изолирует
+          # smoke-игрока (tg_id < 0), прод-данные реальных людей не трогаются.
+          api() { # $1 = path, $2 = json body, $3 = out file
+            curl -sS -o "$3" -w '%{http_code}' -X POST "$PROD/api/$1" \
+              -H 'Content-Type: application/json' \
+              -H "Origin: $PROD" \
+              -H 'user-agent: QA/1.0 (ci-smoke-v3)' \
+              -H "x-demo-user-id: $SMOKE_ID" -H 'x-demo-username: CISmokeV3' \
+              --data "$2" || echo 000
+          }
+
+          ok_home=0; ok_open=0
           for i in $(seq 1 24); do
             home=$(curl -sS -o "$RUNNER_TEMP/home.html" -w '%{http_code}' "$PROD/" || echo 000)
             code_open=$(post_track "{\"event\":\"app_opened\",\"meta\":{\"session\":\"${SMOKE_SESSION}\"}}" "$RUNNER_TEMP/t1.out")
-            code_ref=$(post_track "{\"event\":\"referral_first_session\",\"meta\":{\"session\":\"${SMOKE_SESSION}\",\"referrerTgId\":111}}" "$RUNNER_TEMP/t2.out")
-            echo "попытка $i: GET / => $home | app_opened => $code_open | referral_first_session => $code_ref"
-
+            echo "попытка $i: GET / => $home | app_opened => $code_open"
             [ "$home" = "200" ] && ! grep -qi "Init error" "$RUNNER_TEMP/home.html" && ok_home=1
             [ "$code_open" = "204" ] && ok_open=1
-            [ "$code_ref" = "204" ] && ok_ref=1
-            if [ "$ok_home" -eq 1 ] && [ "$ok_open" -eq 1 ] && [ "$ok_ref" -eq 1 ]; then break; fi
+            if [ "$ok_home" -eq 1 ] && [ "$ok_open" -eq 1 ]; then break; fi
             sleep 15
           done
+          [ "$ok_home" -eq 1 ] || die "GET / не 200 или содержит 'Init error'"
+          [ "$ok_open" -eq 1 ] || { echo "app_opened body: $(cat "$RUNNER_TEMP/t1.out")"; die "app_opened не 204"; }
+
+          # ── контрактный цикл v3: start → ранний сбор (отказ) → сбор → награда ──
+          code_init=$(api init '{}' "$RUNNER_TEMP/init.json")
+          if [ "$code_init" = "401" ] || [ "$code_init" = "403" ]; then
+            # Политику авторизации мы не меняем: если прод запрещает гостевой
+            # доступ (STRICT_TELEGRAM_AUTH), контрактный цикл проверяем только
+            # в QA-наборах, а релиз не блокируем.
+            echo "::warning::прод закрыл гостевой доступ ($code_init) — контрактный цикл проверен в qa:gameplay"
+          else
+          [ "$code_init" = "200" ] || die "init вернул $code_init: $(head -c 300 "$RUNNER_TEMP/init.json")"
+          MISSION_KEY=$(node -e 'const r=require(process.argv[1]);process.stdout.write((r.player&&r.player.availableMissionKeys||[])[0]||"")' "$RUNNER_TEMP/init.json")
+          [ -n "$MISSION_KEY" ] || die "витрина контрактов пуста в проде"
+          ENERGY_BEFORE=$(node -e 'const r=require(process.argv[1]);process.stdout.write(String(r.player.energy))' "$RUNNER_TEMP/init.json")
+          echo "контракт: $MISSION_KEY · CPU до старта: $ENERGY_BEFORE"
+
+          code_start=$(api missions "{\"action\":\"start\",\"missionKey\":\"$MISSION_KEY\"}" "$RUNNER_TEMP/start.json")
+          [ "$code_start" = "200" ] || die "старт контракта в проде вернул $code_start: $(head -c 300 "$RUNNER_TEMP/start.json")"
+          read -r MISSION_ID ENERGY_AFTER FINISH_AT REWARD <<<"$(node -e '
+            const r=require(process.argv[1]);const m=(r.player&&r.player.activeMissions||[])[0]||{};
+            process.stdout.write([m.id||"",r.player.energy,m.finishAt||"",m.reward||0].join(" "));
+          ' "$RUNNER_TEMP/start.json")"
+          [ -n "$MISSION_ID" ] || die "прод не создал активную миссию"
+
+          CPU_SPENT=$(( ENERGY_BEFORE - ENERGY_AFTER ))
+          # CPU-тариф тира: любой из таблицы shared/economy.config.ts (55/110/180/285/440/700).
+          case "$CPU_SPENT" in
+            55|110|180|285|440|700) echo "CPU списано по тиру: $CPU_SPENT ✓" ;;
+            *) die "списано $CPU_SPENT CPU — это не тариф тира (ожидали 55/110/180/285/440/700)" ;;
+          esac
+
+          code_early=$(api missions "{\"action\":\"claim\",\"missionId\":\"$MISSION_ID\"}" "$RUNNER_TEMP/early.json")
+          EARLY_OK=$(node -e 'try{const r=require(process.argv[1]);process.stdout.write(String(r.ok===true))}catch{process.stdout.write("false")}' "$RUNNER_TEMP/early.json")
+          echo "ранний сбор: HTTP $code_early · ok=$EARLY_OK · $(head -c 200 "$RUNNER_TEMP/early.json")"
+          [ "$EARLY_OK" = "false" ] || die "анти-чит: ранний сбор награды НЕ отклонён в проде"
+
+          wait_sec=$(node -e 'const f=new Date(process.argv[1]).getTime();process.stdout.write(String(Math.max(0,Math.min(300,Math.ceil((f-Date.now())/1000)+5))))' "$FINISH_AT")
+          echo "ждём завершения контракта: ${wait_sec}с"
+          sleep "$wait_sec"
+
+          code_claim=$(api missions "{\"action\":\"claim\",\"missionId\":\"$MISSION_ID\"}" "$RUNNER_TEMP/claim.json")
+          [ "$code_claim" = "200" ] || die "сбор награды вернул $code_claim: $(head -c 300 "$RUNNER_TEMP/claim.json")"
+          GAIN=$(node -e '
+            const r=require(process.argv[1]);
+            const before=Number(process.argv[2]);
+            process.stdout.write(String(Math.round((r.player.data-before)*10)/10));
+          ' "$RUNNER_TEMP/claim.json" "$(node -e 'const r=require(process.argv[1]);process.stdout.write(String(r.player.data))' "$RUNNER_TEMP/start.json")")
+          LEFT=$(node -e 'const r=require(process.argv[1]);process.stdout.write(String((r.player.activeMissions||[]).length))' "$RUNNER_TEMP/claim.json")
+          echo "награда за контракт: $GAIN Data (зафиксировано на старте: $REWARD) · активных миссий: $LEFT"
+          [ "$LEFT" = "0" ] || die "миссия осталась активной после сбора"
+          node -e 'process.exit(Number(process.argv[1])>=0?0:1)' "$GAIN" || die "награда отрицательная"
+
+          echo "SMOKE_CONTRACT=$REWARD" >> "$GITHUB_ENV"
+          echo "smoke: GET / 200, app_opened 204, контракт start→ранний сбор отклонён→сбор, +$GAIN Data"
+          fi
 
           echo "SMOKE_HOME=$ok_home" >> "$GITHUB_ENV"
           echo "SMOKE_OPEN=$ok_open" >> "$GITHUB_ENV"
-          echo "SMOKE_REF=$ok_ref" >> "$GITHUB_ENV"
-
-          [ "$ok_home" -eq 1 ] || die "GET / не 200 или содержит 'Init error'"
-          [ "$ok_open" -eq 1 ] || { echo "app_opened body: $(cat "$RUNNER_TEMP/t1.out")"; die "app_opened не 204"; }
-          [ "$ok_ref" -eq 1 ] || { echo "referral_first_session body: $(cat "$RUNNER_TEMP/t2.out")"; die "referral_first_session не 204"; }
-          echo "smoke: GET / 200, app_opened 204, referral_first_session 204"
 
       - name: Summary
         if: always()
