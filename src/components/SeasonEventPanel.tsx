@@ -62,7 +62,7 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
   return (
     <section
       aria-label="Игровой ивент Neon Relay"
-      className="rounded-2xl border border-indigo-300/60 bg-gradient-to-br from-indigo-950/65 via-[#171535] to-[#10172e] p-3.5 shadow-[0_0_28px_rgba(99,102,241,0.24)] ring-1 ring-amber-300/20"
+      className="rounded-2xl border border-indigo-300/60 bg-gradient-to-br from-indigo-950/65 via-[var(--ui-panel)] to-[var(--ui-panel)] p-3.5 shadow-[0_0_28px_rgba(99,102,241,0.24)] ring-1 ring-amber-300/20"
     >
       <div className="flex items-start gap-2.5">
         <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-400/20 text-indigo-200 ring-1 ring-indigo-200/25">
@@ -71,7 +71,7 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-amber-200">
-              <Radio className={`h-3 w-3 ${live ? 'animate-pulse text-[#7dff00]' : 'text-amber-300'}`} />
+              <Radio className={`h-3 w-3 ${live ? 'animate-pulse text-[var(--ui-success)]' : 'text-amber-300'}`} />
               <span>{live ? 'ИВЕНТ В ИГРЕ' : upcoming ? 'СКОРО В ИГРЕ' : 'ИВЕНТ ЗАВЕРШЁН'}</span>
             </div>
             <span className="shrink-0 rounded-md bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-black text-amber-100 ring-1 ring-amber-200/25">
@@ -92,7 +92,7 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
         </div>
       </div>
 
-      <div className="mt-3 rounded-xl border border-indigo-300/20 bg-[#0a0e1a]/45 p-2.5">
+      <div className="mt-3 rounded-xl border border-indigo-300/20 bg-[var(--ui-panel-deep)]/45 p-2.5">
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="text-[10px] font-black uppercase tracking-wider text-indigo-200">Недельный маршрут</div>
@@ -116,7 +116,7 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
                 title={`День ${day}`}
                 className={`rounded-lg border px-1 py-1.5 text-center ${
                   complete
-                    ? 'border-[#7dff00]/45 bg-[#7dff00]/10 text-[#b8ff7a]'
+                    ? 'border-[var(--ui-success)]/45 bg-[var(--ui-success)]/10 text-[#b8ff7a]'
                     : active
                       ? 'border-cyan-300/55 bg-cyan-300/10 text-cyan-100'
                       : missed
@@ -158,24 +158,24 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
             return (
               <div
                 key={task.key}
-                className={`rounded-xl border p-2.5 ${done ? 'border-[#7dff00]/40 bg-[#7dff00]/7' : 'border-slate-700/80 bg-[#0a0e1a]/45'}`}
+                className={`rounded-xl border p-2.5 ${done ? 'border-[var(--ui-success)]/40 bg-[var(--ui-success)]/7' : 'border-slate-700/80 bg-[var(--ui-panel-deep)]/45'}`}
               >
                 <div className="flex items-start gap-2">
                   <span className="text-base leading-none" aria-hidden="true">{task.icon}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <span className="text-xs font-bold text-white">{task.title}</span>
-                      <span className={`shrink-0 text-[10px] font-bold ${done ? 'text-[#7dff00]' : 'text-slate-400'}`}>
+                      <span className={`shrink-0 text-[10px] font-bold ${done ? 'text-[var(--ui-success)]' : 'text-slate-400'}`}>
                         {progress.toLocaleString('ru-RU')}/{task.target.toLocaleString('ru-RU')}
                       </span>
                     </div>
                     <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">{task.description}</p>
                   </div>
-                  {done && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#7dff00]" />}
+                  {done && <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ui-success)]" />}
                 </div>
                 <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-800">
                   <div
-                    className={`h-full rounded-full transition-all ${done ? 'bg-[#7dff00]' : 'bg-cyan-400'}`}
+                    className={`h-full rounded-full transition-all ${done ? 'bg-[var(--ui-success)]' : 'bg-cyan-400'}`}
                     style={{ width: `${Math.round((progress / task.target) * 100)}%` }}
                   />
                 </div>
@@ -183,26 +183,26 @@ export const SeasonEventPanel: React.FC<SeasonEventPanelProps> = ({ state }) => 
             );
           })
         ) : (
-          <div className="rounded-xl border border-slate-800 bg-[#0a0e1a]/35 px-3 py-3 text-[11px] leading-relaxed text-slate-400">
+          <div className="rounded-xl border border-slate-800 bg-[var(--ui-panel-deep)]/35 px-3 py-3 text-[11px] leading-relaxed text-slate-400">
             После старта сервер выдаст ровно три задания. Они будут обновлены только при переходе на новый календарный день.
           </div>
         )}
       </div>
 
       {dayState?.completed && (
-        <div className="mt-2 rounded-lg border border-[#7dff00]/25 bg-[#7dff00]/8 px-2.5 py-2 text-[10px] font-semibold text-[#d7ffc0]">
+        <div className="mt-2 rounded-lg border border-[var(--ui-success)]/25 bg-[var(--ui-success)]/8 px-2.5 py-2 text-[10px] font-semibold text-[#d7ffc0]">
           Все 3 задания дня закрыты. День засчитан, а голубая рамка уже сохранена в коллекции.
         </div>
       )}
 
-      <details className="group mt-3 rounded-xl border border-indigo-300/20 bg-[#0a0e1a]/35" open={upcoming}>
+      <details className="group mt-3 rounded-xl border border-indigo-300/20 bg-[var(--ui-panel-deep)]/35" open={upcoming}>
         <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-[10px] font-black uppercase tracking-wider text-indigo-200">
           <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
           Сценарий · 7 календарных дней
         </summary>
         <div className="grid gap-1.5 border-t border-indigo-300/15 p-2 sm:grid-cols-2">
           {ACTIVE_SEASON_EVENT.scenarios.map((scenario) => (
-            <div key={scenario.day} className="rounded-lg bg-[#10172e]/80 px-2 py-1.5">
+            <div key={scenario.day} className="rounded-lg bg-[var(--ui-panel)]/80 px-2 py-1.5">
               <div className="flex items-center gap-1.5">
                 <span className="text-[9px] font-black text-amber-300">ДЕНЬ {scenario.day}</span>
                 <span className="truncate text-[10px] font-bold text-white">{scenario.title}</span>
@@ -249,7 +249,7 @@ const RewardCard: React.FC<{
 }> = ({ frame, unlocked, label, lockedLabel, master = false }) => (
   <div
     className={`rounded-xl border p-2.5 ${
-      unlocked ? 'border-emerald-400/35 bg-emerald-950/20' : 'border-slate-800 bg-[#0a0e1a]/35 opacity-80'
+      unlocked ? 'border-emerald-400/35 bg-emerald-950/20' : 'border-slate-800 bg-[var(--ui-panel-deep)]/35 opacity-80'
     }`}
   >
     <div className="flex items-center gap-2">

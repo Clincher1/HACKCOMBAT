@@ -27,11 +27,5 @@
       "source": "/((?!api/|assets/).*)",
       "destination": "/index.html"
     }
-  ],
-  "git": {
-    "deploymentEnabled": {
-      "analytics/funnel-v1": false,
-      "feat/onboarding-v2": false
-    }
-  }
+  ]
 }

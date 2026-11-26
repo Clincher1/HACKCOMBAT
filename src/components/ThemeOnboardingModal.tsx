@@ -65,7 +65,7 @@ export const ThemeOnboardingModal: React.FC = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           className="w-full max-w-lg overflow-hidden rounded-3xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[var(--ui-panel)] shadow-[0_0_55px_rgba(var(--ui-primary-rgb),0.2)]"
         >
-          <div className="border-b border-slate-800/90 bg-gradient-to-r from-[#111c3a] to-[#1d1230] px-4 py-4 text-center sm:px-5">
+          <div className="border-b border-white/10 bg-gradient-to-r from-[var(--ui-panel)] to-[var(--ui-panel-deep)] px-4 py-4 text-center sm:px-5">
             <div className="mx-auto mb-2 flex w-fit items-center gap-2 rounded-xl border border-[rgba(var(--ui-primary-rgb),0.35)] bg-black/20 px-3 py-1.5">
               <span className="font-display text-xs font-black tracking-[0.22em] text-[var(--ui-primary)]">
                 HK
@@ -78,7 +78,7 @@ export const ThemeOnboardingModal: React.FC = () => {
               <Sparkles className="h-3.5 w-3.5" /> Первый запуск
             </div>
             <h1 id="theme-onboarding-title" className="font-display text-lg font-extrabold text-white sm:text-xl">
-              Выбери базовую тему терминала
+              Выбери, как всё будет выглядеть
             </h1>
             <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-slate-300">
               Это визуальный стиль игры. Выбор бесплатный и не меняет Data, XP, шанс успеха или награды.
@@ -87,11 +87,11 @@ export const ThemeOnboardingModal: React.FC = () => {
 
           <div className="p-3.5 sm:p-5">
             <div className="mb-2.5 flex items-center justify-between gap-2 text-[10px] text-slate-500">
-              <span>Классика слева</span>
-              <span>Женская тема справа</span>
+              <span>Тёплая база · неон · Neon Muse</span>
+              <span>всё бесплатно</span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
               {themes.map((theme) => {
                 const selecting = pendingTheme === theme.key;
                 const active = player.stats.baseTheme === theme.key;
@@ -120,8 +120,8 @@ export const ThemeOnboardingModal: React.FC = () => {
                       className="absolute inset-0"
                       style={{
                         background: theme.previewImage
-                          ? `linear-gradient(180deg, ${theme.previewFrom}22 0%, ${theme.previewTo}35 48%, #080914ee 100%)`
-                          : `linear-gradient(145deg, ${theme.previewFrom}30 0%, ${theme.previewTo}28 48%, #080914 100%)`,
+                          ? `linear-gradient(180deg, ${theme.previewFrom}22 0%, ${theme.previewTo}35 48%, rgba(var(--ui-panel-deep-rgb), 0.93) 100%)`
+                          : `linear-gradient(145deg, ${theme.previewFrom}30 0%, ${theme.previewTo}28 48%, var(--ui-panel-deep) 100%)`,
                       }}
                     />
 
@@ -131,7 +131,7 @@ export const ThemeOnboardingModal: React.FC = () => {
                           {theme.glyph}
                         </span>
                         {active || selecting ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-black text-[#080914]">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-black text-[var(--ui-panel-deep)]">
                             {selecting ? 'СОХРАНЯЕМ' : <><Check className="h-2.5 w-2.5" /> ВЫБРАНО</>}
                           </span>
                         ) : (

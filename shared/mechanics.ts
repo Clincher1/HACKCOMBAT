@@ -94,20 +94,20 @@ export function getPrestigeRequiredLevel(prestigeCount: number): number {
   return Math.min(Number.MAX_SAFE_INTEGER, PRESTIGE_REQUIRED_LEVEL + safe * 10);
 }
 
-// 12 канонических кибер-рангов; после них титулы продолжаются процедурно.
+// 12 «карьерных» титулов; после них титулы продолжаются процедурно.
 export const RANK_TITLES: { minLevel: number; minData: number; title: string }[] = [
-  { minLevel: 1, minData: 0, title: 'Script Kiddie' },
-  { minLevel: 5, minData: 2_500, title: 'Hacker' },
-  { minLevel: 10, minData: 15_000, title: 'Netrunner' },
-  { minLevel: 18, minData: 75_000, title: 'Cybercriminal' },
-  { minLevel: 26, minData: 400_000, title: 'Shadow Broker' },
-  { minLevel: 35, minData: 2_000_000, title: 'Darknet Legend' },
-  { minLevel: 50, minData: 12_000_000, title: 'Phantom Architect' },
-  { minLevel: 70, minData: 60_000_000, title: 'Cyber Overlord' },
-  { minLevel: 85, minData: 300_000_000, title: 'Neon Sovereign' },
-  { minLevel: 100, minData: 1_500_000_000, title: 'Singularity Ghost' },
-  { minLevel: 125, minData: 8_000_000_000, title: 'Architect of Chaos' },
-  { minLevel: 155, minData: 40_000_000_000, title: 'Zero-Point Entity' },
+  { minLevel: 1, minData: 0, title: 'Первокурсник' },
+  { minLevel: 5, minData: 2_500, title: 'Стажёр' },
+  { minLevel: 10, minData: 15_000, title: 'Младший специалист' },
+  { minLevel: 18, minData: 75_000, title: 'Пентестер' },
+  { minLevel: 26, minData: 400_000, title: 'Специалист по безопасности' },
+  { minLevel: 35, minData: 2_000_000, title: 'Старший инженер' },
+  { minLevel: 50, minData: 12_000_000, title: 'Архитектор' },
+  { minLevel: 70, minData: 60_000_000, title: 'Руководитель группы' },
+  { minLevel: 85, minData: 300_000_000, title: 'Директор по рискам' },
+  { minLevel: 100, minData: 1_500_000_000, title: 'Партнёр' },
+  { minLevel: 125, minData: 8_000_000_000, title: 'Серый кардинал' },
+  { minLevel: 155, minData: 40_000_000_000, title: 'Хранитель архива' },
 ];
 
 /**
@@ -134,11 +134,11 @@ export function getRankForLevel(level: number): { rankIndex: number; rankTitle: 
   const endlessStep = Math.floor(Math.max(0, safeLevel - lastRank.minLevel) / 25);
   if (endlessStep > 0) {
     const endlessTitles = [
-      'Quantum Sovereign',
-      'Entropy Weaver',
-      'Chrono Hacker',
-      'Void Architect',
-      'Singularity Regent',
+      'Легенда рынка',
+      'Наставник',
+      'Советник',
+      'Хранитель традиций',
+      'Первый среди равных',
     ];
     const titleIndex = (endlessStep - 1) % endlessTitles.length;
     const titleCycle = Math.floor((endlessStep - 1) / endlessTitles.length) + 1;
@@ -179,49 +179,49 @@ export function getDeskStageInfo(stage: 1 | 5 | 10 | 15 | 20 | 25 | 30): {
     case 1:
       return {
         title: 'Ур. 1 — Подпольный Старт',
-        subtitle: 'Один монитор, верная механика и ночной кофе',
+        subtitle: 'Один монитор, закат за окном и первый заказ',
         sceneUrl: '/assets/scenes/stage-01.webp',
         nextLevel: 5,
       };
     case 5:
       return {
-        title: 'Ур. 5 — Двойной Неон',
-        subtitle: 'Второй монитор + RGB неоновая подсветка стола',
+        title: 'Ур. 5 — Второй Монитор',
+        subtitle: 'Второй монитор и бирюзовый неон под столом',
         sceneUrl: '/assets/scenes/stage-05.webp',
         nextLevel: 10,
       };
     case 10:
       return {
         title: 'Ур. 10 — Локальный Кластер',
-        subtitle: 'Собственная серверная стойка рядом со столом',
+        subtitle: 'Своя серверная стойка у окна с видом на залив',
         sceneUrl: '/assets/scenes/stage-10.webp',
         nextLevel: 15,
       };
     case 15:
       return {
-        title: 'Ур. 15 — Воздушный Перехват',
-        subtitle: 'Дрон-разведчик с активным оптическим сканером',
+        title: 'Ур. 15 — Тихая Веранда',
+        subtitle: 'Второй монитор на веранде, закат над водой',
         sceneUrl: '/assets/scenes/stage-15.webp',
         nextLevel: 20,
       };
     case 20:
       return {
-        title: 'Ур. 20 — Кибер-Станция',
-        subtitle: 'Три монитора + кресло геймера + 3 слота миссий',
+        title: 'Ур. 20 — Пентхаус',
+        subtitle: 'Три монитора, кресло и панорама залива',
         sceneUrl: '/assets/scenes/stage-20.webp',
         nextLevel: 25,
       };
     case 25:
       return {
         title: 'Ур. 25 — Серверный Бункер',
-        subtitle: 'Полный переезд в подземный дата-центр',
+        subtitle: 'Бункер под городом: свой дата-центр',
         sceneUrl: '/assets/scenes/stage-25.webp',
         nextLevel: 30,
       };
     case 30:
       return {
-        title: 'Ур. 30+ — Ядро Матрицы',
-        subtitle: 'Летающие голограммы, дрон и цифровой дождь',
+        title: 'Ур. 30+ — Командный Зал',
+        subtitle: 'Панорамный зал, закат над бухтой и вся команда рядом',
         sceneUrl: '/assets/scenes/stage-30.webp',
         nextLevel: 50,
       };

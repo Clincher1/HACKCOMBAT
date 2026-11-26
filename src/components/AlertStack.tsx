@@ -22,10 +22,10 @@ export const AlertStack: React.FC = () => {
               alert.type === 'penalty'
                 ? 'border-rose-500 bg-rose-950/95 text-rose-100'
                 : alert.type === 'achievement'
-                  ? 'border-[#7dff00] bg-[#0e1d14]/95 text-white'
+                  ? 'border-[var(--ui-success)] bg-[#0e1d14]/95 text-white'
                   : alert.type === 'warning'
                     ? 'border-amber-400/70 bg-[#1c160c]/95 text-amber-100'
-                    : 'border-[#00f0ff]/70 bg-[#0d172e]/95 text-white';
+                    : 'border-[var(--ui-primary)]/70 bg-[#0d172e]/95 text-white';
 
             return (
               <div

@@ -14,11 +14,17 @@
 export interface FeatureFlags {
   /** Гейт первого сеанса: оверлей-онбординг, locked-вкладки, защита новичка от Heat. */
   onboardingV2: boolean;
+  /**
+   * v5.5: мир «День хакера» — карта локаций, свои фоны и акценты, пулы контрактов
+   * по локациям. Выключено = ровно прежнее поведение: одна витрина, один фон.
+   */
+  worldV2: boolean;
 }
 
 /** Значения по умолчанию. */
 export const FEATURE_FLAGS: FeatureFlags = {
   onboardingV2: true,
+  worldV2: true,
 };
 
 /** «1/true/on/yes» → true, «0/false/off/no» → false, всё остальное → undefined. */
@@ -45,6 +51,7 @@ function readWindowFlag(name: string): boolean | undefined {
 /** Принудительно выставить флаги (используется в src/main.tsx для VITE_*-переменных). */
 export function configureFeatureFlags(next: Partial<FeatureFlags>): void {
   if (typeof next.onboardingV2 === 'boolean') FEATURE_FLAGS.onboardingV2 = next.onboardingV2;
+  if (typeof next.worldV2 === 'boolean') FEATURE_FLAGS.worldV2 = next.worldV2;
 }
 
 /** Включён ли гейт первого сеанса прямо сейчас. */
@@ -54,4 +61,20 @@ export function isOnboardingV2Enabled(): boolean {
     readWindowFlag('onboardingV2') ??
     FEATURE_FLAGS.onboardingV2
   );
+}
+
+/**
+ * Включён ли мир «День хакера» (v5.5).
+ *
+ * Цепочка приоритетов та же, что у onboardingV2:
+ *   1. серверная переменная WORLD_V2=false (Vercel → Env) — гасит и сервер, и клиент;
+ *   2. window.__HK_FLAGS__.worldV2;
+ *   3. VITE_WORLD_V2 (читается в src/main.tsx);
+ *   4. значение по умолчанию.
+ *
+ * Сервер читает ту же функцию: при выключенном флаге витрина миссий остаётся
+ * общей, как до v5.5, а клиент не рисует карту.
+ */
+export function isWorldV2Enabled(): boolean {
+  return readEnvFlag('WORLD_V2') ?? readWindowFlag('worldV2') ?? FEATURE_FLAGS.worldV2;
 }

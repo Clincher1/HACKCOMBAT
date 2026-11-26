@@ -19,6 +19,7 @@ import {
   type ApiRequest,
   type ApiResponse,
 } from '../_lib/http';
+import { isWorldFunnelEvent } from '../_lib/worldEvents';
 
 /** 204 без тела: клиентская аналитика не ждёт данных, экономит трафик и парсинг. */
 function sendNoContent(res: ApiResponse): void {
@@ -59,7 +60,10 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   const event = readEventName(body.event);
   if (!event) return sendBadRequest(res, 'event is required');
-  if (!isClientAnalyticsEvent(event) && !isLegacyTelemetry(event)) {
+  // v5.5: шаги воронки мира (first_move) принимаются отдельным списком из
+  // api/_lib/worldEvents.ts — контракт воронки v5.3 (clientEvents.ts) не меняется.
+  const isWorldStep = isWorldFunnelEvent(event);
+  if (!isClientAnalyticsEvent(event) && !isWorldStep && !isLegacyTelemetry(event)) {
     return sendBadRequest(res, 'event is not allowed');
   }
 
@@ -70,8 +74,8 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     return sendBadRequest(res, 'Не удалось подтвердить подпись initData');
   }
 
-  // Путь 1: аналитика в client_events.
-  if (isClientAnalyticsEvent(event)) {
+  // Путь 1: аналитика в client_events (шаги воронки v5.3 + шаги мира v5.5).
+  if (isClientAnalyticsEvent(event) || isWorldStep) {
     const errorFields = readErrorFields(event, body.meta);
     if (errorFields === undefined) return sendBadRequest(res, 'client_error requires meta.message');
 

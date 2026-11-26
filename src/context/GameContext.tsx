@@ -20,6 +20,10 @@ import type {
 } from '../../shared/types';
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
+import { getBackdrop, type BackdropConfig } from '../../shared/backdrops.config';
+import { isWorldV2Enabled } from '../../shared/config';
+import type { WorldLocation } from '../../shared/world.config';
+import { readActiveLocation } from '../lib/world';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
@@ -82,6 +86,9 @@ interface GameContextValue {
   /** Выбранная бесплатная базовая тема (v3.6.1). */
   baseTheme: BaseThemeConfig;
   setBaseTheme: (key: BaseThemeKey) => Promise<void>;
+  /** v4.1: выбранный «вид из окна» (undefined — сцена по уровню). */
+  deskBackdrop: BackdropConfig | undefined;
+  setDeskBackdrop: (key: string) => Promise<void>;
   clearHeatLockdown: () => Promise<void>;
   triggerPrestige: () => Promise<void>;
   leaderboard: LeaderboardEntry[];
@@ -100,6 +107,12 @@ interface GameContextValue {
   onboardingStep: number;
   /** v5.4: отметить онбординг пройденным — persist в stats, без нового эндпоинта. */
   completeOnboarding: () => void;
+  /** v5.5: включён ли мир «День хакера» (WORLD_V2). */
+  worldEnabled: boolean;
+  /** v5.5: где игрок сейчас. Нет отметки в stats — значит Комната. */
+  activeLocation: WorldLocation;
+  /** v5.5: переезд. Сервер проверяет открытость локации по уровню. */
+  setLocation: (locationId: string) => Promise<void>;
 }
 
 function isMissionOutcomeAlert(alert: GameAlert): boolean {
@@ -149,7 +162,7 @@ function incrementOptimisticTapProgress(stats: PlayerState['stats']): PlayerStat
 }
 
 
-/** '#00f0ff' -> '0, 240, 255' — нужен для rgba(var(--ui-primary-rgb), 0.2). */
+/** 'var(--ui-primary)' -> '0, 240, 255' — нужен для rgba(var(--ui-primary-rgb), 0.2). */
 function hexToRgbTriplet(hex: string): string {
   const clean = hex.replace('#', '');
   const full =
@@ -186,6 +199,20 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
   const [player, setPlayer] = useState<PlayerState | null>(null);
   // Базовая тема — производная от player.stats.baseTheme (сервер — источник истины).
+  // v4.1: активный «вид из окна». Живёт в stats, поэтому переживает Престиж.
+  const deskBackdrop = useMemo<BackdropConfig | undefined>(
+    () => getBackdrop(player?.stats.deskBackdrop),
+    [player?.stats.deskBackdrop]
+  );
+
+  // v5.5: мир «День хакера». Флаг читается один раз за рендер — он статичный,
+  // но env/window-переменные могут меняться в рантайме без перезагрузки.
+  const worldEnabled = isWorldV2Enabled();
+  const activeLocation = useMemo<WorldLocation>(
+    () => readActiveLocation(player?.stats),
+    [player?.stats]
+  );
+
   const baseTheme = useMemo<BaseThemeConfig>(
     () => getBaseTheme(player?.stats.baseTheme),
     [player?.stats.baseTheme]
@@ -615,8 +642,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       scheduleFlush(CLICK_FLUSH_DELAY_MS);
     }
 
-    // Воронка: первый успешный тап (до этого 97% игроков не доходят).
-    trackFunnel('first_tap', { clickPower: player.derived.clickPower, level: player.derived.level });
+    // Воронка: первый успешный тап. v5.5 — под флагом мира этот шаг заменён
+    // на first_move («вышел в город»): тап стал опциональным, и считать
+    // воронку по нему больше нельзя. При WORLD_V2=false остаётся first_tap,
+    // поэтому старые отчёты и индекс uq_client_events_funnel_once не ломаются.
+    if (!isWorldV2Enabled()) {
+      trackFunnel('first_tap', { clickPower: player.derived.clickPower, level: player.derived.level });
+    }
 
     return true;
   }, [flushClicks, scheduleFlush, lockdownRemainingSec, player]);
@@ -927,6 +959,28 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  // v4.1: фон — такая же косметика, как тема: бесплатная, без бонусов к тапу.
+  const setDeskBackdrop = useCallback(
+    (key: string) =>
+      runAction(`backdrop:${key}`, (clicks) => gameApi.skinAction('set_backdrop', key, clicks), true, 'light'),
+    [runAction]
+  );
+
+  /**
+   * v5.5: переезд в другую локацию. Сервер сам проверяет уровень и пересобирает
+   * витрину миссий; клиент лишь отправляет ключ и обновляет состояние из ответа.
+   */
+  const setLocation = useCallback(
+    (locationId: string) =>
+      runAction(
+        `location:${locationId}`,
+        (clicks) => gameApi.setLocation(locationId, clicks),
+        true,
+        'light'
+      ),
+    [runAction]
+  );
+
   const clearHeatLockdown = useCallback(
     () => runAction('clear_lockdown', (clicks) => gameApi.skinAction('clear_lockdown', undefined, clicks), true, 'light'),
     [runAction]
@@ -985,6 +1039,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--cyber-panel', theme.palette.panel);
     root.setProperty('--cyber-panel-deep', theme.palette.panelDeep);
     root.setProperty('--theme-vignette', theme.sceneVignette);
+    // v5.0: характер темы — не только цвет, но и «воздух».
+    // У тёплой «Сан-Мираж» нет скан-линий и сетки, у «Неон-Сити» есть.
+    root.setProperty('--ui-success', theme.ui.successHex);
+    root.setProperty('--ui-success-rgb', hexToRgbTriplet(theme.ui.successHex));
+    root.setProperty('--ui-purple', theme.palette.purple);
+    root.setProperty('--ui-purple-rgb', hexToRgbTriplet(theme.palette.purple));
+    root.setProperty('--ui-on-primary', theme.palette.onPrimary ?? 'var(--ui-on-primary)');
+    root.setProperty('--ui-text-muted', theme.palette.textMuted);
+    root.setProperty('--scanline-opacity', theme.ui.scanlines === false ? '0' : '1');
+    root.setProperty('--ui-grid-opacity', theme.ui.scanlines === false ? '0' : '1');
+    const glow = theme.ui.backgroundGlow ?? [theme.palette.cyan, theme.palette.magenta];
+    root.setProperty('--ui-glow-1', hexToRgbTriplet(glow[0]));
+    root.setProperty('--ui-glow-2', hexToRgbTriplet(glow[1]));
     document.body.dataset.theme = theme.key;
   }, [player?.stats.baseTheme]);
 
@@ -1013,6 +1080,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     root.setProperty('--ui-panel-deep', panelDeep);
     root.setProperty('--ui-panel-deep-rgb', hexToRgbTriplet(panelDeep));
     root.setProperty('--ui-text', uiSkin?.uiTokens?.text ?? theme.palette.text);
+    // Тёплый текст-подпись тоже подстраивается под тему, иначе на коричневых
+    // панелях серо-голубой muted выглядит как деталь из другой игры.
+    if (!uiSkin) {
+      root.setProperty('--ui-text-muted', theme.palette.textMuted);
+    }
     if (uiSkin) {
       document.body.dataset.uiSkin = uiSkin.key;
     } else {
@@ -1184,6 +1256,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInventoryVisibility,
       baseTheme,
       setBaseTheme,
+      deskBackdrop,
+      setDeskBackdrop,
+      worldEnabled,
+      activeLocation,
+      setLocation,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,
@@ -1241,6 +1318,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInventoryVisibility,
       baseTheme,
       setBaseTheme,
+      deskBackdrop,
+      setDeskBackdrop,
+      worldEnabled,
+      activeLocation,
+      setLocation,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,

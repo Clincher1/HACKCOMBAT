@@ -14,12 +14,19 @@
 
 import { initTelegramMiniApp } from './telegram';
 
-/** Шесть шагов воронки в порядке прохождения. */
+/**
+ * Шаги воронки в порядке прохождения.
+ *
+ * v5.5: с миром «День хакера» ключевой шаг — не тап, а выход из дома, поэтому
+ * появляется first_move. Имя first_tap остаётся в типе и в индексе БД: старые
+ * клиенты и игроки с выключенным WORLD_V2 продолжают писать его как раньше.
+ */
 export type FunnelEvent =
   | 'app_opened'
   | 'init_ok'
   | 'first_frame'
   | 'first_tap'
+  | 'first_move'
   | 'first_upgrade'
   | 'first_mission_start';
 

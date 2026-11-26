@@ -97,7 +97,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'desk_lvl_15',
     title: 'Небо под Контролем',
-    description: 'Достичь 15 уровня и запустить дрон-разведчик.',
+    description: 'Достичь 15 уровня и собрать второй монитор.',
     cryptoReward: 15,
     icon: '🛸',
     rarity: 'rare',
@@ -704,7 +704,7 @@ export const ACHIEVEMENTS_CONFIG: AchievementConfig[] = [
   {
     key: 'heat_survivor',
     title: 'Перехвачен, Но Не Сломан',
-    description: 'Словить штраф киберпатруля и вернуться в игру.',
+    description: 'Словить штраф за высокий Heat и вернуться в игру.',
     cryptoReward: 10,
     icon: '🚨',
     rarity: 'rare',

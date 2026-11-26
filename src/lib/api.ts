@@ -81,10 +81,16 @@ export const gameApi = {
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery', clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/season-event', 'POST', { action, clicks }),
   skinAction: (
-    action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'profile_frame',
+    action: 'buy_or_equip' | 'clear_lockdown' | 'set_theme' | 'set_backdrop' | 'profile_frame',
     skinKey?: string,
     clicks = 0
   ) => apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action, skinKey, clicks }),
+  /**
+   * v5.5: переезд между локациями мира. Идёт тем же путём, что и косметика
+   * (/api/skin), но отдельным действием — сервер проверит уровень локации.
+   */
+  setLocation: (locationId: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action: 'set_location', locationId, clicks }),
   profileFrameAction: (frameKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/skin', 'POST', { action: 'profile_frame', skinKey: frameKey, clicks }),
   inventoryVisibility: (itemKey: string, visible: boolean, clicks = 0) =>

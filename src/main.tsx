@@ -10,6 +10,11 @@ import './index.css';
 const onboardingEnvFlag = parseFlag(import.meta.env.VITE_ONBOARDING_V2);
 if (onboardingEnvFlag !== undefined) configureFeatureFlags({ onboardingV2: onboardingEnvFlag });
 
+// v5.5: мир «День хакера» гасится так же — VITE_WORLD_V2=false (или WORLD_V2=false
+// на сервере / window.__HK_FLAGS__.worldV2 в консоли). Выключено = прежний экран.
+const worldEnvFlag = parseFlag(import.meta.env.VITE_WORLD_V2);
+if (worldEnvFlag !== undefined) configureFeatureFlags({ worldV2: worldEnvFlag });
+
 // Опциональная бесплатная аналитика (Umami / Yandex Metrica по разделу 6 ТЗ), если заданы переменные в .env
 const umamiId = import.meta.env.VITE_UMAMI_WEBSITE_ID as string | undefined;
 const umamiSrc = import.meta.env.VITE_UMAMI_SCRIPT_URL as string | undefined;

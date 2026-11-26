@@ -9,10 +9,10 @@ import { useGame } from '../context/GameContext';
 
 const RARITY_META: Record<AchievementRarity, { label: string; color: string }> = {
   common: { label: 'Обычное', color: '#94a3b8' },
-  rare: { label: 'Редкое', color: '#00f0ff' },
-  epic: { label: 'Эпическое', color: '#c084fc' },
+  rare: { label: 'Редкое', color: 'var(--ui-primary)' },
+  epic: { label: 'Эпическое', color: 'var(--ui-purple)' },
   legendary: { label: 'Легендарное', color: '#ffb703' },
-  secret: { label: 'Секретное', color: '#ff00a0' },
+  secret: { label: 'Секретное', color: 'var(--ui-secondary)' },
 };
 
 type Filter = 'all' | 'unlocked' | 'locked';
@@ -53,21 +53,21 @@ export const AchievementsPanel: React.FC = () => {
   return (
     <div className="space-y-3">
       {/* Сводка прогресса */}
-      <div className="rounded-2xl bg-[#10172e] border border-[#7dff00]/25 p-3.5 space-y-2">
+      <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-success)]/25 p-3.5 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div className="text-xs font-bold text-white flex items-center gap-1.5">
-            <Award className="w-4 h-4 text-[#7dff00]" />
+            <Award className="w-4 h-4 text-[var(--ui-success)]" />
             <span>
               Достижения {publicUnlocked}/{publicTotal}
             </span>
           </div>
-          <span className="text-[10px] font-bold text-[#ff00a0] flex items-center gap-1">
+          <span className="text-[10px] font-bold text-[var(--ui-secondary)] flex items-center gap-1">
             <Eye className="w-3 h-3" /> Секретов найдено: {secretsFound}/{secretsTotal}
           </span>
         </div>
         <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#00f0ff] to-[#7dff00] transition-all duration-700"
+            className="h-full rounded-full bg-gradient-to-r from-[var(--ui-primary)] to-[var(--ui-success)] transition-all duration-700"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -91,8 +91,8 @@ export const AchievementsPanel: React.FC = () => {
             onClick={() => setFilter(f.id)}
             className={`py-1.5 rounded-lg text-[11px] font-bold border transition cursor-pointer ${
               filter === f.id
-                ? 'bg-[#7dff00]/18 border-[#7dff00] text-[#7dff00]'
-                : 'bg-[#0d1224] border-slate-800 text-slate-400'
+                ? 'bg-[var(--ui-success)]/18 border-[var(--ui-success)] text-[var(--ui-success)]'
+                : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400'
             }`}
           >
             {f.label}
@@ -112,10 +112,10 @@ export const AchievementsPanel: React.FC = () => {
               key={ach.key}
               className={`rounded-xl p-3 border flex items-start gap-2.5 ${
                 unlocked
-                  ? 'bg-[#101c28] border-[#7dff00]/50'
+                  ? 'bg-[#101c28] border-[var(--ui-success)]/50'
                   : hidden
                     ? 'bg-[#0b0f1c] border-slate-800/70'
-                    : 'bg-[#0d1224] border-slate-800/80'
+                    : 'bg-[var(--ui-panel-deep)] border-slate-800/80'
               }`}
             >
               {/* Медальон: картинка видна ТОЛЬКО после получения */}
