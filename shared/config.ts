@@ -19,12 +19,26 @@ export interface FeatureFlags {
    * по локациям. Выключено = ровно прежнее поведение: одна витрина, один фон.
    */
   worldV2: boolean;
+  /**
+   * v5.6: retention-петля — оффлайн-доход с welcome-back модалом, daily streak
+   * bar по UTC-дню, opt-in напоминание в Telegram. Выключено = ровно прежнее
+   * поведение: оффлайн-копилка v3.2, без модала и без панели стрика.
+   */
+  retentionV1: boolean;
+  /**
+   * v5.6: реферальные deep links вида ?start=ref_<tgId> с записью в
+   * stats.referrals и welcome-бонусом приглашённому. Выключено = работает
+   * только старая кодовая рефералка v3.5 (она флага не знает).
+   */
+  referralV1: boolean;
 }
 
 /** Значения по умолчанию. */
 export const FEATURE_FLAGS: FeatureFlags = {
   onboardingV2: true,
   worldV2: true,
+  retentionV1: true,
+  referralV1: true,
 };
 
 /** «1/true/on/yes» → true, «0/false/off/no» → false, всё остальное → undefined. */
@@ -52,6 +66,8 @@ function readWindowFlag(name: string): boolean | undefined {
 export function configureFeatureFlags(next: Partial<FeatureFlags>): void {
   if (typeof next.onboardingV2 === 'boolean') FEATURE_FLAGS.onboardingV2 = next.onboardingV2;
   if (typeof next.worldV2 === 'boolean') FEATURE_FLAGS.worldV2 = next.worldV2;
+  if (typeof next.retentionV1 === 'boolean') FEATURE_FLAGS.retentionV1 = next.retentionV1;
+  if (typeof next.referralV1 === 'boolean') FEATURE_FLAGS.referralV1 = next.referralV1;
 }
 
 /** Включён ли гейт первого сеанса прямо сейчас. */
@@ -77,4 +93,35 @@ export function isOnboardingV2Enabled(): boolean {
  */
 export function isWorldV2Enabled(): boolean {
   return readEnvFlag('WORLD_V2') ?? readWindowFlag('worldV2') ?? FEATURE_FLAGS.worldV2;
+}
+
+/**
+ * Включена ли retention-петля (v5.6).
+ *
+ * Цепочка приоритетов та же, что у onboardingV2/worldV2:
+ *   1. серверная переменная RETENTION_V1=false (Vercel → Env) — гасит и сервер, и клиент;
+ *   2. window.__HK_FLAGS__.retentionV1;
+ *   3. VITE_RETENTION_V1 (читается в src/main.tsx);
+ *   4. значение по умолчанию (true).
+ *
+ * Выключенный флаг обязан быть инертным: сервер не пишет ни одного нового поля
+ * в stats, не платит оффлайн по-новому и не шлёт напоминаний; клиент не рисует
+ * welcome-back модал и streak bar.
+ */
+export function isRetentionV1Enabled(): boolean {
+  return readEnvFlag('RETENTION_V1') ?? readWindowFlag('retentionV1') ?? FEATURE_FLAGS.retentionV1;
+}
+
+/**
+ * Включены ли реферальные deep links (v5.6): ?start=ref_<tgId>.
+ *
+ * Цепочка приоритетов: REFERRAL_V1 (env) → window.__HK_FLAGS__.referralV1 →
+ * VITE_REFERRAL_V1 → FEATURE_FLAGS.referralV1 (true).
+ *
+ * Выключенный флаг инертен: сервер игнорирует start_param вида ref_<tgId>,
+ * не пишет stats.referrals и не выдаёт welcome-бонус приглашённому; старая
+ * кодовая рефералка v3.5 продолжает работать как раньше.
+ */
+export function isReferralV1Enabled(): boolean {
+  return readEnvFlag('REFERRAL_V1') ?? readWindowFlag('referralV1') ?? FEATURE_FLAGS.referralV1;
 }
