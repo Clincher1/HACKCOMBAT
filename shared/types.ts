@@ -48,6 +48,12 @@ export interface MissionConfig {
   baseSuccess: number;
   minLevel?: number; // Минимальный уровень игрока, чтобы контракт появился в витрине
   cryptoDropChance?: number; // DEFAULT: шанс редкого дропа 1 Crypto на серых миссиях
+  /**
+   * v5.5: локация мира, из которой приходит контракт (shared/world.config.ts).
+   * Поле необязательное: у сохранённых витрин старого образца его нет, и такие
+   * контракты считаются уличными — см. missionLocationId().
+   */
+  locationId?: string;
 }
 
 export interface TeamNpcConfig {
@@ -399,6 +405,11 @@ export interface PlayerProgressStats {
    * новой таблицы и миграции не требуется, старые сейвы читаются как false.
    */
   onboardingV2Completed?: boolean;
+  /**
+   * v5.5: где игрок сейчас (ключ из shared/world.config.ts). Живёт в существующем
+   * stats jsonb — новой таблицы и миграции не требуется. Нет поля = Комната.
+   */
+  locationId?: string;
   /** Опыт по классам целей: сколько успехов и провалов было для каждого типа. */
   hackSuccessByType: Record<string, number>;
   hackFailByType: Record<string, number>;

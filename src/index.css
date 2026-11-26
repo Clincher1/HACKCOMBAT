@@ -36,6 +36,10 @@
   --ui-grid-opacity: 0;
   --scanline-opacity: 0;
   --theme-vignette: rgba(255, 154, 90, 0.12);
+  /* v5.5 «День хакера»: акцент локации. LocationBackdrop переопределяет обе
+     переменные на :root, а весь интерфейс читает их с фолбэком на тему. */
+  --loc-accent: var(--ui-primary);
+  --loc-accent-rgb: var(--ui-primary-rgb);
 }
 * {
   -webkit-tap-highlight-color: transparent;
@@ -1093,5 +1097,79 @@ body[data-theme='femme'] .rounded-2xl {
   .bd-rain,
   .bd-fog {
     animation: none;
+  }
+}
+
+/* ==========================================================================
+   v5.5 — МИР «ДЕНЬ ХАКЕРА»: фоны локаций
+   --------------------------------------------------------------------------
+   Только CSS-градиенты и один лёгкий слой шума (радиальный градиент вместо
+   картинки): весь мир обязан уложиться в 150 KB gzip, поэтому ни PNG, ни
+   видео здесь нет. Класс .loc-bg висит на fixed-слое под контентом.
+   ========================================================================== */
+.loc-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  /* Мягкая база: снизу тёмный «пол», сверху свет локации. */
+  background-color: var(--ui-panel-deep);
+  background-repeat: no-repeat;
+  background-size: cover;
+  transition: background-color 400ms ease;
+  opacity: 0.9;
+}
+
+/* Комната — тёплый ламповый свет над столом. */
+.loc-bg-room {
+  background-image:
+    radial-gradient(ellipse 70% 45% at 50% 0%, rgba(255, 154, 90, 0.22), transparent 70%),
+    radial-gradient(ellipse 45% 32% at 78% 22%, rgba(255, 205, 122, 0.14), transparent 72%),
+    linear-gradient(180deg, rgba(34, 27, 22, 0.55) 0%, rgba(20, 16, 13, 0.92) 100%);
+}
+
+/* Улица — холодный неон витрин и мокрый асфальт. */
+.loc-bg-street {
+  background-image:
+    radial-gradient(ellipse 60% 40% at 18% 6%, rgba(96, 183, 216, 0.24), transparent 70%),
+    radial-gradient(ellipse 55% 38% at 86% 14%, rgba(216, 167, 196, 0.16), transparent 70%),
+    linear-gradient(180deg, rgba(22, 28, 36, 0.55) 0%, rgba(12, 14, 18, 0.94) 100%);
+}
+
+/* Пляж — янтарный закат и широкая полоса света у горизонта. */
+.loc-bg-beach {
+  background-image:
+    radial-gradient(ellipse 80% 30% at 50% 82%, rgba(255, 154, 90, 0.20), transparent 74%),
+    radial-gradient(ellipse 55% 40% at 24% 8%, rgba(255, 205, 122, 0.22), transparent 72%),
+    linear-gradient(180deg, rgba(38, 28, 22, 0.50) 0%, rgba(16, 13, 12, 0.94) 100%);
+}
+
+/* Интернет-кафе — зелёные терминалы в полумраке. */
+.loc-bg-cybercafe {
+  background-image:
+    radial-gradient(ellipse 50% 34% at 12% 12%, rgba(168, 217, 138, 0.20), transparent 72%),
+    radial-gradient(ellipse 50% 34% at 88% 20%, rgba(96, 183, 216, 0.16), transparent 72%),
+    linear-gradient(180deg, rgba(20, 28, 22, 0.55) 0%, rgba(11, 15, 12, 0.94) 100%);
+}
+
+/* Тех-хаб — холодная синь серверных стоек. */
+.loc-bg-techhub {
+  background-image:
+    radial-gradient(ellipse 62% 38% at 50% -4%, rgba(120, 220, 255, 0.26), transparent 72%),
+    radial-gradient(ellipse 42% 30% at 88% 62%, rgba(120, 220, 255, 0.12), transparent 74%),
+    linear-gradient(180deg, rgba(16, 24, 32, 0.58) 0%, rgba(9, 12, 16, 0.95) 100%);
+}
+
+/* Корпоративный квартал — стекло и холодный розовый отблеск. */
+.loc-bg-corpquarter {
+  background-image:
+    radial-gradient(ellipse 66% 40% at 82% 0%, rgba(216, 167, 196, 0.26), transparent 72%),
+    radial-gradient(ellipse 50% 34% at 12% 26%, rgba(120, 220, 255, 0.14), transparent 74%),
+    linear-gradient(180deg, rgba(26, 20, 28, 0.58) 0%, rgba(12, 10, 14, 0.95) 100%);
+}
+
+/* Уважаем системную настройку «меньше движения»: смена локации без плавности. */
+@media (prefers-reduced-motion: reduce) {
+  .loc-bg {
+    transition: none;
   }
 }

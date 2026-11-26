@@ -3,6 +3,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
 import { BottomNav } from './components/BottomNav';
+import { LocationBackdrop } from './components/LocationBackdrop';
 import { LockedTab } from './components/LockedTab';
 import { Onboarding } from './components/Onboarding';
 import { TopHud } from './components/TopHud';
@@ -95,6 +96,9 @@ const AppShell: React.FC = () => {
 
   return (
     <div className="min-h-screen cyber-grid-bg flex flex-col">
+      {/* v5.5: фон и акцент локации. Слой лежит под контентом (z-0), мир может
+          быть выключен флагом — тогда компонент не рендерит ничего. */}
+      <LocationBackdrop />
       <TopHud />
       <AlertStack />
       {/* v5.4: гейт первого сеанса. Онбординг рисуется над контентом, но под

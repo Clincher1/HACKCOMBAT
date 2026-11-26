@@ -9,6 +9,7 @@ import type { MissionConfig } from './types';
 export const MISSIONS_CONFIG: MissionConfig[] = [
   {
     key: 'scam_shop',
+    locationId: 'street',
     targetName: 'Магазин-однодневка',
     targetType: 'bad',
     description: 'Магазин кроссовок, который берёт предоплату и исчезает. Закрыть витрину, пока не заплатил ещё кто-то.',
@@ -24,6 +25,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'fake_lottery',
+    locationId: 'street',
     targetName: 'Фейковый розыгрыш',
     targetType: 'bad',
     description: '«Разыгрываем телефон»: собирает номера и данные карт. Снять страницу и предупредить участников.',
@@ -39,6 +41,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'phishing_bank',
+    locationId: 'street',
     targetName: 'Копия входа в банк',
     targetType: 'bad',
     description: 'Точная копия банковской страницы входа. Перехватить домен и отдать данные настоящему банку.',
@@ -54,6 +57,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'bot_spam_net',
+    locationId: 'beach',
     targetName: 'Ферма спам-звонков',
     targetType: 'bad',
     description: 'Автодозвон «из службы безопасности». Отключить панель, пока не позвонили твоей бабушке.',
@@ -69,6 +73,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'crypto_drain_fake',
+    locationId: 'beach',
     targetName: 'Пустой airdrop',
     targetType: 'bad',
     description: 'Сайт обещает токены, а списывает всё с кошелька. Обезвредить контракт и вытащить список пострадавших.',
@@ -84,6 +89,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'malware_bazaar',
+    locationId: 'cybercafe',
     targetName: 'Каталог «кряков»',
     targetType: 'bad',
     description: 'Под взломанными программами прячутся трояны. Закрыть каталог и предупредить форумы.',
@@ -99,6 +105,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'ransom_vault',
+    locationId: 'corpquarter',
     targetName: 'Шифровальщик в клинике',
     targetType: 'bad',
     description: 'Небольшая клиника, файлы с анализами зашифрованы. Восстановить ключи и вернуть базу.',
@@ -114,6 +121,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'deepfake_cartel',
+    locationId: 'cybercafe',
     targetName: 'Ферма дипфейков',
     targetType: 'bad',
     description: 'Канал с поддельными видео «руководства» для переводов. Остановить рассылку до следующей жертвы.',
@@ -129,6 +137,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'phantom_ponzi_core',
+    locationId: 'techhub',
     targetName: 'Инвест-пирамида',
     targetType: 'bad',
     description: 'Обещает 30% в месяц и платит старым за счёт новых. Заморозить выплаты и выгрузить реестр.',
@@ -144,6 +153,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'shadow_ai_collective',
+    locationId: 'corpquarter',
     targetName: 'Сеть колл-центров',
     targetType: 'bad',
     description: 'Сотни «сотрудников банка» в одном здании. Разрушить связку и вернуть базы клиентов.',
@@ -159,6 +169,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'retro_blog',
+    locationId: 'room',
     targetName: 'Свой старый блог',
     targetType: 'neutral',
     description: 'Свой же блог на древнем движке: спокойный полигон, где можно тренироваться без последствий.',
@@ -174,6 +185,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'pixel_arcade',
+    locationId: 'room',
     targetName: 'Аркадный автомат',
     targetType: 'neutral',
     description: 'Автомат в баре держит рекорд десять лет. Перебить его и вписать свой ник.',
@@ -189,6 +201,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'dev_forum',
+    locationId: 'room',
     targetName: 'Архив форума',
     targetType: 'neutral',
     description: 'Собрать архив старых обсуждений с рабочими конфигами, пока форум не закрыли.',
@@ -204,6 +217,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'indie_radio',
+    locationId: 'beach',
     targetName: 'Ночной эфир',
     targetType: 'neutral',
     description: 'Независимая радиостанция принимает треки от слушателей. Пропихнуть свой в плейлист.',
@@ -219,6 +233,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'drone_racing_hub',
+    locationId: 'cybercafe',
     targetName: 'Картинг-трек',
     targetType: 'neutral',
     description: 'Любительская лига картинга: выгрузить результаты и телеметрию для своего архива.',
@@ -234,6 +249,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'holo_cinema_grid',
+    locationId: 'techhub',
     targetName: 'Кино на крыше',
     targetType: 'neutral',
     description: 'Независимый кинотеатр под открытым небом. Поставить свой анонс в очередь афиши.',
@@ -249,6 +265,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'metro_grid',
+    locationId: 'street',
     targetName: 'Табло на станции',
     targetType: 'good',
     description: 'Официальное табло расписания. Тихая шалость — но патруль смотрит.',
@@ -264,6 +281,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'gov_portal',
+    locationId: 'cybercafe',
     targetName: 'Портал услуг',
     targetType: 'good',
     description: 'Публичный портал города. Громко, шумно, и Heat растёт быстро.',
@@ -279,6 +297,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'mega_corp',
+    locationId: 'cybercafe',
     targetName: 'Логистика ретейлера',
     targetType: 'good',
     description: 'Складская система крупной сети магазинов: внутренние цены и остатки.',
@@ -294,6 +313,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'biogen_labs',
+    locationId: 'techhub',
     targetName: 'Сеть лабораторий',
     targetType: 'good',
     description: 'Медицинские лаборатории: закрытые результаты исследований и записи пациентов.',
@@ -309,6 +329,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'omni_bank',
+    locationId: 'techhub',
     targetName: 'Клиринг банка',
     targetType: 'good',
     description: 'Узел банковских переводов. Крупный куш и очень громкий след.',
@@ -324,6 +345,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'aether_cloud',
+    locationId: 'techhub',
     targetName: 'Облачный провайдер',
     targetType: 'good',
     description: 'Чужие серверы без оплаты: мощности на халяву и большой счёт в конце месяца.',
@@ -339,6 +361,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'star_orbital',
+    locationId: 'techhub',
     targetName: 'Магистральный оператор',
     targetType: 'good',
     description: 'Оператор связи: стабильный канал и большие данные, но полиция уже рядом.',
@@ -354,6 +377,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'quantum_exchange',
+    locationId: 'corpquarter',
     targetName: 'Биржа',
     targetType: 'good',
     description: 'Рейд на клиринговый модуль биржи. Максимальный Heat за один заход.',
@@ -369,6 +393,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'citadel_ai_vault',
+    locationId: 'corpquarter',
     targetName: 'Дата-центр банка',
     targetType: 'good',
     description: 'Финальный корпоративный бастион: резервные копии и колоссальный запас Data.',
@@ -384,6 +409,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'orbital_bank_ring',
+    locationId: 'corpquarter',
     targetName: 'Межбанковский клиринг',
     targetType: 'good',
     description: 'Самая охраняемая цель: межбанковский клиринг. Огромный куш — огромный Heat.',
@@ -399,6 +425,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'grey_offshore_ledger',
+    locationId: 'beach',
     targetName: 'Офшорный реестр',
     targetType: 'grey',
     description: 'Секретный контракт Ирис: аудит теневого реестра с шансом редкой Крипты.',
@@ -415,6 +442,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'grey_syndicate_node',
+    locationId: 'techhub',
     targetName: 'Узел серых подрядчиков',
     targetType: 'grey',
     description: 'Рейд по наводке Ирис: высокий доход Data, Rep и шанс Crypto.',
@@ -431,6 +459,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'grey_ghost_sat',
+    locationId: 'techhub',
     targetName: 'Заброшенный узел связи',
     targetType: 'grey',
     description: 'Расшифровать старую станцию и найти следы прошлых владельцев (+шанс 💎 Crypto).',
@@ -447,6 +476,7 @@ export const MISSIONS_CONFIG: MissionConfig[] = [
   },
   {
     key: 'grey_quantum_archive',
+    locationId: 'corpquarter',
     targetName: 'Архив закрытых отчётов',
     targetType: 'grey',
     description: 'Высший секретный контракт: архив синдиката (+высокий шанс 💎 Crypto).',

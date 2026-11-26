@@ -21,6 +21,9 @@ import type {
 import { ApiError, gameApi } from '../lib/api';
 import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
 import { getBackdrop, type BackdropConfig } from '../../shared/backdrops.config';
+import { isWorldV2Enabled } from '../../shared/config';
+import type { WorldLocation } from '../../shared/world.config';
+import { readActiveLocation } from '../lib/world';
 import { getDailyTaskDefinition } from '../../shared/dailyTasks.config';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { cyberSound } from '../lib/sound';
@@ -104,6 +107,12 @@ interface GameContextValue {
   onboardingStep: number;
   /** v5.4: отметить онбординг пройденным — persist в stats, без нового эндпоинта. */
   completeOnboarding: () => void;
+  /** v5.5: включён ли мир «День хакера» (WORLD_V2). */
+  worldEnabled: boolean;
+  /** v5.5: где игрок сейчас. Нет отметки в stats — значит Комната. */
+  activeLocation: WorldLocation;
+  /** v5.5: переезд. Сервер проверяет открытость локации по уровню. */
+  setLocation: (locationId: string) => Promise<void>;
 }
 
 function isMissionOutcomeAlert(alert: GameAlert): boolean {
@@ -194,6 +203,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const deskBackdrop = useMemo<BackdropConfig | undefined>(
     () => getBackdrop(player?.stats.deskBackdrop),
     [player?.stats.deskBackdrop]
+  );
+
+  // v5.5: мир «День хакера». Флаг читается один раз за рендер — он статичный,
+  // но env/window-переменные могут меняться в рантайме без перезагрузки.
+  const worldEnabled = isWorldV2Enabled();
+  const activeLocation = useMemo<WorldLocation>(
+    () => readActiveLocation(player?.stats),
+    [player?.stats]
   );
 
   const baseTheme = useMemo<BaseThemeConfig>(
@@ -625,8 +642,13 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       scheduleFlush(CLICK_FLUSH_DELAY_MS);
     }
 
-    // Воронка: первый успешный тап (до этого 97% игроков не доходят).
-    trackFunnel('first_tap', { clickPower: player.derived.clickPower, level: player.derived.level });
+    // Воронка: первый успешный тап. v5.5 — под флагом мира этот шаг заменён
+    // на first_move («вышел в город»): тап стал опциональным, и считать
+    // воронку по нему больше нельзя. При WORLD_V2=false остаётся first_tap,
+    // поэтому старые отчёты и индекс uq_client_events_funnel_once не ломаются.
+    if (!isWorldV2Enabled()) {
+      trackFunnel('first_tap', { clickPower: player.derived.clickPower, level: player.derived.level });
+    }
 
     return true;
   }, [flushClicks, scheduleFlush, lockdownRemainingSec, player]);
@@ -944,6 +966,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  /**
+   * v5.5: переезд в другую локацию. Сервер сам проверяет уровень и пересобирает
+   * витрину миссий; клиент лишь отправляет ключ и обновляет состояние из ответа.
+   */
+  const setLocation = useCallback(
+    (locationId: string) =>
+      runAction(
+        `location:${locationId}`,
+        (clicks) => gameApi.setLocation(locationId, clicks),
+        true,
+        'light'
+      ),
+    [runAction]
+  );
+
   const clearHeatLockdown = useCallback(
     () => runAction('clear_lockdown', (clicks) => gameApi.skinAction('clear_lockdown', undefined, clicks), true, 'light'),
     [runAction]
@@ -1221,6 +1258,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBaseTheme,
       deskBackdrop,
       setDeskBackdrop,
+      worldEnabled,
+      activeLocation,
+      setLocation,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,
@@ -1280,6 +1320,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setBaseTheme,
       deskBackdrop,
       setDeskBackdrop,
+      worldEnabled,
+      activeLocation,
+      setLocation,
       clearHeatLockdown,
       triggerPrestige,
       leaderboard,

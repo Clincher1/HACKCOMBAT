@@ -108,6 +108,8 @@ export const TopHud: React.FC = () => {
     nowMs,
     baseTheme,
     newPlayerMode,
+    worldEnabled,
+    activeLocation,
   } = useGame();
   const navigate = useNavigate();
 
@@ -155,6 +157,12 @@ export const TopHud: React.FC = () => {
             <span className="text-xs text-slate-300 truncate font-semibold">
               {derived.rankTitle}
             </span>
+            {/* v5.5: где игрок — видно всегда, цвет акцента ведёт за локацией. */}
+            {worldEnabled && (
+              <span className="px-1.5 py-0.5 rounded bg-[rgba(var(--loc-accent-rgb),0.18)] border border-[rgba(var(--loc-accent-rgb),0.45)] text-[var(--loc-accent)] text-[10px] font-bold truncate max-w-[7.5rem]">
+                {activeLocation.glyph} {activeLocation.name}
+              </span>
+            )}
             {player.prestigeCount > 0 && (
               <span className="px-1.5 py-0.5 rounded bg-[rgba(var(--ui-secondary-rgb),0.20)] border border-[rgba(var(--ui-secondary-rgb),0.45)] text-[var(--ui-secondary)] text-[10px] font-bold">
                 ×{derived.prestigeMultiplier} PRESTIGE

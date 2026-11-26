@@ -14,6 +14,16 @@ import { DeskScene, OfflineBankNote } from '../components/DeskScene';
 import { DEVICE_LABEL, LocationPickerModal } from '../components/LocationPicker';
 import { SeasonEventPanel } from '../components/SeasonEventPanel';
 import { useGame } from '../context/GameContext';
+import { nextLocationHint } from '../lib/world';
+
+/**
+ * v5.5: карта города грузится отдельным чанком — на первом экране она не нужна,
+ * а бюджет главного бандла важнее мгновенного открытия оверлея.
+ */
+const WorldMap = React.lazy(async () => {
+  const module = await import('../components/WorldMap');
+  return { default: module.WorldMap };
+});
 
 /**
  * Главный экран рабочего стола.
@@ -69,6 +79,57 @@ const DeskLocationBar: React.FC = () => {
   );
 };
 
+/**
+ * v5.5: «Выйти» — дверь в мир. Кнопка есть только при включённом WORLD_V2,
+ * поэтому без флага рабочий стол выглядит ровно как раньше.
+ */
+const WorldExitBar: React.FC = () => {
+  const { player, worldEnabled, activeLocation } = useGame();
+  const [open, setOpen] = useState(false);
+  if (!worldEnabled || !player) return null;
+  const next = nextLocationHint(player.derived.level);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Выйти в город"
+        className="w-full rounded-2xl border border-[rgba(var(--loc-accent-rgb),0.45)] bg-[var(--ui-panel)] px-3 py-2 text-left transition hover:border-[var(--loc-accent)] cursor-pointer"
+      >
+        <span className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2">
+            <span
+              className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[rgba(var(--loc-accent-rgb),0.16)] text-base"
+              aria-hidden
+            >
+              {activeLocation.glyph}
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate text-[12px] font-bold text-white">
+                {activeLocation.name}
+              </span>
+              <span className="block truncate text-[10px] text-[var(--ui-text-muted)]">
+                {next
+                  ? `Дальше: ${next.name} — с ${next.minLevel} ур.`
+                  : 'Все локации города открыты'}
+              </span>
+            </span>
+          </span>
+          <span className="shrink-0 rounded-lg bg-[rgba(var(--loc-accent-rgb),0.16)] px-2 py-1 text-[10px] font-extrabold text-[var(--loc-accent)]">
+            Выйти
+          </span>
+        </span>
+      </button>
+      {open && (
+        <React.Suspense fallback={null}>
+          <WorldMap open={open} onClose={() => setOpen(false)} />
+        </React.Suspense>
+      )}
+    </>
+  );
+};
+
 export const DeskPage: React.FC = () => {
   const { player } = useGame();
   if (!player) return null;
@@ -78,6 +139,7 @@ export const DeskPage: React.FC = () => {
   return (
     <div className="space-y-3.5 pb-4">
       <DeskScene />
+      <WorldExitBar />
       <DeskLocationBar />
 
       {/* Главные активности Desk: ивент и задания оператора видны сразу после сцены. */}

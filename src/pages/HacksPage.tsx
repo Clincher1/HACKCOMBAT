@@ -5,6 +5,7 @@ import {
   Gem,
   Info,
   Lock,
+  MapPin,
   RefreshCw,
   Shield,
   ShieldCheck,
@@ -25,6 +26,7 @@ import type { MissionTargetType } from '../../shared/types';
 import { DailyIncidentPanel } from '../components/DailyIncidentPanel';
 import { useGame } from '../context/GameContext';
 import { formatCompact, formatCountdown } from '../lib/format';
+import { missionsForLocation } from '../lib/world';
 
 type FilterType = 'all' | 'white' | 'black' | 'neutral';
 
@@ -93,6 +95,8 @@ export const HacksPage: React.FC = () => {
     refreshMissions,
     busyKey,
     missionHistory,
+    worldEnabled,
+    activeLocation,
   } = useGame();
   const [filter, setFilter] = useState<FilterType>('all');
   const autoRefreshRequestedRef = useRef(false);
@@ -137,11 +141,18 @@ export const HacksPage: React.FC = () => {
   // В любой категории показываем только цели из текущего серверного скана.
   // Раньше фильтр раскрывал ВСЕ открытые цели, хотя сервер разрешал запускать
   // только текущий оффер — пользователь видел кнопку и получал отказ.
-  const visibleMissions = MISSIONS_CONFIG.filter((m) => {
+  const offerMissions = MISSIONS_CONFIG.filter((m) => {
     if (!player.availableMissionKeys.includes(m.key)) return false;
     if (m.targetType === 'grey' && !derived.unlockedGreyMissions) return false;
     return filter === 'all' || hackCategory(m.targetType) === filter;
   });
+
+  // v5.5: показываем сканы текущей локации. Если её пул для категории пуст —
+  // shared/world.config отдаёт «Улицу», чтобы игрок никогда не видел пустой экран.
+  const visibleMissions = worldEnabled
+    ? missionsForLocation(offerMissions, activeLocation.id)
+    : offerMissions;
+  const scopedAway = worldEnabled && visibleMissions !== offerMissions;
 
   const rewardScale = getMissionRewardScale(derived.level);
   const chapter = getFirstChapterState(player);
@@ -149,6 +160,32 @@ export const HacksPage: React.FC = () => {
 
   return (
     <div className="space-y-3.5 pb-4">
+      {/* v5.5: где мы и что здесь есть. Без мира этот блок не рендерится. */}
+      {worldEnabled && (
+        <div className="flex items-center gap-2 rounded-2xl border border-[rgba(var(--loc-accent-rgb),0.40)] bg-[var(--ui-panel)] px-3 py-2">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[rgba(var(--loc-accent-rgb),0.16)] text-sm" aria-hidden>
+            {activeLocation.glyph}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-[11px] font-bold text-white">
+              <MapPin className="mr-1 inline h-3 w-3 text-[var(--loc-accent)]" />
+              {activeLocation.name}
+            </span>
+            <span className="block truncate text-[10px] text-[var(--ui-text-muted)]">
+              {scopedAway
+                ? 'Здесь таких целей нет — показываем контракты Улицы.'
+                : 'Контракты этой локации в текущем скане.'}
+            </span>
+          </span>
+          <Link
+            to="/"
+            className="shrink-0 rounded-lg bg-[rgba(var(--loc-accent-rgb),0.16)] px-2 py-1 text-[10px] font-extrabold text-[var(--loc-accent)]"
+          >
+            Карта
+          </Link>
+        </div>
+      )}
+
       {/* Верхняя панель слотов и 15-минутного обновления */}
       <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-primary)]/25 p-3.5 space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -455,7 +492,8 @@ export const HacksPage: React.FC = () => {
       {/* Список доступных целей */}
       {visibleMissions.length === 0 ? (
         <div className="rounded-2xl bg-[var(--ui-panel)]/90 border border-slate-800 px-3.5 py-4 text-center text-[11px] text-slate-400">
-          В текущем скане нет целей этого направления. Выбери другую категорию или нажми «Обновить».
+          {worldEnabled ? `В «${activeLocation.name}» нет целей этого направления.` : 'В текущем скане нет целей этого направления.'}{' '}
+          Выбери другую категорию, смени локацию на карте или нажми «Обновить».
         </div>
       ) : null}
       <div className="space-y-2.5">
