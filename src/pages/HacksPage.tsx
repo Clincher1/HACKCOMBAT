@@ -21,12 +21,19 @@ import {
   getMissionXpAward,
 } from '../../shared/hack.config';
 import { getFirstChapterState } from '../../shared/chapter.config';
+import { HACK_DIFFICULTIES } from '../../shared/hacks.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
-import type { MissionTargetType } from '../../shared/types';
+import type { HackSessionState, MissionTargetType } from '../../shared/types';
 import { DailyIncidentPanel } from '../components/DailyIncidentPanel';
 import { useGame } from '../context/GameContext';
 import { formatCompact, formatCountdown } from '../lib/format';
 import { missionsForLocation } from '../lib/world';
+
+/**
+ * Активная сессия взлома грузится отдельным чанком: сетка, rAF и её состояние
+ * нужны только в момент игры. Стол и задания этот код не тянут.
+ */
+const HackSession = React.lazy(() => import('../components/HackSession'));
 
 type FilterType = 'all' | 'white' | 'black' | 'neutral';
 
@@ -98,8 +105,16 @@ export const HacksPage: React.FC = () => {
     missionHistory,
     worldEnabled,
     activeLocation,
+    startHack,
+    finishHack,
   } = useGame();
   const [filter, setFilter] = useState<FilterType>('all');
+  /**
+   * Сессия, которая рисуется прямо сейчас. Держим её локально и не сбрасываем
+   * после ответа сервера: экран результата принадлежит самому компоненту
+   * сессии, иначе он размонтируется вместе с подтверждённым итогом.
+   */
+  const [activeSession, setActiveSession] = useState<HackSessionState | null>(null);
   const autoRefreshRequestedRef = useRef(false);
   const refreshLeftSec = player
     ? Math.max(
@@ -135,9 +150,25 @@ export const HacksPage: React.FC = () => {
     });
   }, [missionRefreshBusy, player, refreshLeftSec, refreshMissions]);
 
+  // Продолжение сессии после перезагрузки: сервер помнит незакрытый взлом.
+  useEffect(() => {
+    const session = player?.stats.hackSession;
+    if (!session || session.finished) return;
+    if (Date.now() > new Date(session.endsAt).getTime() + 20_000) return;
+    setActiveSession((prev) => (prev?.id === session.id ? prev : session));
+  }, [player?.stats.hackSession]);
+
   if (!player) return null;
 
   const { derived } = player;
+  const hackBlockedUntil = player.clickBlockedUntil ? new Date(player.clickBlockedUntil).getTime() : 0;
+  const hackLockdownSec = Math.max(0, Math.ceil((hackBlockedUntil - nowMs) / 1000));
+  const hackBusy = busyKey?.startsWith('hack:') ?? false;
+
+  const startHackSession = async (difficulty: string) => {
+    const session = await startHack(difficulty);
+    if (session) setActiveSession(session);
+  };
 
   // В любой категории показываем только цели из текущего серверного скана.
   // Раньше фильтр раскрывал ВСЕ открытые цели, хотя сервер разрешал запускать
@@ -185,6 +216,90 @@ export const HacksPage: React.FC = () => {
             Карта
           </Link>
         </div>
+      )}
+
+      {/* v6.2: активный взлом — единственная механика, где игрок действует руками. */}
+      {activeSession ? (
+        <React.Suspense
+          fallback={
+            <div className="rounded-2xl border border-[var(--ui-primary)]/30 bg-[var(--ui-panel)] p-3 text-[11px] text-[var(--ui-text-muted)]">
+              Готовим сетку взлома…
+            </div>
+          }
+        >
+          <HackSession
+            key={activeSession.id}
+            session={{
+              id: activeSession.id,
+              difficulty: activeSession.difficulty,
+              seed: activeSession.seed,
+              endsAt: activeSession.endsAt,
+              cost: activeSession.cost,
+            }}
+            onFinish={finishHack}
+            onRestart={(difficulty) => void startHackSession(difficulty)}
+            busy={hackBusy}
+          />
+        </React.Suspense>
+      ) : (
+        <section data-qa="hack-targets" className="space-y-2">
+          <div className="flex items-center justify-between gap-2 px-0.5">
+            <div className="min-w-0">
+              <h2 className="font-display text-sm font-extrabold text-white">Активный взлом</h2>
+              <p className="text-[10px] text-[var(--ui-text-muted)]">
+                30 секунд на сетку. Безопасный узел — Data, ловушка — Heat.
+              </p>
+            </div>
+            <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-[rgba(var(--ui-primary-rgb),0.14)] px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums text-[var(--ui-primary)]">
+              <Zap className="h-3 w-3" />
+              {Math.floor(player.energy)} ⚡
+            </span>
+          </div>
+
+          {hackLockdownSec > 0 && (
+            <div className="rounded-xl border border-rose-400/40 bg-rose-500/10 px-3 py-2 text-[11px] leading-relaxed text-rose-200">
+              Терминал в блокировке киберпатруля — ещё {hackLockdownSec} сек. до остывания.
+            </div>
+          )}
+
+          <div className="space-y-2">
+            {HACK_DIFFICULTIES.map((difficulty) => {
+              const affordable = player.energy >= difficulty.cost;
+              const disabled = !affordable || hackLockdownSec > 0 || hackBusy;
+              return (
+                <button
+                  key={difficulty.key}
+                  type="button"
+                  data-qa-action="start-hack"
+                  data-hack-difficulty={difficulty.key}
+                  disabled={disabled}
+                  onClick={() => void startHackSession(difficulty.key)}
+                  className={`flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-[border-color,background-color,transform] duration-150 active:scale-[0.99] cursor-pointer ${
+                    disabled
+                      ? 'border-slate-700/60 bg-[var(--ui-panel-deep)]/40 opacity-60'
+                      : 'border-[rgba(var(--ui-primary-rgb),0.4)] bg-[var(--ui-panel)]'
+                  }`}
+                >
+                  <span className="text-base leading-none" aria-hidden>
+                    {difficulty.icon}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-[12px] font-bold text-white">{difficulty.title}</span>
+                      <span className="shrink-0 text-[10px] font-extrabold tabular-nums text-[var(--ui-primary)]">
+                        −{difficulty.cost} ⚡
+                      </span>
+                    </span>
+                    <span className="mt-0.5 block truncate text-[10px] text-[var(--ui-text-muted)]">
+                      +{difficulty.dataPerNode} Data / узел · {difficulty.riskLabel}
+                    </span>
+                  </span>
+                  {!affordable && <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+                </button>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {/* Верхняя панель слотов и 15-минутного обновления */}

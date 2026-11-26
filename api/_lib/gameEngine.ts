@@ -89,6 +89,15 @@ import {
   getDailyTaskDefinitions,
 } from '../../shared/dailyTasks.config';
 import {
+  HACK_FINISH_GRACE_SEC,
+  HACK_MAX_TAPS_PER_SEC,
+  HACK_SESSION_SECONDS,
+  countHackNodes,
+  getHackDifficulty,
+  hackDataReward,
+  hackHeatGain,
+} from '../../shared/hacks.config';
+import {
   CONTRACTS_PER_DAY,
   MAX_ACTIVE_CONTRACTS,
   describeContractReward,
@@ -121,6 +130,7 @@ import type {
   ActiveMissionInstance,
   ApiSyncResponse,
   ContractState,
+  HackSessionState,
   DailyTaskKind,
   DailyTaskState,
   DerivedStats,
@@ -339,6 +349,37 @@ function normalizeContractState(raw: unknown): ContractState | undefined {
     : [];
 
   return { dayKey, ids, progress, claimed };
+}
+
+/**
+ * v6.2: сессия взлома. id и seed обязательны — без них итог нельзя проверить,
+ * поэтому повреждённая запись просто выбрасывается.
+ */
+function normalizeHackSession(raw: unknown): HackSessionState | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const src = raw as Record<string, unknown>;
+  const id = typeof src.id === 'string' ? src.id.slice(0, 64) : '';
+  const difficulty = getHackDifficulty(String(src.difficulty ?? ''));
+  const seed = Math.floor(Number(src.seed));
+  const startedAt = typeof src.startedAt === 'string' ? src.startedAt : '';
+  const endsAt = typeof src.endsAt === 'string' ? src.endsAt : '';
+  if (!id || !difficulty || !Number.isFinite(seed) || !startedAt || !endsAt) return undefined;
+  if (Number.isNaN(new Date(startedAt).getTime()) || Number.isNaN(new Date(endsAt).getTime())) {
+    return undefined;
+  }
+  return {
+    id,
+    difficulty: difficulty.key,
+    seed: seed >>> 0,
+    startedAt,
+    endsAt,
+    cost: Math.max(0, Math.floor(Number(src.cost) || 0)),
+    finished: src.finished === true,
+    safeHits: Math.max(0, Math.floor(Number(src.safeHits) || 0)),
+    trapHits: Math.max(0, Math.floor(Number(src.trapHits) || 0)),
+    dataGained: Math.max(0, Math.floor(Number(src.dataGained) || 0)),
+    heatGained: Math.max(0, Math.floor(Number(src.heatGained) || 0)),
+  };
 }
 
 function normalizeSeasonEventState(raw: unknown): SeasonEventState | undefined {
@@ -588,6 +629,7 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
     contracts: normalizeContractState(src.contracts),
+    hackSession: normalizeHackSession(src.hackSession),
     dailyIncident: normalizeDailyIncidentState(src.dailyIncident),
     seasonEvent,
     unlockedProfileFrames,
@@ -3843,6 +3885,158 @@ export async function handleContractAction(
     });
 
     await savePlayerCore(record, mode, undefined, expectedData);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/**
+ * v6.2 — АКТИВНЫЙ ВЗЛОМ.
+ *
+ * Два действия:
+ *   • start — списывает CPU Charge на вход и выдаёт сессию (id + seed + таймер);
+ *   • finish — принимает итог сессии, пересчитывает награду по seed и закрывает
+ *     сессию навсегда.
+ *
+ * Клиент не может «накрутить» ни раскладку (она из seed), ни число узлов
+ * (сетка конечна), ни темп (не больше HACK_MAX_TAPS_PER_SEC), ни повтор
+ * (finished ставится в той же транзакции, что и начисление).
+ */
+export async function handleHackAction(
+  user: VerifiedTelegramUser,
+  action: 'start' | 'finish',
+  payload: {
+    difficulty?: string;
+    sessionId?: string;
+    safeHits?: number;
+    trapHits?: number;
+  },
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    const nowMs = Date.now();
+
+    if (action === 'start') {
+      const difficulty = getHackDifficulty(String(payload.difficulty ?? ''));
+      if (!difficulty) throw new Error('Неизвестный уровень взлома');
+
+      const blockedUntil = record.clickBlockedUntil
+        ? new Date(record.clickBlockedUntil).getTime()
+        : 0;
+      if (blockedUntil > nowMs) {
+        const left = Math.ceil((blockedUntil - nowMs) / 1000);
+        throw new Error(
+          `Терминал в блокировке киберпатруля — остынь ${left} сек. и попробуй снова`
+        );
+      }
+
+      const current = record.stats.hackSession;
+      if (current && !current.finished && nowMs < new Date(current.endsAt).getTime() + 5_000) {
+        throw new Error('Взлом уже идёт — закончи текущую сессию');
+      }
+
+      if (record.energy < difficulty.cost) {
+        throw new Error(
+          `Недостаточно CPU Charge: нужно ${difficulty.cost} ⚡, есть ${Math.floor(record.energy)}`
+        );
+      }
+
+      const expectedEnergy = record.energy;
+      record.energy = Math.max(0, record.energy - difficulty.cost);
+      record.energyUpdated = new Date(nowMs).toISOString();
+      record.stats.hackSession = {
+        id: crypto.randomUUID(),
+        difficulty: difficulty.key,
+        seed: crypto.randomInt(1, 2 ** 31 - 1),
+        startedAt: new Date(nowMs).toISOString(),
+        endsAt: new Date(nowMs + HACK_SESSION_SECONDS * 1000).toISOString(),
+        cost: difficulty.cost,
+        finished: false,
+      };
+
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: `🖥️ Взлом начат: ${difficulty.title.toLowerCase()} контур`,
+        message: `${HACK_SESSION_SECONDS} сек · −${difficulty.cost} CPU Charge. Безопасный узел: +${difficulty.dataPerNode} Data, ловушка: +${difficulty.trapHeat} Heat.`,
+      });
+
+      await savePlayerCore(record, mode, undefined, undefined, expectedEnergy);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    if (action !== 'finish') throw new Error('Неизвестное действие взлома');
+
+    const session = record.stats.hackSession;
+    if (!session || session.id !== String(payload.sessionId ?? '')) {
+      throw new Error('Сессия взлома не найдена — обнови экран');
+    }
+    if (session.finished) {
+      throw new Error('Результат этой сессии уже принят');
+    }
+    const difficulty = getHackDifficulty(session.difficulty);
+    if (!difficulty) throw new Error('Неизвестный уровень взлома');
+
+    const endsAtMs = new Date(session.endsAt).getTime();
+    const startedAtMs = new Date(session.startedAt).getTime();
+    if (nowMs > endsAtMs + HACK_FINISH_GRACE_SEC * 1000) {
+      session.finished = true;
+      await savePlayerCore(record, mode);
+      throw new Error('Сессия истекла — награду не начислим');
+    }
+
+    // Темп: за прошедшее время человек физически не мог открыть больше узлов.
+    const elapsedSec = Math.max(
+      1,
+      Math.min(HACK_SESSION_SECONDS, (Math.min(nowMs, endsAtMs) - startedAtMs) / 1000)
+    );
+    const allowedTaps = Math.ceil(elapsedSec * HACK_MAX_TAPS_PER_SEC);
+    const nodes = countHackNodes(session.seed, difficulty);
+
+    const safeHits = Math.max(0, Math.floor(Number(payload.safeHits) || 0));
+    const trapHits = Math.max(0, Math.floor(Number(payload.trapHits) || 0));
+
+    if (safeHits > nodes.safe || trapHits > nodes.traps) {
+      throw new Error('Результат не сходится с сеткой — сессия отклонена');
+    }
+    if (safeHits + trapHits > allowedTaps) {
+      throw new Error('Слишком много узлов за это время — результат отклонён');
+    }
+
+    const dataGain = hackDataReward(difficulty, safeHits);
+    const heatGain = hackHeatGain(difficulty, trapHits);
+    const expectedData = record.data;
+
+    record.data = Math.min(MAX_SAFE_DATA_BALANCE, record.data + dataGain);
+    record.heat = Math.max(0, record.heat + heatGain);
+    session.finished = true;
+    session.safeHits = safeHits;
+    session.trapHits = trapHits;
+    session.dataGained = dataGain;
+    session.heatGained = heatGain;
+
+    // Взлом — тоже Heat-событие: контракты с метрикой heat должны его видеть.
+    incrementContractProgress(record, 'heat', heatGain);
+
+    if (dataGain > 0) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: `${difficulty.icon} Взлом закрыт: +${dataGain.toLocaleString('ru-RU')} Data`,
+        message: `Узлов вскрыто: ${safeHits} из ${nodes.safe}. Ловушек: ${trapHits}${heatGain > 0 ? ` (+${heatGain} Heat)` : ''}.`,
+      });
+    }
+
+    await savePlayerCore(record, mode, undefined, expectedData);
+    // Пересчитываем правила после Heat: при перегреве срабатывает тот же
+    // киберпатруль, что и на обычных действиях (штраф + блокировка терминала).
+    await syncTimeAndRules(record, mode, alerts);
+    if (alerts.length > 0) await savePlayerCore(record, mode);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
   });
 }

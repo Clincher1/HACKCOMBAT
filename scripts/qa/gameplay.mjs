@@ -440,6 +440,36 @@ try {
     context.includes("runClaim(`contract:${contractId}`") &&
       tasksPageV61.includes('claimContract'));
 
+  // --- v6.2: активные взломы — ленивый чанк и серверная валидация -------------
+  const hacksConfig = readSource('shared/hacks.config.ts');
+  const hackSession = readSource('src/components/HackSession.tsx');
+  const hacksPage = readSource('src/pages/HacksPage.tsx');
+  const hacksRoute = readSource('api/_routes/hacks.ts');
+
+  check('сессия взлома грузится отдельным чанком',
+    hacksPage.includes("React.lazy(() => import('../components/HackSession'))") &&
+      !readSource('src/App.tsx').includes('HackSession') &&
+      !readSource('src/pages/TasksPage.tsx').includes('HackSession'));
+  check('таймер сессии — один rAF-цикл, без сети на тап',
+    hackSession.includes('requestAnimationFrame(tick)') &&
+      !hackSession.includes('setInterval') &&
+      !hackSession.includes('fetch(') &&
+      !hackSession.includes('gameApi'));
+  check('тап-таргеты узлов не меньше 44 px',
+    hackSession.includes('min-h-[44px]') && hackSession.includes('grid-template-columns'.replace('grid-template-columns', 'gridTemplateColumns')));
+  check('сервер знает про взломы и пересчитывает итог из seed',
+    router.includes("import hacks from './_routes/hacks'") &&
+      hacksRoute.includes('handleHackAction') &&
+      engine.includes('export async function handleHackAction') &&
+      engine.includes('countHackNodes(session.seed, difficulty)'));
+  check('валидация темпа, сетки и повтора на сервере',
+    hacksConfig.includes('HACK_MAX_TAPS_PER_SEC') &&
+      engine.includes('allowedTaps') &&
+      engine.includes('safeHits > nodes.safe || trapHits > nodes.traps') &&
+      engine.includes('Результат этой сессии уже принят'));
+  check('Heat от взломов зачитывается в контракты',
+    (engine.match(/incrementContractProgress\(record, 'heat', heatGain\)/g) ?? []).length >= 2);
+
   // --- онбординг: первый кадр игры без «тапни» и без кнопки ТАП -------------
   const onboarding = readSource('src/components/Onboarding.tsx');
   check('онбординг: текст шага под флагом геймплея',

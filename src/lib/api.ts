@@ -81,6 +81,21 @@ export const gameApi = {
     apiRequest<ApiSyncResponse>('/api/daily-incident', 'POST', { choiceKey, clicks }),
   claimDailyTask: (taskKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/daily-tasks', 'POST', { action: 'claim', taskKey, clicks }),
+  /** v6.2: вход в сессию взлома — сервер списывает CPU Charge и выдаёт seed. */
+  startHack: (difficulty: string, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/hacks', 'POST', { action: 'start', difficulty, clicks }),
+  /**
+   * v6.2: итог сессии. Клиент присылает только счётчики узлов; Data, Heat и
+   * валидность результата считает сервер.
+   */
+  finishHack: (sessionId: string, safeHits: number, trapHits: number, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/hacks', 'POST', {
+      action: 'finish',
+      sessionId,
+      safeHits,
+      trapHits,
+      clicks,
+    }),
   /** v6.1: забор награды за контракт дня. Тело — только id, награду считает сервер. */
   claimContract: (contractId: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/contracts', 'POST', { action: 'claim', contractId, clicks }),

@@ -339,6 +339,27 @@ export interface DailyTaskDefinition {
 }
 
 /**
+ * Взлом (v6.2): одна активная сессия на 30 секунд.
+ * Хранится в stats jsonb; seed детерминирует раскладку узлов, поэтому сервер
+ * может проверить итог, не храня сетку.
+ */
+export interface HackSessionState {
+  id: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  seed: number;
+  startedAt: string;
+  endsAt: string;
+  /** Сколько CPU Charge списано на вход (для честного итога в интерфейсе). */
+  cost: number;
+  finished: boolean;
+  /** Подтверждённый итог — нужен для экрана результата после перезагрузки. */
+  safeHits?: number;
+  trapHits?: number;
+  dataGained?: number;
+  heatGained?: number;
+}
+
+/**
  * Контракты (v6.1): три пассивные цели на игровые сутки.
  * Хранятся в том же stats jsonb, без новых таблиц и полей верхнего уровня.
  */
@@ -435,6 +456,8 @@ export interface PlayerProgressStats {
   dailyTasks?: DailyTaskState;
   /** v6.1: контракты дня — пассивные цели на тапы, CPU Charge и Heat. */
   contracts?: ContractState;
+  /** v6.2: текущая/последняя сессия взлома. */
+  hackSession?: HackSessionState;
   /** v3.13: один серверный киберинцидент с выбором в каждые московские сутки. */
   dailyIncident?: DailyIncidentState;
   /** v3.9: прогресс текущей 7-дневной сезонной операции. */
