@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { BookOpen, Cpu, Flame, Layers, Lock, Sparkles, Zap } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import { getBaseUpgradeChipCost, getBaseUpgradePrice } from '../../shared/base.config';
+import { priceHoursLabel } from '../../shared/pricing.config';
 import {
   CARD_CATEGORIES,
   CARDS_CONFIG,
@@ -43,7 +44,7 @@ export const UpgradesPage: React.FC = () => {
     const lvl = player.baseUpgrades[cfg.key] ?? 0;
     if (lvl >= cfg.maxLevel) return false;
     return (
-      player.data >= getBaseUpgradePrice(cfg, lvl) &&
+      player.data >= getBaseUpgradePrice(cfg, lvl, player.derived.level) &&
       player.chips >= getBaseUpgradeChipCost(cfg, lvl)
     );
   }).length;
@@ -239,7 +240,13 @@ export const UpgradesPage: React.FC = () => {
               const level = player.cards[card.key] ?? 0;
               const isMax = level >= maxLevel;
               const lockedByLevel = Boolean(card.minLevel && player.derived.level < card.minLevel);
-              const price = getCardPrice(card, level, totalLevels, player.derived.cardPriceDiscountPct);
+              const price = getCardPrice(
+                card,
+                level,
+                totalLevels,
+                player.derived.cardPriceDiscountPct,
+                player.derived.level
+              );
               const canAfford = !isMax && !lockedByLevel && player.data >= price;
               const isBusy = busyKey === `card:${card.key}`;
               const indexMultiplier = getCardIndexMultiplier(card, totalLevels);
@@ -405,6 +412,16 @@ export const UpgradesPage: React.FC = () => {
                             ? '⏳ Покупаю…'
                             : `Купить • ${formatCompact(price)}`}
                     </button>
+                    {/* v6.6: цена привязана к доходу — показываем это в часах,
+                        а не только в «попугаях» Data. */}
+                    {!isMax && !lockedByLevel && (
+                      <p
+                        data-qa="card-price-hours"
+                        className="text-center text-[9.5px] text-slate-500"
+                      >
+                        {priceHoursLabel(price, player.derived.level)}
+                      </p>
+                    )}
                   </div>
                 </motion.div>
               );

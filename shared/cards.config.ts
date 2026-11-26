@@ -1,3 +1,4 @@
+import { anchorPrice, hoursForCardLevel } from './pricing.config';
 import type { CardCategory, CardConfig, CardTierConfig } from './types';
 
 export const CARD_CATEGORIES: {
@@ -671,7 +672,8 @@ export function getCardPrice(
   card: CardConfig,
   currentLevel: number,
   totalCardLevels = 0,
-  discountPct = 0
+  discountPct = 0,
+  playerLevel?: number
 ): number {
   const safeLevel = Math.max(0, Math.min(MAX_CARD_LEVEL, Math.floor(Number(currentLevel) || 0)));
   const safeTotal = Math.max(0, Number(totalCardLevels) || 0);
@@ -683,5 +685,9 @@ export function getCardPrice(
   const rawIndex = Math.pow(1 + safeTotal / CARD_GLOBAL_INDEX_DIVISOR, CARD_GLOBAL_INDEX_POWER);
   const globalIndex = 1 + (rawIndex - 1) * weight;
   const safeDiscount = Math.max(0, Math.min(0.25, Number(discountPct) || 0));
-  return Math.max(1, Math.floor(base * globalIndex * (1 - safeDiscount)));
+  const nominal = Math.max(1, Math.floor(base * globalIndex * (1 - safeDiscount)));
+  // v6.6: каталог больше не может уйти выше цены в часах дохода.
+  // Раньше 40–60 уровни стоили десятки миллионов часов; теперь —
+  // ровно «столько-то часов фарма» (см. shared/pricing.config.ts).
+  return anchorPrice(nominal, hoursForCardLevel(safeLevel), playerLevel);
 }

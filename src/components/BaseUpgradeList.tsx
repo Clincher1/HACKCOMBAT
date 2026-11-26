@@ -36,7 +36,7 @@ export const BaseUpgradeList: React.FC = () => {
         {BASE_UPGRADES_CONFIG.map((cfg) => {
           const level = player.baseUpgrades[cfg.key] ?? 0;
           const isMax = level >= cfg.maxLevel;
-          const price = getBaseUpgradePrice(cfg, level);
+          const price = getBaseUpgradePrice(cfg, level, player.derived.level);
           const chipCost = getBaseUpgradeChipCost(cfg, level);
           const levelLocked = (cfg.requiredLevel ?? 1) > player.derived.level;
           const canBuy =

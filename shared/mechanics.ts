@@ -21,6 +21,18 @@ import type {
 // v3.1: быстрый тап не должен задыхаться. Канон текущей модели — 1500 стартовой
 // энергии и +1 за 2 сек; потолок с апгрейдами Базы прежний (MAX_ENERGY_CAP).
 export const BASE_MAX_ENERGY = 1500;
+/**
+ * v6.6: реген CPU ускоряется с уровнем.
+ *
+ * Было: ровно 1 заряд в 2 секунды на любом уровне — 1 800/ч. Взнос контракта
+ * Т6 = 700, значит 2.6 контракта в час, а три слота (L20+) простаивали.
+ * Стало: интервал 2 с на 1-м уровне и 1 с на 50-м (шаг −0.02 с за уровень),
+ * то есть 1 800 → 3 600 зарядов/час. Ниже 1 с не опускаемся.
+ */
+export function cpuRegenSecondsForLevel(level: number): number {
+  const safe = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
+  return Math.max(1, 2 - safe * 0.02);
+}
 export const MAX_ENERGY_CAP = 5000;
 export const ENERGY_REGEN_SECONDS = 2; // 1 Energy / 2 сек
 
@@ -40,6 +52,16 @@ export const GAME_DAY_UTC_OFFSET_MINUTES = 180;
 /** Разрыв между запросами, после которого сессия считается прерванной (клиент пингует раз в 30 с). */
 export const ACTIVITY_HEARTBEAT_MAX_GAP_SEC = 45;
 
+/**
+ * v6.6: ЕДИНЫЙ игровой день.
+ *
+ * До этой версии в продукте жили два дня: стрик и Crypto-бонус считались по UTC
+ * (сброс в 03:00 МСК), а копилка, леденец и поручения — по Москве (00:00 МСК).
+ * Игрок видел два несогласованных сброса. Теперь всё считается ТОЛЬКО здесь:
+ * `getGameDayKey` — единственный источник ключа дня для стрика, бонуса, копилки,
+ * леденца, поручений, контрактов и инцидентов. Сброс — 00:00 МСК.
+ */
+
 /** Ключ игрового дня 'YYYY-MM-DD' по Москве (UTC+3). */
 export function getGameDayKey(nowMs: number = Date.now()): string {
   const shifted = new Date(nowMs + GAME_DAY_UTC_OFFSET_MINUTES * 60_000);
@@ -53,6 +75,34 @@ export function getGameDayKey(nowMs: number = Date.now()): string {
 export function getGameDayBoundsMs(dayKey: string): { start: number; end: number } {
   const start = Date.parse(`${dayKey}T00:00:00Z`) - GAME_DAY_UTC_OFFSET_MINUTES * 60_000;
   return { start, end: start + 86_400_000 };
+}
+
+/** Ключ дня по ISO-строке (кладём в него любой timestamp — результат стабилен). */
+export function getGameDayKeyFromIso(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isNaN(ms) ? null : getGameDayKey(ms);
+}
+
+/** Разница в календарных днях между двумя ключами (b − a). */
+export function diffGameDayKeys(fromKey: string, toKey: string): number {
+  const a = Date.parse(`${fromKey}T00:00:00.000Z`);
+  const b = Date.parse(`${toKey}T00:00:00.000Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return Number.NaN;
+  return Math.round((b - a) / 86_400_000);
+}
+
+/** Один и тот же игровой день? (null/пустое = «дня не было»). */
+export function isSameGameDay(a: string | null | undefined, b: string | null | undefined): boolean {
+  return Boolean(a) && a === b;
+}
+
+/** Локальное время внутри игровых суток в МСК: 23:59 → '23:59'. Для QA и UI. */
+export function gameDayClock(nowMs: number = Date.now()): string {
+  const shifted = new Date(nowMs + GAME_DAY_UTC_OFFSET_MINUTES * 60_000);
+  const hh = String(shifted.getUTCHours()).padStart(2, '0');
+  const mm = String(shifted.getUTCMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 export const HEAT_PENALTY_THRESHOLD = 100; // Heat > 100 -> штраф (раздел 2 и 5.4 ТЗ)
@@ -362,6 +412,13 @@ export function computeBaseUpgradeTotals(
         totals.autoFeedEnabled = true;
         totals.feedDiscountPct = Math.min(0.4, effect);
         break;
+      // v6.6: мидгейм-улучшения L34/L38 используют уже существующие эффекты.
+      case 'neural_coprocessor':
+        totals.missionRewardBonusPct = Math.min(0.3, totals.missionRewardBonusPct + effect);
+        break;
+      case 'quantum_cooler':
+        totals.energyRegenBonusPct = Math.min(0.5, totals.energyRegenBonusPct + effect);
+        break;
       case 'lucky_charm':
         totals.cryptoDropBonusPct = Math.min(0.2, effect);
         break;
@@ -622,7 +679,9 @@ export function computeDerivedStats(params: {
   );
 
   const maxEnergy = Math.min(MAX_ENERGY_CAP, BASE_MAX_ENERGY + extraMaxEnergy);
-  const energyRegenPerSec = (1 / ENERGY_REGEN_SECONDS) * (1 + baseTotals.energyRegenBonusPct);
+  // v6.6: скорость регена растёт с уровнем (см. cpuRegenSecondsForLevel).
+  const regenSeconds = cpuRegenSecondsForLevel(level);
+  const energyRegenPerSec = (1 / regenSeconds) * (1 + baseTotals.energyRegenBonusPct);
 
   const baseHeatMult = alignment === 'black_hat' ? 1.3 : 1.0;
   const totalHeatReduction = Math.min(

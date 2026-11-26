@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const CORE = path.join(process.cwd(), 'api/_core.cjs');
@@ -16,6 +17,42 @@ if (!fs.existsSync(CORE)) {
   console.error('Нет api/_core.cjs — сначала выполните: npm run build');
   process.exit(1);
 }
+
+// v6.6: цены рамок больше не литералы — берём их из настоящего конфига,
+// чтобы ребаланс витрины не ломал QA.
+async function bridge(relative, outName) {
+  const esbuild = require('esbuild');
+  const outfile = path.join(os.tmpdir(), `hk-pf-${outName}.mjs`);
+  esbuild.buildSync({
+    entryPoints: [path.join(process.cwd(), relative)],
+    outfile,
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    logLevel: 'error',
+  });
+  return import(pathToFileURL(outfile).href);
+}
+const { PROFILE_FRAMES, ACHIEVEMENTS_CONFIG } = await (async () => {
+  const esbuild = require('esbuild');
+  const entryFile = path.join(os.tmpdir(), 'hk-pf-entry.ts');
+  const repo = process.cwd();
+  fs.writeFileSync(
+    entryFile,
+    [
+      `export { PROFILE_FRAMES } from '${path.join(repo, 'shared/profileFrames.config.ts').replace(/\\/g, '/')}';`,
+      `export { ACHIEVEMENTS_CONFIG } from '${path.join(repo, 'shared/achievements.config.ts').replace(/\\/g, '/')}';`,
+      '',
+    ].join('\n')
+  );
+  const outfile = path.join(os.tmpdir(), 'hk-pf-configs.mjs');
+  esbuild.buildSync({ entryPoints: [entryFile], outfile, bundle: true, platform: 'node', format: 'esm', logLevel: 'error' });
+  return import(pathToFileURL(outfile).href);
+})();
+const framePrice = (key) => PROFILE_FRAMES.find((frame) => frame.key === key)?.cryptoCost ?? 0;
+const CYAN_PRICE = framePrice('frame_cyan_pulse');
+const MAGENTA_PRICE = framePrice('frame_magenta_breach');
+const ALL_ACHIEVEMENT_KEYS = ACHIEVEMENTS_CONFIG.map((achievement) => achievement.key);
 
 const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'hk-profile-frames-'));
 process.chdir(sandbox);
@@ -108,9 +145,9 @@ fs.writeFileSync(
   path.join(sandbox, '.local-db.json'),
   JSON.stringify({
     playersByTgId: {
-      [String(tgId)]: makeRecord(tgId),
+      [String(tgId)]: { ...makeRecord(tgId), achievements: [...ALL_ACHIEVEMENT_KEYS] },
       [String(lowLevelId)]: makeRecord(lowLevelId, { xp: 0 }),
-      [String(lowCryptoId)]: makeRecord(lowCryptoId, { cryptoAmount: 10 }),
+      [String(lowCryptoId)]: { ...makeRecord(lowCryptoId, { cryptoAmount: 10 }), achievements: [...ALL_ACHIEVEMENT_KEYS] },
       [String(staleEquippedId)]: staleEquippedRecord,
       [String(giftedFrameId)]: giftedFrameRecord,
       [String(staleGiftedFrameId)]: staleGiftedFrameRecord,
@@ -179,7 +216,7 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
   const bought = await api('skin', { action: 'profile_frame', skinKey: 'frame_cyan_pulse' });
   player = bought.player;
   check('рамка Cyan покупается', bought.ok === true, bought.error);
-  check('списана ровно цена Cyan Pulse', player.crypto === before - 480, `${before} → ${player.crypto}`);
+  check('списана ровно цена Cyan Pulse', player.crypto === before - CYAN_PRICE, `${before} → ${player.crypto} (цена ${CYAN_PRICE})`);
   check('рамка куплена навсегда и надета',
     player.stats.unlockedProfileFrames.includes('frame_cyan_pulse') &&
       player.stats.equippedProfileFrame === 'frame_cyan_pulse');
@@ -195,7 +232,8 @@ async function api(route, body = {}, seed = SEED, method = 'POST') {
   check('вторая рамка покупается', equipped.ok === true, equipped.error);
   check('вторая рамка надевается и Crypto списывается по цене',
     equipped.player.stats.equippedProfileFrame === 'frame_magenta_breach' &&
-      equipped.player.crypto === cryptoBeforeEquip - 620);
+      equipped.player.crypto === cryptoBeforeEquip - MAGENTA_PRICE,
+    `${cryptoBeforeEquip} → ${equipped.player.crypto} (цена ${MAGENTA_PRICE})`);
   const cleared = await api('skin', { action: 'profile_frame', skinKey: 'default' });
   check('рамку можно снять без удаления покупки',
     cleared.ok === true && !cleared.player.stats.equippedProfileFrame &&

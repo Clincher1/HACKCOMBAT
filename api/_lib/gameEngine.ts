@@ -28,6 +28,7 @@ import {
   economyModifiers,
   type LocationModifiers,
 } from '../../shared/locations';
+import { PRESTIGE_KEEPS, PRESTIGE_RESETS } from '../../shared/prestige.config';
 import {
   BASE_UPGRADES_CONFIG,
   CHIP_DAILY_CAP,
@@ -61,8 +62,10 @@ import {
   resolveTapAllowance,
   TAP_BURST_CAPACITY,
   ACTIVITY_HEARTBEAT_MAX_GAP_SEC,
+  diffGameDayKeys,
   getGameDayBoundsMs,
   getGameDayKey,
+  getGameDayKeyFromIso,
   normalizePetState,
   OFFLINE_PASSIVE_RATE_MULT,
   OFFLINE_REQUIRED_ACTIVE_SECONDS,
@@ -2303,6 +2306,10 @@ async function syncTimeAndRules(
   tryUnlock('triple_slots_20', updatedDerived.level >= 20);
   tryUnlock('desk_lvl_25', updatedDerived.level >= 25);
   tryUnlock('desk_lvl_30', updatedDerived.level >= 30);
+  // v6.6: цели «пустой середины» L28–L36.
+  tryUnlock('level_28', updatedDerived.level >= 28);
+  tryUnlock('level_32', updatedDerived.level >= 32);
+  tryUnlock('level_36', updatedDerived.level >= 36);
   tryUnlock('level_40', updatedDerived.level >= 40);
   tryUnlock('level_50', updatedDerived.level >= 50);
   tryUnlock('level_60', updatedDerived.level >= 60);
@@ -2997,7 +3004,9 @@ export async function handleBuyCard(
       card,
       currentLevel,
       prevDerived.totalCardLevels,
-      prevDerived.cardPriceDiscountPct
+      prevDerived.cardPriceDiscountPct,
+      // v6.6: цена привязана к доходу игрока — сервер и UI считают одним вызовом.
+      prevDerived.level
     );
     if (record.data < price) {
       throw new Error(`Недостаточно Data (нужно ${price.toLocaleString('ru-RU')})`);
@@ -3156,7 +3165,7 @@ export async function handleBuyBaseUpgrade(
       );
     }
 
-    const price = getBaseUpgradePrice(cfg, currentLevel);
+    const price = getBaseUpgradePrice(cfg, currentLevel, baseLevelNow);
     const chipCost = getBaseUpgradeChipCost(cfg, currentLevel);
 
     if (record.data < price) {
@@ -3794,15 +3803,22 @@ export async function handleDailyBonus(user: VerifiedTelegramUser,
     const nowMs = Date.now();
     const nowIso = new Date(nowMs).toISOString();
 
-    if (record.lastDailyClaim) {
-      const elapsedHours = (nowMs - new Date(record.lastDailyClaim).getTime()) / (1000 * 3600);
-      if (elapsedHours < 20) {
-        const waitHours = Math.ceil(20 - elapsedHours);
-        throw new Error(`Ежедневный бонус уже получен! Следующий через ~${waitHours} ч.`);
-      }
-      if (elapsedHours > 48) {
-        record.dailyStreak = 0;
-      }
+    // v6.6: ЕДИНЫЙ ДЕНЬ. Бонус выдаётся один раз в игровые сутки (00:00 МСК) —
+    // тем же ключом, что копилка, леденец, поручения и контракты. Раньше здесь
+    // был таймер «20 часов от прошлого клайма», и день игрока начинался трижды.
+    const todayKey = getGameDayKey(nowMs);
+    const lastClaimKey = getGameDayKeyFromIso(record.lastDailyClaim);
+    if (lastClaimKey === todayKey) {
+      const bounds = getGameDayBoundsMs(todayKey);
+      const hoursLeft = Math.max(1, Math.ceil((bounds.end - nowMs) / 3_600_000));
+      throw new Error(
+        `Ежедневный бонус уже получен сегодня! Следующий — после 00:00 МСК (через ~${hoursLeft} ч).`
+      );
+    }
+    // Пропуск целого дня — стрик обрывается. Разница считается по тем же
+    // игровым суткам, поэтому «вчера 23:59 → сегодня 00:01» — это ровно +1 день.
+    if (lastClaimKey && diffGameDayKeys(lastClaimKey, todayKey) > 1) {
+      record.dailyStreak = 0;
     }
 
     const nextStreak = (record.dailyStreak % 7) + 1;
@@ -4613,11 +4629,16 @@ export async function handleGlobalHackPrestige(
       }
     }
 
+    // v6.6: текст собирается из shared/prestige.config.ts — того же списка,
+    // по которому сбрасывается запись. Сервер не может «забыть» упомянуть что-то.
     alerts.push({
       id: crypto.randomUUID(),
       type: 'achievement',
       title: `🌐 GLOBAL HACK #${record.prestigeCount} ВЫПОЛНЕН!`,
-      message: `Постоянный множитель дохода теперь ×${getPrestigeMultiplier(record.prestigeCount)}! Цикл ${record.prestigeCount} завершён. Crypto, достижения, скины, Rep, питомцы, База и Чипы сохранены!`,
+      message:
+        `Сброшено: ${PRESTIGE_RESETS.join(', ')}. ` +
+        `Сохранено: ${PRESTIGE_KEEPS.join(', ')}. ` +
+        `Постоянный множитель дохода теперь ×${getPrestigeMultiplier(record.prestigeCount)}.`,
     });
 
     await syncTimeAndRules(record, mode, alerts);

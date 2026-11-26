@@ -1,7 +1,8 @@
+import { anchorPrice, hoursForBaseLevel } from './pricing.config';
 import type { BaseUpgradeConfig } from './types';
 
 // ============================================================================
-// «БАЗА» — ПАССИВНЫЕ ПОКУПКИ ИГРОКА (10 улучшений × 15 уровней)
+// «БАЗА» — ПАССИВНЫЕ ПОКУПКИ ИГРОКА (12 улучшений × 15 уровней)
 // ----------------------------------------------------------------------------
 // В отличие от карточек, «База» НЕ сбрасывается Global Hack Престижем —
 // это долгая инвестиция в комфорт между перерождениями.
@@ -140,15 +141,58 @@ export const BASE_UPGRADES_CONFIG: BaseUpgradeConfig[] = [
     baseChipCost: 5,
     effectPerLevel: 0.0067,
   },
+  // ==========================================================================
+  // v6.6: МИДГЕЙМ L34–L38. После 30 уровня «База» упиралась в потолок, и вплоть
+  // до престижа (L50) новых покупок не появлялось. Два улучшения используют уже
+  // существующие эффекты (награда за контракты, реген CPU) — новой механики нет.
+  // ==========================================================================
+  {
+    key: 'neural_coprocessor',
+    requiredLevel: 34,
+    name: 'Нейро-сопроцессор',
+    description: 'Считает вероятности исхода раньше, чем ты нажмёшь «старт».',
+    effectLabel: '+0.67% к награде за контракты за уровень',
+    icon: '🧠',
+    maxLevel: 15,
+    basePrice: 2_400_000,
+    priceGrowth: 1.9,
+    baseChipCost: 5,
+    effectPerLevel: 0.0067,
+  },
+  {
+    key: 'quantum_cooler',
+    requiredLevel: 38,
+    name: 'Квантовый охладитель',
+    description: 'Минус градус — плюс заряд. Физика против жары.',
+    effectLabel: '+1% к скорости регена CPU Energy за уровень',
+    icon: '❄️',
+    maxLevel: 15,
+    basePrice: 3_200_000,
+    priceGrowth: 1.9,
+    baseChipCost: 5,
+    effectPerLevel: 0.01,
+  },
 ];
 
 export function getBaseUpgradeConfig(key: string): BaseUpgradeConfig | undefined {
   return BASE_UPGRADES_CONFIG.find((u) => u.key === key);
 }
 
-export function getBaseUpgradePrice(config: BaseUpgradeConfig, currentLevel: number): number {
+/**
+ * Цена уровня «Базы».
+ *
+ * v6.6: та же привязка к доходу, что и у карточек — цена не может превышать
+ * «часы дохода» (2.5 ч на первом уровне → 24 ч на 15-м). Раньше последние
+ * уровни стоили десятки миллиардов при доходе в сотни миллионов в час.
+ */
+export function getBaseUpgradePrice(
+  config: BaseUpgradeConfig,
+  currentLevel: number,
+  playerLevel?: number
+): number {
   const safeLevel = Math.max(0, Math.min(config.maxLevel, Math.floor(Number(currentLevel) || 0)));
-  return Math.floor(config.basePrice * Math.pow(config.priceGrowth, safeLevel));
+  const nominal = Math.floor(config.basePrice * Math.pow(config.priceGrowth, safeLevel));
+  return anchorPrice(nominal, hoursForBaseLevel(safeLevel), playerLevel);
 }
 
 export function getBaseUpgradeChipCost(config: BaseUpgradeConfig, currentLevel: number): number {

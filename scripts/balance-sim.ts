@@ -267,7 +267,7 @@ function buyCards(): void {
       const level = state.cards[card.key] ?? 0;
       if (level >= maxLevel || level >= MAX_CARD_LEVEL) continue;
       if (card.minLevel && d.level < card.minLevel) continue;
-      const price = getCardPrice(card, level, total, d.cardPriceDiscountPct);
+      const price = getCardPrice(card, level, total, d.cardPriceDiscountPct, d.level);
       if (price > state.data) continue;
       const gain = card.dataPerHourPerLevel * Math.pow(CARD_LEVEL_INCOME_GROWTH, level);
       const score = gain / Math.max(1, price);

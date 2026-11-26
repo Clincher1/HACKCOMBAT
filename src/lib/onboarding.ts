@@ -96,7 +96,8 @@ export function pickUpgradeSuggestion(player: PlayerState): UpgradeSuggestion | 
       card,
       player.cards[card.key] ?? 0,
       player.derived.totalCardLevels,
-      player.derived.cardPriceDiscountPct
+      player.derived.cardPriceDiscountPct,
+      player.derived.level
     );
     const entry: UpgradeSuggestion = { card, price, affordable: player.data >= price };
     if (cheapest === null || price < cheapest.price) cheapest = entry;

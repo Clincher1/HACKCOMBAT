@@ -1,6 +1,15 @@
 import type { ProfileFrameConfig } from './types';
 
 /** Профильные рамки — чистая витрина, без игровых коэффициентов. */
+/**
+ * Цены в Crypto (v6.6).
+ *
+ * Было: 480 … 35 000, суммарно 86 730. Поток Crypto у активного игрока —
+ * ~20/сутки (стрик + бонус + 35% дроп с серых), то есть топ-рамка стоила
+ * ~1 750 дней. Стало: 60 … 520, суммарно 2 880 — топ ≈ 26 дней активной игры
+ * (~3.7 недели), первые рамки — 3–5 дней. Ориентир «недели, не месяцы»
+ * держится и для самого дорогого предмета витрины.
+ */
 export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
   {
     key: 'default',
@@ -19,7 +28,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     background: 'linear-gradient(135deg, rgba(0,240,255,0.26), rgba(14,116,144,0.18))',
     glow: '0 0 14px rgba(0, 240, 255, 0.48)',
     source: 'Магазин · базовая палитра',
-    cryptoCost: 480,
+    cryptoCost: 60,
     requiredLevel: 30,
   },
   {
@@ -30,7 +39,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     background: 'linear-gradient(135deg, rgba(255,0,160,0.28), rgba(126,34,206,0.2))',
     glow: '0 0 14px rgba(255, 0, 160, 0.46)',
     source: 'Магазин · базовая палитра',
-    cryptoCost: 620,
+    cryptoCost: 80,
     requiredLevel: 30,
   },
   {
@@ -41,7 +50,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     background: 'linear-gradient(135deg, rgba(125,255,0,0.24), rgba(20,83,45,0.2))',
     glow: '0 0 14px rgba(125, 255, 0, 0.42)',
     source: 'Магазин · базовая палитра',
-    cryptoCost: 760,
+    cryptoCost: 100,
     requiredLevel: 30,
   },
   {
@@ -52,7 +61,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     background: 'linear-gradient(135deg, rgba(255,183,3,0.3), rgba(146,64,14,0.2))',
     glow: '0 0 15px rgba(255, 183, 3, 0.46)',
     source: 'Магазин · базовая палитра',
-    cryptoCost: 920,
+    cryptoCost: 120,
     requiredLevel: 30,
   },
   {
@@ -63,7 +72,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     background: 'linear-gradient(135deg, rgba(192,132,252,0.28), rgba(76,29,149,0.24))',
     glow: '0 0 16px rgba(192, 132, 252, 0.5)',
     source: 'Магазин · базовая палитра',
-    cryptoCost: 1_100,
+    cryptoCost: 150,
     requiredLevel: 30,
   },
   {
@@ -74,7 +83,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     background: 'linear-gradient(135deg, rgba(244,63,94,0.3), rgba(127,29,29,0.24))',
     glow: '0 0 16px rgba(244, 63, 94, 0.48)',
     source: 'Магазин · базовая палитра',
-    cryptoCost: 1_350,
+    cryptoCost: 180,
     requiredLevel: 30,
   },
   {
@@ -86,7 +95,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     glow: '0 0 18px rgba(103, 232, 249, 0.56), inset 0 0 12px rgba(244, 114, 182, 0.18)',
     borderImage: 'linear-gradient(135deg, #67e8f9, #c084fc, #f472b6, #67e8f9) 1',
     source: 'Магазин · элитный сектор',
-    cryptoCost: 2_500,
+    cryptoCost: 220,
     requiredLevel: 45,
   },
   {
@@ -98,7 +107,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     glow: '0 0 20px rgba(186, 230, 253, 0.5), inset 0 0 14px rgba(56, 189, 248, 0.18)',
     borderImage: 'linear-gradient(135deg, #0f172a, #bae6fd, #38bdf8, #0f172a) 1',
     source: 'Магазин · элитный сектор',
-    cryptoCost: 4_500,
+    cryptoCost: 260,
     requiredLevel: 60,
   },
   {
@@ -110,7 +119,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     glow: '0 0 22px rgba(190, 242, 100, 0.56), inset 0 0 16px rgba(34, 211, 238, 0.2)',
     borderImage: 'linear-gradient(135deg, #22d3ee, #bef264, #c084fc, #22d3ee) 1',
     source: 'Магазин · элитный сектор',
-    cryptoCost: 7_500,
+    cryptoCost: 320,
     requiredLevel: 80,
   },
   {
@@ -122,7 +131,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     glow: '0 0 24px rgba(251, 191, 36, 0.62), inset 0 0 16px rgba(254, 240, 138, 0.2)',
     borderImage: 'linear-gradient(135deg, #92400e, #fbbf24, #fef3c7, #f59e0b, #92400e) 1',
     source: 'Магазин · элитный сектор',
-    cryptoCost: 12_000,
+    cryptoCost: 400,
     requiredLevel: 105,
   },
   {
@@ -134,7 +143,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     glow: '0 0 26px rgba(216, 180, 254, 0.68), inset 0 0 18px rgba(103, 232, 249, 0.2)',
     borderImage: 'linear-gradient(135deg, #4c1d95, #e9d5ff, #67e8f9, #a855f7, #4c1d95) 1',
     source: 'Магазин · элитный сектор',
-    cryptoCost: 20_000,
+    cryptoCost: 470,
     requiredLevel: 135,
   },
   {
@@ -146,7 +155,7 @@ export const PROFILE_FRAMES: readonly ProfileFrameConfig[] = [
     glow: '0 0 30px rgba(254, 240, 138, 0.7), inset 0 0 18px rgba(255,255,255,0.22)',
     borderImage: 'linear-gradient(135deg, #fef08a, #f59e0b, #f472b6, #67e8f9, #fef08a) 1',
     source: 'Магазин · элитный сектор',
-    cryptoCost: 35_000,
+    cryptoCost: 520,
     requiredLevel: 180,
   },
   {
