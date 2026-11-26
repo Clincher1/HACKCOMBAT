@@ -306,6 +306,109 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     globalThis.setTimeout = realSetTimeout;
   }
 
+  // ==========================================================================
+  // v5.6 — DEEP LINKS ПО TELEGRAM ID (?start=ref_<tgId>)
+  // ==========================================================================
+  console.log('\n--- v5.6: ссылки по Telegram ID ---');
+
+  const V6 = 960000001;
+  await tgInit(V6, undefined);
+  const v6Info = await tgReferral(V6);
+  check(
+    'tgLink имеет формат ?start=ref_<tgId>',
+    String(v6Info.tgLink) === `https://t.me/hk_test_bot?start=ref_${V6}`,
+    v6Info.tgLink
+  );
+  check('недельный кап по ссылке = 3', v6Info.tgWeeklyCap === 3, v6Info.tgWeeklyCap);
+  check('флаг referralV1 виден клиенту', v6Info.referralV1 === true);
+
+  const v6Init = await tgInit(V6, undefined);
+  check('init отдаёт referral.tgLink', String(v6Init.referral?.tgLink).includes(`ref_${V6}`), v6Init.referral?.tgLink);
+  check('журнал приглашений пуст у нового игрока', (v6Init.referral?.ledger ?? []).length === 0);
+
+  // Атрибуция: новый игрок по ссылке на V6
+  const F1_V6 = 960000010;
+  const f1 = await tgInit(F1_V6, `ref_${V6}`);
+  check('новый игрок привязан по tgId-ссылке', f1.player?.stats?.referredByTgId === V6, f1.player?.stats?.referredByTgId);
+  const ledger = f1.player?.stats?.referrals ?? [];
+  check('в stats.referrals появилась запись', ledger.length === 1 && ledger[0]?.referrerTgId === V6, JSON.stringify(ledger));
+  check('статус записи — attributed (сеанс ещё не засчитан)', ledger[0]?.status === 'attributed', ledger[0]?.status);
+  check('приглашённый получил welcome-бонус', (f1.player?.data ?? 0) >= 1000, f1.player?.data);
+  check('welcome-бонус включает чип', (f1.player?.chips ?? 0) >= 1, f1.player?.chips);
+  check(
+    'игрок видит подтверждение приглашения',
+    (f1.alerts ?? []).some((a) => String(a.title ?? '').includes('Приглашение принято'))
+  );
+
+  // Идемпотентность: повторный запуск с той же ссылкой ничего не меняет
+  const f1Again = await tgInit(F1_V6, `ref_${V6}`);
+  const ledgerAgain = f1Again.player?.stats?.referrals ?? [];
+  check('повторный init не дублирует привязку', ledgerAgain.length === 1, ledgerAgain.length);
+  check('welcome-бонус не выдаётся второй раз', (f1Again.player?.data ?? 0) === (f1.player?.data ?? 0), `${f1Again.player?.data} vs ${f1.player?.data}`);
+
+  // Self-referral по tgId
+  const SELF_V6 = 960000020;
+  const selfInit = await tgInit(SELF_V6, `ref_${SELF_V6}`);
+  check('self-referral не привязывается', !selfInit.player?.stats?.referredByTgId);
+  check(
+    'self-referral объяснён игроку',
+    (selfInit.alerts ?? []).some((a) => String(a.message ?? '').includes('самого себя'))
+  );
+
+  // Гость (синтетический отрицательный id) — рефералка не работает
+  const guestInit = await tgInit(-777, `ref_${V6}`);
+  check('гость не привязывается к рефереру', !guestInit.player?.stats?.referredByTgId);
+
+  // Прокачанный игрок: приглашение не засчитывается
+  const OLD_V6 = 960000030;
+  await tgInit(OLD_V6, undefined);
+  await tgPost(OLD_V6, 'click', { clicks: 5 });
+  const oldInit = await tgInit(OLD_V6, `ref_${V6}`);
+  check('аккаунт с прогрессом не привязывается', !oldInit.player?.stats?.referredByTgId);
+
+  // Недельный кап K = 3 у одного реферера
+  const CAP_V6 = 960000040;
+  await tgInit(CAP_V6, undefined);
+  await tgReferral(CAP_V6);
+  const capIds = [960000041, 960000042, 960000043, 960000044];
+  const capResults = [];
+  let capRejectAlerts = [];
+  for (const id of capIds) {
+    const res = await tgInit(id, `ref_${CAP_V6}`);
+    capResults.push(Boolean(res.player?.stats?.referredByTgId));
+    if (!res.player?.stats?.referredByTgId) capRejectAlerts = res.alerts ?? [];
+    ipCounter += 3;
+  }
+  check(
+    'недельный кап 3 держит четвёртого друга',
+    capResults.filter(Boolean).length === 3,
+    JSON.stringify(capResults)
+  );
+  check(
+    'отказ по капу объяснён игроку',
+    capRejectAlerts.some((a) => String(a.message ?? '').includes('недельный')),
+    capRejectAlerts.map((a) => a.message).join(' | ')
+  );
+
+  // Событие referral_first_session принимается /api/track (без миграции)
+  const trackOk = await tgPost(F1_V6, 'track', { event: 'referral_first_session', meta: { referrerTgId: V6 } });
+  check('referral_first_session принят (204)', trackOk._status === 204, `${trackOk._status} ${trackOk.error ?? ''}`);
+  const trackBad = await tgPost(F1_V6, 'track', { event: 'drop_everything' });
+  check('постороннее событие по-прежнему отклоняется', trackBad._status === 400, trackBad._status);
+
+  // Флаг выключен ⇒ инертность
+  process.env.REFERRAL_V1 = 'false';
+  try {
+    const offInfo = await tgReferral(V6);
+    check('при REFERRAL_V1=false tgLink не выдаётся', !offInfo.tgLink);
+    const OFF_FRIEND = 960000050;
+    const offInit = await tgInit(OFF_FRIEND, `ref_${V6}`);
+    check('при флаге off атрибуция не пишется', (offInit.referral?.ledger ?? []).length === 0);
+    check('при флаге off welcome-бонус не выдаётся', (offInit.player?.stats?.refereeWelcomeGranted ?? false) === false);
+  } finally {
+    delete process.env.REFERRAL_V1;
+  }
+
   console.log(`\nИТОГО: ${pass} pass / ${fail} fail`);
   if (fail > 0) {
     console.log('Провалы:', failures.join(', '));

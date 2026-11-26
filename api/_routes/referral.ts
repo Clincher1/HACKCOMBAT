@@ -5,6 +5,8 @@ import {
   REFERRAL_QUALIFY_ACTIVE_SECONDS,
 } from '../../shared/referral.config';
 import { buildReferralLink, getOrCreateReferralCode, getReferralStats } from '../_lib/referrals';
+import { buildReferralTgLink, REFERRAL_TG_WEEKLY_CAP } from '../../shared/referral.config';
+import { isReferralV1Enabled } from '../../shared/config';
 import { getBotUsername } from '../_lib/donations';
 import {
   authenticateRequest,
@@ -39,6 +41,14 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
     const botUsername = await getBotUsername();
     const stats = await getReferralStats(user.tgId, code);
 
+    // v5.6: ссылка по Telegram ID. Гостям (tgId <= 0) она не нужна и не
+    // строится — приглашать нечем, а «ref_0» сломал бы атрибуцию.
+    const referralV1 = isReferralV1Enabled();
+    const tgLink =
+      referralV1 && Number.isSafeInteger(user.tgId) && user.tgId > 0
+        ? buildReferralTgLink(botUsername, user.tgId)
+        : null;
+
     return sendJson(res, 200, {
       ok: true,
       code,
@@ -49,6 +59,9 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
       qualifySeconds: REFERRAL_QUALIFY_ACTIVE_SECONDS,
       dailyLimit: REFERRAL_DAILY_LIMIT,
       weeklyLimit: REFERRAL_WEEKLY_LIMIT,
+      tgLink,
+      tgWeeklyCap: REFERRAL_TG_WEEKLY_CAP,
+      referralV1,
     });
   } catch (err) {
     return sendJson(res, 400, {

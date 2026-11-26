@@ -464,6 +464,64 @@ export interface PlayerProgressStats {
   lastActiveAt?: string | null;
   /** v3.2: одноразовая поблажка для сейвов, созданных до появления счётчиков. */
   offlineGraceUsed?: boolean;
+  /**
+   * v5.6: время последнего захода (ISO). Пишется в init, читается на следующем
+   * init — из него считается оффлайн «пока тебя не было». Новой колонки в
+   * players не нужно: поле живёт в существующем stats jsonb.
+   */
+  lastSeenAt?: string | null;
+  /**
+   * v5.6: начисленный, но ещё не забранный оффлайн. Модал welcome-back
+   * показывает эту сумму, а реальную выплату делает только сервер по
+   * действию claim_offline (идемпотентно — повторный клайм вернёт 0).
+   */
+  pendingOffline?: PendingOfflineEarnings | null;
+  /** v5.6: когда последний раз забирали оффлайн (ISO) — «раз за сессию». */
+  lastOfflineClaimAt?: string | null;
+  /** v5.6: UTC-дата последнего дневного клайма ('YYYY-MM-DD'), только сервер пишет. */
+  lastDailyClaim?: string | null;
+  /** v5.6: длина стрика 1..7 (зеркало players.daily_streak для UI без нового запроса). */
+  dailyStreak?: number;
+  /** v5.6: какая клетка streak bar — сегодняшняя цель (1..7). */
+  dailyStreakDay?: number;
+  /** v5.6: бонус за сегодняшний UTC-день уже забран. */
+  dailyClaimedToday?: boolean;
+  /** v5.6: игрок сам включил напоминания в Telegram (default OFF). */
+  reminderOptIn?: boolean;
+  /** v5.6: последнее отправленное напоминание (ISO) — серверный rate limit 24 ч. */
+  lastReminderSentAt?: string | null;
+  /** v5.6: журнал реферальных привязок текущего игрока (см. shared/referral.config.ts). */
+  referrals?: ReferralLedgerEntry[];
+  /** v5.6: кто пригласил этого игрока (0/undefined = пришёл сам). */
+  referredByTgId?: number;
+  /** v5.6: когда приглашённый сыграл первый верифицированный сеанс (ISO). */
+  referralQualifiedAt?: string | null;
+  /** v5.6: welcome-бонус приглашённому уже выдан (одноразово). */
+  refereeWelcomeGranted?: boolean;
+}
+
+/** v5.6: запись о приглашении в stats.referrals (без новой таблицы). */
+export interface ReferralLedgerEntry {
+  /** Telegram ID пригласившего. */
+  referrerTgId: number;
+  /** Telegram ID приглашённого (в его собственной записи совпадает с owner). */
+  refereeTgId: number;
+  /** Когда привязка создана (ISO). */
+  createdAt: string;
+  /** 'attributed' — привязан, 'qualified' — сыграл первый сеанс. */
+  status: 'attributed' | 'qualified';
+  /** Когда приглашённый квалифицировался (ISO) — null, пока не сыграл. */
+  qualifiedAt?: string | null;
+}
+
+/** v5.6: оффлайн-копилка, посчитанная на init, но ещё не выплаченная. */
+export interface PendingOfflineEarnings {
+  /** Сколько Data начислено за отсутствие (уже с ×0.5 и капом 8 ч). */
+  data: number;
+  /** Сколько секунд игрока не было. */
+  awaySeconds: number;
+  /** Когда посчитали (ISO) — старые pending не платим. */
+  computedAt: string;
 }
 
 export interface DerivedStats {
@@ -596,4 +654,41 @@ export interface ApiSyncResponse {
   appliedClicks?: number;
   alerts?: GameAlert[];
   storageMode: 'supabase' | 'memory-fallback';
+  /**
+   * v5.6: снимок retention-петли в том же init/sync-ответе — нового эндпоинта
+   * для «пока тебя не было» и streak bar не нужно.
+   */
+  retention?: RetentionSnapshotPayload;
+  /** v5.6: реферальная ссылка по tgId и журнал приглашений. */
+  referral?: ReferralPayload;
+}
+
+/** v5.6: то, что сервер говорит клиенту про оффлайн/стрик/напоминания. */
+export interface RetentionSnapshotPayload {
+  enabled: boolean;
+  lastSeenAt: string | null;
+  pendingOffline: PendingOfflineEarnings | null;
+  offlineCapHours: number;
+  lastDailyClaim: string | null;
+  dailyStreak: number;
+  dailyStreakDay: number;
+  dailyClaimedToday: boolean;
+  reminderOptIn: boolean;
+  /** Есть ли TELEGRAM_BOT_TOKEN: без него UI показывает заглушку. */
+  reminderAvailable: boolean;
+}
+
+/** v5.6: реферальный блок профиля. */
+export interface ReferralPayload {
+  enabled: boolean;
+  /** https://t.me/<bot>?start=ref_<tgId> */
+  tgLink: string | null;
+  /** Кодовая ссылка v3.5 (?startapp=ref_<code>) — оставлена для совместимости. */
+  codeLink?: string | null;
+  referrerTgId: number | null;
+  referralQualifiedAt: string | null;
+  ledger: ReferralLedgerEntry[];
+  /** Недельный кап K и сколько уже приглашено за 7 суток. */
+  weeklyCap: number;
+  rules: string;
 }

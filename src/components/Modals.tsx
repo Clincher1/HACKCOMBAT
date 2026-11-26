@@ -19,6 +19,7 @@ export const ModalsAndOverlays: React.FC = () => {
     setSkinModalOpen,
     offlineModalEarned,
     offlineModalTaps,
+    offlineModalRetention,
     dismissOfflineModal,
     claimDailyBonus,
     buyOrEquipSkin,
@@ -58,12 +59,12 @@ export const ModalsAndOverlays: React.FC = () => {
             >
               <Sparkles className="w-10 h-10 text-[var(--ui-success)] mx-auto mb-2" />
               <h3 className="font-display text-lg font-extrabold text-white">
-                Пассивный майнинг завершён!
+                {offlineModalRetention ? 'Пока тебя не было…' : 'Пассивный майнинг завершён!'}
               </h3>
               <p className="text-xs text-slate-300 mt-1">
-                Пока вы были оффлайн, ваши серверы и команда заработали. Только Data — опыт, Crypto
-                и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те
-                сутки, где вы наиграли 8 минут.
+                {offlineModalRetention
+                  ? 'Стол работал без тебя: карточки платили половину обычной ставки, максимум 8 часов. Только Data — опыт, Crypto и чипы падают лишь за игру.'
+                  : 'Пока вы были оффлайн, ваши серверы и команда заработали. Только Data — опыт, Crypto и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те сутки, где вы наиграли 8 минут.'}
               </p>
               <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 font-display text-2xl font-black text-[var(--ui-success)]">
                 +{formatCompact(offlineModalEarned)} DATA
@@ -74,14 +75,16 @@ export const ModalsAndOverlays: React.FC = () => {
                 </p>
               )}
               <p className="text-[10px] text-slate-500 mb-3">
-                карточки в оффлайне платят 50% от обычной ставки
+                {offlineModalRetention
+                  ? 'забрать можно один раз за сессию — копилка очистится'
+                  : 'карточки в оффлайне платят 50% от обычной ставки'}
               </p>
               <button
                 type="button"
                 onClick={dismissOfflineModal}
                 className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-display font-bold text-sm cursor-pointer"
               >
-                Забрать и продолжить
+                {offlineModalRetention ? 'Collect — забрать Data' : 'Забрать и продолжить'}
               </button>
             </motion.div>
           </motion.div>

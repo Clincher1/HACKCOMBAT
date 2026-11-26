@@ -4,7 +4,7 @@ import path from 'node:path';
 import { ACHIEVEMENTS_CONFIG, ACHIEVEMENTS_BY_KEY } from '../../shared/achievements.config';
 import { BACKDROPS_CONFIG, isBackdropKey } from '../../shared/backdrops.config';
 import { isNewbieProtectionActive, newPlayerSnapshotFromCounters } from '../../shared/onboarding.config';
-import { isWorldV2Enabled } from '../../shared/config';
+import { isReferralV1Enabled, isRetentionV1Enabled, isWorldV2Enabled } from '../../shared/config';
 import {
   describeLockedLocation,
   getLocation,
@@ -122,12 +122,40 @@ import type {
   PublicProfileItem,
   PublicProfileResponse,
   PlayerInventoryState,
+  PendingOfflineEarnings,
+  ReferralLedgerEntry,
+  ReferralPayload,
   SkinCategory,
 } from '../../shared/types';
 import { getSupabaseAdmin } from './supabaseAdmin';
 import { ensurePermanentProfileFrameGifts } from './profileFrameGifts';
 import { ensurePermanentProfileInventoryGifts } from './profileInventoryGifts';
-import { attributeReferral, payoutReferrals, qualifyInvitee } from './referrals';
+import {
+  attributeReferral,
+  attributeTgIdReferral,
+  getReferralLedger,
+  markReferralQualified,
+  payoutReferrals,
+  qualifyInvitee,
+} from './referrals';
+import {
+  applyOfflineOnInit,
+  buildRetentionSnapshot,
+  claimOfflineEarnings,
+  mirrorDailyStreak,
+  maybeSendDailyReminder,
+  recordDailyClaim,
+  setReminderOptIn,
+  touchLastSeen,
+} from './retention';
+import {
+  buildReferralTgLink,
+  REFERRAL_FALLBACK_BOT_USERNAME,
+  REFERRAL_QUALIFY_ACTIVE_SECONDS,
+  REFERRAL_TG_RULES_SHORT,
+  REFERRAL_TG_WEEKLY_CAP,
+} from '../../shared/referral.config';
+import { getBotToken, getBotUsername } from './donations';
 import type { VerifiedTelegramUser } from './telegramAuth';
 
 interface StoredPet {
@@ -547,7 +575,84 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         ? src.lastActiveAt
         : null,
     offlineGraceUsed: src.offlineGraceUsed === true,
+    // ------------------------------------------------------------------
+    // v5.6: retention-поля. normalizeStats — белый список, поэтому каждое
+    // новое поле обязано быть здесь, иначе оно молча теряется при загрузке
+    // (и «пока тебя не было» никогда не сработает).
+    // ------------------------------------------------------------------
+    lastSeenAt: isoOrNull(src.lastSeenAt),
+    pendingOffline: normalizePendingOffline(src.pendingOffline),
+    lastOfflineClaimAt: isoOrNull(src.lastOfflineClaimAt),
+    lastDailyClaim: utcDayOrNull(src.lastDailyClaim),
+    dailyStreak: num(src.dailyStreak, 7),
+    dailyStreakDay: num(src.dailyStreakDay, 7),
+    dailyClaimedToday: src.dailyClaimedToday === true,
+    reminderOptIn: src.reminderOptIn === true,
+    lastReminderSentAt: isoOrNull(src.lastReminderSentAt),
+    referrals: normalizeReferralLedger(src.referrals),
+    referredByTgId: safeTgId(src.referredByTgId),
+    referralQualifiedAt: isoOrNull(src.referralQualifiedAt),
+    refereeWelcomeGranted: src.refereeWelcomeGranted === true,
   };
+}
+
+/**
+ * v5.6: ISO-строка или null. Битые даты из jsonb не должны попадать в движок:
+ * из них считается оффлайн и кулдаун напоминания.
+ */
+function isoOrNull(value: unknown): string | null {
+  if (typeof value !== 'string' || value.length > 40) return null;
+  return Number.isNaN(new Date(value).getTime()) ? null : value;
+}
+
+/** v5.6: UTC-дата 'YYYY-MM-DD' или null. */
+function utcDayOrNull(value: unknown): string | null {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+}
+
+/** v5.6: Telegram ID пригласившего: только положительный safe-integer. */
+function safeTgId(value: unknown): number | undefined {
+  const n = Number(value);
+  return Number.isSafeInteger(n) && n > 0 ? n : undefined;
+}
+
+/** v5.6: незабранный оффлайн. Отрицательные и «бесконечные» суммы отсекаем. */
+function normalizePendingOffline(value: unknown): PendingOfflineEarnings | null {
+  if (!value || typeof value !== 'object') return null;
+  const src = value as Record<string, unknown>;
+  const data = Number(src.data);
+  if (!Number.isFinite(data) || data <= 0) return null;
+  const away = Number(src.awaySeconds);
+  const computedAt = isoOrNull(src.computedAt);
+  if (!computedAt) return null;
+  return {
+    data: Math.min(data, Number.MAX_SAFE_INTEGER),
+    awaySeconds: Number.isFinite(away) && away > 0 ? Math.min(Math.floor(away), 400 * 86_400) : 0,
+    computedAt,
+  };
+}
+
+/** v5.6: журнал приглашений — максимум 50 записей, только валидные tgId. */
+function normalizeReferralLedger(value: unknown): ReferralLedgerEntry[] {
+  if (!Array.isArray(value)) return [];
+  const out: ReferralLedgerEntry[] = [];
+  for (const raw of value.slice(0, 50)) {
+    if (!raw || typeof raw !== 'object') continue;
+    const entry = raw as Record<string, unknown>;
+    const referrerTgId = safeTgId(entry.referrerTgId);
+    const refereeTgId = safeTgId(entry.refereeTgId);
+    const createdAt = isoOrNull(entry.createdAt);
+    if (!referrerTgId || !refereeTgId || !createdAt) continue;
+    const status = entry.status === 'qualified' ? 'qualified' : 'attributed';
+    out.push({
+      referrerTgId,
+      refereeTgId,
+      createdAt,
+      status,
+      qualifiedAt: isoOrNull(entry.qualifiedAt),
+    });
+  }
+  return out;
 }
 
 interface InventoryRecordLike {
@@ -1662,7 +1767,13 @@ async function commitPurchaseAtomic(
 async function syncTimeAndRules(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
-  alerts: GameAlert[]
+  alerts: GameAlert[],
+  /**
+   * v5.6: init-контекст. skipLegacyOffline=true означает, что за это отсутствие
+   * платит новая retention-копилка (stats.pendingOffline + claim_offline), а
+   * старая выплата v3.2 за этот же отрезок молчит — двойной оплаты быть не может.
+   */
+  opts?: { skipLegacyOffline?: boolean }
 ): Promise<{ offlineEarned: number; offlineTaps: number }> {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
@@ -1719,7 +1830,7 @@ async function syncTimeAndRules(
   const lastPassiveMs = new Date(record.lastPassiveClaim).getTime();
   const passiveWindow =
     Number.isNaN(lastPassiveMs) || derived.dataPerHour <= 0 ? null : paidWindow(lastPassiveMs);
-  if (passiveWindow) {
+  if (passiveWindow && !opts?.skipLegacyOffline) {
     const elapsedSec = Math.min(derived.offlineCapSeconds, (passiveWindow.to - passiveWindow.from) / 1000);
     if (elapsedSec >= 2) {
       const ratePerHour = derived.dataPerHour * OFFLINE_PASSIVE_RATE_MULT;
@@ -1738,7 +1849,7 @@ async function syncTimeAndRules(
   const lastTapIso = record.stats.lastTapClaimAt ?? null;
   const lastTapMs = lastTapIso ? new Date(lastTapIso).getTime() : nowMs;
   const tapWindow = !lastTapIso || Number.isNaN(lastTapMs) ? null : paidWindow(lastTapMs);
-  if (tapWindow && derived.clickPower > 0) {
+  if (tapWindow && derived.clickPower > 0 && !opts?.skipLegacyOffline) {
     const tapSec = Math.min(OFFLINE_TAP_CAP_SECONDS, (tapWindow.to - tapWindow.from) / 1000);
     const taps = Math.floor(tapSec * OFFLINE_TAP_RATE_PER_SEC);
     if (taps > 0) {
@@ -1756,6 +1867,7 @@ async function syncTimeAndRules(
 
   // 2.3. Если оффлайн не заплатил из-за короткой игры — честно объясняем почему.
   const missedPayout =
+    !opts?.skipLegacyOffline &&
     !paidWindow(lastPassiveMs) &&
     !Number.isNaN(lastPassiveMs) &&
     nowMs - lastPassiveMs > 10 * 60 * 1000 &&
@@ -1815,6 +1927,15 @@ async function syncTimeAndRules(
   // Так нет записи в чужую строку под чужим мьютексом.
   // ==========================================================================
   await qualifyInvitee(record, derived.level);
+  // v5.6: журнал приглашённого помечает «первый сеанс засчитан» ТОЛЬКО когда
+  // друг реально наиграл свои 8 минут (тот же порог, что у выплаты рефереру).
+  // Иначе статус «засчитан» появлялся бы в момент перехода по ссылке.
+  if (
+    record.stats.referredByTgId &&
+    (record.stats.activeSecondsToday ?? 0) >= REFERRAL_QUALIFY_ACTIVE_SECONDS
+  ) {
+    markReferralQualified(record);
+  }
   const refPayout = await payoutReferrals(record, derived.level, derived.dataPerHour);
   if (refPayout.count > 0) {
     alerts.push({
@@ -1822,8 +1943,9 @@ async function syncTimeAndRules(
       type: 'success',
       title: `🔗 Друг засчитан: +${Math.round(refPayout.xp)} XP`,
       message:
-        `Тебе начислено ${Math.round(refPayout.data).toLocaleString('ru-RU')} Data за ` +
-        `${refPayout.count} приглашённ${refPayout.count === 1 ? 'ого' : 'ых'}. Спасибо, что зовёшь людей!`,
+        `Тебе начислено ${Math.round(refPayout.data).toLocaleString('ru-RU')} Data` +
+        (refPayout.chips > 0 ? ` и ${refPayout.chips} ⚙️ Чипов` : '') +
+        ` за ${refPayout.count} приглашённ${refPayout.count === 1 ? 'ого' : 'ых'}. Спасибо, что зовёшь людей!`,
     });
   }
 
@@ -2150,6 +2272,38 @@ function buildResponse(
     alerts: alerts.length > 0 ? alerts : undefined,
     appliedClicks,
     storageMode: mode,
+    // v5.6: retention-снимок и реферальный блок едут тем же ответом —
+    // отдельных запросов на старте приложения не появляется.
+    retention: buildRetentionSnapshot(record),
+    referral: buildReferralPayload(record),
+  };
+}
+
+/**
+ * v5.6: синхронный юзернейм бота для ссылки приглашения.
+ * getBotUsername() асинхронный (ходит в getMe), а buildResponse обязан быть
+ * синхронным; поэтому здесь только env + задокументированный fallback.
+ */
+function resolveBotUsernameSync(): string {
+  const env = (process.env.TELEGRAM_BOT_USERNAME || process.env.BOT_USERNAME || '').replace(/^@/, '').trim();
+  return env || REFERRAL_FALLBACK_BOT_USERNAME;
+}
+
+/** v5.6: реферальный блок профиля (ссылка по tgId + журнал). */
+function buildReferralPayload(record: StoredPlayerRecord): ReferralPayload {
+  const enabled = isReferralV1Enabled();
+  const ledger = getReferralLedger(record);
+  return {
+    enabled,
+    tgLink:
+      enabled && Number.isSafeInteger(record.tgId) && record.tgId > 0
+        ? buildReferralTgLink(resolveBotUsernameSync(), record.tgId)
+        : null,
+    referrerTgId: record.stats.referredByTgId ?? null,
+    referralQualifiedAt: record.stats.referralQualifiedAt ?? null,
+    ledger,
+    weeklyCap: REFERRAL_TG_WEEKLY_CAP,
+    rules: REFERRAL_TG_RULES_SHORT,
   };
 }
 
@@ -2164,12 +2318,144 @@ export async function handleInitPlayer(
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
     const alerts: GameAlert[] = [];
+
+    // ------------------------------------------------------------------
+    // v5.6: ОФФЛАЙН. Считаем «пока тебя не было» ДО синка, от lastSeenAt,
+    // по ставке deriveStats(record).dataPerHour (онлайн-ставка × 0.5, кап 8 ч).
+    // Деньги НЕ начисляются здесь: сумма уходит в stats.pendingOffline,
+    // платит только claim_offline. Пока идут активные миссии — оффлайн не
+    // применяется вообще (миссия уже платит за это время, см. economy.config).
+    // ------------------------------------------------------------------
+    const preDerived = deriveStats(record);
+    const retentionOffline = applyOfflineOnInit(record, {
+      dataPerHour: preDerived.dataPerHour,
+      hasActiveMissions: record.activeMissions.length > 0,
+    });
+    if (retentionOffline.earnings?.reason === 'active_missions') {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: '⏳ Оффлайн не начислен',
+        message: 'Пока идут активные миссии, фонового дохода нет — миссия уже платит за это время.',
+      });
+    }
+
     // Привязка «кто позвал» — до синка, пока аккаунт ещё нулевой.
-    // Код берётся из подписанного initData, повторный вызов безопасен.
-    await attributeReferral(record, user.startParam, clientIp);
-    const { offlineEarned, offlineTaps } = await syncTimeAndRules(record, mode, alerts);
+    // v5.6: сначала пробуем tgId-ссылку (?start=ref_<tgId>). Если она
+    // сработала, кодовую v3.5 не вызываем — двойной привязки быть не должно.
+    const tgRef = await attributeTgIdReferral(record, user.startParam, clientIp);
+    if (tgRef.attributed) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: '🎉 Приглашение принято',
+        message:
+          `Ты пришёл по ссылке друга — начислено +${tgRef.welcomeData.toLocaleString('ru-RU')} Data` +
+          (tgRef.welcomeChips > 0 ? ` и +${tgRef.welcomeChips} ⚙️ Чип` : '') +
+          '. Друг получит награду, когда ты наиграешь свои 8 минут.',
+      });
+    } else if (user.startParam && tgRef.reason !== 'not_tg_link' && tgRef.reason !== 'flag_off') {
+      // Мягкий отказ: игрок видит «почему не засчиталось», а не молчание.
+      const reasons: Record<string, string> = {
+        guest: 'гостевой аккаунт не участвует в рефералке',
+        self: 'нельзя пригласить самого себя',
+        not_new_player: 'аккаунт уже играл — приглашение не засчитывается',
+        already_attributed: 'к аккаунту уже привязан пригласивший',
+        referrer_unknown: 'пригласивший не найден среди игроков',
+        weekly_cap: 'у пригласившего выбран недельный лимит приглашений',
+      };
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: '🔗 Приглашение не засчитано',
+        message: `Причина: ${reasons[tgRef.reason] ?? tgRef.reason}.`,
+      });
+    }
+    await attributeReferral(record, tgRef.attributed ? undefined : user.startParam, clientIp);
+
+    const { offlineEarned, offlineTaps } = await syncTimeAndRules(record, mode, alerts, {
+      skipLegacyOffline: retentionOffline.suppressLegacyPayout,
+    });
+
+    // v5.6: стрик в stats (UTC-дата).
+    mirrorDailyStreak(record);
+
+    // v5.6: напоминание — не чаще раза в сутки, только opt-in и только если
+    // дневной бонус не забран. ВАЖЕН ПОРЯДОК: проверка идёт ДО touchLastSeen,
+    // иначе «сутки не заходил» превращается в «зашёл только что» и мы никогда
+    // никому не напомним. Без токена — штатный no-op с явным логом.
+    const reminder = await maybeSendDailyReminder(record);
+
+    // v5.6: новый lastSeenAt для следующего init (после всех проверок).
+    touchLastSeen(record);
+    if (reminder.sent) {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'info',
+        title: '🔔 Напоминание отправлено',
+        message: 'Мы напомнили тебе в Telegram забрать дневной бонус — отключить можно в стрике.',
+      });
+    }
     await savePlayerCore(record, mode);
     return buildResponse(record, mode, alerts, offlineEarned, offlineTaps);
+  });
+}
+
+// ============================================================================
+// v5.6: RETENTION-ДЕЙСТВИЯ (/api/retention)
+// ----------------------------------------------------------------------------
+// Только два действия, оба идемпотентны и оба пишут лишь СВОЮ запись:
+//   claim_offline    — забрать посчитанный на init оффлайн (один раз);
+//   reminder_opt_in  — галочка «напоминать в Telegram» (default OFF).
+// Никаких новых таблиц: всё живёт в players.stats jsonb.
+// ============================================================================
+
+export type RetentionAction = 'claim_offline' | 'reminder_opt_in';
+
+export async function handleRetentionAction(
+  user: VerifiedTelegramUser,
+  action: RetentionAction,
+  value?: boolean
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    if (action === 'claim_offline') {
+      const { claimed, claimedAwaySeconds } = claimOfflineEarnings(record);
+      if (claimed > 0) {
+        const hours = Math.max(1, Math.round(claimedAwaySeconds / 3600));
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'success',
+          title: `💤 Пока тебя не было: +${Math.round(claimed).toLocaleString('ru-RU')} Data`,
+          message: `Стол работал ${hours} ч по половинной ставке. Забрано — копилка пуста до следующего захода.`,
+        });
+      }
+    } else {
+      const enabled = setReminderOptIn(record, value === true);
+      if (enabled && !getBotToken()) {
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'warning',
+          title: '🔔 Напоминания включены, но бот не настроен',
+          message: 'На сервере нет TELEGRAM_BOT_TOKEN — напоминания не уходят. Настройка сохранена.',
+        });
+      } else {
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'info',
+          title: enabled ? '🔔 Напоминания включены' : '🔕 Напоминания выключены',
+          message: enabled
+            ? 'Напомним в Telegram, если сутки не заходил и не забрал дневной бонус. Не чаще раза в сутки.'
+            : 'Больше не пишем. Включить можно в любой момент в стрике.',
+        });
+      }
+    }
+
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts);
   });
 }
 
@@ -3282,6 +3568,8 @@ export async function handleDailyBonus(user: VerifiedTelegramUser,
 
     record.dailyStreak = nextStreak;
     record.lastDailyClaim = nowIso;
+    // v5.6: UTC-дата клайма и длина стрика — только серверное время.
+    recordDailyClaim(record, nowMs);
 
     const cryptoBonus = 3 + record.dailyStreak * 2;
     const dataBonus =

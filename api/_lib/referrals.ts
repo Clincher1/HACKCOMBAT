@@ -34,6 +34,15 @@ import {
   REFERRAL_XP_WEEKLY_LEVELS,
   isValidReferralCode,
 } from '../../shared/referral.config';
+import {
+  parseReferrerTgId,
+  REFERRAL_TG_REFERRER_CHIPS,
+  REFERRAL_TG_WEEKLY_CAP,
+  REFERRAL_TG_WELCOME_CHIPS,
+  REFERRAL_TG_WELCOME_DATA,
+} from '../../shared/referral.config';
+import { isReferralV1Enabled } from '../../shared/config';
+import type { ReferralLedgerEntry } from '../../shared/types';
 import { getXpToNext } from '../../shared/hack.config';
 import type { StoredPlayerRecord } from './gameEngine';
 import { getSupabaseAdmin } from './supabaseAdmin';
@@ -248,6 +257,8 @@ export interface ReferralPayout {
   xp: number;
   data: number;
   held: number;
+  /** v5.6: Чипы пригласившему за каждого засчитанного друга (флаг referralV1). */
+  chips: number;
 }
 
 /**
@@ -259,7 +270,7 @@ export async function payoutReferrals(
   level: number,
   dataPerHour: number
 ): Promise<ReferralPayout> {
-  if (!Number.isSafeInteger(record.tgId) || record.tgId <= 0) return { count: 0, xp: 0, data: 0, held: 0 };
+  if (!Number.isSafeInteger(record.tgId) || record.tgId <= 0) return { count: 0, xp: 0, data: 0, held: 0, chips: 0 };
 
   const sb = getSupabaseAdmin();
   let rows: ReferralRow[] = [];
@@ -278,7 +289,7 @@ export async function payoutReferrals(
   }
 
   const pending = rows.filter((r) => r.status === 'qualified');
-  if (pending.length === 0) return { count: 0, xp: 0, data: 0, held: 0 };
+  if (pending.length === 0) return { count: 0, xp: 0, data: 0, held: 0, chips: 0 };
 
   const dayAgo = new Date(Date.now() - 86_400_000).toISOString();
   const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
@@ -326,9 +337,14 @@ export async function payoutReferrals(
     dataWeek += dataEach;
   }
 
+  // v5.6: сверх Data/XP пригласивший получает M Чипов за каждого друга, чей
+  // первый сеанс засчитан. Флаг выключен — выплата ровно как в v3.5.
+  const chips = isReferralV1Enabled() ? count * REFERRAL_TG_REFERRER_CHIPS : 0;
+
   if (count > 0) {
     record.xp += xp;
     record.data += data;
+    if (chips > 0) record.chips += chips;
   }
 
   const nowIso = new Date().toISOString();
@@ -362,7 +378,7 @@ export async function payoutReferrals(
     }
   }
 
-  return { count, xp, data, held };
+  return { count, xp, data, held, chips };
 }
 
 /** Статистика для карточки «Пригласи друга». */
@@ -393,4 +409,171 @@ export async function getReferralStats(tgId: number, code: string): Promise<Refe
     xpEarned: rows.reduce((s, r) => s + r.reward_xp, 0),
     dataEarned: rows.reduce((s, r) => s + r.reward_data, 0),
   };
+}
+
+// ============================================================================
+// v5.6 — АТРИБУЦИЯ ПО tgId-ССЫЛКЕ (?start=ref_<tgId>)
+// ----------------------------------------------------------------------------
+// Что делает: разбирает start_param, проверяет право на привязку и, если всё
+// сходится, привязывает игрока через ТОТ ЖЕ движок v3.5 (attributeReferral),
+// а в stats.referrals пишет читаемый журнал для UI.
+//
+// Почему поверх v3.5, а не второй рефералкой: таблица referrals уже даёт
+// PK(invitee_tg) (двойной привязки не бывает), квалификацию по 8 минутам и
+// выплату на синке пригласившего. Дублировать это = два источника истины.
+//
+// Проверки по порядку (их же проверяет scripts/qa/referral.mjs):
+//   1. флаг referralV1 включён;
+//   2. start_param — именно tgId-ссылка;
+//   3. игрок не гость (tgId > 0);
+//   4. не self-referral (ссылка на себя);
+//   5. игрок новый (ни тапов, ни XP, ни контрактов);
+//   6. привязки ещё нет (ни в stats.referrals, ни в таблице referrals);
+//   7. реферер существует как игрок;
+//   8. у реферера не выбран недельный кап K.
+// ============================================================================
+
+export type TgReferralReject =
+  | 'flag_off'
+  | 'not_tg_link'
+  | 'guest'
+  | 'self'
+  | 'not_new_player'
+  | 'already_attributed'
+  | 'referrer_unknown'
+  | 'weekly_cap';
+
+export interface TgReferralResult {
+  /** Привязка создана этим вызовом. */
+  attributed: boolean;
+  /** Почему не создана (для алерта и для QA). */
+  reason: TgReferralReject | 'ok';
+  referrerTgId?: number;
+  /** Сколько Data получил приглашённый прямо сейчас (0, если бонус уже был). */
+  welcomeData: number;
+  welcomeChips: number;
+}
+
+/** Сколько привязок реферера за последние 7 суток (недельный кап K). */
+async function countWeeklyReferrals(referrerTg: number): Promise<number> {
+  const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+  const sb = getSupabaseAdmin();
+  if (sb) {
+    const { count } = await sb
+      .from('referrals')
+      .select('id', { count: 'exact', head: true })
+      .eq('referrer_tg', referrerTg)
+      .gte('created_at', weekAgo);
+    return count ?? 0;
+  }
+  return localReferrals.filter((r) => r.referrer_tg === referrerTg && r.created_at >= weekAgo).length;
+}
+
+/** Существует ли реферер как игрок. В локальном режиме — по выданному коду. */
+async function referrerExists(referrerTg: number): Promise<boolean> {
+  const sb = getSupabaseAdmin();
+  if (sb) {
+    const { data } = await sb.from('players').select('tg_id').eq('tg_id', referrerTg).maybeSingle();
+    return Boolean(data?.tg_id);
+  }
+  // В памяти процесса «игрок существует», если он уже получал код приглашения
+  // (QA вызывает /api/referral у реферера до атрибуции приглашённого).
+  return localCodes.has(referrerTg);
+}
+
+/** Уже есть привязка этого игрока (журнал в stats или таблица v3.5). */
+async function alreadyAttributed(record: StoredPlayerRecord): Promise<boolean> {
+  if (Array.isArray(record.stats.referrals) && record.stats.referrals.length > 0) return true;
+  if ((record.stats.referredByTgId ?? 0) > 0) return true;
+
+  const sb = getSupabaseAdmin();
+  if (sb) {
+    const { data } = await sb.from('referrals').select('invitee_tg').eq('invitee_tg', record.tgId).maybeSingle();
+    return Boolean(data?.invitee_tg);
+  }
+  return localReferrals.some((r) => r.invitee_tg === record.tgId);
+}
+
+/** Журнал приглашений этого игрока — отдаётся клиенту в init без нового эндпоинта. */
+export function getReferralLedger(record: StoredPlayerRecord): ReferralLedgerEntry[] {
+  const list = record.stats.referrals;
+  return Array.isArray(list) ? list.filter((e) => e && typeof e.referrerTgId === 'number') : [];
+}
+
+/**
+ * Атрибуция по tgId-ссылке. Идемпотентна: повторный init ничего не меняет и
+ * welcome-бонус второй раз не выдаёт (флаг stats.refereeWelcomeGranted).
+ */
+export async function attributeTgIdReferral(
+  record: StoredPlayerRecord,
+  startParam: string | undefined,
+  ip?: string
+): Promise<TgReferralResult> {
+  const none = (reason: TgReferralReject): TgReferralResult => ({
+    attributed: false,
+    reason,
+    welcomeData: 0,
+    welcomeChips: 0,
+  });
+
+  if (!isReferralV1Enabled()) return none('flag_off');
+
+  const referrerTgId = parseReferrerTgId(startParam);
+  if (!referrerTgId) return none('not_tg_link');
+  if (!Number.isSafeInteger(record.tgId) || record.tgId <= 0) return none('guest');
+  if (referrerTgId === record.tgId) return none('self');
+  if (!looksLikeNewPlayer(record)) return none('not_new_player');
+  if (await alreadyAttributed(record)) return none('already_attributed');
+  if (!(await referrerExists(referrerTgId))) return none('referrer_unknown');
+
+  const weekly = await countWeeklyReferrals(referrerTgId);
+  if (weekly >= REFERRAL_TG_WEEKLY_CAP) return none('weekly_cap');
+
+  // Основную привязку делает движок v3.5: код реферера → таблица referrals.
+  const code = await getOrCreateReferralCode(referrerTgId);
+  await attributeReferral(record, `ref_${code}`, ip);
+
+  const createdAt = new Date().toISOString();
+  const entry: ReferralLedgerEntry = {
+    referrerTgId,
+    refereeTgId: record.tgId,
+    createdAt,
+    status: 'attributed',
+    qualifiedAt: null,
+  };
+  record.stats.referrals = [...(record.stats.referrals ?? []), entry];
+  record.stats.referredByTgId = referrerTgId;
+
+  // Welcome-бонус приглашённому — один раз за жизнь аккаунта.
+  let welcomeData = 0;
+  let welcomeChips = 0;
+  if (record.stats.refereeWelcomeGranted !== true) {
+    record.stats.refereeWelcomeGranted = true;
+    welcomeData = REFERRAL_TG_WELCOME_DATA;
+    welcomeChips = REFERRAL_TG_WELCOME_CHIPS;
+    record.data += welcomeData;
+    record.chips += welcomeChips;
+  }
+
+  return { attributed: true, reason: 'ok', referrerTgId, welcomeData, welcomeChips };
+}
+
+/**
+ * Отметка «друг сыграл первый верифицированный сеанс» в журнале приглашённого.
+ * Награда рефереру всё равно выплачивается его собственным синком (v3.5),
+ * здесь только статус для UI.
+ */
+export function markReferralQualified(record: StoredPlayerRecord, nowIso = new Date().toISOString()): boolean {
+  const list = record.stats.referrals;
+  if (!Array.isArray(list) || list.length === 0) return false;
+  let changed = false;
+  for (const entry of list) {
+    if (entry.status !== 'qualified') {
+      entry.status = 'qualified';
+      entry.qualifiedAt = nowIso;
+      changed = true;
+    }
+  }
+  if (changed) record.stats.referralQualifiedAt = nowIso;
+  return changed;
 }

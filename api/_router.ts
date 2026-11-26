@@ -16,6 +16,7 @@ import ping from './_routes/ping';
 import profile from './_routes/profile';
 import prestige from './_routes/prestige';
 import referral from './_routes/referral';
+import retention from './_routes/retention';
 import seasonEvent from './_routes/season-event';
 import skin from './_routes/skin';
 import telegram from './_routes/telegram';
@@ -53,6 +54,7 @@ const routes: Record<string, Handler> = {
   profile,
   prestige,
   referral,
+  retention,
   'season-event': seasonEvent,
   skin,
   telegram,
