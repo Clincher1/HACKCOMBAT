@@ -347,6 +347,19 @@ try {
   check('авто-сбор на init реализован', context.includes('autoClaimedRef') && context.includes('isContractReady'));
   check('авто-сбор уважает флаг', /if \(!isGameplayV3Enabled\(\) \|\| !player \|\| loading\) return;/.test(context));
 
+  // --- v5.8: стол не «давит» тенью, кнопка локации на виду ------------------
+  check('подложка стола смягчена (низ 55%, верх 20%)',
+    deskScene.includes('from-[var(--ui-panel-deep)]/55') && deskScene.includes('to-[var(--ui-panel-deep)]/20'),
+    (deskScene.match(/from-\[var\(--ui-panel-deep\)\]\/\d+/g) ?? []).join(' '));
+  check('чип «что за окном» работает как смена локации',
+    deskScene.includes('data-qa="scene-location-chip"') && deskScene.includes('setLocationOpen(true)'));
+  check('модалка локаций вне карточки сцены (overflow-hidden)',
+    deskScene.indexOf('data-qa="scene-location-chip"') < deskScene.indexOf('<LocationPickerModal'));
+  check('бар локации стоит сразу под сценой и имеет CTA',
+    deskPage.indexOf('<DeskScene />') < deskPage.indexOf('<DeskLocationBar />') &&
+      deskPage.indexOf('<DeskLocationBar />') < deskPage.indexOf('<ContractBoard />') &&
+      deskPage.includes('data-qa="change-location-bar"'));
+
   // --- онбординг: первый кадр игры без «тапни» и без кнопки ТАП -------------
   const onboarding = readSource('src/components/Onboarding.tsx');
   check('онбординг: текст шага под флагом геймплея',
