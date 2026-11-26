@@ -7,6 +7,7 @@ import daily from './_routes/daily';
 import dailyIncident from './_routes/daily-incident';
 import dailyTasks from './_routes/daily-tasks';
 import donate from './_routes/donate';
+import hacks from './_routes/hacks';
 import hire from './_routes/hire';
 import init from './_routes/init';
 import inventory from './_routes/inventory';
@@ -46,6 +47,7 @@ const routes: Record<string, Handler> = {
   'daily-incident': dailyIncident,
   'daily-tasks': dailyTasks,
   donate,
+  hacks,
   hire,
   init,
   inventory,

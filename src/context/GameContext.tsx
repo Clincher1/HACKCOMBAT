@@ -12,6 +12,7 @@ import { CARDS_CONFIG, getCardPrice, getMaxCardLevel } from '../../shared/cards.
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
 import type {
   ApiSyncResponse,
+  HackSessionState,
   GameAlert,
   LeaderboardEntry,
   LeaderboardSelf,
@@ -112,6 +113,17 @@ export interface GameContextValue {
   pendingClaims: ReadonlySet<string>;
   /** v6.1: забор награды за контракт дня (Data / Crypto / Chips). */
   claimContract: (contractId: string) => Promise<void>;
+  /**
+   * v6.2: активный взлом. start списывает CPU Charge и открывает сессию,
+   * finish отправляет итог и возвращает подтверждённые сервером числа.
+   * Обе операции идут через общий runAction (очередь, busyKey, алерты).
+   */
+  startHack: (difficulty: string) => Promise<HackSessionState | null>;
+  finishHack: (
+    sessionId: string,
+    safeHits: number,
+    trapHits: number
+  ) => Promise<HackSessionState | null>;
   claimSeasonEvent: (action: 'claim_participation' | 'claim_mastery') => Promise<void>;
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
   buyOrEquipProfileFrame: (frameKey: string) => Promise<void>;
@@ -1042,6 +1054,67 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runClaim]
   );
 
+  /**
+   * Взлому нужен ответ сервера (seed сессии и подтверждённый итог), а обычный
+   * runAction возвращает только void. Это отдельный минимальный путь с той же
+   * дисциплиной: дедупликация по ключу, busyKey, применение синка и алерт при
+   * отказе. Очередь кликов не нужна — старт и финиш запускаются кнопкой.
+   */
+  const runHackRequest = useCallback(
+    async (
+      key: string,
+      fn: (clicks: number) => Promise<ApiSyncResponse>
+    ): Promise<ApiSyncResponse | null> => {
+      if (queuedActionKeysRef.current.has(key)) return null;
+      queuedActionKeysRef.current.add(key);
+      busyKeyRef.current = key;
+      setBusyKey(key);
+      const clicksToSend = Math.max(0, pendingClicksRef.current);
+      if (clicksToSend > 0) pendingClicksRef.current -= clicksToSend;
+      try {
+        const res = await fn(clicksToSend);
+        applyServerSync(res);
+        return res;
+      } catch (err) {
+        pushClientAlert({
+          type: 'warning',
+          title: 'Взлом отклонён',
+          message: err instanceof Error ? err.message : 'Ошибка запроса',
+        });
+        return null;
+      } finally {
+        queuedActionKeysRef.current.delete(key);
+        busyKeyRef.current = null;
+        setBusyKey(null);
+      }
+    },
+    [applyServerSync, pushClientAlert]
+  );
+
+  const startHack = useCallback(
+    async (difficulty: string): Promise<HackSessionState | null> => {
+      const res = await runHackRequest(`hack:start:${difficulty}`, (clicks) =>
+        gameApi.startHack(difficulty, clicks)
+      );
+      return (res?.player?.stats?.hackSession as HackSessionState | undefined) ?? null;
+    },
+    [runHackRequest]
+  );
+
+  const finishHack = useCallback(
+    async (
+      sessionId: string,
+      safeHits: number,
+      trapHits: number
+    ): Promise<HackSessionState | null> => {
+      const res = await runHackRequest(`hack:finish:${sessionId}`, (clicks) =>
+        gameApi.finishHack(sessionId, safeHits, trapHits, clicks)
+      );
+      return (res?.player?.stats?.hackSession as HackSessionState | undefined) ?? null;
+    },
+    [runHackRequest]
+  );
+
   const claimContract = useCallback(
     (contractId: string) =>
       runClaim(`contract:${contractId}`, `contract:claim:${contractId}`, (clicks) =>
@@ -1458,6 +1531,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resolveDailyIncident,
       claimDailyTask,
       claimContract,
+      startHack,
+      finishHack,
       pendingClaims,
       claimSeasonEvent,
       buyOrEquipSkin,
@@ -1529,6 +1604,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       resolveDailyIncident,
       claimDailyTask,
       claimContract,
+      startHack,
+      finishHack,
       pendingClaims,
       claimSeasonEvent,
       buyOrEquipSkin,
