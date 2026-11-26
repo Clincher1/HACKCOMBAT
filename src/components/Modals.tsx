@@ -6,6 +6,7 @@ import { BASE_THEMES } from '../../shared/themes.config';
 import type { SkinCategory } from '../../shared/types';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+import { ModalFrame } from './ModalFrame';
 import { ProfileFramesShop } from './ProfileFramesShop';
 import { ThemeOnboardingModal } from './ThemeOnboardingModal';
 import { TutorialModal } from './TutorialModal';
@@ -20,6 +21,7 @@ export const ModalsAndOverlays: React.FC = () => {
     offlineModalEarned,
     offlineModalTaps,
     offlineModalRetention,
+    newPlayerMode,
     dismissOfflineModal,
     claimDailyBonus,
     buyOrEquipSkin,
@@ -42,53 +44,46 @@ export const ModalsAndOverlays: React.FC = () => {
     <>
       <ThemeOnboardingModal />
       <TutorialModal />
-      {/* Модалка накопленного оффлайн пассивного дохода */}
+      {/* Модалка накопленного оффлайн пассивного дохода (v5.6: retention-claim).
+          Рендерится ТОЛЬКО через ModalFrame: без карточки подложки не бывает,
+          а при активном онбординге модал не показывается вовсе. */}
       <AnimatePresence>
-        {offlineModalEarned !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+        <ModalFrame
+          open={!newPlayerMode && offlineModalEarned !== null && offlineModalEarned > 0}
+          backdropClassName="fixed inset-0 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+          cardClassName="w-full max-w-sm rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.45)] p-5 text-center shadow-[0_0_40px_rgba(var(--ui-primary-rgb),0.2)]"
+        >
+          <Sparkles className="w-10 h-10 text-[var(--ui-success)] mx-auto mb-2" />
+          <h3 className="font-display text-lg font-extrabold text-white">
+            {offlineModalRetention ? 'Пока тебя не было…' : 'Пассивный майнинг завершён!'}
+          </h3>
+          <p className="text-xs text-slate-300 mt-1">
+            {offlineModalRetention
+              ? 'Стол работал без тебя: карточки платили половину обычной ставки, максимум 8 часов. Только Data — опыт, Crypto и чипы падают лишь за игру.'
+              : 'Пока вы были оффлайн, ваши серверы и команда заработали. Только Data — опыт, Crypto и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те сутки, где вы наиграли 8 минут.'}
+          </p>
+          <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 font-display text-2xl font-black text-[var(--ui-success)]">
+            +{formatCompact(offlineModalEarned ?? 0)} DATA
+          </div>
+          {offlineModalTaps > 0 && (
+            <p className="text-[11px] text-slate-400 -mt-2 mb-1">
+              в том числе {formatCompact(offlineModalTaps)} фоновых тапов × сила клика
+            </p>
+          )}
+          <p className="text-[10px] text-slate-500 mb-3">
+            {offlineModalRetention
+              ? 'забрать можно один раз за сессию — копилка очистится'
+              : 'карточки в оффлайне платят 50% от обычной ставки'}
+          </p>
+          <button
+            type="button"
+            onClick={dismissOfflineModal}
+            data-qa-action="collect-offline"
+            className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-display font-bold text-sm cursor-pointer"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 12 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.92, y: 12 }}
-              className="w-full max-w-sm rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.45)] p-5 text-center shadow-[0_0_40px_rgba(var(--ui-primary-rgb),0.2)]"
-            >
-              <Sparkles className="w-10 h-10 text-[var(--ui-success)] mx-auto mb-2" />
-              <h3 className="font-display text-lg font-extrabold text-white">
-                {offlineModalRetention ? 'Пока тебя не было…' : 'Пассивный майнинг завершён!'}
-              </h3>
-              <p className="text-xs text-slate-300 mt-1">
-                {offlineModalRetention
-                  ? 'Стол работал без тебя: карточки платили половину обычной ставки, максимум 8 часов. Только Data — опыт, Crypto и чипы падают лишь за игру.'
-                  : 'Пока вы были оффлайн, ваши серверы и команда заработали. Только Data — опыт, Crypto и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те сутки, где вы наиграли 8 минут.'}
-              </p>
-              <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 font-display text-2xl font-black text-[var(--ui-success)]">
-                +{formatCompact(offlineModalEarned)} DATA
-              </div>
-              {offlineModalTaps > 0 && (
-                <p className="text-[11px] text-slate-400 -mt-2 mb-1">
-                  в том числе {formatCompact(offlineModalTaps)} фоновых тапов × сила клика
-                </p>
-              )}
-              <p className="text-[10px] text-slate-500 mb-3">
-                {offlineModalRetention
-                  ? 'забрать можно один раз за сессию — копилка очистится'
-                  : 'карточки в оффлайне платят 50% от обычной ставки'}
-              </p>
-              <button
-                type="button"
-                onClick={dismissOfflineModal}
-                className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-display font-bold text-sm cursor-pointer"
-              >
-                {offlineModalRetention ? 'Collect — забрать Data' : 'Забрать и продолжить'}
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
+            {offlineModalRetention ? 'Collect — забрать Data' : 'Забрать и продолжить'}
+          </button>
+        </ModalFrame>
       </AnimatePresence>
 
       {/* Модалка ежедневного бонуса Crypto (Шаг 9 и раздел 2 ТЗ) */}

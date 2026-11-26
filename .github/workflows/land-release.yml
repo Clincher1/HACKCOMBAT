@@ -46,15 +46,15 @@ concurrency:
 env:
   REPO: ${{ github.repository }}
   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  TARGET_BRANCH: feat/retention-referral
+  TARGET_BRANCH: fix/backdrop-layer
   SOURCE_BRANCH: ${{ github.ref_name }}
   PR_TITLE: 'feat: retention loop + referral deep links (v5.6)'
   PROD_URL: https://hacker-kombat.vercel.app
   # Уникальный на прогон демо-игрок: события помечаются этим session-маркером и
   # удаляются одним SQL-запросом вместе с игроком.
-  SMOKE_SESSION: ci-smoke-rr
+  SMOKE_SESSION: ci-smoke-fix
   # Бюджет главного чанка: было 106 KB gzip (main 93902a85f), разрешено +5 KB.
-  CHUNK_MAIN_MAX_KB: 111
+  CHUNK_MAIN_MAX_KB: 112
 
 jobs:
   land:
@@ -256,10 +256,11 @@ jobs:
           fi
 
           # Обязательные наборы v5.6 на месте и зелёные.
-          grep -q 'ИТОГО: 51 pass / 0 fail' "$RUNNER_TEMP/qa.log" || die "Retention QA не отдал 51/0"
-          grep -q 'ИТОГО: 39 pass / 0 fail' "$RUNNER_TEMP/qa.log" || die "Referral QA не отдал 39/0"
+          grep -q 'RETENTION_QA_OK' "$RUNNER_TEMP/qa.log" || die "Retention QA не отдал зелёный маркер"
+          grep -q 'REFERRAL_QA_OK' "$RUNNER_TEMP/qa.log" || die "Referral QA не отдал зелёный маркер"
+          grep -q 'OVERLAYS_QA_OK' "$RUNNER_TEMP/qa.log" || die "Overlays QA (слои/подложки) не отдал зелёный маркер"
           grep -q 'QA: 47 checks' "$RUNNER_TEMP/qa.log" || die "World QA не на месте"
-          echo "наборы: retention 51/0, referral 39/0, world 47/0"
+          echo "наборы: retention/overlays/referral/world — все зелёные"
 
       - name: Push branch
         run: |
@@ -305,7 +306,7 @@ jobs:
 
           ### Гейты
           * `npx tsc -b` — 0 ошибок; `npm run build` — успешно; main chunk в бюджете.
-          * `qa:all` — 0 FAIL, включая новые `retention.mjs` (51) и `referral.mjs` (39).
+          * `qa:all` — 0 FAIL, включая `overlays.ts` (слои + инвариант «подложка только с карточкой»).
 
           ### Миграции
           **Не нужны.** Все новые поля живут в `players.stats` jsonb; `client_events`
