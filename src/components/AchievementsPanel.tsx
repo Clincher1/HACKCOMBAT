@@ -6,12 +6,14 @@ import {
 } from '../../shared/achievements.config';
 import type { AchievementRarity } from '../../shared/types';
 import { useGame } from '../context/GameContext';
+import { CheckIcon, ChipsIcon, CryptoIcon } from './ui-icons';
+import { withAlpha } from '../lib/colors';
 
 const RARITY_META: Record<AchievementRarity, { label: string; color: string }> = {
-  common: { label: 'Обычное', color: '#94a3b8' },
+  common: { label: 'Обычное', color: 'var(--ui-text-faint)' },
   rare: { label: 'Редкое', color: 'var(--ui-primary)' },
   epic: { label: 'Эпическое', color: 'var(--ui-purple)' },
-  legendary: { label: 'Легендарное', color: '#ffb703' },
+  legendary: { label: 'Легендарное', color: 'var(--ui-warn)' },
   secret: { label: 'Секретное', color: 'var(--ui-secondary)' },
 };
 
@@ -55,13 +57,13 @@ export const AchievementsPanel: React.FC = () => {
       {/* Сводка прогресса */}
       <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-success)]/25 p-3.5 space-y-2">
         <div className="flex items-center justify-between gap-2">
-          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+          <div className="text-[13px] font-bold text-white flex items-center gap-1.5">
             <Award className="w-4 h-4 text-[var(--ui-success)]" />
             <span>
               Достижения {publicUnlocked}/{publicTotal}
             </span>
           </div>
-          <span className="text-[10px] font-bold text-[var(--ui-secondary)] flex items-center gap-1">
+          <span className="text-[11px] font-bold text-[var(--ui-secondary)] flex items-center gap-1">
             <Eye className="w-3 h-3" /> Секретов найдено: {secretsFound}/{secretsTotal}
           </span>
         </div>
@@ -71,7 +73,7 @@ export const AchievementsPanel: React.FC = () => {
             style={{ width: `${progressPct}%` }}
           />
         </div>
-        <p className="text-[10px] text-slate-500 leading-relaxed">
+        <p className="text-[11px] text-slate-500 leading-relaxed">
           Иконки закрытых достижений скрыты. Секретные не показывают даже название — ищи сам.
         </p>
       </div>
@@ -112,19 +114,19 @@ export const AchievementsPanel: React.FC = () => {
               key={ach.key}
               className={`rounded-xl p-3 border flex items-start gap-2.5 ${
                 unlocked
-                  ? 'bg-[#101c28] border-[var(--ui-success)]/50'
+                  ? 'bg-[var(--ui-panel)] border-[var(--ui-success)]/50'
                   : hidden
-                    ? 'bg-[#0b0f1c] border-slate-800/70'
+                    ? 'bg-[var(--ui-panel)] border-slate-800/70'
                     : 'bg-[var(--ui-panel-deep)] border-slate-800/80'
               }`}
             >
               {/* Медальон: картинка видна ТОЛЬКО после получения */}
               <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center text-lg shrink-0 border"
+                className="w-9 h-9 rounded-lg flex items-center justify-center text-[20px] shrink-0 border"
                 style={{
-                  borderColor: unlocked ? meta.color : '#1e293b',
-                  backgroundColor: unlocked ? `${meta.color}18` : '#080d18',
-                  boxShadow: unlocked ? `0 0 12px ${meta.color}40` : 'none',
+                  borderColor: unlocked ? meta.color : 'var(--ui-border-muted)',
+                  backgroundColor: unlocked ? withAlpha(meta.color, 0.09) : 'var(--ui-panel)',
+                  boxShadow: unlocked ? `0 0 12px ${withAlpha(meta.color, 0.25)}` : 'none',
                 }}
               >
                 {unlocked ? ach.icon : hidden ? <Sparkles className="w-4 h-4 text-slate-700" /> : <Lock className="w-4 h-4 text-slate-600" />}
@@ -133,34 +135,34 @@ export const AchievementsPanel: React.FC = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-1">
                   <span
-                    className={`text-xs font-bold truncate ${
+                    className={`text-[13px] font-bold truncate ${
                       unlocked ? 'text-white' : hidden ? 'text-slate-500' : 'text-slate-300'
                     }`}
                   >
                     {hidden ? '???' : ach.title}
                   </span>
                   {unlocked ? (
-                    <span className="text-[10px] font-bold text-purple-300 shrink-0">
-                      +{ach.cryptoReward}💎
-                      {ach.chipReward ? ` +${ach.chipReward}⚙️` : ''}
+                    <span className="text-[11px] font-bold text-purple-300 shrink-0">
+                      +{ach.cryptoReward} <CryptoIcon className="inline h-3 w-3 align-[-1px]" />
+                      {ach.chipReward ? <> +{ach.chipReward} <ChipsIcon className="inline h-3 w-3 align-[-1px]" /></> : null}
                     </span>
                   ) : (
                     <span
-                      className="text-[9px] font-bold shrink-0 px-1.5 py-0.5 rounded"
-                      style={{ color: meta.color, backgroundColor: `${meta.color}15` }}
+                      className="text-[11px] font-bold shrink-0 px-1.5 py-0.5 rounded"
+                      style={{ color: meta.color, backgroundColor: withAlpha(meta.color, 0.08) }}
                     >
                       {hidden ? 'СЕКРЕТ' : meta.label}
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
                   {hidden
                     ? 'Секретное достижение. Откроется само — просто играй по-своему.'
                     : ach.description}
                 </p>
                 {unlocked && (
-                  <div className="text-[9px] font-bold mt-1 uppercase tracking-wide" style={{ color: meta.color }}>
-                    ✓ Получено
+                  <div className="text-[11px] font-bold mt-1 uppercase tracking-wide" style={{ color: meta.color }}>
+                    <CheckIcon className="inline h-3 w-3 align-[-1px]" /> Получено
                   </div>
                 )}
               </div>

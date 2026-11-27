@@ -48,10 +48,10 @@ export const StreakBar: React.FC = () => {
   return (
     <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-primary)]/25 p-3 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 font-display text-xs font-extrabold text-white uppercase tracking-wider">
+        <span className="flex items-center gap-1.5 font-display text-[13px] font-extrabold text-white uppercase tracking-wider">
           <Flame className="w-3.5 h-3.5 text-amber-400" /> Стрик {retention.dailyStreak}/7
         </span>
-        <span className="text-[10px] text-slate-400">
+        <span className="text-[11px] text-slate-400">
           {claimedToday ? 'сегодня забрано' : `доступен день ${day}`}
         </span>
       </div>
@@ -74,8 +74,8 @@ export const StreakBar: React.FC = () => {
               ].join(' ')}
               title={`День ${reward.day}: +${reward.crypto} Crypto, ×${reward.dataUnits} Data, +${reward.chips} чип`}
             >
-              <div className="text-[9px] text-slate-400 leading-none">{reward.day}</div>
-              <div className="text-[10px] font-bold text-white leading-tight mt-0.5">
+              <div className="text-[11px] text-slate-400 leading-none">{reward.day}</div>
+              <div className="text-[11px] font-bold text-white leading-tight mt-0.5">
                 {isDone ? <Check className="w-3 h-3 mx-auto text-[var(--ui-success)]" /> : `×${reward.dataUnits}`}
               </div>
             </div>
@@ -84,7 +84,7 @@ export const StreakBar: React.FC = () => {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+        <span className="text-[11px] text-slate-400 flex items-center gap-1">
           <Gift className="w-3 h-3 text-[var(--ui-primary)]" />
           День {nextReward.day}: {formatCompact(nextReward.crypto)} Crypto · ×{nextReward.dataUnits} Data
         </span>
@@ -104,7 +104,7 @@ export const StreakBar: React.FC = () => {
       </div>
 
       {/* Напоминания: checkbox default OFF. Без токена на сервере — заглушка. */}
-      <label className="flex items-start gap-2 text-[10px] text-slate-400 cursor-pointer select-none">
+      <label className="flex items-start gap-2 text-[11px] text-slate-400 cursor-pointer select-none">
         <input
           type="checkbox"
           checked={retention.reminderOptIn === true}
@@ -124,7 +124,7 @@ export const StreakBar: React.FC = () => {
         </span>
       </label>
 
-      <p className="text-[9px] text-slate-600">
+      <p className="text-[11px] text-slate-600">
         день считается по UTC на сервере · {utcToday} · пропуск дня сбрасывает стрик на 1
       </p>
     </div>

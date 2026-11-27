@@ -22,10 +22,10 @@ export const AlertStack: React.FC = () => {
               alert.type === 'penalty'
                 ? 'border-rose-500 bg-rose-950/95 text-rose-100'
                 : alert.type === 'achievement'
-                  ? 'border-[var(--ui-success)] bg-[#0e1d14]/95 text-white'
+                  ? 'border-[var(--ui-success)] bg-[rgba(var(--ui-panel-rgb), 0.95)] text-white'
                   : alert.type === 'warning'
-                    ? 'border-amber-400/70 bg-[#1c160c]/95 text-amber-100'
-                    : 'border-[var(--ui-primary)]/70 bg-[#0d172e]/95 text-white';
+                    ? 'border-amber-400/70 bg-[rgba(var(--ui-panel-rgb), 0.95)] text-amber-100'
+                    : 'border-[var(--ui-primary)]/70 bg-[rgba(var(--ui-panel-rgb), 0.95)] text-white';
 
             return (
               <div
@@ -33,7 +33,7 @@ export const AlertStack: React.FC = () => {
                 className={`alert-drop pointer-events-auto rounded-xl border px-3 py-2 shadow-xl flex items-start justify-between gap-2 backdrop-blur-md ${borderClass}`}
               >
                 <div className="min-w-0">
-                  <div className="text-xs font-extrabold">{alert.title}</div>
+                  <div className="text-[13px] font-extrabold">{alert.title}</div>
                   <div className="text-[11px] opacity-90 mt-0.5">{alert.message}</div>
                 </div>
                 <button

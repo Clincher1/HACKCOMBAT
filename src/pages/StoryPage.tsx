@@ -17,6 +17,7 @@ import {
   getWeeklySlot,
 } from '../../shared/events.config';
 import { useGame } from '../context/GameContext';
+import { CheckIcon, CircleBulletIcon, TargetIcon } from '../components/ui-icons';
 
 /**
  * Экран «История» (v6.8).
@@ -48,13 +49,13 @@ const StepRow: React.FC<{
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-bold text-slate-100">
-            {step.claimed ? '✅ ' : claimable ? '🎯 ' : '• '}
+          <p className="text-[13px] font-bold text-slate-100">
+            {step.claimed ? <CheckIcon className="mr-1 inline h-3 w-3 align-[-1px] text-[var(--ui-success)]" /> : claimable ? <TargetIcon className="mr-1 inline h-3 w-3 align-[-1px] text-[var(--ui-primary)]" /> : <CircleBulletIcon className="mr-1 inline h-2 w-2 align-[1px] text-slate-600" />}
             {step.title}
           </p>
           <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{step.scene}</p>
         </div>
-        <span className="shrink-0 rounded-lg bg-[rgba(var(--ui-primary-rgb),0.14)] px-2 py-1 text-[10px] font-bold text-[var(--ui-primary)]">
+        <span className="shrink-0 rounded-lg bg-[rgba(var(--ui-primary-rgb),0.14)] px-2 py-1 text-[11px] font-bold text-[var(--ui-primary)]">
           {describeStoryReward(step.reward, arc.requiredLevel) || 'награда'}
         </span>
       </div>
@@ -66,7 +67,7 @@ const StepRow: React.FC<{
             style={{ width: `${pct}%` }}
           />
         </div>
-        <span className="w-[104px] shrink-0 text-right text-[10px] font-semibold text-slate-400">
+        <span className="w-[104px] shrink-0 text-right text-[11px] font-semibold text-slate-400">
           {step.requirement.label} · {fmt(step.progress)}/{fmt(step.requirement.value)}
         </span>
       </div>
@@ -113,15 +114,15 @@ const ArcCard: React.FC<{
         onClick={() => setOpen((value) => !value)}
         className="flex w-full items-center gap-2.5 text-left"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-panel-deep)] text-lg">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-panel-deep)] text-[20px]">
           {arc.cover}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-sm font-extrabold text-slate-100">{arc.title}</span>
+            <span className="truncate text-[16px] font-extrabold text-slate-100">{arc.title}</span>
             {!arc.open && <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
             {claimable > 0 && (
-              <span className="shrink-0 rounded-full bg-[var(--ui-primary)] px-1.5 text-[10px] font-extrabold text-[var(--ui-panel-deep)]">
+              <span className="shrink-0 rounded-full bg-[var(--ui-primary)] px-1.5 text-[11px] font-extrabold text-[var(--ui-panel-deep)]">
                 {claimable}
               </span>
             )}
@@ -130,7 +131,7 @@ const ArcCard: React.FC<{
             {arc.open ? arc.subtitle : `Откроется на ${arc.requiredLevel} уровне · сейчас ${level}`}
           </span>
         </span>
-        <span className="shrink-0 text-[10px] font-bold text-slate-400">
+        <span className="shrink-0 text-[11px] font-bold text-slate-400">
           {arc.doneCount}/{arc.steps.length}
         </span>
         <ChevronDown
@@ -151,7 +152,7 @@ const ArcCard: React.FC<{
               />
             ))}
           </ul>
-          <p className="mt-2 flex items-center gap-1.5 text-[10px] text-slate-400">
+          <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
             <Trophy className="h-3 w-3 text-[var(--ui-primary)]" />
             За всю главу:{' '}
             <strong className="font-bold text-slate-200">
@@ -190,8 +191,8 @@ export const StoryPage: React.FC = () => {
       <header className="rounded-2xl border border-[rgba(var(--ui-primary-rgb),0.30)] bg-[var(--ui-panel)]/85 p-3.5">
         <div className="flex items-center gap-2">
           <ScrollText className="h-4 w-4 text-[var(--ui-primary)]" />
-          <h1 className="font-display text-sm font-extrabold tracking-wide text-slate-100">История</h1>
-          <span className="ml-auto text-[10px] font-bold text-slate-400">
+          <h1 className="font-display text-[16px] font-extrabold tracking-wide text-slate-100">История</h1>
+          <span className="ml-auto text-[11px] font-bold text-slate-400">
             Главы {closed}/{views.length}
           </span>
         </div>
@@ -199,7 +200,7 @@ export const StoryPage: React.FC = () => {
           {worldLine}
         </p>
         {story && (
-          <p className="mt-1 text-[10px] text-[var(--ui-text-muted)]">
+          <p className="mt-1 text-[11px] text-[var(--ui-text-muted)]">
             Активная глава: {story.title} · {story.done}/{story.total} шагов
           </p>
         )}
@@ -215,11 +216,11 @@ export const StoryPage: React.FC = () => {
           {weekly.event.emoji} {weekly.event.title}
         </div>
         <p className="mt-1 text-[11px] text-slate-400">{weekly.event.showcase}</p>
-        <p className="mt-1 flex items-center gap-1 text-[10px] text-[var(--ui-text-muted)]">
+        <p className="mt-1 flex items-center gap-1 text-[11px] text-[var(--ui-text-muted)]">
           <Clock3 className="h-3 w-3" /> сейчас · до {formatEventEnd(weekly.endMs)} ·{' '}
           {describeEventModifiers(weekly.event.modifiers) || 'без модификаторов'}
         </p>
-        <p className="mt-1.5 border-t border-slate-800 pt-1.5 text-[10px] text-slate-400">
+        <p className="mt-1.5 border-t border-slate-800 pt-1.5 text-[11px] text-slate-400">
           Дальше ({Math.max(1, Math.round(upcoming.hoursLeft / 24))} дн.): {upcoming.event.emoji}{' '}
           <strong className="font-bold text-slate-200">{upcoming.event.title}</strong> —{' '}
           {describeEventModifiers(upcoming.event.modifiers) || 'без модификаторов'}
@@ -236,7 +237,7 @@ export const StoryPage: React.FC = () => {
         />
       ))}
 
-      <p className="px-1 text-[10px] leading-relaxed text-[var(--ui-text-muted)]">
+      <p className="px-1 text-[11px] leading-relaxed text-[var(--ui-text-muted)]">
         Главы открываются по уровню и не требуют новых механик: шаг закрывает то, что ты и так
         делаешь — контракты, взломы, апгрейды, команду. Награды выдаёт сервер, один раз за шаг.
       </p>

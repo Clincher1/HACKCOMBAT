@@ -19,11 +19,13 @@ import {
   type LocationDevice,
 } from '../../shared/backdrops.config';
 import { useGame } from '../context/GameContext';
+import { withAlpha } from '../lib/colors';
+import { DeviceIcon } from './ui-icons';
 
-export const DEVICE_LABEL: Record<LocationDevice, { icon: string; label: string; short: string }> = {
-  laptop: { icon: '💻', label: 'с ноутбука', short: 'ноут' },
-  phone: { icon: '📱', label: 'с телефона', short: 'телефон' },
-  desk: { icon: '🖥️', label: 'за столом', short: 'стол' },
+export const DEVICE_LABEL: Record<LocationDevice, { label: string; short: string }> = {
+  laptop: { label: 'с ноутбука', short: 'ноут' },
+  phone: { label: 'с телефона', short: 'телефон' },
+  desk: { label: 'за столом', short: 'стол' },
 };
 
 export const deviceOf = (location: BackdropConfig | undefined): LocationDevice =>
@@ -59,7 +61,7 @@ export const LocationGrid: React.FC<{ onPick?: () => void }> = ({ onPick }) => {
             } ${locked ? 'opacity-45 cursor-not-allowed' : 'cursor-pointer'}`}
             style={
               active
-                ? { borderColor: location.accent, boxShadow: `0 0 20px ${location.accent}44` }
+                ? { borderColor: location.accent, boxShadow: `0 0 20px ${withAlpha(location.accent, 0.27)}` }
                 : undefined
             }
           >
@@ -73,12 +75,12 @@ export const LocationGrid: React.FC<{ onPick?: () => void }> = ({ onPick }) => {
             <div className="absolute inset-0 bg-gradient-to-t from-[var(--ui-panel-deep)] via-[rgba(var(--ui-panel-deep-rgb),0.35)] to-transparent" />
 
             <div className="absolute inset-x-2 bottom-1.5">
-              <div className="truncate text-[11.5px] font-bold leading-tight text-white">
+              <div className="truncate text-[13px] font-bold leading-tight text-white">
                 {location.glyph} {location.place}
               </div>
-              <div className="mt-0.5 flex items-center gap-1 text-[9px] text-white/70">
+              <div className="mt-0.5 flex items-center gap-1 text-[11px] text-white/70">
                 <span className="rounded bg-black/35 px-1 py-px">
-                  {device.icon} {device.short}
+                  <DeviceIcon device={location.device} className="mr-1 inline h-3 w-3 align-[-1px]" /> {device.short}
                 </span>
                 <span className="truncate">{location.weatherLabel}</span>
               </div>
@@ -86,7 +88,7 @@ export const LocationGrid: React.FC<{ onPick?: () => void }> = ({ onPick }) => {
 
             {active && (
               <span
-                className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full text-[10px] font-black text-[var(--ui-on-primary)]"
+                className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full text-[11px] font-black text-[var(--ui-on-primary)]"
                 style={{ background: location.accent }}
                 aria-hidden
               >
@@ -94,12 +96,12 @@ export const LocationGrid: React.FC<{ onPick?: () => void }> = ({ onPick }) => {
               </span>
             )}
             {locked && (
-              <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-md border border-white/20 bg-black/60 px-1.5 py-0.5 text-[9px] font-bold text-white/80">
+              <span className="absolute left-1.5 top-1.5 inline-flex items-center gap-1 rounded-md border border-white/20 bg-black/60 px-1.5 py-0.5 text-[11px] font-bold text-white/80">
                 <Lock className="h-2.5 w-2.5" /> Ур. {location.requiredLevel}
               </span>
             )}
             {busy && (
-              <span className="absolute inset-0 grid place-items-center bg-black/60 text-[10px] font-bold text-white/80">
+              <span className="absolute inset-0 grid place-items-center bg-black/60 text-[11px] font-bold text-white/80">
                 переезжаем…
               </span>
             )}
@@ -134,8 +136,8 @@ export const LocationPickerModal: React.FC<{ open: boolean; onClose: () => void 
       >
         <div className="mb-2 flex items-start justify-between gap-2">
           <div>
-            <div className="font-display text-sm font-extrabold text-white">Куда пойдём?</div>
-            <p className="mt-0.5 text-[10.5px] leading-snug text-[var(--ui-text-muted)]">
+            <div className="font-display text-[16px] font-extrabold text-white">Куда пойдём?</div>
+            <p className="mt-0.5 text-[11px] leading-snug text-[var(--ui-text-muted)]">
               Локация — это антураж, не бонус. Работать можно откуда угодно: с ноутбука, с телефона
               или за столом.
             </p>
@@ -153,7 +155,7 @@ export const LocationPickerModal: React.FC<{ open: boolean; onClose: () => void 
         <LocationGrid onPick={onClose} />
 
         <div className="mt-2.5 flex items-center justify-between gap-2">
-          <span className="text-[10.5px] text-[var(--ui-text-muted)]">
+          <span className="text-[11px] text-[var(--ui-text-muted)]">
             {current ? `Сейчас: ${current.place}` : 'Сейчас: сцена по уровню'}
           </span>
           <button

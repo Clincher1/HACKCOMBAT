@@ -4,6 +4,7 @@ import { TEAM_CONFIG } from '../../shared/team.config';
 import { PetsSection } from '../components/PetsSection';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+import { CheckIcon } from '../components/ui-icons';
 
 export const TeamPage: React.FC = () => {
   const { player, hireNpc, busyKey } = useGame();
@@ -13,7 +14,7 @@ export const TeamPage: React.FC = () => {
     <div className="space-y-3.5 pb-4">
       <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-primary)]/25 p-3.5 flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+          <div className="text-[13px] font-bold text-white flex items-center gap-1.5">
             <Users className="w-4 h-4 text-[var(--ui-success)]" />
             <span>Синдикат Специалистов ({player.team.length}/{TEAM_CONFIG.length})</span>
           </div>
@@ -22,7 +23,7 @@ export const TeamPage: React.FC = () => {
             контракты и <strong>Data</strong>/<strong>Rep</strong>. Найм даёт силу железа.
           </p>
         </div>
-        <div className="text-right shrink-0 text-xs font-bold text-[var(--ui-primary)] flex items-center gap-1">
+        <div className="text-right shrink-0 text-[13px] font-bold text-[var(--ui-primary)] flex items-center gap-1">
           <Shield className="w-4 h-4" />
           <span>{player.rep} Rep</span>
         </div>
@@ -58,10 +59,10 @@ export const TeamPage: React.FC = () => {
                   className="w-16 h-16 rounded-xl object-cover border border-[var(--ui-primary)]/35 shrink-0 bg-[var(--ui-panel-deep)]"
                 />
                 <div className="min-w-0 space-y-1">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--ui-primary)] font-bold">
+                  <div className="text-[11px] uppercase tracking-wider text-[var(--ui-primary)] font-bold">
                     {npc.roleTitle}
                   </div>
-                  <h3 className="font-display text-xs font-extrabold text-white truncate">
+                  <h3 className="font-display text-[13px] font-extrabold text-white truncate">
                     {npc.callsign}
                   </h3>
                   <p className="text-[11px] italic text-slate-400 leading-snug">{npc.quote}</p>
@@ -74,14 +75,14 @@ export const TeamPage: React.FC = () => {
                   <span className="ml-1 text-slate-400 font-normal">· +{npc.hackPower} силы</span>
                 </div>
                 {locked && !hired && (
-                  <div className="px-2.5 py-1.5 rounded-lg bg-[var(--ui-panel-deep)] border border-amber-500/30 text-[10px] font-bold text-amber-300 space-y-0.5">
+                  <div className="px-2.5 py-1.5 rounded-lg bg-[var(--ui-panel-deep)] border border-amber-500/30 text-[11px] font-bold text-amber-300 space-y-0.5">
                     <div className="flex items-center gap-1">
                       <Lock className="w-3 h-3" /> Уровень {npc.requiredLevel}
-                      {levelOk ? ' ✓' : ` (у тебя ${player.derived.level})`}
+                      {levelOk ? <CheckIcon className="ml-1 inline h-3 w-3 align-[-1px]" /> : ` (у тебя ${player.derived.level})`}
                     </div>
                     <div className="flex items-center gap-1">
                       <Lock className="w-3 h-3" /> {npc.requiredMissions} контрактов
-                      {missionsOk ? ' ✓' : ` (у тебя ${player.totalMissions})`}
+                      {missionsOk ? <CheckIcon className="ml-1 inline h-3 w-3 align-[-1px]" /> : ` (у тебя ${player.totalMissions})`}
                     </div>
                   </div>
                 )}
@@ -90,7 +91,7 @@ export const TeamPage: React.FC = () => {
                   type="button"
                   disabled={hired || locked || !canAfford || isBusy}
                   onClick={() => void hireNpc(npc.key)}
-                  className={`w-full py-2 rounded-xl font-display font-bold text-xs transition cursor-pointer ${
+                  className={`w-full py-2 rounded-xl font-display font-bold text-[13px] transition cursor-pointer ${
                     hired
                       ? 'bg-[var(--ui-success)]/15 text-[var(--ui-success)] border border-[var(--ui-success)]/40 cursor-default'
                       : locked

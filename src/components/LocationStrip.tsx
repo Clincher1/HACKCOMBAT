@@ -31,6 +31,7 @@ import {
 } from '../../shared/world.config';
 import { useGame } from '../context/GameContext';
 import { ModalFrame } from './ModalFrame';
+import { LocationIcon } from './ui-icons';
 
 /** Один чип полосы: крупная иконка + название, закрытые — с замком. */
 const LocationChip = React.memo(function LocationChip({
@@ -66,32 +67,30 @@ const LocationChip = React.memo(function LocationChip({
             : 'border-white/12 bg-[var(--ui-panel)] hover:border-white/30'
       }`}
     >
-      <span className="text-[20px] leading-none" aria-hidden>
-        {location.glyph}
-      </span>
+      <LocationIcon locationId={location.id} className="h-5 w-5" />
       <span
-        className={`max-w-full truncate text-[9.5px] font-bold leading-tight ${
+        className={`max-w-full truncate text-[11px] font-bold leading-tight ${
           active ? 'text-white' : 'text-white/75'
         }`}
       >
         {location.name}
       </span>
       {busy && (
-        <span className="absolute inset-0 grid place-items-center rounded-2xl bg-black/60 text-[9px] font-bold text-white/85">
+        <span className="absolute inset-0 grid place-items-center rounded-2xl bg-black/60 text-[11px] font-bold text-white/85">
           …
         </span>
       )}
       {locked && (
         <span
           data-qa="location-lock"
-          className="absolute right-1 top-1 inline-flex items-center gap-0.5 rounded-md border border-white/20 bg-black/70 px-1 py-px text-[8.5px] font-extrabold text-white/85"
+          className="absolute right-1 top-1 inline-flex items-center gap-0.5 rounded-md border border-white/20 bg-black/70 px-1 py-px text-[11px] font-extrabold text-white/85"
         >
           <Lock className="h-2 w-2" />L{location.minLevel}
         </span>
       )}
       {active && (
         <span
-          className="absolute left-1 top-1 grid h-3.5 w-3.5 place-items-center rounded-full text-[8px] font-black text-[var(--ui-on-primary)]"
+          className="absolute left-1 top-1 grid h-3.5 w-3.5 place-items-center rounded-full text-[11px] font-black text-[var(--ui-on-primary)]"
           style={{ background: 'var(--loc-accent)' }}
           aria-hidden
         >
@@ -120,7 +119,7 @@ const LocationSheet: React.FC<{
     <div data-qa="location-sheet" data-location-id={entry.id} className="space-y-3">
       <div className="flex items-start gap-3">
         <span
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-2xl"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl text-[28px]"
           style={{
             // Акцент берём у выбранной локации, а не у активной: --loc-accent
             // на :root принадлежит месту, где игрок стоит сейчас.
@@ -129,14 +128,14 @@ const LocationSheet: React.FC<{
           }}
           aria-hidden
         >
-          {location.glyph}
+          <LocationIcon locationId={location.id} className="h-5 w-5" />
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-[15px] font-extrabold text-white">{location.name}</h3>
+            <h3 className="truncate text-[16px] font-extrabold text-white">{location.name}</h3>
             {active && (
               <span
-                className="rounded-md px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wide"
+                className="rounded-md px-1.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide"
                 style={{
                   background: `rgba(${location.accentRgb}, 0.2)`,
                   color: `rgb(${location.accentRgb})`,
@@ -163,7 +162,7 @@ const LocationSheet: React.FC<{
       {/* Числа — из shared/locations.ts: то же, что применяет сервер. */}
       <div
         data-qa="location-effects"
-        className="rounded-xl border bg-black/25 px-3 py-2 text-[11.5px] font-bold text-white/85"
+        className="rounded-xl border bg-black/25 px-3 py-2 text-[13px] font-bold text-white/85"
         style={{ borderColor: `rgba(${location.accentRgb}, 0.35)` }}
       >
         {locationEffectLabel(entry.id)}
@@ -228,10 +227,10 @@ const LocationStripInner: React.FC = () => {
   return (
     <section data-qa="location-strip" aria-label="Локации города" className="space-y-1.5">
       <div className="flex items-center justify-between px-0.5">
-        <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--ui-text-muted)]">
           Где я работаю
         </span>
-        <span className="text-[10px] text-[var(--ui-text-muted)]">{activeLocation.name}</span>
+        <span className="text-[11px] text-[var(--ui-text-muted)]">{activeLocation.name}</span>
       </div>
       {/* Сетка 3×2, а не горизонтальный скролл: все шесть локаций видны сразу,
           без «прокрути-и-догадайся». Цели — 58 px по высоте (норма ≥ 44 px). */}

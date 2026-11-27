@@ -8,6 +8,7 @@ import {
 } from '../../shared/pets.config';
 import type { PetConfig, PetState } from '../../shared/types';
 import { useGame } from '../context/GameContext';
+import { EnergyIcon, HelpIcon, PawIcon } from './ui-icons';
 import { formatCompact, formatCountdown } from '../lib/format';
 
 const CURRENCY_LABEL: Record<PetConfig['costCurrency'], string> = {
@@ -18,8 +19,8 @@ const CURRENCY_LABEL: Record<PetConfig['costCurrency'], string> = {
 
 function hungerColor(hunger: number): string {
   if (hunger >= 60) return 'var(--ui-success)';
-  if (hunger >= 30) return '#ffd166';
-  return '#ff3b6b';
+  if (hunger >= 30) return 'var(--ui-warn)';
+  return 'var(--ui-danger)';
 }
 
 function hungerStatus(hunger: number): string {
@@ -41,8 +42,8 @@ export const PetsSection: React.FC = () => {
   return (
     <div className="space-y-3">
       <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-secondary)]/25 p-3.5">
-        <div className="text-xs font-bold text-white flex items-center gap-1.5">
-          <span className="text-base">🐾</span>
+        <div className="text-[13px] font-bold text-white flex items-center gap-1.5">
+          <PawIcon className="h-4 w-4" />
           <span>Питомцы-Компаньоны ({player.pets.length}/{PETS_CONFIG.length})</span>
         </div>
         <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
@@ -91,18 +92,18 @@ export const PetsSection: React.FC = () => {
             <div
               key={cfg.key}
               className={`rounded-2xl border p-3.5 flex flex-col justify-between gap-3 ${
-                owned ? 'border-[var(--ui-secondary)]/45 bg-[#121a30]/95' : 'border-slate-800/90 bg-[var(--ui-panel)]/95'
+                owned ? 'border-[var(--ui-secondary)]/45 bg-[rgba(var(--ui-panel-rgb), 0.95)]' : 'border-slate-800/90 bg-[var(--ui-panel)]/95'
               }`}
             >
               <div className="flex items-start gap-3">
-                <div className="w-16 h-16 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-secondary)]/30 flex items-center justify-center text-3xl shrink-0">
-                  {owned ? cfg.emoji : '❔'}
+                <div className="w-16 h-16 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-secondary)]/30 flex items-center justify-center text-[28px] shrink-0">
+                  {owned ? cfg.emoji : <HelpIcon className="h-6 w-6 text-slate-500" />}
                 </div>
                 <div className="min-w-0 space-y-1">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--ui-secondary)] font-bold">
+                  <div className="text-[11px] uppercase tracking-wider text-[var(--ui-secondary)] font-bold">
                     {cfg.species}
                   </div>
-                  <h3 className="font-display text-xs font-extrabold text-white truncate">
+                  <h3 className="font-display text-[13px] font-extrabold text-white truncate">
                     {cfg.name}
                   </h3>
                   <p className="text-[11px] text-slate-400 leading-snug line-clamp-2">
@@ -112,14 +113,14 @@ export const PetsSection: React.FC = () => {
               </div>
 
               <div className="px-2.5 py-1.5 rounded-lg bg-[var(--ui-panel-deep)] border border-slate-800 text-[11px] font-bold text-[var(--ui-success)]">
-                ⚡ {cfg.buffLabel}
+                <EnergyIcon className="inline h-3 w-3 align-[-1px]" /> {cfg.buffLabel}
               </div>
 
               {owned ? (
                 <div className="space-y-2">
                   {/* Шкала сытости */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[10px]">
+                    <div className="flex items-center justify-between text-[11px]">
                       <span className="font-bold" style={{ color: hungerColor(hunger) }}>
                         Сытость {Math.round(hunger)}%
                       </span>
@@ -136,7 +137,7 @@ export const PetsSection: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                  <div className="flex items-center justify-between text-[11px] text-slate-400">
                     <span className="inline-flex items-center gap-1">
                       <Heart className="w-3 h-3 text-[var(--ui-secondary)]" /> Привязанность {affection}/10
                     </span>
@@ -147,7 +148,7 @@ export const PetsSection: React.FC = () => {
                     type="button"
                     disabled={!canFeed || isBusy}
                     onClick={() => void petAction('feed', cfg.key)}
-                    className={`w-full py-2 rounded-xl font-display font-bold text-xs transition cursor-pointer inline-flex items-center justify-center gap-1.5 ${
+                    className={`w-full py-2 rounded-xl font-display font-bold text-[13px] transition cursor-pointer inline-flex items-center justify-center gap-1.5 ${
                       canFeed
                         ? 'bg-[var(--ui-secondary)] hover:bg-[var(--ui-secondary)]/90 text-white shadow-[0_0_16px_rgba(var(--ui-secondary-rgb),0.3)]'
                         : 'bg-[var(--ui-panel-deep)] text-slate-500 border border-slate-800 cursor-not-allowed'
@@ -168,7 +169,7 @@ export const PetsSection: React.FC = () => {
                   type="button"
                   disabled={!canAfford || levelLocked || isBusy}
                   onClick={() => void petAction('buy', cfg.key)}
-                  className={`w-full py-2 rounded-xl font-display font-bold text-xs transition cursor-pointer ${
+                  className={`w-full py-2 rounded-xl font-display font-bold text-[13px] transition cursor-pointer ${
                     levelLocked
                       ? 'bg-[var(--ui-panel-deep)] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
                       : canAfford

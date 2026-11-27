@@ -182,6 +182,8 @@ export const PRESTIGE_REQUIRED_LEVEL = 50;
 export const MAX_PRESTIGE_COUNT = Number.MAX_SAFE_INTEGER;
 export const PRESTIGE_DOUBLING_CYCLES = 5;
 export const PRESTIGE_POST_CAP_BONUS = 0.1;
+/** Плоский бонус цикла: ×2 независимо от номера цикла (первые пять циклов). */
+export const PRESTIGE_FLAT_MULTIPLIER = 2;
 export const BASE_OFFLINE_CAP_SECONDS = 8 * 3600;
 
 export function getSafePrestigeCount(prestigeCount: number): number {
@@ -190,16 +192,29 @@ export function getSafePrestigeCount(prestigeCount: number): number {
   return Math.max(0, Math.min(MAX_PRESTIGE_COUNT, Math.floor(raw)));
 }
 
+/**
+ * v6.9: множитель престижа — ПЛОСКИЙ ×2, а не накопительный ×2^цикл.
+ *
+ * Почему (числа — в scripts/qa/economy.mjs, блок «престиж не врёт о цене»):
+ * цены каталога привязаны к доходу через pricing.config и считаются от
+ * expectedHourlyIncome(level) БЕЗ престижного множителя. Накопительная дуга
+ * ×2 → ×32 означала бы, что на пятом цикле любая покупка стоит 1/32 заявленных
+ * «часов дохода»: карточка, обещанная как «≈ 1.8 ч», закрывалась бы за 3 минуты,
+ * а весь каталог (≈ 85 ч на один уровень всех карточек) — за 2.6 ч. Anchor
+ * «цена = N часов фарма» перестаёт быть правдой, и Data обесценивается ровно
+ * настолько, насколько вырос множитель.
+ *
+ * Плоский ×2 держит расхождение anchor'а постоянным (≤ 2×) на любом цикле,
+ * а после пятого цикла рост продолжается мягко (+10% за цикл), чтобы игрок
+ * не упирался в стену.
+ */
 export function getPrestigeMultiplier(prestigeCount: number): number {
   const safe = getSafePrestigeCount(prestigeCount);
-  const doublingCycles = Math.min(PRESTIGE_DOUBLING_CYCLES, safe);
+  if (safe <= 0) return 1;
   const extraCycles = Math.max(0, safe - PRESTIGE_DOUBLING_CYCLES);
-  // Первые пять циклов сохраняют привычную дугу ×2 → ×32. После неё бонус
-  // продолжается мягко (+10% за цикл), чтобы игрок не упирался в стену и
-  // экономика не улетала в Infinity.
   return Math.min(
     Number.MAX_SAFE_INTEGER,
-    Math.pow(2, doublingCycles) * (1 + extraCycles * PRESTIGE_POST_CAP_BONUS)
+    PRESTIGE_FLAT_MULTIPLIER * (1 + extraCycles * PRESTIGE_POST_CAP_BONUS)
   );
 }
 

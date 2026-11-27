@@ -8,6 +8,7 @@ import {
   lollipopRemainingMs,
 } from '../../shared/season.config';
 import { useGame } from '../context/GameContext';
+import { CandiesIcon } from './ui-icons';
 
 /**
  * Бейдж сезонного леденца (v6.3).
@@ -34,10 +35,10 @@ const LollipopBadgeBase: React.FC = () => {
       <span
         data-qa="lollipop-badge"
         data-lollipop-state="active"
-        className="inline-flex items-center gap-1 rounded-md bg-amber-300/20 px-1.5 py-0.5 text-[9px] font-extrabold leading-none text-amber-200"
+        className="inline-flex items-center gap-1 rounded-md bg-amber-300/20 px-1.5 py-0.5 text-[11px] font-extrabold leading-none text-amber-200"
         title="Леденец: Data ×2 со всех ручных действий"
       >
-        <span aria-hidden>🍭</span>
+        <CandiesIcon className="h-3 w-3" />
         ×2 · {formatLollipopLeft(lollipopRemainingMs(state, nowMs))}
       </span>
     );
@@ -52,10 +53,10 @@ const LollipopBadgeBase: React.FC = () => {
         data-lollipop-state="ready"
         onClick={() => void activateLollipop()}
         disabled={busy}
-        className="inline-flex items-center gap-1 rounded-md bg-slate-800/80 px-1.5 py-0.5 text-[9px] font-bold leading-none text-slate-300 transition-colors duration-150 active:bg-slate-700 disabled:opacity-60 cursor-pointer"
+        className="inline-flex items-center gap-1 rounded-md bg-slate-800/80 px-1.5 py-0.5 text-[11px] font-bold leading-none text-slate-300 transition-colors duration-150 active:bg-slate-700 disabled:opacity-60 cursor-pointer"
         title="Леденец: ×2 Data на час, активируется раз в сутки"
       >
-        <span aria-hidden>🍭</span>
+        <CandiesIcon className="h-3 w-3" />
         {busy ? '…' : 'Активировать'}
       </button>
     );
@@ -65,10 +66,10 @@ const LollipopBadgeBase: React.FC = () => {
     <span
       data-qa="lollipop-badge"
       data-lollipop-state="spent"
-      className="inline-flex items-center gap-1 rounded-md bg-slate-800/60 px-1.5 py-0.5 text-[9px] font-bold leading-none text-slate-500"
+      className="inline-flex items-center gap-1 rounded-md bg-slate-800/60 px-1.5 py-0.5 text-[11px] font-bold leading-none text-slate-500"
       title="Леденец снова будет доступен с новыми игровыми сутками"
     >
-      <span aria-hidden>🍭</span>
+      <CandiesIcon className="h-3 w-3" />
       {formatLollipopLeft(lollipopCooldownMs(state, nowMs))}
     </span>
   );

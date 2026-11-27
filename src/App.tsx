@@ -62,7 +62,7 @@ const DemoPage = __HK_DEMO__
 const RouteLoading: React.FC = () => (
   <div className="min-h-[55vh] flex flex-col items-center justify-center text-center">
     <div className="w-9 h-9 rounded-xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-3" />
-    <p className="text-xs text-slate-400">Секунду…</p>
+    <p className="text-[13px] text-slate-400">Секунду…</p>
   </div>
 );
 
@@ -82,10 +82,10 @@ const AppShell: React.FC = () => {
     return (
       <div className="min-h-screen cyber-grid-bg flex flex-col items-center justify-center p-6 text-center">
         <div className="w-12 h-12 rounded-2xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-4" />
-        <div className="font-display text-lg font-extrabold text-[var(--ui-primary)] tracking-widest">
+        <div className="font-display text-[20px] font-extrabold text-[var(--ui-primary)] tracking-widest">
           HACKER KOMBAT
         </div>
-        <p className="text-xs text-slate-400 mt-1">Загружаем твой стол…</p>
+        <p className="text-[13px] text-slate-400 mt-1">Загружаем твой стол…</p>
       </div>
     );
   }
@@ -95,12 +95,12 @@ const AppShell: React.FC = () => {
       <div className="min-h-screen cyber-grid-bg flex items-center justify-center p-6 text-center">
         <div className="w-full max-w-sm rounded-2xl bg-[var(--ui-panel)] border border-rose-400/40 p-5 shadow-[0_0_32px_rgba(244,63,94,0.12)]">
           <WifiOff className="w-10 h-10 mx-auto text-rose-300 mb-3" />
-          <h1 className="font-display text-base font-extrabold text-white">Терминал не подключился</h1>
-          <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+          <h1 className="font-display text-[16px] font-extrabold text-white">Терминал не подключился</h1>
+          <p className="text-[13px] text-slate-300 mt-2 leading-relaxed">
             Игра не получила профиль с сервера. Прогресс не изменён — попробуй подключиться ещё раз.
           </p>
           {initError && (
-            <p className="mt-2 rounded-lg bg-black/20 px-2.5 py-2 text-[10px] text-rose-200 break-words">
+            <p className="mt-2 rounded-lg bg-black/20 px-2.5 py-2 text-[11px] text-rose-200 break-words">
               {initError}
             </p>
           )}
@@ -108,7 +108,7 @@ const AppShell: React.FC = () => {
             type="button"
             onClick={() => void retryInit()}
             disabled={loading}
-            className="mt-4 w-full rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-sm font-extrabold text-[var(--ui-on-primary)] transition hover:brightness-110 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
+            className="mt-4 w-full rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-[16px] font-extrabold text-[var(--ui-on-primary)] transition hover:brightness-110 disabled:opacity-60 cursor-pointer disabled:cursor-wait"
           >
             <span className="inline-flex items-center justify-center gap-2">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -195,7 +195,7 @@ const AppRoutes: React.FC = () => {
       <Suspense
         fallback={
           <div className="min-h-screen bg-[var(--ui-panel-deep)] flex items-center justify-center">
-            <div className="w-9 h-9 rounded-xl border-2 border-[#2ee6d6] border-t-transparent animate-spin" />
+            <div className="w-9 h-9 rounded-xl border-2 border-[var(--ui-secondary)] border-t-transparent animate-spin" />
           </div>
         }
       >

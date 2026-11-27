@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { BACKDROPS_CONFIG } from '../../shared/backdrops.config';
 import { useGame } from '../context/GameContext';
+import { MapGlyph } from './ui-icons';
 import { DEVICE_LABEL, LocationGrid, LocationPickerModal } from './LocationPicker';
+import { withAlpha } from '../lib/colors';
 
 /**
  * «Локации» (v5.0, было «вид из окна» v4.1).
@@ -21,8 +23,8 @@ export const BackdropPicker: React.FC = () => {
     <section className="space-y-3 rounded-2xl border border-white/10 bg-[var(--ui-panel)] p-3.5">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 font-display text-sm font-extrabold text-white">
-            <span aria-hidden>🗺️</span>
+          <div className="flex items-center gap-1.5 font-display text-[16px] font-extrabold text-white">
+            <MapGlyph className="h-4 w-4" />
             <span>Локации</span>
           </div>
           <p className="mt-1 text-[11px] leading-relaxed text-[var(--ui-text-muted)]">
@@ -32,8 +34,8 @@ export const BackdropPicker: React.FC = () => {
         </div>
         {deskBackdrop && (
           <span
-            className="shrink-0 rounded-full px-2 py-0.5 text-[9.5px] font-bold"
-            style={{ background: `${deskBackdrop.accent}22`, color: deskBackdrop.accent }}
+            className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold"
+            style={{ background: withAlpha(deskBackdrop.accent, 0.13), color: deskBackdrop.accent }}
           >
             {deskBackdrop.place}
           </span>
@@ -43,7 +45,7 @@ export const BackdropPicker: React.FC = () => {
       <LocationGrid />
 
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10.5px] text-[var(--ui-text-muted)]">
+        <span className="text-[11px] text-[var(--ui-text-muted)]">
           {deskBackdrop
             ? `Сейчас: ${deskBackdrop.place} · ${DEVICE_LABEL[deskBackdrop.device].short}`
             : 'Сейчас: сцена по уровню'}

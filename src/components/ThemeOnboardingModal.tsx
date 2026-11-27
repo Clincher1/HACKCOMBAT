@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
 import { BASE_THEMES, type BaseThemeConfig, type BaseThemeKey } from '../../shared/themes.config';
 import { useGame } from '../context/GameContext';
+import { withAlpha } from '../lib/colors';
 
 function isNewOperator(player: ReturnType<typeof useGame>['player']): boolean {
   if (!player) return false;
@@ -67,17 +68,17 @@ export const ThemeOnboardingModal: React.FC = () => {
         >
           <div className="border-b border-white/10 bg-gradient-to-r from-[var(--ui-panel)] to-[var(--ui-panel-deep)] px-4 py-4 text-center sm:px-5">
             <div className="mx-auto mb-2 flex w-fit items-center gap-2 rounded-xl border border-[rgba(var(--ui-primary-rgb),0.35)] bg-black/20 px-3 py-1.5">
-              <span className="font-display text-xs font-black tracking-[0.22em] text-[var(--ui-primary)]">
+              <span className="font-display text-[13px] font-black tracking-[0.22em] text-[var(--ui-primary)]">
                 HK
               </span>
-              <span className="text-[10px] font-bold tracking-[0.18em] text-slate-300">
+              <span className="text-[11px] font-bold tracking-[0.18em] text-slate-300">
                 HACKER KOMBAT
               </span>
             </div>
-            <div className="mb-1 flex items-center justify-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--ui-primary)]">
+            <div className="mb-1 flex items-center justify-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--ui-primary)]">
               <Sparkles className="h-3.5 w-3.5" /> Первый запуск
             </div>
-            <h1 id="theme-onboarding-title" className="font-display text-lg font-extrabold text-white sm:text-xl">
+            <h1 id="theme-onboarding-title" className="font-display text-[20px] font-extrabold text-white sm:text-[20px]">
               Выбери, как всё будет выглядеть
             </h1>
             <p className="mx-auto mt-1.5 max-w-md text-[11px] leading-relaxed text-slate-300">
@@ -86,7 +87,7 @@ export const ThemeOnboardingModal: React.FC = () => {
           </div>
 
           <div className="p-3.5 sm:p-5">
-            <div className="mb-2.5 flex items-center justify-between gap-2 text-[10px] text-slate-500">
+            <div className="mb-2.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
               <span>Тёплая база · неон · Neon Muse</span>
               <span>всё бесплатно</span>
             </div>
@@ -120,22 +121,22 @@ export const ThemeOnboardingModal: React.FC = () => {
                       className="absolute inset-0"
                       style={{
                         background: theme.previewImage
-                          ? `linear-gradient(180deg, ${theme.previewFrom}22 0%, ${theme.previewTo}35 48%, rgba(var(--ui-panel-deep-rgb), 0.93) 100%)`
-                          : `linear-gradient(145deg, ${theme.previewFrom}30 0%, ${theme.previewTo}28 48%, var(--ui-panel-deep) 100%)`,
+                          ? `linear-gradient(180deg, ${withAlpha(theme.previewFrom, 0.13)} 0%, ${withAlpha(theme.previewTo, 0.21)} 48%, rgba(var(--ui-panel-deep-rgb), 0.93) 100%)`
+                          : `linear-gradient(145deg, ${withAlpha(theme.previewFrom, 0.19)} 0%, ${withAlpha(theme.previewTo, 0.16)} 48%, var(--ui-panel-deep) 100%)`,
                       }}
                     />
 
                     <div className="relative flex h-full flex-col">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="text-xl leading-none" aria-hidden="true">
+                        <span className="text-[20px] leading-none" aria-hidden="true">
                           {theme.glyph}
                         </span>
                         {active || selecting ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[9px] font-black text-[var(--ui-panel-deep)]">
+                          <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[11px] font-black text-[var(--ui-panel-deep)]">
                             {selecting ? 'СОХРАНЯЕМ' : <><Check className="h-2.5 w-2.5" /> ВЫБРАНО</>}
                           </span>
                         ) : (
-                          <span className="rounded-md bg-black/35 px-1.5 py-0.5 text-[9px] font-bold text-white/85">
+                          <span className="rounded-md bg-black/35 px-1.5 py-0.5 text-[11px] font-bold text-white/85">
                             бесплатно
                           </span>
                         )}
@@ -144,25 +145,25 @@ export const ThemeOnboardingModal: React.FC = () => {
                       {/* Мини-превью логотипа: игрок видит характер бренда до выбора. */}
                       <div className="mt-5 rounded-xl border border-white/15 bg-black/25 px-2 py-3 text-center backdrop-blur-[2px]">
                         <div
-                          className="font-display text-[10px] font-black tracking-[0.22em]"
+                          className="font-display text-[11px] font-black tracking-[0.22em]"
                           style={{ color: theme.previewFrom }}
                         >
                           HACKER
                         </div>
                         <div
-                          className="font-display text-xl font-black leading-none tracking-[0.08em]"
-                          style={{ color: theme.previewTo, textShadow: `0 0 14px ${theme.previewTo}99` }}
+                          className="font-display text-[20px] font-black leading-none tracking-[0.08em]"
+                          style={{ color: theme.previewTo, textShadow: `0 0 14px ${withAlpha(theme.previewTo, 0.6)}` }}
                         >
                           KOMBAT
                         </div>
                       </div>
 
                       <div className="mt-auto pt-3">
-                        <div className="flex items-center gap-1.5 font-display text-sm font-extrabold text-white">
+                        <div className="flex items-center gap-1.5 font-display text-[16px] font-extrabold text-white">
                           <Palette className="h-3.5 w-3.5" style={{ color: theme.previewFrom }} />
                           {theme.key === 'femme' ? 'Женская · Neon Muse' : theme.name}
                         </div>
-                        <div className="mt-1 text-[10px] leading-snug text-slate-200/85">
+                        <div className="mt-1 text-[11px] leading-snug text-slate-200/85">
                           {theme.tagline}
                         </div>
                         <div
@@ -176,7 +177,7 @@ export const ThemeOnboardingModal: React.FC = () => {
               })}
             </div>
 
-            <div className="mt-3 rounded-xl border border-slate-800 bg-[var(--ui-panel-deep)] px-3 py-2.5 text-[10px] leading-relaxed text-slate-400">
+            <div className="mt-3 rounded-xl border border-slate-800 bg-[var(--ui-panel-deep)] px-3 py-2.5 text-[11px] leading-relaxed text-slate-400">
               <strong className="text-slate-200">Можно поменять позже:</strong> открой кнопку{' '}
               <span className="font-bold text-[var(--ui-secondary)]">«Скины»</span> в верхней панели и выбери{' '}
               <span className="font-bold text-slate-200">«Базовая тема»</span>. Обе темы остаются бесплатными.

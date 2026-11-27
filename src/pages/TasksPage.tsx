@@ -32,7 +32,7 @@ const DailyResetNote: React.FC<{ dayKey: string }> = ({ dayKey }) => {
   const resetAt = getGameDayBoundsMs(dayKey).end;
   const seconds = Math.max(0, (resetAt - nowMs) / 1000);
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] text-[var(--ui-text-muted)]">
+    <span className="inline-flex items-center gap-1 text-[11px] text-[var(--ui-text-muted)]">
       Новый набор через <strong className="font-bold text-slate-300">{formatCountdown(seconds)}</strong>
     </span>
   );
@@ -59,14 +59,14 @@ const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, boostActi
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="font-display text-sm font-extrabold text-white">{section.title}</h2>
+            <h2 className="font-display text-[16px] font-extrabold text-white">{section.title}</h2>
             {section.quests.length > 0 && (
-              <span className="shrink-0 rounded-md bg-[var(--ui-panel-deep)] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-slate-300">
+              <span className="shrink-0 rounded-md bg-[var(--ui-panel-deep)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-slate-300">
                 {closed}/{section.quests.length}
               </span>
             )}
           </div>
-          <p className="mt-0.5 text-[10px] leading-relaxed text-[var(--ui-text-muted)]">{section.subtitle}</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--ui-text-muted)]">{section.subtitle}</p>
         </div>
       </header>
 
@@ -135,7 +135,7 @@ export const TasksPage: React.FC = () => {
     <div className="space-y-4 pb-4" data-qa="tasks-page">
       <header className="rounded-2xl border border-[rgba(var(--ui-primary-rgb),0.35)] bg-[var(--ui-panel)] px-3.5 py-3">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="font-display text-base font-extrabold text-white">Задания</h1>
+          <h1 className="font-display text-[16px] font-extrabold text-white">Задания</h1>
           <span className="rounded-md bg-[rgba(var(--ui-primary-rgb),0.16)] px-2 py-0.5 text-[11px] font-extrabold tabular-nums text-[var(--ui-primary)]">
             {closed}/{total}
           </span>

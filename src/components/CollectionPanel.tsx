@@ -9,6 +9,8 @@ import { BACKDROPS_CONFIG } from '../../shared/backdrops.config';
 import { TEAM_CONFIG } from '../../shared/team.config';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+import { withAlpha } from '../lib/colors';
+import { AvatarFallbackIcon, ChipsIcon, DeviceIcon, LockIcon, PrestigeIcon, StageIcon, UserIcon } from './ui-icons';
 
 type CollectionFilter = 'all' | 'trophies' | 'cosmetics' | 'milestones' | 'companions';
 
@@ -17,7 +19,8 @@ type CollectionItem = {
   category: Exclude<CollectionFilter, 'all'>;
   title: string;
   description: string;
-  icon: string;
+  /** v6.9: глиф-предмет может быть иконкой из ui-icons, а не эмодзи. */
+  icon: React.ReactNode;
   unlocked: boolean;
   secret?: boolean;
   rarity?: string;
@@ -42,23 +45,23 @@ const FILTERS: { id: CollectionFilter; label: string }[] = [
 ];
 
 const RARITY_META: Record<string, { label: string; color: string }> = {
-  common: { label: 'Обычное', color: '#94a3b8' },
+  common: { label: 'Обычное', color: 'var(--ui-text-faint)' },
   rare: { label: 'Редкое', color: 'var(--ui-primary)' },
   epic: { label: 'Эпическое', color: 'var(--ui-purple)' },
-  legendary: { label: 'Легендарное', color: '#ffb703' },
+  legendary: { label: 'Легендарное', color: 'var(--ui-warn)' },
   secret: { label: 'Секретное', color: 'var(--ui-secondary)' },
 };
 
 const STAGES: (1 | 5 | 10 | 15 | 20 | 25 | 30)[] = [1, 5, 10, 15, 20, 25, 30];
 
 function costLabel(currency: 'data' | 'crypto' | 'rep', amount: number): string {
-  const symbol = currency === 'data' ? 'Data' : currency === 'crypto' ? '💎' : 'Rep';
+  const symbol = currency === 'data' ? 'Data' : currency === 'crypto' ? 'Crypto' : 'Rep';
   return `${formatCompact(amount)} ${symbol}`;
 }
 
 function rewardLabel(cryptoReward: number, chipReward?: number, dataReward?: number): string {
-  const rewards = [`+${cryptoReward}💎`];
-  if (chipReward) rewards.push(`+${chipReward}⚙️`);
+  const rewards = [`+${cryptoReward} Crypto`];
+  if (chipReward) rewards.push(`+${chipReward} Чипов`);
   if (dataReward) rewards.push(`+${formatCompact(dataReward)} Data`);
   return rewards.join(' · ');
 }
@@ -150,13 +153,13 @@ export const CollectionPanel: React.FC = () => {
         ? 'Нужен Prestige'
         : skin.requiredLevel && player.derived.level < skin.requiredLevel
           ? `Нужен Ур. ${skin.requiredLevel}`
-          : `${skin.cryptoCost} 💎`;
+          : `${skin.cryptoCost} Crypto`;
       return {
         key: `skin:${skin.key}`,
         category: 'cosmetics',
         title: skin.name,
         description: skin.description,
-        icon: skin.avatarGlyph ?? (skin.category === 'desk' ? '🖥️' : skin.category === 'ui' ? '🎛️' : '🧑‍💻'),
+        icon: skin.avatarGlyph ?? (skin.category === 'desk' ? <DeviceIcon device="desk" className="h-5 w-5" /> : skin.category === 'ui' ? <ChipsIcon className="h-5 w-5" /> : <AvatarFallbackIcon className="h-5 w-5" />),
         unlocked,
         status: equipped ? 'Надето' : unlocked ? 'Открыто' : requirement,
         reward: equipped ? 'Активно сейчас' : skin.category === 'desk' ? 'Рабочий стол' : skin.category === 'ui' ? 'Интерфейс' : 'Аватар',
@@ -176,15 +179,7 @@ export const CollectionPanel: React.FC = () => {
         description: unlocked
           ? info.subtitle
           : 'Сцена рабочего стола откроется после достижения этого уровня.',
-        icon: unlocked
-          ? stage === 30
-            ? '🌐'
-            : stage >= 15
-              ? '🛸'
-              : stage >= 10
-                ? '🗄️'
-                : '🖥️'
-          : '🔒',
+        icon: <StageIcon stage={stage} locked={!unlocked} className="h-5 w-5" />,
         unlocked,
         status: active ? 'Текущий этап' : unlocked ? 'Открыто' : `Откроется на Ур. ${stage}`,
         reward: active ? 'Рабочий стол сейчас' : 'Новая сцена стола',
@@ -198,7 +193,7 @@ export const CollectionPanel: React.FC = () => {
       category: 'milestones',
       title: 'Первый Global Hack',
       description: 'Перезапусти матрицу и получи постоянный престижный множитель.',
-      icon: '🌐',
+      icon: <PrestigeIcon className="h-5 w-5" />,
       unlocked: player.prestigeCount > 0,
       status: player.prestigeCount > 0 ? `Пройдено ×${player.prestigeCount}` : 'Впереди',
       reward: 'Множитель, сохранение коллекции и знак Prestige',
@@ -220,7 +215,7 @@ export const CollectionPanel: React.FC = () => {
         title: npc.callsign,
         description: npc.bio,
         line: npc.quote,
-        icon: '👤',
+        icon: <UserIcon className="h-5 w-5" />,
         unlocked,
         status: unlocked ? 'В команде' : requirement,
         reward: `+${npc.hackPower} силы железа`,
@@ -285,10 +280,10 @@ export const CollectionPanel: React.FC = () => {
 
   return (
     <div className="space-y-3.5">
-      <section className="rounded-2xl bg-gradient-to-br from-[#15112f] to-[var(--ui-panel)] border border-purple-500/35 p-3.5 space-y-3">
+      <section className="rounded-2xl bg-gradient-to-br from-[var(--ui-panel)] to-[var(--ui-panel)] border border-purple-500/35 p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 text-sm font-display font-extrabold text-white">
+            <div className="flex items-center gap-1.5 text-[16px] font-display font-extrabold text-white">
               <Trophy className="w-4 h-4 text-amber-300 shrink-0" />
               <span>Стена оператора</span>
             </div>
@@ -298,16 +293,16 @@ export const CollectionPanel: React.FC = () => {
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <div className="font-display text-sm font-extrabold text-amber-300">
+            <div className="font-display text-[16px] font-extrabold text-amber-300">
               {unlockedPublic}/{publicItems.length}
             </div>
-            <div className="text-[9px] text-slate-500 uppercase tracking-wider">открыто</div>
+            <div className="text-[11px] text-slate-500 uppercase tracking-wider">открыто</div>
           </div>
         </div>
 
         <div className="h-2 rounded-full bg-slate-900 overflow-hidden border border-slate-800">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[var(--ui-primary)] via-[var(--ui-purple)] to-[#ffb703] transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-[var(--ui-primary)] via-[var(--ui-purple)] to-[var(--ui-warn)] transition-all duration-500"
             style={{ width: `${progressPct}%` }}
           />
         </div>
@@ -317,19 +312,19 @@ export const CollectionPanel: React.FC = () => {
             <div
               key={item.key}
               className="min-w-0 rounded-xl bg-black/20 border p-2.5"
-              style={{ borderColor: `${item.accent}66`, boxShadow: `inset 0 0 18px ${item.accent}12` }}
+              style={{ borderColor: withAlpha(item.accent, 0.4), boxShadow: `inset 0 0 18px ${withAlpha(item.accent, 0.07)}` }}
             >
               <div className="flex items-center gap-1.5">
-                <span className="text-lg leading-none shrink-0">{item.icon}</span>
-                <span className="text-[10px] font-bold text-white truncate">{item.title}</span>
+                <span className="text-[20px] leading-none shrink-0">{item.icon}</span>
+                <span className="text-[11px] font-bold text-white truncate">{item.title}</span>
               </div>
-              <div className="text-[9px] text-slate-400 mt-1 truncate">{item.status}</div>
+              <div className="text-[11px] text-slate-400 mt-1 truncate">{item.status}</div>
             </div>
           ))}
           {Array.from({ length: Math.max(0, 6 - wallItems.length) }).map((_, index) => (
             <div
               key={`empty-wall-${index}`}
-              className="rounded-xl border border-dashed border-slate-800 bg-black/10 p-2.5 text-center text-[10px] text-slate-600"
+              className="rounded-xl border border-dashed border-slate-800 bg-black/10 p-2.5 text-center text-[11px] text-slate-600"
             >
               Трофей ещё впереди
             </div>
@@ -337,7 +332,7 @@ export const CollectionPanel: React.FC = () => {
         </div>
 
         {secretTotal > 0 && (
-          <div className="text-[10px] text-slate-500 flex items-center gap-1">
+          <div className="text-[11px] text-slate-500 flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-pink-400" /> Секретов найдено: {hiddenSecretsFound}/{secretTotal}
           </div>
         )}
@@ -371,39 +366,39 @@ export const CollectionPanel: React.FC = () => {
               data-item-line={item.line ? 'true' : 'false'}
               className={`rounded-xl border p-3 flex items-start gap-2.5 transition ${item.line ? 'cursor-pointer' : ''} ${
                 item.unlocked
-                  ? 'bg-[#101c28]'
+                  ? 'bg-[var(--ui-panel)]'
                   : lockedSecret
-                    ? 'bg-[#0b0f1c] border-slate-800/70'
+                    ? 'bg-[var(--ui-panel)] border-slate-800/70'
                     : 'bg-[var(--ui-panel-deep)] border-slate-800/80'
               }`}
-              style={item.unlocked ? { borderColor: `${item.accent}66` } : undefined}
+              style={item.unlocked ? { borderColor: withAlpha(item.accent, 0.4) } : undefined}
             >
               <div
-                className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-xl border"
+                className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-[20px] border"
                 style={{
-                  borderColor: item.unlocked ? `${item.accent}88` : '#1e293b',
-                  background: item.unlocked ? `${item.accent}18` : '#080d18',
+                  borderColor: item.unlocked ? withAlpha(item.accent, 0.53) : 'var(--ui-border-muted)',
+                  background: item.unlocked ? withAlpha(item.accent, 0.09) : 'var(--ui-panel)',
                 }}
               >
-                {lockedSecret ? <Lock className="w-4 h-4 text-slate-600" /> : item.unlocked ? item.icon : '🔒'}
+                {lockedSecret ? <Lock className="w-4 h-4 text-slate-600" /> : item.unlocked ? item.icon : <LockIcon className="h-4 w-4" />}
               </div>
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
-                  <div className={`text-xs font-bold leading-snug ${item.unlocked ? 'text-white' : 'text-slate-300'}`}>
+                  <div className={`text-[13px] font-bold leading-snug ${item.unlocked ? 'text-white' : 'text-slate-300'}`}>
                     {lockedSecret ? '???' : item.title}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     {item.rarity && !lockedSecret && (
                       <span
-                        className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/20"
+                        className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-black/20"
                         style={{ color: item.rarityColor }}
                       >
                         {item.rarity}
                       </span>
                     )}
                     <span
-                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
                         item.unlocked ? 'bg-[var(--ui-success)]/12 text-[var(--ui-success)]' : 'bg-slate-800 text-slate-500'
                       }`}
                     >
@@ -411,19 +406,19 @@ export const CollectionPanel: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
                   {lockedSecret ? 'Секретный трофей. Откроется во время игры.' : item.description}
                 </p>
                 {item.line && lineOpenKey === item.key && (
                   <p
                     data-qa="collection-npc-line"
-                    className="mt-1.5 rounded-lg border border-[rgba(var(--ui-primary-rgb),0.30)] bg-[rgba(var(--ui-primary-rgb),0.10)] px-2 py-1.5 text-[10px] italic leading-snug text-[var(--ui-primary)]"
+                    className="mt-1.5 rounded-lg border border-[rgba(var(--ui-primary-rgb),0.30)] bg-[rgba(var(--ui-primary-rgb),0.10)] px-2 py-1.5 text-[11px] italic leading-snug text-[var(--ui-primary)]"
                   >
                     {item.line}
                   </p>
                 )}
                 {!lockedSecret && (item.source || item.reward) && (
-                  <div className={`text-[9px] font-bold mt-1.5 flex items-center gap-1 ${item.unlocked ? 'text-purple-300' : 'text-slate-500'}`}>
+                  <div className={`text-[11px] font-bold mt-1.5 flex items-center gap-1 ${item.unlocked ? 'text-purple-300' : 'text-slate-500'}`}>
                     {item.category === 'trophies' ? <Gem className="w-3 h-3" /> : <BadgeCheck className="w-3 h-3" />}
                     <span className="truncate">
                       {[item.source, item.reward].filter(Boolean).join(' · ')}
@@ -442,7 +437,7 @@ export const CollectionPanel: React.FC = () => {
         </div>
       )}
 
-      <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800/80 p-3 text-[10px] text-slate-500 leading-relaxed flex items-start gap-2">
+      <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800/80 p-3 text-[11px] text-slate-500 leading-relaxed flex items-start gap-2">
         <Shield className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
         <span>
           Все предметы коллекции читаются из текущего серверного прогресса. Никаких новых покупок,

@@ -58,32 +58,32 @@ const LocationCard: React.FC<{
         className={`pointer-events-none absolute -right-6 -top-8 h-24 w-24 rounded-full ${location.bgClass} opacity-40 blur-xl`}
       />
       <span className="relative flex items-start gap-2.5">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black/25 text-lg" aria-hidden>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-black/25 text-[20px]" aria-hidden>
           {location.glyph}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
             <span className="truncate text-[13px] font-extrabold text-white">{location.name}</span>
             {active && (
-              <span className="shrink-0 rounded bg-[rgba(var(--loc-accent-rgb),0.18)] px-1 py-0.5 text-[9px] font-bold text-[var(--loc-accent)]">
+              <span className="shrink-0 rounded bg-[rgba(var(--loc-accent-rgb),0.18)] px-1 py-0.5 text-[11px] font-bold text-[var(--loc-accent)]">
                 ты здесь
               </span>
             )}
           </span>
-          <span className="mt-0.5 block text-[10px] leading-snug text-[var(--ui-text-muted)]">
+          <span className="mt-0.5 block text-[11px] leading-snug text-[var(--ui-text-muted)]">
             {location.flavor}
           </span>
           <span className="mt-1.5 flex flex-wrap items-center gap-1">
             {location.missionTags.map((tag) => (
               <span
                 key={tag}
-                className="rounded bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold text-slate-300"
+                className="rounded bg-black/25 px-1.5 py-0.5 text-[11px] font-semibold text-slate-300"
               >
                 {TAG_LABEL[tag] ?? tag}
               </span>
             ))}
             {location.minLevel > 0 && (
-              <span className="rounded bg-black/25 px-1.5 py-0.5 text-[9px] font-semibold text-slate-400">
+              <span className="rounded bg-black/25 px-1.5 py-0.5 text-[11px] font-semibold text-slate-400">
                 ур. {location.minLevel}+
               </span>
             )}
@@ -92,13 +92,13 @@ const LocationCard: React.FC<{
       </span>
 
       {!unlocked && (
-        <span className="relative mt-2 flex items-center gap-1.5 rounded-lg bg-black/30 px-2 py-1.5 text-[10px] font-bold text-slate-300">
+        <span className="relative mt-2 flex items-center gap-1.5 rounded-lg bg-black/30 px-2 py-1.5 text-[11px] font-bold text-slate-300">
           <Lock className="h-3 w-3 shrink-0" />
           Откроется на {location.minLevel} уровне
         </span>
       )}
       {unlocked && !active && (
-        <span className="relative mt-2 flex items-center justify-between rounded-lg bg-[rgba(var(--loc-accent-rgb),0.14)] px-2 py-1.5 text-[10px] font-extrabold text-[var(--loc-accent)]">
+        <span className="relative mt-2 flex items-center justify-between rounded-lg bg-[rgba(var(--loc-accent-rgb),0.14)] px-2 py-1.5 text-[11px] font-extrabold text-[var(--loc-accent)]">
           <span>Пойти сюда</span>
           <ArrowRight className="h-3 w-3" />
         </span>
@@ -147,7 +147,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ open, onClose }) => {
       <div className="mx-auto w-full max-w-xl">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="font-display text-base font-extrabold text-white">
+            <h2 className="font-display text-[16px] font-extrabold text-white">
               <MapPin className="mr-1 inline h-4 w-4 text-[var(--loc-accent)]" /> Куда пойдём
             </h2>
             <p className="mt-0.5 text-[11px] leading-snug text-[var(--ui-text-muted)]">
@@ -177,7 +177,7 @@ export const WorldMap: React.FC<WorldMapProps> = ({ open, onClose }) => {
           ))}
         </div>
 
-        <p className="mt-3 text-center text-[10px] text-slate-500">
+        <p className="mt-3 text-center text-[11px] text-slate-500">
           Переезд бесплатный. Уровень и прогресс не сбрасываются.
         </p>
       </div>

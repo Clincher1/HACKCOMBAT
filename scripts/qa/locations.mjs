@@ -550,9 +550,10 @@ function expectedStart(mission, player, locationId) {
   const cssSrc = read('src/index.css');
 
   check(
-    'на столе один вход: полоса между сценой и доской',
-    deskSrc.indexOf('<DeskScene />') < deskSrc.indexOf('<LocationStrip />') &&
-      deskSrc.indexOf('<LocationStrip />') < deskSrc.indexOf('<ContractBoard />')
+    'на столе один вход в мир, и он стоит после дохода (v6.9)',
+    deskSrc.indexOf('<DeskScene />') < deskSrc.indexOf('<ContractBoard />') &&
+      deskSrc.indexOf('<ContractBoard />') < deskSrc.indexOf('<LocationStrip />') &&
+      (deskSrc.match(/<LocationStrip \/>/g) ?? []).length === 1
   );
   check(
     'легаси-входы со стола убраны из рендера',

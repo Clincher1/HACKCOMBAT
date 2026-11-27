@@ -1,111 +1,38 @@
-import { BookOpen, Flame, Gift, Palette, Sparkles, Volume2, VolumeX, Zap } from 'lucide-react';
+import { BookOpen, ChevronRight, Flame, Gift, Zap } from 'lucide-react';
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
 import { LollipopBadge } from './LollipopBadge';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
+import { withAlpha } from '../lib/colors';
+import { AvatarFallbackIcon, ChipsIcon, CryptoIcon, DataIcon, LocationIcon, RepIcon } from './ui-icons';
 
 /**
- * Цвета валют — те же, что в обучении (вкладка «Валюты») и в остальных экранах:
- * Data — циан, Crypto — фиолетовый, Чипы — лайм (⚙️), Rep — изумруд, Heat — роза.
- * Один и тот же цвет везде = игрок узнаёт валюту, не читая подпись.
+ * HACKER KOMBAT — верхняя панель (v6.9, «лёгкий HUD»).
+ *
+ * Что было: две строки валют, отдельные плитки Rep и Heat, четыре кнопки
+ * (Обучение, Бонус, Скины, Звук) и три шкалы — до первого контента на экране
+ * оказывалось 9+ интерактивных элементов, и игрок не понимал, куда нажимать.
+ *
+ * Что стало:
+ *   • один блок валют (Data / Crypto / Чипы / Rep) — это ЧТЕНИЕ, а не навигация;
+ *   • интерактивных элементов в HUD ровно четыре: профиль, бонус, обучение и
+ *     сезонный леденец (он живёт внутри плитки Data, потому что это событие,
+ *     а не раздел меню);
+ *   • Скины и Звук уехали в профиль — это настройки, а не игра;
+ *   • шкалы XP / CPU / Heat — тонкие полосы одной строкой, Heat только вне
+ *     онбординга.
+ *
+ * Все цвета — токены темы (index.css), иконки — ui-icons, цифры — font-num.
  */
-const CURRENCY_COLORS = {
-  data: 'var(--ui-primary)',
-  crypto: 'var(--ui-purple)',
-  chips: 'var(--ui-success)',
-  rep: '#34d399',
-  heat: '#fb7185',
-} as const;
-
-interface CurrencyTileProps {
-  glyph: string;
-  label: string;
-  value: string;
-  accent: string;
-  hint: string;
-  onClick?: () => void;
-  muted?: boolean;
-}
-
-/**
- * Одна валюта = иконка + подпись + число. Раньше в одной клетке жили Чипы, Rep
- * и Heat без подписей — по шестерёнке невозможно было понять, что это и сколько.
- */
-const CurrencyTile: React.FC<CurrencyTileProps> = ({
-  glyph,
-  label,
-  value,
-  accent,
-  hint,
-  onClick,
-  muted,
-}) => {
-  const body = (
-    <>
-      {/* Число — первым: значок + количество читаются сразу, подпись уточняет. */}
-      <div className="flex items-center gap-1 min-w-0">
-        <span className="text-[13px] leading-none shrink-0" aria-hidden="true">
-          {glyph}
-        </span>
-        <span
-          className={`font-display text-[15px] font-extrabold leading-none tabular-nums truncate ${
-            muted ? 'text-slate-400' : 'text-white'
-          }`}
-        >
-          {value}
-        </span>
-      </div>
-      <div
-        className="text-[9px] font-bold uppercase tracking-[0.08em] leading-none mt-1 truncate"
-        style={{ color: accent }}
-      >
-        {label}
-      </div>
-    </>
-  );
-
-  const className = `rounded-xl bg-gradient-to-b from-[#141d3a] to-[#0d1428] border px-2 py-1.5 text-left min-w-0 transition ${
-    onClick ? 'hover:from-[var(--ui-panel)] hover:to-[#101a33] active:scale-[0.98] cursor-pointer' : ''
-  }`;
-  const style = {
-    borderColor: `${accent}55`,
-    boxShadow: `inset 0 0 18px ${accent}14`,
-  };
-
-  if (!onClick) {
-    return (
-      <div className={className} style={style} title={hint}>
-        {body}
-      </div>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={hint}
-      aria-label={`${label}: ${value}. ${hint}`}
-      className={className}
-      style={style}
-    >
-      {body}
-    </button>
-  );
-};
-
 export const TopHud: React.FC = () => {
   const {
     player,
     gameplayV3,
     contractIncomePerHour,
-    soundMuted,
-    toggleSound,
     setDailyModalOpen,
-    setSkinModalOpen,
     openTutorial,
     tutorialUnseen,
     nowMs,
@@ -114,7 +41,6 @@ export const TopHud: React.FC = () => {
     worldEnabled,
     activeLocation,
   } = useGame();
-  const navigate = useNavigate();
 
   if (!player) return null;
 
@@ -124,10 +50,7 @@ export const TopHud: React.FC = () => {
     derived.xpToNext > 0
       ? Math.min(100, Math.max(0, (derived.xpIntoLevel / derived.xpToNext) * 100))
       : 100;
-  // v3.6.5: аватар берётся из СВОЕГО слота, а не из общего equippedSkin.
-  // Раньше глиф и рамка читались из поля стола — поэтому «аватарка слетала»,
-  // как только игрок надевал скин рабочего стола.
-  const equippedAvatarSkin = resolveEquippedSkins({
+  const equippedAvatar = resolveEquippedSkins({
     equippedSkin: player.equippedSkin,
     stats: player.stats,
   }).avatar;
@@ -139,261 +62,215 @@ export const TopHud: React.FC = () => {
   const heatPct = Math.min(100, Math.max(0, player.heat));
   const heatRisk = player.heat >= 75;
 
+  const currencies = [
+    {
+      key: 'data',
+      icon: <DataIcon className="h-3 w-3" />,
+      value: formatCompact(Math.floor(player.data)),
+      label: 'Data',
+      color: 'var(--ui-primary)',
+      hint: gameplayV3
+        ? 'Data: лучший контракт из витрины приносит столько за час'
+        : 'Data: скорость пассивного дохода за час',
+      extra:
+        gameplayV3 ? `+${formatCompact(contractIncomePerHour)}/ч` : `+${formatCompact(derived.dataPerHour)}/ч`,
+      badge: <LollipopBadge />,
+    },
+    {
+      key: 'crypto',
+      icon: <CryptoIcon className="h-3 w-3" />,
+      value: String(player.crypto),
+      label: 'Crypto',
+      color: 'var(--ui-purple)',
+      hint: 'Crypto: премиум-валюта для косметики',
+    },
+    {
+      key: 'chips',
+      icon: <ChipsIcon className="h-3 w-3" />,
+      value: String(player.chips),
+      label: 'Чипы',
+      color: 'var(--ui-success)',
+      hint: 'Чипы: открывают тиры карточек и «Базу»',
+    },
+    {
+      key: 'rep',
+      icon: <RepIcon className="h-3 w-3" />,
+      value: formatCompact(player.rep),
+      label: 'Rep',
+      color: 'var(--ui-secondary)',
+      hint: 'Rep: найм элитной команды и белый хакинг',
+    },
+  ];
+
   return (
-    <header className="sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.92)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2.5 pb-2">
-      <div className="max-w-xl mx-auto space-y-2">
-        {/* Верхняя строка: Уровень/Ранг + быстрые кнопки Бонуса, Скинов и Звука */}
+    <header className="sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.94)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2 pb-2">
+      <div className="mx-auto max-w-xl space-y-1.5">
+        {/* Строка 1: профиль (одна кнопка) + два действия. */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div
-              className="w-6 h-6 shrink-0 rounded-lg bg-[var(--ui-panel-deep)] border border-[rgba(var(--ui-primary-rgb),0.40)] flex items-center justify-center text-sm leading-none"
-              style={{
-                boxShadow: `0 0 10px ${equippedAvatarSkin?.primaryHex ?? 'var(--ui-primary)'}`,
-              }}
-              title={equippedAvatarSkin?.name ?? 'Аватар'}
+          <Link
+            to="/profile"
+            data-qa="hud-profile"
+            aria-label={`Профиль: уровень ${derived.level}, ${derived.rankTitle}`}
+            className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-xl px-1 transition hover:bg-[rgba(var(--ui-primary-rgb),0.08)]"
+          >
+            <span
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-[rgba(var(--ui-primary-rgb),0.40)] bg-[var(--ui-panel)] text-[20px] leading-none"
+              style={{ boxShadow: `0 0 10px ${withAlpha(equippedAvatar?.primaryHex ?? 'var(--ui-primary)', 0.35)}` }}
             >
-              {equippedAvatarSkin?.avatarGlyph ?? '🙂'}
-            </div>
-            <div className="px-2 py-0.5 rounded-md bg-[rgba(var(--ui-primary-rgb),0.15)] border border-[rgba(var(--ui-primary-rgb),0.40)] text-[var(--ui-primary)] font-display text-xs font-bold shrink-0">
-              УР. {derived.level}
-            </div>
-            <span className="text-xs text-slate-300 truncate font-semibold">
-              {derived.rankTitle}
+              {equippedAvatar?.avatarGlyph ?? <AvatarFallbackIcon className="h-5 w-5" />}
             </span>
-            {/* v5.5: где игрок — видно всегда, цвет акцента ведёт за локацией. */}
-            {worldEnabled && (
-              <span className="px-1.5 py-0.5 rounded bg-[rgba(var(--loc-accent-rgb),0.18)] border border-[rgba(var(--loc-accent-rgb),0.45)] text-[var(--loc-accent)] text-[10px] font-bold truncate max-w-[7.5rem]">
-                {activeLocation.glyph} {activeLocation.name}
+            <span className="min-w-0">
+              <span className="flex items-center gap-1.5">
+                <span className="font-num text-[16px] font-bold leading-none text-white">УР. {derived.level}</span>
+                {player.prestigeCount > 0 && (
+                  <span
+                    className="rounded bg-[rgba(var(--ui-secondary-rgb),0.20)] px-1 font-num text-[11px] font-bold text-[var(--ui-secondary)]"
+                    title={`Пройдено циклов Global Hack: ${player.prestigeCount} · множитель дохода ×${derived.prestigeMultiplier}`}
+                  >
+                    ×{derived.prestigeMultiplier}
+                  </span>
+                )}
               </span>
-            )}
-            {player.prestigeCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded bg-[rgba(var(--ui-secondary-rgb),0.20)] border border-[rgba(var(--ui-secondary-rgb),0.45)] text-[var(--ui-secondary)] text-[10px] font-bold">
-                ×{derived.prestigeMultiplier} PRESTIGE
+              <span className="mt-0.5 flex items-center gap-1 text-[11px] leading-none text-[var(--ui-text-muted)]">
+                {worldEnabled ? (
+                  <>
+                    <LocationIcon locationId={activeLocation.id} className="h-3 w-3 shrink-0" />
+                    <span className="max-w-[9rem] truncate">{activeLocation.name}</span>
+                  </>
+                ) : (
+                  <span className="truncate">{derived.rankTitle}</span>
+                )}
+                <ChevronRight className="h-3 w-3 shrink-0 opacity-60" />
               </span>
-            )}
-          </div>
+            </span>
+          </Link>
 
-          <div className="hud-actions flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={openTutorial}
-              aria-label="Открыть обучение"
-              className="hud-action relative flex items-center gap-1 px-2 py-1 rounded-lg bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.45)] text-[var(--ui-primary)] text-xs font-semibold transition cursor-pointer"
-              title="Обучение: что качать и как играть"
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span className="hud-action-label">Обучение</span>
-              {tutorialUnseen && (
-                <span className="w-2 h-2 rounded-full bg-[var(--ui-primary)] animate-ping absolute -top-0.5 -right-0.5" />
-              )}
-            </button>
-
+          <div className="flex shrink-0 items-center gap-1.5">
             <button
               type="button"
               onClick={() => setDailyModalOpen(true)}
-              aria-label="Открыть ежедневный бонус Crypto"
-              className="hud-action relative flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] border border-[var(--ui-success)]/35 text-[var(--ui-success)] text-xs font-semibold transition cursor-pointer"
+              aria-label="Ежедневный бонус Crypto"
               title="Ежедневный бонус Crypto"
+              className="relative grid h-11 w-11 place-items-center rounded-xl border border-[rgba(var(--ui-success-rgb),0.35)] bg-[var(--ui-panel)] text-[var(--ui-success)] transition active:scale-95 cursor-pointer"
             >
-              <Gift className="w-3.5 h-3.5" />
-              <span className="hud-action-label">Бонус</span>
+              <Gift className="h-4 w-4" />
               {dailyAvailable && (
-                <span className="w-2 h-2 rounded-full bg-[var(--ui-success)] animate-ping absolute -top-0.5 -right-0.5" />
+                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--ui-success)]" />
               )}
             </button>
-
             <button
               type="button"
-              onClick={() => setSkinModalOpen(true)}
-              aria-label="Открыть магазин скинов"
-              className="hud-action flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] border border-[rgba(var(--ui-secondary-rgb),0.35)] text-[var(--ui-secondary)] text-xs font-semibold transition cursor-pointer"
-              title="Эксклюзивные скины за Crypto"
+              onClick={openTutorial}
+              aria-label="Обучение: что качать и как играть"
+              title="Обучение: что качать и как играть"
+              className="relative grid h-11 w-11 place-items-center rounded-xl border border-[rgba(var(--ui-primary-rgb),0.35)] bg-[var(--ui-panel)] text-[var(--ui-primary)] transition active:scale-95 cursor-pointer"
             >
-              <Palette className="w-3.5 h-3.5" />
-              <span className="hud-action-label">Скины</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={toggleSound}
-              aria-label={soundMuted ? 'Включить звук' : 'Выключить звук'}
-              className="hud-action p-1.5 rounded-lg bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] border border-slate-700/70 text-slate-300 transition cursor-pointer"
-              title={soundMuted ? 'Включить звук' : 'Выключить звук'}
-            >
-              {soundMuted ? <VolumeX className="w-3.5 h-3.5 text-slate-500" /> : <Volume2 className="w-3.5 h-3.5 text-[var(--ui-primary)]" />}
+              <BookOpen className="h-4 w-4" />
+              {tutorialUnseen && (
+                <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[var(--ui-primary)]" />
+              )}
             </button>
           </div>
         </div>
 
-        {/* Опыт: уровень качается только взломами */}
-        <div className="space-y-0.5">
-          <div className="flex items-center justify-between text-[10px]">
-            <span className="font-bold text-[var(--ui-purple)] uppercase tracking-wider">
-              XP {formatCompact(derived.xpIntoLevel)} / {formatCompact(derived.xpToNext)}
-            </span>
-            <span className="text-slate-400">
-              сила железа {Math.round(derived.hackPower)}⚡
-            </span>
-          </div>
-          <div className="h-1.5 w-full rounded-full bg-[#090d19] border border-slate-800 p-[1px] overflow-hidden">
+        {/* Строка 2: один блок валют. Не кнопки — читать, а не нажимать. */}
+        <div
+          data-qa="hud-currencies"
+          className="grid grid-cols-4 overflow-hidden rounded-xl border border-[rgba(var(--ui-primary-rgb),0.18)] bg-[var(--ui-panel)]/90"
+        >
+          {currencies.map((currency, index) => (
             <div
-              className="h-full rounded-full transition-all duration-300"
-              style={{
-                width: `${xpPct}%`,
-                background: 'linear-gradient(90deg, #a855f7 0%, var(--ui-primary) 100%)',
-                boxShadow: '0 0 8px rgba(168, 85, 247, 0.5)',
-              }}
-            />
-          </div>
+              key={currency.key}
+              title={currency.hint}
+              className={`min-w-0 px-2 py-1 ${index > 0 ? 'border-l border-[rgba(var(--ui-primary-rgb),0.14)]' : ''}`}
+            >
+              <div className="flex items-center gap-1 text-[11px] font-bold leading-none" style={{ color: currency.color }}>
+                {currency.icon}
+                <span className="truncate">{currency.label}</span>
+              </div>
+              <div className="mt-0.5 flex items-baseline gap-1">
+                <span className="font-num text-[13px] font-bold leading-none tabular-nums text-white">
+                  {currency.value}
+                </span>
+                {currency.extra && (
+                  <span
+                    className="truncate font-num text-[11px] leading-none"
+                    style={{ color: baseTheme.ui.successHex }}
+                  >
+                    {currency.extra}
+                  </span>
+                )}
+              </div>
+              {currency.badge && <div className="mt-1 flex">{currency.badge}</div>}
+            </div>
+          ))}
         </div>
 
-        {/* Валюты: у каждой своя иконка и подпись. Чипы (⚙️) — отдельная
-            клетка, как в обучении: сразу видно и значок, и количество. */}
-        <div className="grid grid-cols-4 gap-1.5">
-          <div
-            className="col-span-2 rounded-xl bg-gradient-to-b from-[#141d3a] to-[#0d1428] border px-2 py-1.5 min-w-0"
-            style={{
-              borderColor: `${CURRENCY_COLORS.data}55`,
-              boxShadow: `inset 0 0 18px ${CURRENCY_COLORS.data}14`,
-            }}
-            title="Data — главная валюта: покупки, апгрейды, команда"
-          >
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="font-display text-[15px] font-extrabold text-white leading-none tabular-nums truncate">
-                {formatCompact(Math.floor(player.data))}
-              </span>
-              {/* Цвет прироста — из темы: у женской мягкая мята вместо кислотного лайма */}
-              <span
-                className="text-[9px] font-bold shrink-0 whitespace-nowrap"
-                style={{ color: baseTheme.ui.successHex }}
-                title={
-                  gameplayV3
-                    ? 'Лучший контракт из текущей витрины: столько Data он приносит за час работы'
-                    : 'Скорость пассивного дохода: столько Data добавляется за час'
-                }
-              >
-                +{formatCompact(gameplayV3 ? contractIncomePerHour : derived.dataPerHour)}/ч{' '}
-                {gameplayV3 ? 'контракты' : 'доход'}
-              </span>
-            </div>
-            <div
-              className="text-[9px] font-bold uppercase tracking-[0.08em] leading-none mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5"
-              style={{ color: CURRENCY_COLORS.data }}
-            >
-              <Sparkles className="w-2.5 h-2.5 shrink-0" />
-              Data · баланс
-              {/* v6.3: сезонный леденец живёт рядом с балансом — там, где игрок
-                  и так смотрит на добычу. */}
-              <span className="ml-auto normal-case tracking-normal">
-                <LollipopBadge />
-              </span>
-            </div>
-          </div>
-
-          <CurrencyTile
-            glyph="💎"
-            label="Crypto"
-            value={String(player.crypto)}
-            accent={CURRENCY_COLORS.crypto}
-            hint="Crypto — премиум-валюта: скины стола и косметика. Нажми, чтобы открыть магазин"
-            onClick={() => setSkinModalOpen(true)}
-            muted={player.crypto === 0}
-          />
-
-          <CurrencyTile
-            glyph="⚙️"
-            label="Чипы"
-            value={String(player.chips)}
-            accent={CURRENCY_COLORS.chips}
-            hint="Чипы — открывают Тиры карточек и улучшения Базы. Нажми, чтобы перейти в «Улучшения»"
-            onClick={() => navigate('/upgrades')}
-            muted={player.chips === 0}
-          />
-        </div>
-
-        {/* Rep (репутация) — валюта, ей нужна своя клетка. Heat — не валюта,
-            а шкала риска: она полосой рядом, чтобы не путать с балансом.
-            Оба в одну строку — панель не должна съедать экран. */}
-        <div className="grid grid-cols-4 gap-1.5">
-          <div
-            className={`${
-              newPlayerMode ? 'col-span-4' : ''
-            } rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center justify-between gap-1 min-w-0`}
-            style={{ borderColor: `${CURRENCY_COLORS.rep}55` }}
-            title="Rep — репутация: найм элитной команды и ветка Белого хакинга"
-          >
-            <span
-              className="text-[9px] font-bold uppercase tracking-[0.06em] leading-none truncate"
-              style={{ color: CURRENCY_COLORS.rep }}
-            >
-              🛡️ Rep
+        {/* Строка 3: три тонкие шкалы — уровни и риск, без подписей-простыней. */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="shrink-0 text-[11px] font-bold uppercase tracking-wider text-[var(--ui-secondary)]">
+              XP
             </span>
-            <span className="font-display text-[13px] font-extrabold text-white leading-none tabular-nums shrink-0">
-              {formatCompact(player.rep)}
-            </span>
-          </div>
-
-          {/* v5.4: новичку Heat не показываем — штрафа для него нет, а шкала
-              риска в первые 60 секунд только пугает. */}
-          {!newPlayerMode && (
-          <div
-            className="col-span-3 rounded-xl bg-[var(--ui-panel)] border px-2 py-1 flex items-center gap-2 min-w-0"
-            style={{
-              borderColor: heatRisk ? 'rgba(251, 113, 133, 0.55)' : 'rgba(var(--ui-secondary-rgb),0.32)',
-            }}
-            title="Heat (розыск): чем выше, тем ближе блокировка кликов. Штраф при 100"
-          >
-            <span
-              className={`text-[10px] font-bold leading-none flex items-center gap-1 shrink-0 ${
-                heatRisk ? 'text-rose-400' : 'text-[var(--ui-secondary)]'
-              }`}
-            >
-              <Flame className={`w-3 h-3 ${heatRisk ? 'animate-pulse' : ''}`} />
-              Heat {player.heat}/100
-            </span>
-            <div className="flex-1 h-1.5 rounded-full bg-slate-800 overflow-hidden min-w-6">
+            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full border border-[var(--ui-border-muted)] bg-[var(--ui-track)]">
               <div
-                className="h-full rounded-full transition-all duration-300"
-                style={{
-                  width: `${heatPct}%`,
-                  background: heatRisk
-                    ? 'linear-gradient(90deg, #fb7185, #ef4444)'
-                    : 'linear-gradient(90deg, var(--ui-secondary), #fb7185)',
-                }}
+                className="h-full rounded-full bg-gradient-to-r from-[var(--ui-magic)] to-[var(--ui-primary)] transition-all duration-300"
+                style={{ width: `${xpPct}%` }}
+              />
+            </div>
+            <span className="shrink-0 font-num text-[11px] leading-none text-[var(--ui-text-faint)]">
+              {formatCompact(derived.xpIntoLevel)}/{formatCompact(derived.xpToNext)}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="flex shrink-0 items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-[var(--ui-primary)]">
+              <Zap className="h-3 w-3" /> CPU
+            </span>
+            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full border border-[var(--ui-border-muted)] bg-[var(--ui-track)]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[var(--ui-primary)] to-[var(--ui-success)] transition-all duration-200"
+                style={{ width: `${energyPct}%` }}
               />
             </div>
             <span
-              className={`text-[9px] font-bold uppercase leading-none shrink-0 ${
-                heatRisk ? 'text-rose-300' : 'text-slate-500'
-              }`}
+              className="shrink-0 font-num text-[11px] leading-none text-[var(--ui-text-faint)]"
+              title={`Тап: +${formatCompact(derived.clickPower)} Data · +1 за ${ENERGY_REGEN_SECONDS} с`}
             >
-              {heatRisk ? 'риск' : 'норма'}
+              {Math.floor(player.energy)}/{derived.maxEnergy}
             </span>
           </div>
-          )}
-        </div>
 
-        {/* Шкала CPU Energy (восстановление 1 Energy / 2 сек) */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-[11px]">
-            <span className="flex items-center gap-1 font-semibold text-[var(--ui-primary)]">
-              <Zap className="w-3.5 h-3.5 fill-[rgba(var(--ui-primary-rgb),0.30)]" />
-              CPU Charge: {player.energy} / {derived.maxEnergy}
-            </span>
-            <span className="text-slate-400 text-[10px]">
-              Тап: +{formatCompact(derived.clickPower)} Data • +1⚡/{ENERGY_REGEN_SECONDS}с
-            </span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-[#090d19] border border-slate-800 p-[1px] overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-200"
-              style={{
-                width: `${energyPct}%`,
-                background: 'linear-gradient(90deg, var(--ui-primary) 0%, var(--ui-success) 100%)',
-                boxShadow: '0 0 10px rgba(var(--ui-primary-rgb),0.55)',
-              }}
-            />
-          </div>
+          {/* Heat — не валюта, а риск: показываем только вне онбординга. */}
+          {!newPlayerMode && (
+            <div className="flex items-center gap-2">
+              <span
+                className={`flex shrink-0 items-center gap-1 text-[11px] font-bold uppercase tracking-wider ${
+                  heatRisk ? 'text-[var(--ui-danger)]' : 'text-[var(--ui-text-muted)]'
+                }`}
+              >
+                <Flame className={`h-3 w-3 ${heatRisk ? 'animate-pulse' : ''}`} /> Heat
+              </span>
+              <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full border border-[var(--ui-border-muted)] bg-[var(--ui-track)]">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{
+                    width: `${heatPct}%`,
+                    background: heatRisk
+                      ? 'linear-gradient(90deg, var(--ui-danger), var(--ui-danger-strong))'
+                      : 'linear-gradient(90deg, var(--ui-secondary), var(--ui-danger))',
+                  }}
+                />
+              </div>
+              <span
+                className={`shrink-0 font-num text-[11px] leading-none ${
+                  heatRisk ? 'text-[var(--ui-danger)]' : 'text-[var(--ui-text-faint)]'
+                }`}
+              >
+                {player.heat}/100
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </header>

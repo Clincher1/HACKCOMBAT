@@ -1,4 +1,4 @@
-import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Scale, Sparkles, Trophy } from 'lucide-react';
+import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Palette, Scale, Sparkles, Trophy, Volume2, VolumeX } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -25,6 +25,7 @@ import { getGameDayKey, getPrestigeMultiplier, getPrestigeRequiredLevel } from '
 import { PRESTIGE_ONE_LINER, prestigeBonusLabel } from '../../shared/prestige.config';
 import type { LeaderboardSort } from '../../shared/types';
 import { useGame } from '../context/GameContext';
+import { AvatarFallbackIcon, CircleBulletIcon, GlassesIcon, ImageFrameIcon, PackageIcon, RepIcon, SparkIcon, TrophyIcon } from '../components/ui-icons';
 import { formatCompact } from '../lib/format';
 
 export const ProfilePage: React.FC = () => {
@@ -41,6 +42,11 @@ export const ProfilePage: React.FC = () => {
     updateDemoName,
     openTutorial,
     busyKey,
+    // v6.9: «Скины» и «Звук» переехали из HUD в профиль — это настройки,
+    // а не игра, и они больше не отнимают места над контентом.
+    setSkinModalOpen,
+    soundMuted,
+    toggleSound,
   } = useGame();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState<'leaderboard' | 'achievements' | 'collection' | 'inventory'>(
@@ -185,7 +191,7 @@ export const ProfilePage: React.FC = () => {
             ) : (
               <div className="relative shrink-0">
                 <div
-                  className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-xl font-black"
+                  className="w-14 h-14 rounded-2xl border-2 flex items-center justify-center font-display text-[20px] font-black"
                   style={{
                     borderColor: profileFrame.accent,
                     borderImage: profileFrame.borderImage,
@@ -210,7 +216,7 @@ export const ProfilePage: React.FC = () => {
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h2 className="font-display text-base font-extrabold text-white truncate">
+                <h2 className="font-display text-[16px] font-extrabold text-white truncate">
                   {player.username}
                 </h2>
                 {!tgProfile.isInsideTelegram && (
@@ -231,20 +237,44 @@ export const ProfilePage: React.FC = () => {
                 <Crown className="w-3 h-3" />
                 <span>Ранг: {derived.rankTitle}</span>
               </div>
-              <div className="mt-1 text-[10px] font-semibold" style={{ color: profileFrame.accent }}>
+              <div className="mt-1 text-[11px] font-semibold" style={{ color: profileFrame.accent }}>
                 Рамка: {profileFrame.name}
               </div>
             </div>
           </div>
 
           <div className="text-right shrink-0 flex flex-col items-end gap-1.5">
-            <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--ui-panel-deep)] border border-slate-800 text-slate-400">
-              {storageMode === 'supabase' ? '🟢 Supabase Cloud' : '⚡ Local Sync'}
+            <span className="text-[11px] px-2 py-0.5 rounded bg-[var(--ui-panel-deep)] border border-slate-800 text-slate-400">
+              <span
+                className={`mr-1 inline-block h-1.5 w-1.5 rounded-full align-[1px] ${
+                  storageMode === 'supabase' ? 'bg-[var(--ui-success)]' : 'bg-[var(--ui-warn)]'
+                }`}
+              />
+              {storageMode === 'supabase' ? 'Supabase Cloud' : 'Local Sync'}
             </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setSkinModalOpen(true)}
+                data-qa="profile-skins"
+                className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-[rgba(var(--ui-secondary-rgb),0.35)] bg-[var(--ui-panel)] px-2 text-[11px] font-bold text-[var(--ui-secondary)] cursor-pointer"
+              >
+                <Palette className="h-3 w-3" /> Скины
+              </button>
+              <button
+                type="button"
+                onClick={toggleSound}
+                data-qa="profile-sound"
+                aria-label={soundMuted ? 'Включить звук' : 'Выключить звук'}
+                className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-slate-700 bg-[var(--ui-panel)] px-2 text-[11px] font-bold text-slate-300 cursor-pointer"
+              >
+                {soundMuted ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />} Звук
+              </button>
+            </div>
             <button
               type="button"
               onClick={openTutorial}
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--ui-primary)]/12 border border-[var(--ui-primary)]/35 text-[10px] font-bold text-[var(--ui-primary)] hover:bg-[var(--ui-primary)]/20 cursor-pointer"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--ui-primary)]/12 border border-[var(--ui-primary)]/35 text-[11px] font-bold text-[var(--ui-primary)] hover:bg-[var(--ui-primary)]/20 cursor-pointer"
             >
               <BookOpen className="w-3 h-3" /> Справка и Билды
             </button>
@@ -266,11 +296,11 @@ export const ProfilePage: React.FC = () => {
               onChange={(e) => setDraftName(e.target.value)}
               maxLength={24}
               placeholder="Ник или имя..."
-              className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--ui-panel-deep)] border border-slate-700 text-xs text-white focus:outline-none focus:border-[var(--ui-primary)]"
+              className="flex-1 px-3 py-1.5 rounded-lg bg-[var(--ui-panel-deep)] border border-slate-700 text-[13px] text-white focus:outline-none focus:border-[var(--ui-primary)]"
             />
             <button
               type="submit"
-              className="px-3 py-1.5 rounded-lg bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-bold text-xs cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-bold text-[13px] cursor-pointer"
             >
               Сохранить
             </button>
@@ -280,20 +310,20 @@ export const ProfilePage: React.FC = () => {
         {/* Сводка статистики */}
         <div className="grid grid-cols-4 gap-2 pt-1 text-center">
           <div className="rounded-xl bg-[var(--ui-panel-deep)] p-2 border border-slate-800/80">
-            <div className="text-[10px] text-slate-400">Клики</div>
-            <div className="text-xs font-bold text-white">{formatCompact(player.totalClicks)}</div>
+            <div className="text-[11px] text-slate-400">Клики</div>
+            <div className="text-[13px] font-bold text-white">{formatCompact(player.totalClicks)}</div>
           </div>
           <div className="rounded-xl bg-[var(--ui-panel-deep)] p-2 border border-slate-800/80">
-            <div className="text-[10px] text-slate-400">Взломы</div>
-            <div className="text-xs font-bold text-white">{player.totalMissions}</div>
+            <div className="text-[11px] text-slate-400">Взломы</div>
+            <div className="text-[13px] font-bold text-white">{player.totalMissions}</div>
           </div>
           <div className="rounded-xl bg-[var(--ui-panel-deep)] p-2 border border-slate-800/80">
-            <div className="text-[10px] text-slate-400">Уровень</div>
-            <div className="text-xs font-bold text-[var(--ui-primary)]">{derived.level}</div>
+            <div className="text-[11px] text-slate-400">Уровень</div>
+            <div className="text-[13px] font-bold text-[var(--ui-primary)]">{derived.level}</div>
           </div>
           <div className="rounded-xl bg-[var(--ui-panel-deep)] p-2 border border-slate-800/80">
-            <div className="text-[10px] text-slate-400">Множитель</div>
-            <div className="text-xs font-bold text-[var(--ui-success)]">×{derived.prestigeMultiplier}</div>
+            <div className="text-[11px] text-slate-400">Множитель</div>
+            <div className="text-[13px] font-bold text-[var(--ui-success)]">×{derived.prestigeMultiplier}</div>
           </div>
         </div>
 
@@ -305,10 +335,10 @@ export const ProfilePage: React.FC = () => {
             <span className="text-[11px] font-bold text-[var(--ui-success)] flex items-center gap-1">
               <Cog className="w-3.5 h-3.5" /> Чипы — валюта апгрейда
             </span>
-            <span className="font-display text-sm font-extrabold text-white">{player.chips}</span>
+            <span className="font-display text-[16px] font-extrabold text-white">{player.chips}</span>
           </div>
 
-          <div className="flex items-center justify-between text-[10px] text-slate-400">
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>выбито сегодня</span>
             <span className={chipsLeftToday === 0 ? 'text-amber-300' : 'text-slate-300'}>
               {chipsToday} / {CHIP_DAILY_CAP}
@@ -321,20 +351,20 @@ export const ProfilePage: React.FC = () => {
                 width: `${Math.min(100, (chipsToday / CHIP_DAILY_CAP) * 100)}%`,
                 background:
                   chipsLeftToday === 0
-                    ? 'linear-gradient(90deg, #f59e0b, #ef4444)'
+                    ? 'linear-gradient(90deg, var(--ui-warn), var(--ui-danger-strong))'
                     : 'linear-gradient(90deg, var(--ui-success), var(--ui-primary))',
               }}
             />
           </div>
 
-          <p className="text-[10px] text-slate-400 leading-relaxed">
+          <p className="text-[11px] text-slate-400 leading-relaxed">
             Падают только за <strong className="text-slate-300">чистый успех взлома</strong>: +
             {CHIP_REWARD_PER_MISSION} за контракт, +{CHIP_REWARD_PER_GREY_MISSION} за серый, плюс{' '}
             {CHIP_REWARD_PER_DAILY} за ежедневный вход и за часть достижений. Тратятся на открытие
             Тиров карточек (60 / 150 / 320) и на улучшения Базы.
           </p>
           {chipsLeftToday === 0 && (
-            <p className="text-[10px] text-amber-300/90">
+            <p className="text-[11px] text-amber-300/90">
               Лимит на сегодня выбран — обнулится после полуночи по Москве. Data, XP и Crypto капают
               как обычно.
             </p>
@@ -343,7 +373,7 @@ export const ProfilePage: React.FC = () => {
 
         {/* Опыт и подготовка к взломам */}
         <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-purple-500/25 p-2.5 space-y-1.5 mt-2">
-          <div className="flex items-center justify-between text-[10px] font-bold">
+          <div className="flex items-center justify-between text-[11px] font-bold">
             <span className="text-purple-300">
               XP {formatCompact(derived.xpIntoLevel)} /{' '}
               {formatCompact(derived.xpToNext)}
@@ -359,11 +389,11 @@ export const ProfilePage: React.FC = () => {
                     ? Math.min(100, (derived.xpIntoLevel / derived.xpToNext) * 100)
                     : 100
                 }%`,
-                background: 'linear-gradient(90deg, #a855f7 0%, var(--ui-primary) 100%)',
+                background: 'linear-gradient(90deg, var(--ui-magic) 0%, var(--ui-primary) 100%)',
               }}
             />
           </div>
-          <div className="flex items-center justify-between text-[10px] text-slate-400">
+          <div className="flex items-center justify-between text-[11px] text-slate-400">
             <span>
               Сила железа: <strong className="text-white">{Math.round(derived.hackPower)}⚡</strong>
             </span>
@@ -411,7 +441,7 @@ export const ProfilePage: React.FC = () => {
               : 'bg-[var(--ui-panel)] border-slate-800 text-slate-400'
           }`}
         >
-          <span aria-hidden>🏆</span>
+          <TrophyIcon className="h-4 w-4" />
           <span>Коллекция</span>
         </button>
 
@@ -424,7 +454,7 @@ export const ProfilePage: React.FC = () => {
               : 'bg-[var(--ui-panel)] border-slate-800 text-slate-400'
           }`}
         >
-          <span aria-hidden>🎒</span>
+          <PackageIcon className="h-4 w-4" />
           <span>Инвентарь</span>
         </button>
       </div>
@@ -463,7 +493,7 @@ export const ProfilePage: React.FC = () => {
                 </span>{' '}
                 из {leaderboardSelf.total}
               </span>
-              <span className="text-[10px] text-slate-400 text-right min-w-0 truncate">
+              <span className="text-[11px] text-slate-400 text-right min-w-0 truncate">
                 {leaderboardSelf.aheadUsername ? (
                   <>
                     до #{leaderboardSelf.rank - 1} ({leaderboardSelf.aheadUsername}):{' '}
@@ -477,7 +507,7 @@ export const ProfilePage: React.FC = () => {
           )}
 
           {!leaderboardSelf && player.tgId < 0 && (
-            <div className="rounded-xl bg-[var(--ui-panel)] border border-slate-800 px-3 py-2 text-[10px] text-slate-400">
+            <div className="rounded-xl bg-[var(--ui-panel)] border border-slate-800 px-3 py-2 text-[11px] text-slate-400">
               Гостевой режим: место в турнирной таблице считается только для игроков Telegram.
             </div>
           )}
@@ -494,7 +524,7 @@ export const ProfilePage: React.FC = () => {
               return (
               <div
                 key={`${entry.username}-${idx}`}
-                className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs ${
+                className={`px-3.5 py-2.5 flex items-center justify-between gap-2 text-[13px] ${
                   entry.isCurrentUser ? 'bg-[var(--ui-primary)]/12' : ''
                 }`}
               >
@@ -551,7 +581,7 @@ export const ProfilePage: React.FC = () => {
                     tabIndex={hasSpecialAvatar ? 0 : undefined}
                   >
                     <div
-                      className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-lg"
+                      className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-[20px]"
                       style={{
                         borderColor: frame.accent,
                         borderImage: frame.borderImage,
@@ -574,9 +604,9 @@ export const ProfilePage: React.FC = () => {
                           className="h-full w-full rounded-[0.55rem] object-contain p-0.5"
                         />
                       ) : avatarSkin?.category === 'avatar' ? (
-                        avatarSkin.avatarGlyph ?? '🙂'
+                        avatarSkin.avatarGlyph ?? <AvatarFallbackIcon className="h-6 w-6" />
                       ) : (
-                        '🕶️'
+                        <AvatarFallbackIcon className="h-6 w-6" />
                       )}
                     </div>
                     {frame.iconUrl && (
@@ -594,9 +624,9 @@ export const ProfilePage: React.FC = () => {
                         aria-live="polite"
                         aria-label="Кууу Ка Рекуу"
                       >
-                        <span className="rooster-burst__spark rooster-burst__spark--one">✦</span>
-                        <span className="rooster-burst__spark rooster-burst__spark--two">✧</span>
-                        <span className="rooster-burst__spark rooster-burst__spark--three">✦</span>
+                        <span className="rooster-burst__spark rooster-burst__spark--one"><SparkIcon className="h-3 w-3" /></span>
+                        <span className="rooster-burst__spark rooster-burst__spark--two"><SparkIcon className="h-3 w-3" /></span>
+                        <span className="rooster-burst__spark rooster-burst__spark--three"><SparkIcon className="h-3 w-3" /></span>
                         <span className="rooster-burst__spark rooster-burst__spark--four">•</span>
                         <span className="rooster-burst__text">Кууу Ка Рекуу</span>
                       </div>
@@ -609,7 +639,7 @@ export const ProfilePage: React.FC = () => {
                         aria-label="Блоп-Блоп"
                       >
                         <span className="fish-burst__bubble fish-burst__bubble--one">◦</span>
-                        <span className="fish-burst__bubble fish-burst__bubble--two">○</span>
+                        <span className="fish-burst__bubble fish-burst__bubble--two"><CircleBulletIcon className="h-2 w-2" /></span>
                         <span className="fish-burst__bubble fish-burst__bubble--three">◌</span>
                         <span className="fish-burst__bubble fish-burst__bubble--four">°</span>
                         <span className="fish-burst__text">Блоп-Блоп</span>
@@ -631,18 +661,18 @@ export const ProfilePage: React.FC = () => {
                         <span>{entry.username}</span>
                       )}
                       {entry.isCurrentUser && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-extrabold">
+                        <span className="text-[11px] px-1.5 py-0.2 rounded bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-extrabold">
                           ВЫ
                         </span>
                       )}
                       {entry.prestigeCount > 0 && (
-                        <span className="text-[9px] px-1 rounded bg-[var(--ui-secondary)]/20 border border-[var(--ui-secondary)]/45 text-[var(--ui-secondary)] font-bold shrink-0">
+                        <span className="text-[11px] px-1 rounded bg-[var(--ui-secondary)]/20 border border-[var(--ui-secondary)]/45 text-[var(--ui-secondary)] font-bold shrink-0">
                           ×{Math.pow(2, Math.min(20, entry.prestigeCount))}
                         </span>
                       )}
                     </div>
                     <div
-                      className={`text-[10px] ${
+                      className={`text-[11px] ${
                         leaderboardSort === 'level'
                           ? 'text-[var(--ui-primary)] font-semibold'
                           : 'text-slate-400'
@@ -689,14 +719,14 @@ export const ProfilePage: React.FC = () => {
 
       {/* Визуальная шкала «Белый хакинг ←→ Чёрный хакинг» */}
       <div className="rounded-2xl bg-[var(--ui-panel)] border border-slate-800 p-4 space-y-2.5">
-        <div className="flex items-center justify-between text-xs font-bold">
-          <span className="text-[var(--ui-primary)]">🛡️ Белый хакинг ({player.rep} Rep)</span>
-          <span className="text-[var(--ui-secondary)]">🕶️ Чёрный хакинг ({player.heat}/100 Heat)</span>
+        <div className="flex items-center justify-between text-[13px] font-bold">
+          <span className="text-[var(--ui-primary)]"><RepIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> Белый хакинг ({player.rep} Rep)</span>
+          <span className="text-[var(--ui-secondary)]"><GlassesIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> Чёрный хакинг ({player.heat}/100 Heat)</span>
         </div>
 
         <div className="relative h-3 rounded-full bg-gradient-to-r from-[var(--ui-primary)]/40 via-slate-700 to-[var(--ui-secondary)]/50 border border-slate-700">
           <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-[var(--ui-panel-deep)] shadow-[0_0_12px_#fff] transition-all duration-300"
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-white border-2 border-[var(--ui-panel-deep)] shadow-[0_0_12px_var(--ui-text)] transition-all duration-300"
             style={{ left: `${alignmentMarkerPct}%` }}
           />
         </div>
@@ -722,13 +752,13 @@ export const ProfilePage: React.FC = () => {
       </div>
 
       {/* Панель Престижа — Global Hack на 50 уровне (п. 3 и 5.5 ТЗ) */}
-      <div className="rounded-2xl bg-gradient-to-br from-[#161233] to-[var(--ui-panel-deep)] border border-purple-500/40 p-4 space-y-2.5">
+      <div className="rounded-2xl bg-gradient-to-br from-[var(--ui-panel)] to-[var(--ui-panel-deep)] border border-purple-500/40 p-4 space-y-2.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-display text-sm font-extrabold text-white">
+          <div className="flex items-center gap-2 font-display text-[16px] font-extrabold text-white">
             <Globe className="w-4 h-4 text-[var(--ui-secondary)]" />
             <span>GLOBAL HACK — ПРЕСТИЖ</span>
           </div>
-          <span className="text-xs font-bold text-purple-300">
+          <span className="text-[13px] font-bold text-purple-300">
             Ур. {derived.level} / {requiredPrestigeLevel}
           </span>
         </div>
@@ -746,7 +776,7 @@ export const ProfilePage: React.FC = () => {
           type="button"
           disabled={!canPrestige || busyKey === 'prestige'}
           onClick={() => void triggerPrestige()}
-          className={`w-full py-2.5 rounded-xl font-display font-extrabold text-xs uppercase tracking-wider transition cursor-pointer ${
+          className={`w-full py-2.5 rounded-xl font-display font-extrabold text-[13px] uppercase tracking-wider transition cursor-pointer ${
             canPrestige
               ? 'bg-gradient-to-r from-[var(--ui-secondary)] to-purple-500 text-white shadow-[0_0_24px_rgba(var(--ui-secondary-rgb),0.45)]'
               : 'bg-[var(--ui-panel-deep)]/90 text-slate-500 border border-slate-800 cursor-not-allowed'
@@ -761,20 +791,20 @@ export const ProfilePage: React.FC = () => {
       {/* Демо-витрина (v4.3): посмотреть все открытия, не гринда до 30 уровня */}
       <Link
         to="/demo"
-        className="flex items-center gap-3 rounded-2xl border border-[#2ee6d6]/35 bg-gradient-to-br from-[#0d2a2b] to-[#0b1117] p-3 transition hover:border-[#2ee6d6]/70"
+        className="flex items-center gap-3 rounded-2xl border border-[rgba(var(--ui-secondary-rgb), 0.35)] bg-gradient-to-br from-[var(--ui-panel)] to-[var(--ui-panel)] p-3 transition hover:border-[rgba(var(--ui-secondary-rgb), 0.7)]"
       >
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[#2ee6d6]/15 text-lg" aria-hidden>
-          🖼️
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[rgba(var(--ui-secondary-rgb), 0.15)] text-[20px]" aria-hidden>
+          <ImageFrameIcon className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-display text-[12px] font-extrabold text-white">
+          <span className="block font-display text-[13px] font-extrabold text-white">
             Демо-версия: все открытия
           </span>
-          <span className="mt-0.5 block text-[10px] leading-snug text-slate-400">
+          <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">
             7 сцен, 48 модулей, 30 контрактов, 80 ачивок — витрина всего контента с ползунком уровня
           </span>
         </span>
-        <span className="shrink-0 rounded-lg bg-[#2ee6d6] px-2 py-1 text-[10px] font-extrabold text-[var(--ui-on-success)]">
+        <span className="shrink-0 rounded-lg bg-[var(--ui-secondary)] px-2 py-1 text-[11px] font-extrabold text-[var(--ui-on-success)]">
           Открыть
         </span>
       </Link>
@@ -787,7 +817,7 @@ export const ProfilePage: React.FC = () => {
       <DonateCard />
 
       {/* Обязательное уведомление юридической безопасности (раздел 9 ТЗ) */}
-      <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800/80 p-3 text-[10px] text-slate-400 leading-relaxed flex items-start gap-2">
+      <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800/80 p-3 text-[11px] text-slate-400 leading-relaxed flex items-start gap-2">
         <Scale className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
         <span>
           <strong className="text-slate-300">Возрастной рейтинг: 12+.</strong> Hacker Kombat —

@@ -430,11 +430,30 @@ async function call(tgId, route, body = undefined) {
       eco.PRESTIGE_RESETS.every((item) => !eco.PRESTIGE_KEEPS.some((keep) => keep.toLowerCase() === item.toLowerCase()))
   );
   check(
-    'множитель: ×2 за цикл на первых пяти, затем +10%',
-    [1, 2, 3, 4, 5].every((n) => eco.getPrestigeMultiplier(n) === Math.pow(2, n)) &&
-      Math.abs(eco.getPrestigeMultiplier(6) - 35.2) < 0.01 &&
-      Math.abs(eco.getPrestigeMultiplier(7) - 38.4) < 0.01,
-    [1, 5, 6, 7].map((n) => `#${n}=${eco.getPrestigeMultiplier(n)}`).join(' ')
+    'множитель плоский: ×2 на первых пяти циклах, затем +10% за цикл',
+    [1, 2, 3, 4, 5].every((n) => eco.getPrestigeMultiplier(n) === 2) &&
+      Math.abs(eco.getPrestigeMultiplier(6) - 2.2) < 1e-9 &&
+      Math.abs(eco.getPrestigeMultiplier(10) - 3) < 1e-9 &&
+      eco.getPrestigeMultiplier(0) === 1,
+    [0, 1, 5, 6, 10].map((n) => `#${n}=${eco.getPrestigeMultiplier(n)}`).join(' ')
+  );
+  // Престиж не должен превращать «цену в часах дохода» в ложь: цены считаются
+  // от expectedHourlyIncome(level) без множителя, поэтому расхождение
+  // «заявленные часы / реальные часы» не может превышать множитель.
+  const anchorDrift = [];
+  for (let n = 0; n <= 5; n += 1) anchorDrift.push(1 / eco.getPrestigeMultiplier(n));
+  check(
+    'престиж не врёт о цене: на первых пяти циклах покупка не дешевеет больше чем в 2 раза',
+    Math.min(...anchorDrift) >= 0.5 - 1e-9,
+    `цикл 5: ${(anchorDrift[5] * 100).toFixed(0)}% от заявленных часов`
+  );
+  // После пятого цикла рост мягкий: каждый следующий цикл даёт +10%, а не ×2.
+  // Прибавка аддитивная: +10% от базы ×2, то есть +0.2 к множителю за цикл.
+  const postCapDeltas = [6, 7, 12].map((n) => eco.getPrestigeMultiplier(n) - eco.getPrestigeMultiplier(n - 1));
+  check(
+    'после пятого цикла прибавка фиксированная (+10% от базы), а не ×2',
+    postCapDeltas.every((delta) => Math.abs(delta - 0.2) < 1e-9),
+    postCapDeltas.map((delta) => delta.toFixed(2)).join(' ')
   );
   check(
     'порог цикла: 50 уровень, дальше +10 уровней',
@@ -446,7 +465,8 @@ async function call(tgId, route, body = undefined) {
     'одна строка правил содержит и «сбрасывает», и «остаются», и множитель',
     /Сбрасывает/.test(eco.PRESTIGE_ONE_LINER) &&
       /Остаются/.test(eco.PRESTIGE_ONE_LINER) &&
-      /×2/.test(eco.PRESTIGE_ONE_LINER)
+      /×2/.test(eco.PRESTIGE_ONE_LINER) &&
+      !/×32/.test(eco.PRESTIGE_ONE_LINER)
   );
 
   const prestigeInit = await call(TG_PRESTIGE, 'init');
