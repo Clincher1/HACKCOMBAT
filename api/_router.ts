@@ -22,6 +22,7 @@ import referral from './_routes/referral';
 import retention from './_routes/retention';
 import seasonEvent from './_routes/season-event';
 import skin from './_routes/skin';
+import story from './_routes/story';
 import telegram from './_routes/telegram';
 import tier from './_routes/tier';
 import track from './_routes/track';
@@ -63,6 +64,7 @@ const routes: Record<string, Handler> = {
   retention,
   'season-event': seasonEvent,
   skin,
+  story,
   telegram,
   tier,
   track,

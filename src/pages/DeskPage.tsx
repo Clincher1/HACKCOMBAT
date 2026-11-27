@@ -1,9 +1,10 @@
-import { ArrowRight, Flame } from 'lucide-react';
+import { ArrowRight, BookOpen, Flame } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ContractBoard } from '../components/ContractBoard';
 import { DeskScene, OfflineBankNote } from '../components/DeskScene';
 import { LocationStrip } from '../components/LocationStrip';
+import { StoryStrip } from '../components/StoryStrip';
 import { StreakBar } from '../components/StreakBar';
 import { TasksTeaser } from '../components/TasksTeaser';
 import { useGame } from '../context/GameContext';
@@ -19,6 +20,8 @@ export const DeskPage: React.FC = () => {
           Раньше здесь стояли две двери подряд («Сменить» и «Выйти»), и игрок
           не понимал, какая из них меняет место, а какая — картинку за окном. */}
       <LocationStrip />
+      {/* v6.8: строка мира — мир отвечает на прогресс главы и это же вход в «Историю». */}
+      <StoryStrip />
       {/* v5.7: контрактная доска — основная поверхность дохода вместо кнопки HACK */}
       <ContractBoard />
       {/* v5.6: streak bar — 7 клеток дневного цикла. Скрыт при активном онбординге. */}

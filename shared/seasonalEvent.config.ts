@@ -1,3 +1,4 @@
+import { getLegacyEvent, isLegacyEventLive } from './events.config';
 import type {
   DailyTaskKind,
   SeasonEventScenario,
@@ -14,17 +15,18 @@ const SEASON_EVENT_DURATION_MS = SEASON_EVENT_DAY_COUNT * SEASON_EVENT_DAY_MS;
  * 7 календарных суток — до 3 ноября 2026, 09:00 MSK. Сервер создаёт задачи
  * только для наступившего дня и никогда не пересобирает уже сохранённый набор.
  */
-export const SEASON_EVENT_LAUNCH_AT_ISO = '2026-10-27T09:00:00+03:00';
+// v6.8: окно Neon Relay больше не дублируется здесь — оно объявлено в реестре
+// ивентов (shared/events.config.ts, LEGACY_EVENTS) вместе со статусом archived.
+export const SEASON_EVENT_LAUNCH_AT_ISO = getLegacyEvent('neon-relay')?.startIso ?? '2026-10-27T09:00:00+03:00';
 
 function isTestMode(): boolean {
   return typeof process !== 'undefined' && process.env?.SEASON_EVENT_TEST_MODE === 'true';
 }
 
 export function isSeasonEventLive(nowMs: number = Date.now()): boolean {
-  const launchMs = Date.parse(SEASON_EVENT_LAUNCH_AT_ISO);
-  if (!Number.isFinite(launchMs)) return false;
   if (isTestMode()) return true;
-  return nowMs >= launchMs && nowMs < launchMs + SEASON_EVENT_DURATION_MS;
+  // Живость считает реестр ивентов — один источник дат на все события.
+  return isLegacyEventLive('neon-relay', nowMs);
 }
 
 export const ACTIVE_SEASON_EVENT = {
