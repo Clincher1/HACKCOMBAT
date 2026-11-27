@@ -25,6 +25,8 @@ import { getBaseTheme, type BaseThemeConfig, type BaseThemeKey } from '../../sha
 import { getBackdrop, type BackdropConfig } from '../../shared/backdrops.config';
 import { isWorldV2Enabled } from '../../shared/config';
 import type { WorldLocation } from '../../shared/world.config';
+// Только тип: полные тексты глав остаются в ленивом чанке экрана «История».
+import type { StorySnapshot } from '../../shared/story.config';
 
 import { readActiveLocationById } from '../lib/world';
 import { economyModifiers } from '../../shared/locations';
@@ -68,6 +70,14 @@ export interface GameContextValue {
   dismissOfflineModal: () => void;
   /** v5.6: снимок retention-петли из init-ответа (оффлайн, стрик, напоминания). */
   retention: RetentionSnapshotPayload | null;
+  /**
+   * v6.8: сводка сюжета из того же ответа — какая глава активна, строка
+   * «состояние мира» и сколько шагов можно забрать. Полные тексты глав живут
+   * в ленивом чанке экрана «История», в главный бандл они не попадают.
+   */
+  story: StorySnapshot | null;
+  /** v6.8: забрать награду за шаг (сервер проверяет прогресс и платит один раз). */
+  claimStoryStep: (stepId: string) => Promise<void>;
   /** v5.6: забрать оффлайн-копилку (идемпотентно, платит сервер). */
   claimOffline: () => Promise<void>;
   /** v5.6: галочка «напоминать в Telegram» (default OFF). */
@@ -303,6 +313,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [offlineModalEarned, setOfflineModalEarned] = useState<number | null>(null);
   // v5.6: retention-снимок живёт рядом с игроком: модал и streak bar читают его.
   const [retention, setRetention] = useState<RetentionSnapshotPayload | null>(null);
+  // v6.8: снимок сюжета. Живёт рядом с игроком и обновляется любым ответом API.
+  const [story, setStory] = useState<StorySnapshot | null>(null);
   const [offlineModalRetention, setOfflineModalRetention] = useState(false);
   const [offlineModalTaps, setOfflineModalTaps] = useState<number>(0);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -448,6 +460,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // v5.6: retention-снимок из того же ответа (нового запроса не нужно).
       const retentionSnapshot = res.retention ?? null;
       if (retentionSnapshot) setRetention(retentionSnapshot);
+      // v6.8: сводка сюжета приходит тем же ответом.
+      if (res.story) setStory(res.story);
 
       // v5.6: приглашённый реально начал играть (онбординг закрыт) — событие
       // уходит один раз за сессию. Новых запросов не появляется: track() сам
@@ -1209,6 +1223,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+  /**
+   * v6.8: награда за шаг сюжета. Ключ busy-состояния включает id шага, поэтому
+   * две кнопки подряд не блокируют друг друга, а двойной тап по одной — да.
+   */
+  const claimStoryStep = useCallback(
+    (stepId: string) =>
+      runAction(`story:${stepId}`, (clicks) => gameApi.storyClaim(stepId, clicks), true, 'light'),
+    [runAction]
+  );
+
   const clearHeatLockdown = useCallback(
     () => runAction('clear_lockdown', (clicks) => gameApi.skinAction('clear_lockdown', undefined, clicks), true, 'light'),
     [runAction]
@@ -1520,6 +1544,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dismissOfflineModal,
       retention,
       claimOffline,
+      story,
+      claimStoryStep,
       setReminderOptIn,
       dismissAlert,
       pushClientAlert,
@@ -1596,6 +1622,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       dismissOfflineModal,
       retention,
       claimOffline,
+      story,
+      claimStoryStep,
       setReminderOptIn,
       dismissAlert,
       pushClientAlert,

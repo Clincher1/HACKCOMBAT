@@ -38,6 +38,12 @@ const TasksPage = React.lazy(async () => {
   const module = await import('./pages/TasksPage');
   return { default: module.TasksPage };
 });
+// v6.8: «История» — отдельный ленивый чанк: тексты глав не попадают в главный
+// бандл, а стол получает только строку «состояние мира» из API.
+const StoryPage = React.lazy(async () => {
+  const module = await import('./pages/StoryPage');
+  return { default: module.StoryPage };
+});
 const ModalsAndOverlays = React.lazy(async () => {
   const module = await import('./components/Modals');
   return { default: module.ModalsAndOverlays };
@@ -146,6 +152,7 @@ const AppShell: React.FC = () => {
           <Routes>
             <Route path="/" element={<DeskPage />} />
             <Route path="/tasks" element={<TasksPage />} />
+            <Route path="/story" element={<StoryPage />} />
             <Route
               path="/upgrades"
               element={newPlayerMode ? <LockedTab title="Улучшения" hint="Пока — одна подсказка на столе." /> : <UpgradesPage />}

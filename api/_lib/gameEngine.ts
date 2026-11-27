@@ -30,6 +30,24 @@ import {
 } from '../../shared/locations';
 import { PRESTIGE_KEEPS, PRESTIGE_RESETS } from '../../shared/prestige.config';
 import {
+  buildStorySnapshot,
+  buildStoryViews,
+  findStoryStep,
+  isStoryStepMet,
+  STORY_ARCS,
+  storyDataReward,
+  storyFactsFromPlayer,
+  storyStepIds,
+} from '../../shared/story.config';
+import {
+  describeEventModifiers,
+  eventAnnouncementKey,
+  formatEventEnd,
+  getEventAnnouncement,
+  getEventModifiers,
+  getWeeklySlot,
+} from '../../shared/events.config';
+import {
   BASE_UPGRADES_CONFIG,
   CHIP_DAILY_CAP,
   CHIP_REWARD_PER_DAILY,
@@ -278,6 +296,9 @@ const EMPTY_STATS: PlayerProgressStats = {
   lastQualifiedDayKey: null,
   lastActiveAt: null,
   offlineGraceUsed: false,
+  storyClaimed: [],
+  storyChaptersPaid: [],
+  eventAnnouncements: {},
 };
 
 /**
@@ -288,6 +309,19 @@ function pickSkinKey(raw: unknown, category: SkinCategory): string | undefined {
   if (typeof raw !== 'string' || !raw) return undefined;
   const skin = SKINS_CONFIG.find((s) => s.key === raw);
   return skin && skin.category === category ? skin.key : undefined;
+}
+
+/** v6.8: журнал анонсов ивентов — ключ `${event}:${startIso}` → ISO показа. */
+function normalizeEventAnnouncements(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object') return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof key !== 'string' || key.length === 0 || key.length > 160) continue;
+    if (!/^[a-z0-9:._-]+$/i.test(key)) continue;
+    if (typeof value !== 'string' || Number.isNaN(new Date(value).getTime())) continue;
+    out[key] = value;
+  }
+  return out;
 }
 
 function normalizeDailyTaskState(raw: unknown): DailyTaskState | undefined {
@@ -695,6 +729,10 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         ? equippedProfileFrame
         : undefined,
     equippedProfileFrameExpiresAt: temporaryFrameActive ? temporaryFrameExpiry : null,
+    // v6.8: сюжет и анонсы ивентов — списки id, мусор из jsonb не проходит.
+    storyClaimed: keyArr(src.storyClaimed, 512),
+    storyChaptersPaid: keyArr(src.storyChaptersPaid, 64),
+    eventAnnouncements: normalizeEventAnnouncements(src.eventAnnouncements),
     inventoryOwned,
     inventoryShowcase,
     activeSecondsToday: num(src.activeSecondsToday, 86_400),
@@ -1991,6 +2029,51 @@ async function commitPurchaseAtomic(
   }
 }
 
+/**
+ * v6.8: анонс следующего ротационного ивента — за 12 часов, один раз на окно.
+ *
+ * Живёт в общей синхронизации, поэтому анонс придёт при любом действии игрока,
+ * а не только на экране «Стол». Отдельного канала уведомлений не заводим:
+ * используется тот же стек алертов, что и остальные новости.
+ */
+function announceUpcomingEvent(
+  record: StoredPlayerRecord,
+  alerts: GameAlert[],
+  nowMs: number
+): void {
+  const announced = record.stats.eventAnnouncements ?? (record.stats.eventAnnouncements = {});
+  const next = getEventAnnouncement(nowMs, announced);
+  if (!next) return;
+  announced[eventAnnouncementKey(next)] = new Date(nowMs).toISOString();
+  const mods = describeEventModifiers(next.event.modifiers);
+  const hours = Math.max(1, Math.round(next.hoursLeft));
+  alerts.push({
+    id: crypto.randomUUID(),
+    type: 'info',
+    title: `${next.event.emoji} Скоро: ${next.event.title}`,
+    message:
+      `${next.event.showcase} Старт через ${hours} ч — ${formatEventEnd(next.startsAtMs)}.` +
+      (mods ? ` Влияние: ${mods}.` : ''),
+  });
+}
+
+/** Факты прогрессии из записи игрока: те же числа, что видит клиент. */
+function storyFactsFromRecord(record: StoredPlayerRecord) {
+  const derived = deriveStats(record);
+  return {
+    level: derived.level,
+    clicks: record.totalClicks,
+    missions: record.totalMissions,
+    greyMissions: record.stats.greyMissions,
+    cardLevels: derived.totalCardLevels,
+    teamSize: record.team.length,
+    pets: record.pets.length,
+    petFeedings: record.stats.petFeedings,
+    achievements: record.achievements.length,
+    bestHeatEscape: record.stats.bestHeatEscape,
+  };
+}
+
 async function syncTimeAndRules(
   record: StoredPlayerRecord,
   mode: 'supabase' | 'memory-fallback',
@@ -2004,6 +2087,11 @@ async function syncTimeAndRules(
 ): Promise<{ offlineEarned: number; offlineTaps: number }> {
   const nowMs = Date.now();
   const nowIso = new Date(nowMs).toISOString();
+
+  // 0. Анонс сезонного ивента за 12 часов до старта (v6.8).
+  // Ключ анонса включает дату старта, поэтому повторные запросы в те же часы
+  // молчат, а следующее окно недели анонсируется заново.
+  announceUpcomingEvent(record, alerts, nowMs);
 
   const derived = deriveStats(record);
 
@@ -2509,6 +2597,13 @@ function buildResponse(
     // отдельных запросов на старте приложения не появляется.
     retention: buildRetentionSnapshot(record),
     referral: buildReferralPayload(record),
+    // v6.8: сводка сюжета. Тексты глав живут в shared/story.config.ts (ленивый
+    // чанк экрана «История»), клиенту на столе нужна только эта строка мира.
+    story: buildStorySnapshot(
+      storyFactsFromPlayer(player),
+      record.stats.storyClaimed ?? [],
+      record.stats.storyChaptersPaid ?? []
+    ),
   };
 }
 
@@ -3429,7 +3524,11 @@ export async function handleMissionAction(
       );
       const repDelta = cfg.repDelta * (whiteHatBonus > 1 && cfg.repDelta > 0 ? 2 : 1);
       // Heat тоже место-зависимый: корп-квартал замечает тебя в 1.5 раза быстрее.
-      const heatDelta = Math.round(cfg.heatDelta * derived.heatMultiplier * where.mods.heat);
+      // v6.8: ротационный ивент может менять Heat (например, «Тихая неделя»).
+      const eventMods = getEventModifiers(Date.now());
+      const heatDelta = Math.round(
+        cfg.heatDelta * derived.heatMultiplier * where.mods.heat * eventMods.heatMult
+      );
       // v5.7 (GAMEPLAY_V3): getMissionEntryCost сам отдаёт цену по ТИРУ
       // (CPU Charge) при включённом флаге и прежнюю «по секундам» — при выключенном.
       // Data-взнос не меняется ни в одном режиме.
@@ -3455,7 +3554,10 @@ export async function handleMissionAction(
       record.energy -= entryCost.energy;
       record.data -= entryCost.data;
       // «Талисман удачи» на Базе повышает шанс редкого дропа Crypto
-      const baseDropChance = cfg.cryptoDropChance ?? (cfg.targetType === 'grey' ? 0.35 : 0);
+      // v6.8: «Ночной рынок» поднимает шанс Crypto именно на серых (не на всех).
+      const baseDropChance =
+        (cfg.cryptoDropChance ?? (cfg.targetType === 'grey' ? 0.35 : 0)) *
+        (cfg.targetType === 'grey' ? eventMods.greyCryptoMult : 1);
       const cryptoReward =
         Math.random() < Math.min(0.9, baseDropChance + derived.cryptoDropBonusPct) ? 1 : 0;
       const xpReward = getMissionXpAward(cfg.xpReward ?? 10, cfg.tier ?? 1, derived.level);
@@ -4026,6 +4128,100 @@ export async function handleLollipopAction(
       message:
         'Час удвоенной добычи: тапы и закрытые взломы приносят вдвое больше Data. Дальше леденец снова будет доступен только завтра.',
     });
+
+    await savePlayerCore(record, mode);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
+/**
+ * v6.8 — СЮЖЕТ: забрать награду за шаг главы.
+ *
+ * Клиент присылает только id шага. Всё остальное проверяет сервер:
+ *   • шаг существует и его глава открыта по уровню;
+ *   • требование шага выполнено по фактам записи (клиент не может «прислать»
+ *     прогресс: тапы, контракты и серые взломы считаются здесь же);
+ *   • награда выдаётся ровно один раз — id шага попадает в stats.storyClaimed;
+ *   • награда за главу выдаётся вместе с её последним шагом и тоже один раз.
+ *
+ * Data-награда пересчитывается из pricing.config (часы дохода), поэтому
+ * ребаланс цен не превращает старые главы в мешки с деньгами.
+ */
+export async function handleStoryClaim(
+  user: VerifiedTelegramUser,
+  stepId: string,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    if (appliedClicks > 0) await savePlayerCore(record, mode);
+
+    const found = findStoryStep(stepId);
+    if (!found) throw new Error('Такого шага в истории нет');
+    const { arc, step } = found;
+
+    const facts = storyFactsFromRecord(record);
+    if (facts.level < arc.requiredLevel) {
+      throw new Error(`Глава «${arc.title}» откроется на ${arc.requiredLevel} уровне`);
+    }
+
+    const claimed = record.stats.storyClaimed ?? (record.stats.storyClaimed = []);
+    if (claimed.includes(step.id)) {
+      throw new Error('Награда за этот шаг уже получена');
+    }
+    if (!isStoryStepMet(step, facts)) {
+      throw new Error(
+        `Шаг ещё не выполнен: ${step.requirement.label} (${facts[step.requirement.key]}/${step.requirement.value})`
+      );
+    }
+
+    const paid = record.stats.storyChaptersPaid ?? (record.stats.storyChaptersPaid = []);
+    const dataGain = storyDataReward(step.reward, arc.requiredLevel);
+    record.data = Math.min(MAX_SAFE_DATA_BALANCE, record.data + dataGain);
+    const cryptoGain = Math.max(0, Math.floor(step.reward.crypto ?? 0));
+    record.crypto += cryptoGain;
+    // Чипы за сюжет не упираются в дневной кап: это одноразовая награда за главу,
+    // а не поток за контракты (кап существует, чтобы ограничить именно поток).
+    const chipsGain = Math.max(0, Math.floor(step.reward.chips ?? 0));
+    record.chips += chipsGain;
+    claimed.push(step.id);
+
+    const rewardParts: string[] = [];
+    if (dataGain > 0) rewardParts.push(`+${dataGain.toLocaleString('ru-RU')} Data`);
+    if (cryptoGain > 0) rewardParts.push(`+${cryptoGain} 💎 Crypto`);
+    if (chipsGain > 0) rewardParts.push(`+${chipsGain} ⚙️ Чипов`);
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `${arc.cover} ${step.title}`,
+      message: rewardParts.length > 0 ? `Шаг закрыт. ${rewardParts.join(' · ')}.` : 'Шаг закрыт.',
+    });
+
+    // Последний шаг закрывает главу: бонус и строка «состояние мира».
+    const arcDone = storyStepIds(arc).every((id) => claimed.includes(id));
+    if (arcDone && !paid.includes(arc.id)) {
+      paid.push(arc.id);
+      const bonusData = storyDataReward(arc.reward, arc.requiredLevel);
+      record.data = Math.min(MAX_SAFE_DATA_BALANCE, record.data + bonusData);
+      const bonusCrypto = Math.max(0, Math.floor(arc.reward.crypto ?? 0));
+      record.crypto += bonusCrypto;
+      const bonusChips = Math.max(0, Math.floor(arc.reward.chips ?? 0));
+      record.chips += bonusChips;
+      const bonusParts: string[] = [];
+      if (bonusData > 0) bonusParts.push(`+${bonusData.toLocaleString('ru-RU')} Data`);
+      if (bonusCrypto > 0) bonusParts.push(`+${bonusCrypto} 💎`);
+      if (bonusChips > 0) bonusParts.push(`+${bonusChips} ⚙️`);
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'achievement',
+        title: `📖 Глава закрыта: ${arc.title}`,
+        message:
+          `${arc.flavor}` + (bonusParts.length > 0 ? ` Награда за главу: ${bonusParts.join(' · ')}.` : ''),
+      });
+    }
 
     await savePlayerCore(record, mode);
     return buildResponse(record, mode, alerts, 0, 0, appliedClicks);

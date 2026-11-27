@@ -61,6 +61,11 @@ export interface TeamNpcConfig {
   callsign: string;
   roleTitle: string;
   quote: string;
+  /**
+   * v6.8: одна строка биографии — лор без полотна текста. Показывается в
+   * коллекции под ролью; реплика (quote) — по тапу на карточку.
+   */
+  bio: string;
   effectLabel: string;
   avatarUrl: string;
   costCurrency: 'data' | 'rep';
@@ -422,6 +427,8 @@ export interface DailyIncidentState {
   outcome?: DailyIncidentOutcomeState | null;
 }
 
+import type { StorySnapshot } from './story.config';
+
 export interface PlayerProgressStats {
   tutorialTabs: string[]; // Просмотренные главы Академии
   tutorialOpens: number;
@@ -469,6 +476,15 @@ export interface PlayerProgressStats {
   hackSession?: HackSessionState;
   /** v6.3: сезонный леденец (×2 Data на час, раз в сутки). */
   lollipop?: LollipopState;
+  /**
+   * v6.8: сюжет. Оба списка живут в существующем stats jsonb, поэтому старые
+   * сейвы читаются как «ничего не забрано» и получают прогресс из фактов.
+   */
+  storyClaimed?: string[];
+  /** Главы, чья награда за всю главу уже выдана (ключи arc id). */
+  storyChaptersPaid?: string[];
+  /** Анонсы ивентов: ключ `${event}:${startIso}` → когда показали. */
+  eventAnnouncements?: Record<string, string>;
   /**
    * v6.4: запас тап-цикла (bucket 6 тап/с + пачка 20). Живёт в stats jsonb —
    * новой таблицы и миграции не требуется, старые сейвы стартуют с полным запасом.
@@ -714,6 +730,12 @@ export interface ApiSyncResponse {
   retention?: RetentionSnapshotPayload;
   /** v5.6: реферальная ссылка по tgId и журнал приглашений. */
   referral?: ReferralPayload;
+  /**
+   * v6.8: сюжетный снимок — какая глава активна, строка «состояние мира» и
+   * сколько шагов можно забрать. Тексты глав остаются в shared/story.config.ts
+   * (ленивый чанк), поэтому в главный бандл попадает только эта сводка.
+   */
+  story?: StorySnapshot;
 }
 
 /** v5.6: то, что сервер говорит клиенту про оффлайн/стрик/напоминания. */

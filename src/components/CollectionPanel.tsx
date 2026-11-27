@@ -26,6 +26,11 @@ type CollectionItem = {
   reward?: string;
   source?: string;
   accent: string;
+  /**
+   * v6.8: одна реплика NPC — показывается по тапу на карточку. Текст живёт в
+   * конфиге (shared/team.config.ts), а не в компоненте.
+   */
+  line?: string;
 };
 
 const FILTERS: { id: CollectionFilter; label: string }[] = [
@@ -68,6 +73,8 @@ function rewardLabel(cryptoReward: number, chipReward?: number, dataReward?: num
 export const CollectionPanel: React.FC = () => {
   const { player, baseTheme, deskBackdrop } = useGame();
   const [filter, setFilter] = useState<CollectionFilter>('all');
+  // v6.8: тап по карточке раскрывает одну реплику NPC (данные — из конфига).
+  const [lineOpenKey, setLineOpenKey] = useState<string | null>(null);
 
   const items = useMemo<CollectionItem[]>(() => {
     if (!player) return [];
@@ -211,7 +218,8 @@ export const CollectionPanel: React.FC = () => {
         key: `team:${npc.key}`,
         category: 'companions',
         title: npc.callsign,
-        description: npc.effectLabel,
+        description: npc.bio,
+        line: npc.quote,
         icon: '👤',
         unlocked,
         status: unlocked ? 'В команде' : requirement,
@@ -358,7 +366,10 @@ export const CollectionPanel: React.FC = () => {
           return (
             <article
               key={item.key}
-              className={`rounded-xl border p-3 flex items-start gap-2.5 transition ${
+              onClick={() => item.line && setLineOpenKey((prev) => (prev === item.key ? null : item.key))}
+              data-qa="collection-item"
+              data-item-line={item.line ? 'true' : 'false'}
+              className={`rounded-xl border p-3 flex items-start gap-2.5 transition ${item.line ? 'cursor-pointer' : ''} ${
                 item.unlocked
                   ? 'bg-[#101c28]'
                   : lockedSecret
@@ -403,6 +414,14 @@ export const CollectionPanel: React.FC = () => {
                 <p className="text-[10px] text-slate-400 mt-0.5 leading-snug">
                   {lockedSecret ? 'Секретный трофей. Откроется во время игры.' : item.description}
                 </p>
+                {item.line && lineOpenKey === item.key && (
+                  <p
+                    data-qa="collection-npc-line"
+                    className="mt-1.5 rounded-lg border border-[rgba(var(--ui-primary-rgb),0.30)] bg-[rgba(var(--ui-primary-rgb),0.10)] px-2 py-1.5 text-[10px] italic leading-snug text-[var(--ui-primary)]"
+                  >
+                    {item.line}
+                  </p>
+                )}
                 {!lockedSecret && (item.source || item.reward) && (
                   <div className={`text-[9px] font-bold mt-1.5 flex items-center gap-1 ${item.unlocked ? 'text-purple-300' : 'text-slate-500'}`}>
                     {item.category === 'trophies' ? <Gem className="w-3 h-3" /> : <BadgeCheck className="w-3 h-3" />}
