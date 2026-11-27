@@ -375,9 +375,11 @@ try {
   // --- v5.9: мёртвая «вуаль темы» убрана, рабочая — только для сцен по уровню
   check('вуаль темы без битого цвета (нет суффикса после rgba строки)',
     !deskScene.includes('sceneVignette}55'), 'ищем дописанный суффикс прозрачности');
-  check('вуаль темы рендерится только без выбранной локации',
-    deskScene.includes('{!deskBackdrop && (') &&
-      deskScene.indexOf('{!deskBackdrop && (') < deskScene.indexOf('sceneVignette'));
+  // v6.7: вуаль темы больше не накладывается и на сцену рабочего места локации
+  // (у кадра места своя глубина и свой свет), поэтому условие стало двойным.
+  check('вуаль темы рендерится только у домашних сцен',
+    deskScene.includes('{!deskBackdrop && !locationArt && (') &&
+      deskScene.indexOf('{!deskBackdrop && !locationArt && (') < deskScene.indexOf('sceneVignette'));
   check('мёртвая CSS-переменная --theme-vignette удалена',
     !deskScene.includes('--theme-vignette') && !context.includes('--theme-vignette'));
 
