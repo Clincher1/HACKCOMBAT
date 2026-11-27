@@ -51,6 +51,17 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # Дешёвый гейт до установки: маркеры конфликта в любом отслеживаемом
+      # файле ломают npm/vite через сто шагов, поэтому проверяем первым.
+      - name: Нет маркеров конфликта
+        run: |
+          set -euo pipefail
+          if git grep -n -E '^(<<<<<<< |>>>>>>> )' -- . ':!*.md' ':!.github/**'; then
+            echo '::error::в репозитории остались маркеры merge-конфликта'
+            exit 1
+          fi
+          echo 'маркеров конфликта нет'
+
       - name: Install
         run: npm ci --no-audit --fund=false
 
