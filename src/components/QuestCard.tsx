@@ -60,21 +60,21 @@ const QuestCardBase: React.FC<QuestCardProps> = ({ quest, pending, boostActive =
       className={`rounded-xl border p-3 transition-[border-color,background-color,transform] duration-150 ${styles.card}`}
     >
       <div className="flex items-start gap-2">
-        <span className="mt-0.5 text-base leading-none" aria-hidden="true">
+        <span className="mt-0.5 text-[16px] leading-none" aria-hidden="true">
           {quest.icon}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="text-xs font-bold leading-snug text-white">{quest.title}</h3>
-            <span className="shrink-0 rounded-md bg-amber-300/12 px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums text-amber-200">
+            <h3 className="text-[13px] font-bold leading-snug text-white">{quest.title}</h3>
+            <span className="shrink-0 rounded-md bg-amber-300/12 px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums text-amber-200">
               {quest.rewardLabel}
             </span>
           </div>
-          <p className="mt-0.5 line-clamp-2 text-[10px] leading-relaxed text-slate-400">{quest.description}</p>
+          <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-slate-400">{quest.description}</p>
           {boostActive && quest.boostEligible && (
             <span
               data-qa="quest-boost"
-              className="mt-1 inline-flex items-center gap-1 rounded bg-amber-300/15 px-1 py-0.5 text-[9px] font-extrabold leading-none text-amber-200"
+              className="mt-1 inline-flex items-center gap-1 rounded bg-amber-300/15 px-1 py-0.5 text-[11px] font-extrabold leading-none text-amber-200"
             >
               🍭 ×2 сейчас
             </span>
@@ -91,13 +91,13 @@ const QuestCardBase: React.FC<QuestCardProps> = ({ quest, pending, boostActive =
             style={{ transform: `scaleX(${status === 'closed' ? 1 : ratio})`, transition: 'transform 200ms ease-out' }}
           />
         </div>
-        <span className="shrink-0 text-[10px] font-bold tabular-nums text-slate-300">
+        <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-300">
           {quest.current.toLocaleString('ru-RU')}/{quest.target.toLocaleString('ru-RU')}
         </span>
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2">
-        <span className={`inline-flex min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${styles.chip}`}>
+        <span className={`inline-flex min-w-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-bold ${styles.chip}`}>
           {status === 'closed' ? <Check className="h-3 w-3 shrink-0" /> : null}
           <span className="truncate">{pending ? 'Получено' : quest.hint ?? styles.label}</span>
         </span>
@@ -107,18 +107,18 @@ const QuestCardBase: React.FC<QuestCardProps> = ({ quest, pending, boostActive =
             type="button"
             data-qa-action="claim-quest"
             onClick={() => onClaim(quest)}
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[var(--ui-success)] px-2.5 py-1.5 text-[10px] font-extrabold text-[#071005] transition-transform duration-150 active:scale-[0.97] cursor-pointer"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-[var(--ui-success)] px-2.5 py-1.5 text-[11px] font-extrabold text-[var(--ui-on-primary)] transition-transform duration-150 active:scale-[0.97] cursor-pointer"
           >
             <Gift className="h-3 w-3" />
             Забрать
           </button>
         ) : quest.claimKey && status === 'closed' ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-950/40 px-2.5 py-1.5 text-[10px] font-extrabold text-emerald-300">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-emerald-950/40 px-2.5 py-1.5 text-[11px] font-extrabold text-emerald-300">
             <Check className="h-3 w-3" />
             Получено
           </span>
         ) : quest.claimKey ? (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-800 px-2.5 py-1.5 text-[10px] font-extrabold text-slate-500">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-500">
             <LockKeyhole className="h-3 w-3" />
             Не готово
           </span>
@@ -126,13 +126,13 @@ const QuestCardBase: React.FC<QuestCardProps> = ({ quest, pending, boostActive =
           <Link
             to={quest.href}
             data-qa-action="open-quest-target"
-            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[rgba(var(--ui-primary-rgb),0.45)] px-2.5 py-1.5 text-[10px] font-extrabold text-[var(--ui-primary)] transition-colors duration-150"
+            className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-[rgba(var(--ui-primary-rgb),0.45)] px-2.5 py-1.5 text-[11px] font-extrabold text-[var(--ui-primary)] transition-colors duration-150"
           >
             {status === 'closed' ? 'Повторить' : 'Открыть'}
             <ChevronRight className="h-3 w-3" />
           </Link>
         ) : (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-800/70 px-2.5 py-1.5 text-[10px] font-extrabold text-slate-500">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-slate-800/70 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-500">
             {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
             {styles.label}
           </span>

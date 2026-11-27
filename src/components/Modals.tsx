@@ -5,11 +5,13 @@ import { SKIN_CATEGORIES, SKINS_CONFIG } from '../../shared/skins.config';
 import { BASE_THEMES } from '../../shared/themes.config';
 import type { SkinCategory } from '../../shared/types';
 import { useGame } from '../context/GameContext';
+import { CryptoIcon } from './ui-icons';
 import { formatCompact } from '../lib/format';
 import { ModalFrame } from './ModalFrame';
 import { ProfileFramesShop } from './ProfileFramesShop';
 import { ThemeOnboardingModal } from './ThemeOnboardingModal';
 import { TutorialModal } from './TutorialModal';
+import { withAlpha } from '../lib/colors';
 
 export const ModalsAndOverlays: React.FC = () => {
   const {
@@ -54,15 +56,15 @@ export const ModalsAndOverlays: React.FC = () => {
           cardClassName="w-full max-w-sm rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.45)] p-5 text-center shadow-[0_0_40px_rgba(var(--ui-primary-rgb),0.2)]"
         >
           <Sparkles className="w-10 h-10 text-[var(--ui-success)] mx-auto mb-2" />
-          <h3 className="font-display text-lg font-extrabold text-white">
+          <h3 className="font-display text-[20px] font-extrabold text-white">
             {offlineModalRetention ? 'Пока тебя не было…' : 'Пассивный майнинг завершён!'}
           </h3>
-          <p className="text-xs text-slate-300 mt-1">
+          <p className="text-[13px] text-slate-300 mt-1">
             {offlineModalRetention
               ? 'Стол работал без тебя: карточки платили половину обычной ставки, максимум 8 часов. Только Data — опыт, Crypto и чипы падают лишь за игру.'
               : 'Пока вы были оффлайн, ваши серверы и команда заработали. Только Data — опыт, Crypto и чипы падают лишь за игру. Копилка живёт максимум 8 часов и работает лишь в те сутки, где вы наиграли 8 минут.'}
           </p>
-          <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 font-display text-2xl font-black text-[var(--ui-success)]">
+          <div className="my-4 py-3 rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/35 font-display text-[28px] font-black text-[var(--ui-success)]">
             +{formatCompact(offlineModalEarned ?? 0)} DATA
           </div>
           {offlineModalTaps > 0 && (
@@ -70,7 +72,7 @@ export const ModalsAndOverlays: React.FC = () => {
               в том числе {formatCompact(offlineModalTaps)} фоновых тапов × сила клика
             </p>
           )}
-          <p className="text-[10px] text-slate-500 mb-3">
+          <p className="text-[11px] text-slate-500 mb-3">
             {offlineModalRetention
               ? 'забрать можно один раз за сессию — копилка очистится'
               : 'карточки в оффлайне платят 50% от обычной ставки'}
@@ -79,7 +81,7 @@ export const ModalsAndOverlays: React.FC = () => {
             type="button"
             onClick={dismissOfflineModal}
             data-qa-action="collect-offline"
-            className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-display font-bold text-sm cursor-pointer"
+            className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)] text-[var(--ui-on-primary)] font-display font-bold text-[16px] cursor-pointer"
           >
             {offlineModalRetention ? 'Collect — забрать Data' : 'Забрать и продолжить'}
           </button>
@@ -106,7 +108,7 @@ export const ModalsAndOverlays: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Gift className="w-5 h-5 text-[var(--ui-success)]" />
-                  <h3 className="font-display font-bold text-base text-white">
+                  <h3 className="font-display font-bold text-[16px] text-white">
                     Ежедневный Крипто-Дроп
                   </h3>
                 </div>
@@ -119,7 +121,7 @@ export const ModalsAndOverlays: React.FC = () => {
                 </button>
               </div>
 
-              <p className="text-xs text-slate-300">
+              <p className="text-[13px] text-slate-300">
                 Заходи каждый день без пропусков, чтобы получать премиальную валюту{' '}
                 <strong className="text-purple-300">Crypto</strong> и пакеты Data!
               </p>
@@ -139,8 +141,8 @@ export const ModalsAndOverlays: React.FC = () => {
                             : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-400'
                       }`}
                     >
-                      <div className="text-[10px]">Д{day}</div>
-                      <div className="font-bold text-xs mt-1">+{3 + day * 2}💎</div>
+                      <div className="text-[11px]">Д{day}</div>
+                      <div className="font-bold text-[13px] mt-1 flex items-center justify-center gap-0.5">+{3 + day * 2}<CryptoIcon className="h-3 w-3" /></div>
                     </div>
                   );
                 })}
@@ -150,10 +152,10 @@ export const ModalsAndOverlays: React.FC = () => {
                 type="button"
                 disabled={!canClaimDaily || busyKey === 'daily'}
                 onClick={() => void claimDailyBonus()}
-                className="w-full py-3 rounded-xl font-display font-bold text-sm bg-[var(--ui-success)] text-[#071005] disabled:opacity-40 transition cursor-pointer"
+                className="w-full py-3 rounded-xl font-display font-bold text-[16px] bg-[var(--ui-success)] text-[var(--ui-on-primary)] disabled:opacity-40 transition cursor-pointer"
               >
                 {canClaimDaily
-                  ? '🎁 Получить ежедневный бонус!'
+                  ? 'Получить ежедневный бонус!'
                   : 'Уже получено сегодня — возвращайся завтра!'}
               </button>
             </motion.div>
@@ -181,8 +183,8 @@ export const ModalsAndOverlays: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Gem className="w-5 h-5 text-purple-400" />
-                  <h3 className="font-display font-bold text-base text-white">
-                    Кибер-Косметика ({player.crypto} 💎)
+                  <h3 className="font-display font-bold text-[16px] text-white">
+                    Кибер-Косметика ({player.crypto} Crypto)
                   </h3>
                 </div>
                 <button
@@ -200,7 +202,7 @@ export const ModalsAndOverlays: React.FC = () => {
                       выбираешь базу, а платные скины ложатся сверху. Обе темы
                       бесплатны и не дают бонусов к тапу — только внешний вид. */}
                   <div className="space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       Базовая тема · бесплатно
                     </div>
                     <div className="grid grid-cols-3 gap-2">
@@ -221,7 +223,7 @@ export const ModalsAndOverlays: React.FC = () => {
                             style={{
                               background: theme.previewImage
                                 ? undefined
-                                : `linear-gradient(135deg, ${theme.previewFrom}22 0%, ${theme.previewTo}22 100%)`,
+                                : `linear-gradient(135deg, ${withAlpha(theme.previewFrom, 0.13)} 0%, ${withAlpha(theme.previewTo, 0.13)} 100%)`,
                             }}
                           >
                             {/* Если у темы есть арт — показываем его, иначе градиент */}
@@ -237,21 +239,21 @@ export const ModalsAndOverlays: React.FC = () => {
                               </>
                             )}
                             <div className="relative flex items-center justify-between gap-1">
-                              <span className="text-base leading-none">{theme.glyph}</span>
+                              <span className="text-[16px] leading-none">{theme.glyph}</span>
                               {active ? (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[var(--ui-panel-deep)] flex items-center gap-0.5">
+                                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[var(--ui-panel-deep)] flex items-center gap-0.5">
                                   <Check className="w-2.5 h-2.5" /> ВКЛ
                                 </span>
                               ) : (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/30 text-white/80">
+                                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-black/30 text-white/80">
                                   бесплатно
                                 </span>
                               )}
                             </div>
-                            <div className="relative font-display font-bold text-xs text-white mt-1.5 leading-tight">
+                            <div className="relative font-display font-bold text-[13px] text-white mt-1.5 leading-tight">
                               {theme.name}
                             </div>
-                            <div className="relative text-[9px] text-slate-300/90 mt-0.5 leading-snug">
+                            <div className="relative text-[11px] text-slate-300/90 mt-0.5 leading-snug">
                               {theme.tagline}
                             </div>
                             <div
@@ -264,7 +266,7 @@ export const ModalsAndOverlays: React.FC = () => {
                         );
                       })}
                     </div>
-                    <p className="text-[9px] text-slate-500 leading-snug">
+                    <p className="text-[11px] text-slate-500 leading-snug">
                       Тема — это основа оформления. Скины ниже накладываются на неё сверху.
                     </p>
                   </div>
@@ -339,17 +341,17 @@ export const ModalsAndOverlays: React.FC = () => {
                                 background: `linear-gradient(135deg, ${skin.primaryHex}, ${skin.secondaryHex})`,
                               }}
                             />
-                            <span className="font-bold text-sm text-white truncate">
+                            <span className="font-bold text-[16px] text-white truncate">
                               {skin.avatarGlyph ? `${skin.avatarGlyph} ` : ''}
                               {skin.name}
                             </span>
                             {levelLocked && !unlocked && (
-                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 shrink-0">
+                              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-0.5 shrink-0">
                                 <Lock className="w-2.5 h-2.5" /> Ур. {skin.requiredLevel}
                               </span>
                             )}
                             {eliteCosmetic && !levelLocked && !unlocked && (
-                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-400/30 shrink-0">
+                              <span className="text-[11px] font-black px-1.5 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-200 border border-fuchsia-400/30 shrink-0">
                                 ЭЛИТА
                               </span>
                             )}
@@ -361,13 +363,13 @@ export const ModalsAndOverlays: React.FC = () => {
                           type="button"
                           disabled={equipped || levelLocked || prestigeLocked || busyKey === `skin:${skin.key}`}
                           onClick={() => void buyOrEquipSkin(skin.key)}
-                          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          className={`shrink-0 px-3 py-1.5 rounded-lg text-[13px] font-bold transition cursor-pointer ${
                             equipped
                               ? 'bg-[rgba(var(--ui-primary-rgb),0.15)] text-[var(--ui-primary)] border border-[rgba(var(--ui-primary-rgb),0.40)]'
                               : levelLocked || prestigeLocked
                                 ? 'bg-[var(--ui-panel-deep)] text-amber-400/80 border border-amber-500/25 cursor-not-allowed'
                                 : unlocked
-                                  ? 'bg-[#162244] hover:bg-[#1e2e5c] text-white'
+                                  ? 'bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] text-white'
                                   : eliteCosmetic
                                     ? 'bg-purple-950/60 text-purple-300 border border-purple-500/30'
                                     : 'bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white'
@@ -384,7 +386,7 @@ export const ModalsAndOverlays: React.FC = () => {
                           ) : unlocked ? (
                             'Надеть'
                           ) : (
-                            `${skin.cryptoCost} 💎`
+                            `${skin.cryptoCost} Crypto`
                           )}
                         </button>
                       </div>

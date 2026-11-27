@@ -27,6 +27,7 @@ import { MISSIONS_CONFIG } from '../../shared/missions.config';
 import type { HackSessionState, MissionTargetType } from '../../shared/types';
 import { DailyIncidentPanel } from '../components/DailyIncidentPanel';
 import { useGame } from '../context/GameContext';
+import { BookIcon } from '../components/ui-icons';
 import { formatCompact, formatCountdown } from '../lib/format';
 import { missionsForLocation } from '../lib/world';
 
@@ -51,25 +52,25 @@ const TYPE_META: Record<
   { badge: string; dot: string; border: string; bg: string }
 > = {
   bad: {
-    badge: '⚪ Белый хакинг · +Rep, 0 Heat',
+    badge: 'Белый хакинг · +Rep, 0 Heat',
     dot: 'text-emerald-300',
     border: 'border-[var(--ui-primary)]/35',
     bg: 'bg-[var(--ui-primary)]/10 text-[var(--ui-primary)]',
   },
   good: {
-    badge: '⚫ Чёрный хакинг · +Data, +Heat',
+    badge: 'Чёрный хакинг · +Data, +Heat',
     dot: 'text-rose-300',
     border: 'border-[var(--ui-secondary)]/35',
     bg: 'bg-[var(--ui-secondary)]/12 text-[var(--ui-secondary)]',
   },
   neutral: {
-    badge: '🔵 Нейтральный хакинг · +Data',
+    badge: 'Нейтральный хакинг · +Data',
     dot: 'text-slate-300',
     border: 'border-slate-700',
     bg: 'bg-slate-800 text-slate-300',
   },
   grey: {
-    badge: '🟣 Нейтральный спецконтракт · +Data, +Rep, 💎',
+    badge: 'Нейтральный спецконтракт · +Data, +Rep, Crypto',
     dot: 'text-purple-300',
     border: 'border-purple-500/45',
     bg: 'bg-purple-500/15 text-purple-300',
@@ -196,7 +197,7 @@ export const HacksPage: React.FC = () => {
       {/* v5.5: где мы и что здесь есть. Без мира этот блок не рендерится. */}
       {worldEnabled && (
         <div className="flex items-center gap-2 rounded-2xl border border-[rgba(var(--loc-accent-rgb),0.40)] bg-[var(--ui-panel)] px-3 py-2">
-          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[rgba(var(--loc-accent-rgb),0.16)] text-sm" aria-hidden>
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-[rgba(var(--loc-accent-rgb),0.16)] text-[16px]" aria-hidden>
             {activeLocation.glyph}
           </span>
           <span className="min-w-0 flex-1">
@@ -204,7 +205,7 @@ export const HacksPage: React.FC = () => {
               <MapPin className="mr-1 inline h-3 w-3 text-[var(--loc-accent)]" />
               {activeLocation.name}
             </span>
-            <span className="block truncate text-[10px] text-[var(--ui-text-muted)]">
+            <span className="block truncate text-[11px] text-[var(--ui-text-muted)]">
               {scopedAway
                 ? 'Здесь таких целей нет — показываем контракты Улицы.'
                 : 'Контракты этой локации в текущем скане.'}
@@ -212,7 +213,7 @@ export const HacksPage: React.FC = () => {
           </span>
           <Link
             to="/"
-            className="shrink-0 rounded-lg bg-[rgba(var(--loc-accent-rgb),0.16)] px-2 py-1 text-[10px] font-extrabold text-[var(--loc-accent)]"
+            className="shrink-0 rounded-lg bg-[rgba(var(--loc-accent-rgb),0.16)] px-2 py-1 text-[11px] font-extrabold text-[var(--loc-accent)]"
           >
             Карта
           </Link>
@@ -247,12 +248,12 @@ export const HacksPage: React.FC = () => {
         <section data-qa="hack-targets" className="space-y-2">
           <div className="flex items-center justify-between gap-2 px-0.5">
             <div className="min-w-0">
-              <h2 className="font-display text-sm font-extrabold text-white">Активный взлом</h2>
-              <p className="text-[10px] text-[var(--ui-text-muted)]">
+              <h2 className="font-display text-[16px] font-extrabold text-white">Активный взлом</h2>
+              <p className="text-[11px] text-[var(--ui-text-muted)]">
                 30 секунд на сетку. Безопасный узел — Data, ловушка — Heat.
               </p>
             </div>
-            <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-[rgba(var(--ui-primary-rgb),0.14)] px-1.5 py-0.5 text-[10px] font-extrabold tabular-nums text-[var(--ui-primary)]">
+            <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-[rgba(var(--ui-primary-rgb),0.14)] px-1.5 py-0.5 text-[11px] font-extrabold tabular-nums text-[var(--ui-primary)]">
               <Zap className="h-3 w-3" />
               {Math.floor(player.energy)} ⚡
             </span>
@@ -282,17 +283,17 @@ export const HacksPage: React.FC = () => {
                       : 'border-[rgba(var(--ui-primary-rgb),0.4)] bg-[var(--ui-panel)]'
                   }`}
                 >
-                  <span className="text-base leading-none" aria-hidden>
+                  <span className="text-[16px] leading-none" aria-hidden>
                     {difficulty.icon}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-[12px] font-bold text-white">{difficulty.title}</span>
-                      <span className="shrink-0 text-[10px] font-extrabold tabular-nums text-[var(--ui-primary)]">
+                      <span className="truncate text-[13px] font-bold text-white">{difficulty.title}</span>
+                      <span className="shrink-0 text-[11px] font-extrabold tabular-nums text-[var(--ui-primary)]">
                         −{difficulty.cost} ⚡
                       </span>
                     </span>
-                    <span className="mt-0.5 block truncate text-[10px] text-[var(--ui-text-muted)]">
+                    <span className="mt-0.5 block truncate text-[11px] text-[var(--ui-text-muted)]">
                       +{difficulty.dataPerNode} Data / узел · {difficulty.riskLabel}
                     </span>
                   </span>
@@ -308,10 +309,10 @@ export const HacksPage: React.FC = () => {
       <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-primary)]/25 p-3.5 space-y-2">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <div className="text-xs font-extrabold text-white">
+            <div className="text-[13px] font-extrabold text-white">
               Активные слоты: {player.activeMissions.length} / {derived.missionSlots}
               {derived.missionSlots < 3 && (
-                <span className="ml-1.5 text-[10px] font-normal text-slate-400">
+                <span className="ml-1.5 text-[11px] font-normal text-slate-400">
                   ({derived.missionSlots === 1 ? '2 слота с 10 ур.' : '3 слота с 20 ур.'})
                 </span>
               )}
@@ -326,7 +327,7 @@ export const HacksPage: React.FC = () => {
             type="button"
             disabled={busyKey === 'mission:refresh' || refreshLeftSec > 0}
             onClick={() => void refreshMissions()}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#162244] hover:bg-[#1f305e] border border-[var(--ui-primary)]/35 text-xs font-bold text-[var(--ui-primary)] transition cursor-pointer"
+            className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] border border-[var(--ui-primary)]/35 text-[13px] font-bold text-[var(--ui-primary)] transition cursor-pointer"
           >
             <RefreshCw
               className={`w-3.5 h-3.5 ${busyKey === 'mission:refresh' ? 'animate-spin' : ''}`}
@@ -338,14 +339,14 @@ export const HacksPage: React.FC = () => {
         {/* Сила железа = главный множитель шанса успеха */}
         <div className="flex items-center justify-between gap-2 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 px-2.5 py-1.5">
           <span className="text-[11px] text-slate-300 flex items-center gap-1">
-            <Zap className="w-3.5 h-3.5 text-[#ffe600]" /> Сила железа:
+            <Zap className="w-3.5 h-3.5 text-[var(--ui-warn-strong)]" /> Сила железа:
             <strong className="text-white">{Math.round(derived.hackPower)}</strong>
           </span>
-          <span className="text-[10px] text-slate-500">
+          <span className="text-[11px] text-slate-500">
             карточки + База + команда = шанс успеха
           </span>
         </div>
-        <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 px-2.5 py-1.5 text-[10px] leading-snug text-amber-200">
+        <div className="rounded-xl border border-amber-400/25 bg-amber-950/20 px-2.5 py-1.5 text-[11px] leading-snug text-amber-200">
           {gameplayV3
             ? 'Запуск тратит Data и CPU Charge по тиру контракта. Заряд копится сам (+1 за 2 с) и тратится ещё и на тапы. Награда приходит по таймеру, даже если приложение закрыто.'
             : 'Запуск платный: контракт списывает Data и Energy сразу. При успехе награда возвращает вложение с прибылью; при провале взнос не возвращается.'}
@@ -356,11 +357,11 @@ export const HacksPage: React.FC = () => {
 
       {/* Короткая легенда риска: помогает новичку читать шанс без отдельного туториала. */}
       <div className="rounded-xl bg-[var(--ui-panel-deep)]/65 border border-slate-800/90 px-3 py-2.5 space-y-2">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+        <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
           <Info className="w-3.5 h-3.5 text-[var(--ui-primary)]" />
           Как читать шанс операции
         </div>
-        <div className="grid grid-cols-3 gap-1.5 text-[10px] leading-snug">
+        <div className="grid grid-cols-3 gap-1.5 text-[11px] leading-snug">
           <div className="rounded-lg bg-emerald-950/35 border border-emerald-400/25 px-2 py-1.5">
             <div className="font-bold text-[var(--ui-success)]">80%+ · надёжно</div>
             <div className="text-slate-400 mt-0.5">лучший выбор для стабильного XP и Чипов</div>
@@ -383,18 +384,18 @@ export const HacksPage: React.FC = () => {
         >
           <div className="flex items-start gap-2.5">
             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-purple-400/10 text-purple-300">
-              <span aria-hidden="true">📖</span>
+              <BookIcon className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-purple-300">
+                <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-purple-300">
                   Глава 1 · Первый выход
                 </div>
-                <span className="shrink-0 text-[10px] text-slate-500">
+                <span className="shrink-0 text-[11px] text-slate-500">
                   {chapter.completedCount}/{chapter.steps.length}
                 </span>
               </div>
-              <div className="mt-0.5 text-sm font-display font-extrabold text-white">
+              <div className="mt-0.5 text-[16px] font-display font-extrabold text-white">
                 {chapter.activeStep.title}
               </div>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-300">
@@ -420,7 +421,7 @@ export const HacksPage: React.FC = () => {
           {chapter.activeStep.href !== '/hacks' && (
             <Link
               to={chapter.activeStep.href}
-              className="mt-2.5 inline-flex items-center rounded-lg border border-purple-300/35 bg-purple-300/10 px-2.5 py-1.5 text-[10px] font-bold text-purple-200 hover:bg-purple-300/20 transition"
+              className="mt-2.5 inline-flex items-center rounded-lg border border-purple-300/35 bg-purple-300/10 px-2.5 py-1.5 text-[11px] font-bold text-purple-200 hover:bg-purple-300/20 transition"
             >
               Сначала: {chapter.activeStep.actionLabel}
             </Link>
@@ -431,7 +432,7 @@ export const HacksPage: React.FC = () => {
       {/* Секция текущих запущенных миссий с живыми прогресс-барами */}
       {player.activeMissions.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-bold text-[var(--ui-success)] px-1">⚡ В процессе взлома</div>
+          <div className="text-[13px] font-bold text-[var(--ui-success)] px-1">В процессе взлома</div>
           {player.activeMissions.map((active) => {
             const startMs = new Date(active.startedAt).getTime();
             const finishMs = new Date(active.finishAt).getTime();
@@ -444,11 +445,11 @@ export const HacksPage: React.FC = () => {
             return (
               <div
                 key={active.id}
-                className="rounded-2xl bg-[#121c38] border border-[var(--ui-success)]/50 p-3.5 space-y-2.5 shadow-[0_0_20px_rgba(var(--ui-success-rgb),0.08)]"
+                className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-success)]/50 p-3.5 space-y-2.5 shadow-[0_0_20px_rgba(var(--ui-success-rgb),0.08)]"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-sm font-display font-bold text-white">
+                    <div className="text-[16px] font-display font-bold text-white">
                       {active.targetName}
                     </div>
                     <div className="text-[11px] text-[var(--ui-success)] font-semibold">
@@ -458,12 +459,12 @@ export const HacksPage: React.FC = () => {
                         ` · ${active.repDelta > 0 ? '+' : ''}${active.repDelta} Rep`}
                       {active.heatDelta > 0 && ` · +${active.heatDelta} Heat`}
                     </div>
-                    <div className="text-[10px] text-amber-300 mt-0.5">
+                    <div className="text-[11px] text-amber-300 mt-0.5">
                       {(active.entryDataCost ?? 0) > 0 || (active.entryEnergyCost ?? 0) > 0
                         ? `Взнос уже списан: −${formatCompact(active.entryDataCost ?? 0)} Data · −${formatCompact(active.entryEnergyCost ?? 0)} ${gameplayV3 ? 'CPU' : 'Energy'}`
                         : 'Старый контракт: входной взнос не зафиксирован'}
                     </div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">
+                    <div className="text-[11px] text-slate-400 mt-0.5">
                       Шанс успеха{' '}
                       <strong className={chance >= 80 ? 'text-[var(--ui-success)]' : chance >= 55 ? 'text-amber-300' : 'text-rose-400'}>
                         {chance}%
@@ -477,7 +478,7 @@ export const HacksPage: React.FC = () => {
                       type="button"
                       disabled={busyKey === `mission:claim:${active.id}`}
                       onClick={() => void claimMission(active.id)}
-                      className="px-3.5 py-2 rounded-xl bg-[var(--ui-success)] text-[#071005] font-display font-extrabold text-xs flex items-center gap-1.5 animate-pulse cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-[var(--ui-success)] text-[var(--ui-on-primary)] font-display font-extrabold text-[13px] flex items-center gap-1.5 animate-pulse cursor-pointer"
                     >
                       <CheckCircle2 className="w-4 h-4" />
                       <span>Забрать</span>
@@ -498,7 +499,7 @@ export const HacksPage: React.FC = () => {
 
                 {/* Прогресс-бар миссии */}
                 <div className="space-y-1">
-                  <div className="h-2.5 w-full rounded-full bg-[#090d1a] overflow-hidden p-[1px] border border-slate-800">
+                  <div className="h-2.5 w-full rounded-full bg-[var(--ui-track)] overflow-hidden p-[1px] border border-slate-800">
                     <div
                       className="h-full rounded-full transition-all duration-300"
                       style={{
@@ -509,7 +510,7 @@ export const HacksPage: React.FC = () => {
                       }}
                     />
                   </div>
-                  <div className="flex justify-between text-[10px] text-slate-400">
+                  <div className="flex justify-between text-[11px] text-slate-400">
                     <span>{ready ? 'Прорыв завершён!' : 'Подбор ключей доступа...'}</span>
                     <span className="font-bold text-white">
                       {ready ? 'ГОТОВО' : formatCountdown(remSec)}
@@ -525,12 +526,12 @@ export const HacksPage: React.FC = () => {
       {/* Локальный журнал результата не зависит от таймера toast и не меняет серверную экономику. */}
       {missionHistory.length > 0 && (
         <section
-          className="rounded-2xl bg-[#0d152b]/90 border border-[var(--ui-primary)]/20 p-3"
+          className="rounded-2xl bg-[rgba(var(--ui-panel-rgb), 0.9)] border border-[var(--ui-primary)]/20 p-3"
           aria-label="Последние операции"
         >
           <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="text-xs font-extrabold text-white">📜 Последние операции</div>
-            <span className="text-[10px] text-slate-500">текущая сессия · {missionHistory.length}/5</span>
+            <div className="text-[13px] font-extrabold text-white">📜 Последние операции</div>
+            <span className="text-[11px] text-slate-500">текущая сессия · {missionHistory.length}/5</span>
           </div>
           <div className="space-y-1.5">
             {missionHistory.map((entry) => {
@@ -541,7 +542,7 @@ export const HacksPage: React.FC = () => {
                 : isPartial
                   ? 'border-amber-300/25 bg-amber-950/15'
                   : 'border-emerald-400/25 bg-emerald-950/15';
-              const marker = isPenalty ? '×' : isPartial ? '·' : '✓';
+              const marker = isPenalty ? '×' : isPartial ? '·' : '+';
               const markerTone = isPenalty
                 ? 'text-rose-300 bg-rose-400/10'
                 : isPartial
@@ -555,13 +556,13 @@ export const HacksPage: React.FC = () => {
                   </span>
                   <div className="min-w-0">
                     <div className="text-[11px] font-bold text-slate-100">{entry.title}</div>
-                    <div className="text-[10px] leading-snug text-slate-400">{entry.message}</div>
+                    <div className="text-[11px] leading-snug text-slate-400">{entry.message}</div>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="mt-2 text-[10px] text-slate-500">
+          <div className="mt-2 text-[11px] text-slate-500">
             Архив виден до перезапуска игры; награды и статусы всегда подтверждает сервер.
           </div>
         </section>
@@ -569,7 +570,7 @@ export const HacksPage: React.FC = () => {
 
       {/* Три понятных направления хакинга. Отдельной кнопки «Витрина» больше нет. */}
       <div className="rounded-xl bg-[var(--ui-panel-deep)]/70 border border-slate-800/80 px-2.5 py-2">
-        <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5 px-0.5">
+        <div className="text-[11px] uppercase tracking-wider text-slate-500 mb-1.5 px-0.5">
           Направление хакинга · можно выбрать одно
         </div>
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
@@ -583,7 +584,7 @@ export const HacksPage: React.FC = () => {
               type="button"
               aria-pressed={filter === tab.id}
               onClick={() => setFilter(filter === tab.id ? 'all' : (tab.id as FilterType))}
-              className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
+              className={`shrink-0 px-3 py-1.5 rounded-xl text-[13px] font-bold border transition cursor-pointer ${
                 filter === tab.id
                   ? 'bg-[var(--ui-primary)]/18 border-[var(--ui-primary)] text-[var(--ui-primary)]'
                   : 'bg-[var(--ui-panel)] border-slate-800 text-slate-400 hover:text-slate-200'
@@ -668,23 +669,23 @@ export const HacksPage: React.FC = () => {
             >
               <div className="space-y-1.5 min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${meta.bg}`}>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${meta.bg}`}>
                     {meta.badge}
                   </span>
                   {storyMission && (
-                    <span className="rounded-md border border-purple-300/35 bg-purple-300/10 px-2 py-0.5 text-[10px] font-bold text-purple-200">
+                    <span className="rounded-md border border-purple-300/35 bg-purple-300/10 px-2 py-0.5 text-[11px] font-bold text-purple-200">
                       📖 Глава 1
                     </span>
                   )}
-                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
+                  <span className="text-[11px] text-slate-400 flex items-center gap-0.5">
                     <Clock className="w-3 h-3" /> {formatDuration(m.durationSec)}
                   </span>
-                  <span className="text-[10px] text-slate-500 font-bold">
+                  <span className="text-[11px] text-slate-500 font-bold">
                     {TIER_LABEL[m.tier ?? 1] ?? `T${m.tier}`}
                   </span>
                 </div>
 
-                <h3 className="font-display text-sm font-bold text-white truncate">
+                <h3 className="font-display text-[16px] font-bold text-white truncate">
                   {m.targetName}
                 </h3>
                 <p className="text-[11px] text-slate-400 leading-snug">{m.description}</p>
@@ -708,7 +709,7 @@ export const HacksPage: React.FC = () => {
                   )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] font-bold">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold">
                   <span className={dataLocked ? 'text-rose-300' : 'text-amber-300'}>
                     Вход: −{formatCompact(entryCost.data)} Data
                   </span>
@@ -720,7 +721,7 @@ export const HacksPage: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[10px] text-slate-500">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
                   <span>При успехе: ~{formatCompact(successDataPerMinute)} Data/мин</span>
                   <span>· ~{formatCompact(successXpPerMinute)} XP/мин</span>
                   <span className={riskMeta.className}>{riskMeta.label}</span>
@@ -728,18 +729,18 @@ export const HacksPage: React.FC = () => {
 
                 {/* Шанс успеха: главный элемент выбора цели */}
                 <div className="flex items-center gap-2 pt-0.5">
-                  <div className="h-1.5 w-20 rounded-full bg-[#090d1a] border border-slate-800 overflow-hidden">
+                  <div className="h-1.5 w-20 rounded-full bg-[var(--ui-track)] border border-slate-800 overflow-hidden">
                     <div
                       className="h-full rounded-full"
                       style={{
                         width: `${chancePct}%`,
                         background:
-                          chancePct >= 80 ? 'var(--ui-success)' : chancePct >= 55 ? '#ffb800' : '#ff3b6b',
+                          chancePct >= 80 ? 'var(--ui-success)' : chancePct >= 55 ? 'var(--ui-warn)' : 'var(--ui-danger)',
                       }}
                     />
                   </div>
                   <span
-                    className={`text-[10px] font-bold ${
+                    className={`text-[11px] font-bold ${
                       chancePct >= 80
                         ? 'text-[var(--ui-success)]'
                         : chancePct >= 55
@@ -752,7 +753,7 @@ export const HacksPage: React.FC = () => {
                       {chancePct}% · {readiness.label}
                     </span>
                   </span>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[11px] text-slate-500">
                     (нужно {m.requiredPower}⚡ железа)
                   </span>
                 </div>
@@ -770,7 +771,7 @@ export const HacksPage: React.FC = () => {
                   busyKey === `mission:start:${m.key}`
                 }
                 onClick={() => void startMission(m.key)}
-                className={`shrink-0 px-4 py-2.5 rounded-xl font-display font-extrabold text-xs uppercase tracking-wider transition cursor-pointer ${
+                className={`shrink-0 px-4 py-2.5 rounded-xl font-display font-extrabold text-[13px] uppercase tracking-wider transition cursor-pointer ${
                   levelLocked
                     ? 'bg-[var(--ui-panel-deep)] text-slate-400 border border-slate-800 cursor-not-allowed'
                     : alreadyRunning

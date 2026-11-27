@@ -66,16 +66,16 @@ export const TutorialModal: React.FC = () => {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.93, y: 18 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl bg-[#0e152b] border border-[var(--ui-primary)]/45 shadow-[0_0_50px_rgba(var(--ui-primary-rgb),0.22)] overflow-hidden"
+            className="w-full max-w-lg max-h-[88vh] flex flex-col rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-primary)]/45 shadow-[0_0_50px_rgba(var(--ui-primary-rgb),0.22)] overflow-hidden"
           >
             {/* Шапка Академии */}
-            <div className="px-4 py-3.5 bg-gradient-to-r from-[#111c3a] to-[#161332] border-b border-slate-800 flex items-center justify-between gap-2 shrink-0">
+            <div className="px-4 py-3.5 bg-gradient-to-r from-[var(--ui-panel)] to-[var(--ui-panel)] border-b border-slate-800 flex items-center justify-between gap-2 shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
                 <div className="w-9 h-9 rounded-xl bg-[var(--ui-primary)]/15 border border-[var(--ui-primary)]/45 flex items-center justify-center shrink-0">
                   <BookOpen className="w-4 h-4 text-[var(--ui-primary)]" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="font-display font-extrabold text-sm sm:text-base text-white truncate">
+                  <h2 className="font-display font-extrabold text-[16px] sm:text-[16px] text-white truncate">
                     Академия HACKER KOMBAT
                   </h2>
                   <p className="text-[11px] text-slate-400 truncate">
@@ -105,7 +105,7 @@ export const TutorialModal: React.FC = () => {
                       triggerHapticSelection();
                       setActiveTab(t.id);
                     }}
-                    className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 text-[10px] font-bold transition cursor-pointer ${
+                    className={`py-2 px-1 rounded-xl flex flex-col items-center gap-1 text-[11px] font-bold transition cursor-pointer ${
                       active
                         ? 'bg-[var(--ui-primary)]/20 border border-[var(--ui-primary)]/60 text-[var(--ui-primary)]'
                         : 'text-slate-400 hover:text-white border border-transparent'
@@ -119,7 +119,7 @@ export const TutorialModal: React.FC = () => {
             </div>
 
             {/* Контент выбранной вкладки */}
-            <div className="p-4 overflow-y-auto space-y-3 text-xs leading-relaxed text-slate-300">
+            <div className="p-4 overflow-y-auto space-y-3 text-[13px] leading-relaxed text-slate-300">
               {activeTab === 'currencies' && (
                 <>
                   <div className="rounded-xl bg-[var(--ui-primary)]/10 border border-[var(--ui-primary)]/30 p-3 space-y-1">
@@ -258,7 +258,7 @@ export const TutorialModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => jumpTo('/upgrades')}
-                    className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)]/15 hover:bg-[var(--ui-primary)]/25 border border-[var(--ui-primary)]/50 text-[var(--ui-primary)] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-[var(--ui-primary)]/15 hover:bg-[var(--ui-primary)]/25 border border-[var(--ui-primary)]/50 text-[var(--ui-primary)] font-display font-bold text-[13px] flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Перейти в «Улучшения»</span>
                     <ChevronRight className="w-4 h-4" />
@@ -323,7 +323,7 @@ export const TutorialModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => jumpTo('/hacks')}
-                    className="w-full py-2.5 rounded-xl bg-[var(--ui-secondary)]/15 hover:bg-[var(--ui-secondary)]/25 border border-[var(--ui-secondary)]/50 text-[var(--ui-secondary)] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-[var(--ui-secondary)]/15 hover:bg-[var(--ui-secondary)]/25 border border-[var(--ui-secondary)]/50 text-[var(--ui-secondary)] font-display font-bold text-[13px] flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Перейти во «Взломы»</span>
                     <ChevronRight className="w-4 h-4" />
@@ -392,7 +392,7 @@ export const TutorialModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => jumpTo('/team')}
-                    className="w-full py-2.5 rounded-xl bg-[var(--ui-success)]/15 hover:bg-[var(--ui-success)]/25 border border-[var(--ui-success)]/50 text-[var(--ui-success)] font-display font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2.5 rounded-xl bg-[var(--ui-success)]/15 hover:bg-[var(--ui-success)]/25 border border-[var(--ui-success)]/50 text-[var(--ui-success)] font-display font-bold text-[13px] flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Открыть «Команду»</span>
                     <ChevronRight className="w-4 h-4" />
@@ -447,7 +447,7 @@ export const TutorialModal: React.FC = () => {
               <button
                 type="button"
                 onClick={closeTutorial}
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[var(--ui-primary)] to-[#00b8ff] text-[#041019] font-display font-extrabold text-xs uppercase tracking-wider cursor-pointer"
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-[var(--ui-primary)] to-[var(--ui-secondary)] text-[var(--ui-on-primary)] font-display font-extrabold text-[13px] uppercase tracking-wider cursor-pointer"
               >
                 Понятно, за работу! ⚡
               </button>

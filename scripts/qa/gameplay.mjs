@@ -367,9 +367,9 @@ try {
   // v6.5: третьей двери в локации на сцене нет — только полоса под сценой.
   check('на сцене нет второй двери в локации',
     !deskScene.includes('scene-location-chip') && !deskScene.includes('<LocationPickerModal'));
-  check('полоса локаций стоит под сценой и над доской',
-    deskPage.indexOf('<DeskScene />') < deskPage.indexOf('<LocationStrip />') &&
-      deskPage.indexOf('<LocationStrip />') < deskPage.indexOf('<ContractBoard />') &&
+  check('полоса локаций стоит после дохода (v6.9: контент — первым)',
+    deskPage.indexOf('<DeskScene />') < deskPage.indexOf('<ContractBoard />') &&
+      deskPage.indexOf('<ContractBoard />') < deskPage.indexOf('<LocationStrip />') &&
       !deskPage.includes('change-location-bar'));
 
   // --- v5.9: мёртвая «вуаль темы» убрана, рабочая — только для сцен по уровню
@@ -388,7 +388,7 @@ try {
   const questsLib = readSource('src/lib/quests.ts');
   const tasksPage = readSource('src/pages/TasksPage.tsx');
   const questCard = readSource('src/components/QuestCard.tsx');
-  const tasksTeaser = readSource('src/components/TasksTeaser.tsx');
+  const quickLinks = readSource('src/components/DeskQuickLinks.tsx');
 
   check('маршрут /tasks подключён', app.includes('path="/tasks"') && app.includes("import('./pages/TasksPage')"));
   check('три секции: ежедневные, прогресс, события',
@@ -401,7 +401,9 @@ try {
   check('один тип карточки задания на весь раздел',
     questCard.includes('data-qa="quest-card"') &&
       tasksPage.includes('<QuestCard') &&
-      (readSource('src/pages/DeskPage.tsx').includes('TasksTeaser')));
+      readSource('src/pages/DeskPage.tsx').includes('<DeskQuickLinks />') &&
+      quickLinks.includes('to="/tasks"') &&
+      quickLinks.includes("qa=\"tasks-teaser\""));
   check('награда забирается одним тапом', questCard.includes('data-qa-action="claim-quest"') && questCard.includes('Забрать'));
   check('оптимистичный забор: метка до ответа API',
     context.includes('pendingClaims') && context.includes('const runClaim = useCallback') &&
@@ -415,7 +417,10 @@ try {
       !tasksPage.includes('Сценарий · 7 календарных') &&
       !questsLib.includes('Участник/Мастер'));
   check('анимации только transform/opacity',
-    !questCard.includes('transition-all') && questCard.includes('scaleX(') && tasksTeaser.includes('scaleX('));
+    !questCard.includes('transition-all') && questCard.includes('scaleX(') &&
+      // v6.9: прогресс дня переехал из TasksTeaser в плитки стола —
+      // там тоже нет transition-all (только цвета и opacity).
+      !/(^|[^-])transition-all/.test(quickLinks));
 
   // --- v6.1: контракты — пассивные цели поверх экрана заданий ----------------
   const contractsConfig = readSource('shared/contracts.config.ts');

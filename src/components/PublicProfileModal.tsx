@@ -4,6 +4,8 @@ import { getInventoryItemDefinition } from '../../shared/inventory.config';
 import type { PublicProfile } from '../../shared/types';
 import { gameApi } from '../lib/api';
 import { getProfileFrame } from '../../shared/profileFrames.config';
+import { withAlpha } from '../lib/colors';
+import { AvatarFallbackIcon } from './ui-icons';
 
 interface PublicProfileModalProps {
   profileId: string | null;
@@ -70,7 +72,7 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <ExternalLink className="h-4 w-4 text-[var(--ui-primary)]" />
-            <h2 className="font-display text-sm font-extrabold text-white">Публичный профиль</h2>
+            <h2 className="font-display text-[16px] font-extrabold text-white">Публичный профиль</h2>
           </div>
           <button
             type="button"
@@ -83,29 +85,29 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
         </div>
 
         {loading ? (
-          <div className="flex min-h-48 flex-col items-center justify-center gap-2 text-xs text-slate-400">
+          <div className="flex min-h-48 flex-col items-center justify-center gap-2 text-[13px] text-slate-400">
             <Loader2 className="h-6 w-6 animate-spin text-[var(--ui-primary)]" />
             Открываем витрину…
           </div>
         ) : error ? (
-          <div className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 text-center text-xs text-rose-200">
+          <div className="mt-4 rounded-2xl border border-rose-400/30 bg-rose-400/10 p-4 text-center text-[13px] text-rose-200">
             {error}
           </div>
         ) : profile ? (
           <>
             <div className="mt-4 flex items-center gap-3 rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-3">
               <div
-                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-xl font-black"
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 text-[20px] font-black"
                 style={{ borderColor: frame.accent, background: frame.background, boxShadow: frame.glow }}
               >
-                {profile.avatarKey ? getInventoryItemDefinition(`skin:${profile.avatarKey}`)?.icon ?? '🧑‍💻' : '🙂'}
+                {profile.avatarKey ? getInventoryItemDefinition(`skin:${profile.avatarKey}`)?.icon ?? <AvatarFallbackIcon className="h-5 w-5" /> : <AvatarFallbackIcon className="h-5 w-5" />}
               </div>
               <div className="min-w-0">
-                <div className="truncate font-display text-base font-extrabold text-white">{profile.username}</div>
+                <div className="truncate font-display text-[16px] font-extrabold text-white">{profile.username}</div>
                 <div className="mt-1 text-[11px] font-bold text-[var(--ui-primary)]">
                   Ур. {profile.level} · {profile.rankTitle}
                 </div>
-                <div className="mt-0.5 text-[10px] text-slate-400">
+                <div className="mt-0.5 text-[11px] text-slate-400">
                   {frame.name} {profile.prestigeCount > 0 ? `· Prestige ×${profile.prestigeCount}` : ''}
                 </div>
               </div>
@@ -113,16 +115,16 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
 
             <div className="mt-4 flex items-center justify-between">
               <div>
-                <h3 className="font-display text-xs font-extrabold text-white">Витрина достижений</h3>
-                <p className="mt-1 text-[10px] text-slate-500">Владелец открыл эти предметы для просмотра.</p>
+                <h3 className="font-display text-[13px] font-extrabold text-white">Витрина достижений</h3>
+                <p className="mt-1 text-[11px] text-slate-500">Владелец открыл эти предметы для просмотра.</p>
               </div>
-              <span className="rounded-lg border border-[var(--ui-primary)]/30 px-2 py-1 text-[10px] font-bold text-[var(--ui-primary)]">
+              <span className="rounded-lg border border-[var(--ui-primary)]/30 px-2 py-1 text-[11px] font-bold text-[var(--ui-primary)]">
                 {profile.items.length} предметов
               </span>
             </div>
 
             {profile.items.length === 0 ? (
-              <div className="mt-3 rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-5 text-center text-xs text-slate-500">
+              <div className="mt-3 rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-5 text-center text-[13px] text-slate-500">
                 Игрок пока ничего не выставил.
               </div>
             ) : (
@@ -131,21 +133,21 @@ export const PublicProfileModal: React.FC<PublicProfileModalProps> = ({ profileI
                   <div
                     key={item.key}
                     className="rounded-2xl border bg-[var(--ui-panel)] p-2.5"
-                    style={{ borderColor: `${item.accent}66` }}
+                    style={{ borderColor: withAlpha(item.accent, 0.4) }}
                   >
-                    <div className="flex h-16 items-center justify-center rounded-xl bg-black/20 text-3xl">
+                    <div className="flex h-16 items-center justify-center rounded-xl bg-black/20 text-[28px]">
                       {item.imageUrl ? (
                         <img src={item.imageUrl} alt="" loading="lazy" className="h-14 w-14 object-contain" />
                       ) : (
                         <span aria-hidden="true">{item.icon}</span>
                       )}
                     </div>
-                    <div className="mt-2 truncate text-xs font-extrabold text-white" title={item.name}>
+                    <div className="mt-2 truncate text-[13px] font-extrabold text-white" title={item.name}>
                       {item.name}
                     </div>
-                    <div className="mt-1 text-[9px] leading-relaxed text-slate-400">{item.description}</div>
+                    <div className="mt-1 text-[11px] leading-relaxed text-slate-400">{item.description}</div>
                     {item.equipped && (
-                      <div className="mt-2 text-[9px] font-bold text-emerald-300">Надето на профиле</div>
+                      <div className="mt-2 text-[11px] font-bold text-emerald-300">Надето на профиле</div>
                     )}
                   </div>
                 ))}

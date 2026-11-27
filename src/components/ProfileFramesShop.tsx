@@ -2,6 +2,7 @@ import { Check, Lock, Sparkles } from 'lucide-react';
 import React from 'react';
 import { getProfileFrame, PROFILE_FRAMES } from '../../shared/profileFrames.config';
 import { useGame } from '../context/GameContext';
+import { SparkIcon } from './ui-icons';
 import { formatCompact } from '../lib/format';
 
 const SHOP_FRAMES = PROFILE_FRAMES.filter((frame) => frame.cryptoCost !== undefined);
@@ -20,19 +21,19 @@ export const ProfileFramesShop: React.FC = () => {
 
   return (
     <section className="space-y-3">
-      <div className="rounded-2xl border border-[var(--ui-primary)]/30 bg-gradient-to-br from-[var(--ui-panel)] via-[#121b36] to-[#17122f] p-3.5">
+      <div className="rounded-2xl border border-[var(--ui-primary)]/30 bg-gradient-to-br from-[var(--ui-panel)] via-[var(--ui-panel)] to-[var(--ui-panel)] p-3.5">
         <div className="flex items-start gap-2.5">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-primary)]/12 text-[var(--ui-primary)] ring-1 ring-[var(--ui-primary)]/25">
             <Sparkles className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-sm font-extrabold text-white">Рамки профиля</h2>
+            <h2 className="text-[16px] font-extrabold text-white">Рамки профиля</h2>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
               Цветные и элитные рамки для профиля и рейтинга. Базовые открываются с 30 уровня, элитные требуют высокого уровня и много Crypto. Все купленные рамки остаются навсегда — даже после Global Hack Престижа.
             </p>
           </div>
         </div>
-        <div className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/5 px-2.5 py-2 text-[10px] leading-relaxed text-amber-100/80">
+        <div className="mt-2 rounded-lg border border-amber-300/20 bg-amber-300/5 px-2.5 py-2 text-[11px] leading-relaxed text-amber-100/80">
           Рамки Neon Relay не продаются: они выдаются только после полного прохождения всех целей сезонного ивента.
         </div>
       </div>
@@ -58,7 +59,7 @@ export const ProfileFramesShop: React.FC = () => {
             >
               <div className="flex items-center gap-2.5">
                 <div
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 text-lg font-black"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 text-[20px] font-black"
                   style={{
                     borderColor: frame.accent,
                     background: frame.background,
@@ -69,15 +70,15 @@ export const ProfileFramesShop: React.FC = () => {
                   ✦
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-extrabold text-white">{frame.name}</div>
-                  <div className="mt-0.5 text-[10px] font-bold text-slate-400">{frame.source}</div>
+                  <div className="truncate text-[13px] font-extrabold text-white">{frame.name}</div>
+                  <div className="mt-0.5 text-[11px] font-bold text-slate-400">{frame.source}</div>
                 </div>
                 {frameEquipped && <Check className="h-4 w-4 shrink-0 text-[var(--ui-success)]" />}
               </div>
 
-              <p className="mt-2 min-h-[32px] text-[10px] leading-relaxed text-slate-400">{frame.description}</p>
+              <p className="mt-2 min-h-[32px] text-[11px] leading-relaxed text-slate-400">{frame.description}</p>
 
-              <div className="mt-2 flex items-center justify-between gap-2 text-[10px]">
+              <div className="mt-2 flex items-center justify-between gap-2 text-[11px]">
                 <span className={levelLocked ? 'text-amber-300' : 'text-slate-400'}>
                   {levelLocked ? `🔒 Ур. ${requiredLevel}` : `${formatCompact(price)} 💎 Crypto`}
                 </span>
@@ -104,10 +105,10 @@ export const ProfileFramesShop: React.FC = () => {
       {GIFTED_FRAMES.some((frame) => unlocked.has(frame.key)) && (
         <div className="space-y-2">
           <div>
-            <div className="text-[10px] font-black uppercase tracking-[0.12em] text-fuchsia-200">
+            <div className="text-[11px] font-black uppercase tracking-[0.12em] text-fuchsia-200">
               Персональные подарки
             </div>
-            <div className="mt-1 text-[10px] text-slate-500">
+            <div className="mt-1 text-[11px] text-slate-500">
               Эти рамки остаются навсегда: их можно снять и снова надеть в любой момент.
             </div>
           </div>
@@ -127,7 +128,7 @@ export const ProfileFramesShop: React.FC = () => {
                 >
                   <div className="flex items-center gap-2.5">
                     <div
-                      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 text-lg font-black"
+                      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 text-[20px] font-black"
                       style={{
                         borderColor: frame.accent,
                         background: frame.background,
@@ -138,26 +139,26 @@ export const ProfileFramesShop: React.FC = () => {
                       {previewUrl ? (
                         <img src={previewUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        '✦'
+                        <SparkIcon className="h-3.5 w-3.5" />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-xs font-extrabold text-white">{frame.name}</div>
-                      <div className="mt-0.5 text-[10px] font-bold text-fuchsia-200/80">Подарок администратора · навсегда</div>
+                      <div className="truncate text-[13px] font-extrabold text-white">{frame.name}</div>
+                      <div className="mt-0.5 text-[11px] font-bold text-fuchsia-200/80">Подарок администратора · навсегда</div>
                     </div>
                     {frameEquipped && <Check className="h-4 w-4 shrink-0 text-fuchsia-200" />}
                   </div>
-                  <p className="mt-2 min-h-[32px] text-[10px] leading-relaxed text-slate-400">{frame.description}</p>
+                  <p className="mt-2 min-h-[32px] text-[11px] leading-relaxed text-slate-400">{frame.description}</p>
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-slate-400">В коллекции навсегда</span>
+                    <span className="text-[11px] text-slate-400">В коллекции навсегда</span>
                     <button
                       type="button"
                       disabled={frameEquipped || busy}
                       onClick={() => void buyOrEquipProfileFrame(frame.key)}
-                      className={`rounded-lg px-2.5 py-1.5 text-[10px] font-extrabold transition ${
+                      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold transition ${
                         frameEquipped
                           ? 'cursor-default bg-emerald-950/40 text-emerald-300'
-                          : 'cursor-pointer bg-fuchsia-300 text-[#210b2c] hover:bg-fuchsia-200'
+                          : 'cursor-pointer bg-fuchsia-300 text-[var(--ui-on-primary)] hover:bg-fuchsia-200'
                       }`}
                     >
                       {busy ? 'Обработка…' : frameEquipped ? 'Надето' : 'Надеть'}
@@ -172,10 +173,10 @@ export const ProfileFramesShop: React.FC = () => {
 
       <div className="space-y-2">
         <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.12em] text-amber-200">
+          <div className="text-[11px] font-black uppercase tracking-[0.12em] text-amber-200">
             Награды ивента
           </div>
-          <div className="mt-1 text-[10px] text-slate-500">Не покупаются за Crypto и не требуют уровня</div>
+          <div className="mt-1 text-[11px] text-slate-500">Не покупаются за Crypto и не требуют уровня</div>
         </div>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {EVENT_FRAMES.map((frame) => {
@@ -195,7 +196,7 @@ export const ProfileFramesShop: React.FC = () => {
               >
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 text-lg font-black ${!frameUnlocked ? 'opacity-45 grayscale' : ''}`}
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border-2 text-[20px] font-black ${!frameUnlocked ? 'opacity-45 grayscale' : ''}`}
                     style={{
                       borderColor: frame.accent,
                       background: frame.background,
@@ -206,32 +207,32 @@ export const ProfileFramesShop: React.FC = () => {
                     ✦
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-xs font-extrabold text-white">{frame.name}</div>
-                    <div className={`mt-0.5 text-[10px] font-bold ${frameUnlocked ? 'text-amber-200/80' : 'text-slate-500'}`}>
+                    <div className="truncate text-[13px] font-extrabold text-white">{frame.name}</div>
+                    <div className={`mt-0.5 text-[11px] font-bold ${frameUnlocked ? 'text-amber-200/80' : 'text-slate-500'}`}>
                       {frameUnlocked ? 'Получено за ивент' : 'Награда сезонной операции'}
                     </div>
                   </div>
                   {frameEquipped && <Check className="h-4 w-4 shrink-0 text-amber-300" />}
                 </div>
-                <p className="mt-2 min-h-[32px] text-[10px] leading-relaxed text-slate-400">{frame.description}</p>
+                <p className="mt-2 min-h-[32px] text-[11px] leading-relaxed text-slate-400">{frame.description}</p>
                 {frameUnlocked ? (
                   <div className="mt-2 flex items-center justify-between gap-2">
-                    <span className="text-[10px] text-slate-400">Можно надеть сразу после получения</span>
+                    <span className="text-[11px] text-slate-400">Можно надеть сразу после получения</span>
                     <button
                       type="button"
                       disabled={frameEquipped || busy}
                       onClick={() => void buyOrEquipProfileFrame(frame.key)}
-                      className={`rounded-lg px-2.5 py-1.5 text-[10px] font-extrabold transition ${
+                      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-extrabold transition ${
                         frameEquipped
                           ? 'cursor-default bg-emerald-950/40 text-emerald-300'
-                          : 'cursor-pointer bg-amber-300 text-[#211600] hover:bg-amber-200'
+                          : 'cursor-pointer bg-amber-300 text-[var(--ui-on-primary)] hover:bg-amber-200'
                       }`}
                     >
                       {busy ? 'Обработка…' : frameEquipped ? 'Надето' : 'Надеть'}
                     </button>
                   </div>
                 ) : (
-                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-900/60 px-2.5 py-1.5 text-[10px] font-bold text-slate-500">
+                  <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-slate-700/80 bg-slate-900/60 px-2.5 py-1.5 text-[11px] font-bold text-slate-500">
                     <Lock className="h-3 w-3 shrink-0" />
                     Награда за полное прохождение ивента
                   </div>
@@ -246,21 +247,21 @@ export const ProfileFramesShop: React.FC = () => {
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-sm"
+              className="flex h-9 w-9 items-center justify-center rounded-xl border-2 text-[16px]"
               style={{ borderColor: DEFAULT_FRAME.accent, background: DEFAULT_FRAME.background }}
             >
               ·
             </div>
             <div>
-              <div className="text-xs font-bold text-white">Стандартный контур</div>
-              <div className="text-[10px] text-slate-500">Без рамки профиля</div>
+              <div className="text-[13px] font-bold text-white">Стандартный контур</div>
+              <div className="text-[11px] text-slate-500">Без рамки профиля</div>
             </div>
           </div>
           <button
             type="button"
             disabled={hasDefault || busyKey === 'profile-frame:default'}
             onClick={() => void buyOrEquipProfileFrame('default')}
-            className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-[10px] font-bold text-slate-300 transition hover:border-slate-500 disabled:cursor-default disabled:opacity-50"
+            className="rounded-lg border border-slate-700 px-2.5 py-1.5 text-[11px] font-bold text-slate-300 transition hover:border-slate-500 disabled:cursor-default disabled:opacity-50"
           >
             {hasDefault ? 'Активно' : 'Снять рамку'}
           </button>

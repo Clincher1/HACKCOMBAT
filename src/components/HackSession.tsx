@@ -9,6 +9,7 @@ import {
   type HackDifficultyKey,
 } from '../../shared/hacks.config';
 import type { HackSessionState } from '../../shared/types';
+import { CheckIcon, TriangleAlertIcon } from './ui-icons';
 
 /**
  * Активная сессия взлома (v6.2).
@@ -80,7 +81,7 @@ const HackNode = React.memo(function HackNode({
             : 'border-[rgba(var(--ui-success-rgb),0.55)] bg-[rgba(var(--ui-success-rgb),0.14)] text-[var(--ui-success)]'
         }`}
       >
-        {isTrap ? '⚠' : '✓'}
+        {isTrap ? <TriangleAlertIcon className="h-3.5 w-3.5" /> : <CheckIcon className="h-3.5 w-3.5" />}
       </div>
     );
   }
@@ -178,15 +179,15 @@ export const HackSession: React.FC<HackSessionProps> = ({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <h2 className="truncate font-display text-sm font-extrabold text-white">
+          <h2 className="truncate font-display text-[16px] font-extrabold text-white">
             {difficulty.icon} Взлом · {difficulty.title.toLowerCase()}
           </h2>
-          <p className="truncate text-[10px] text-[var(--ui-text-muted)]">
+          <p className="truncate text-[11px] text-[var(--ui-text-muted)]">
             {running ? 'Тапай узлы: ловушка добавит Heat' : 'Итог сессии'}
           </p>
         </div>
         <span
-          className={`shrink-0 rounded-lg px-2 py-1 text-[12px] font-extrabold tabular-nums ${
+          className={`shrink-0 rounded-lg px-2 py-1 text-[13px] font-extrabold tabular-nums ${
             secondsLeft <= 5 && running
               ? 'bg-rose-500/15 text-rose-300'
               : 'bg-[var(--ui-panel-deep)] text-slate-200'
@@ -207,13 +208,13 @@ export const HackSession: React.FC<HackSessionProps> = ({
       {boostActive && (
         <p
           data-qa="hack-boost"
-          className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-300/15 px-1.5 py-0.5 text-[10px] font-extrabold text-amber-200"
+          className="mt-2 inline-flex items-center gap-1 rounded-md bg-amber-300/15 px-1.5 py-0.5 text-[11px] font-extrabold text-amber-200"
         >
           🍭 Леденец активен — Data ×2
         </p>
       )}
 
-      <div className="mt-2 flex items-center gap-2 text-[10px] font-bold tabular-nums">
+      <div className="mt-2 flex items-center gap-2 text-[11px] font-bold tabular-nums">
         <span className="inline-flex items-center gap-1 rounded-md bg-[rgba(var(--ui-success-rgb),0.14)] px-1.5 py-0.5 text-[var(--ui-success)]">
           <Wallet className="h-3 w-3" />+{liveData.toLocaleString('ru-RU')}
         </span>
@@ -266,7 +267,7 @@ export const HackSession: React.FC<HackSessionProps> = ({
               data-qa-action="hack-restart"
               onClick={() => onRestart(session.difficulty)}
               disabled={busy}
-              className="flex-1 rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-[11px] font-extrabold text-[#071005] transition-transform duration-150 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="flex-1 rounded-xl bg-[var(--ui-primary)] px-3 py-2.5 text-[11px] font-extrabold text-[var(--ui-on-primary)] transition-transform duration-150 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
             >
               Ещё раз · −{difficulty.cost} CPU
             </button>
@@ -281,7 +282,7 @@ export const HackSession: React.FC<HackSessionProps> = ({
       )}
 
       {running && trapHits >= 3 && (
-        <p className="mt-2 flex items-start gap-1.5 text-[10px] leading-relaxed text-rose-300/90">
+        <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-relaxed text-rose-300/90">
           <ShieldAlert className="mt-0.5 h-3 w-3 shrink-0" />
           Много Heat. При перегреве включится блокировка терминала.
         </p>

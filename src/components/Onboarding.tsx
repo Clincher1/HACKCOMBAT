@@ -139,10 +139,10 @@ export const Onboarding: React.FC = () => {
     >
       <div className="mx-auto flex min-h-full w-full max-w-md flex-col justify-center gap-5 px-4 py-6">
         <header className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-[var(--ui-primary)]">
+          <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-[var(--ui-primary)]">
             Первый заказ
           </p>
-          <h1 className="mt-2 font-display text-xl font-extrabold text-white">
+          <h1 className="mt-2 font-display text-[20px] font-extrabold text-white">
             {v3
               ? stepTitles[step - 1]
               : step === 1
@@ -151,7 +151,7 @@ export const Onboarding: React.FC = () => {
                   ? 'Первое улучшение'
                   : 'Первый контракт'}
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-300">{stepCopy(step, starterSeconds)}</p>
+          <p className="mt-2 text-[16px] leading-relaxed text-slate-300">{stepCopy(step, starterSeconds)}</p>
         </header>
 
         <div className="rounded-2xl border border-[rgba(var(--ui-primary-rgb),0.28)] bg-[rgba(var(--ui-panel-rgb),0.85)] p-4">
@@ -160,7 +160,7 @@ export const Onboarding: React.FC = () => {
               <div className="flex flex-col gap-2" data-qa="onboarding-first-contract">
                 {starterMission ? (
                   <div className="rounded-xl border border-[rgba(var(--ui-primary-rgb),0.2)] bg-black/20 px-3 py-2.5">
-                    <p className="text-sm font-bold text-white">{starterMission.targetName}</p>
+                    <p className="text-[16px] font-bold text-white">{starterMission.targetName}</p>
                     <p className="mt-0.5 text-[11px] leading-snug text-slate-400">{starterMission.description}</p>
                     <p className="mt-1 text-[11px] font-semibold text-[var(--ui-secondary)]">
                       {starterMission.durationSec} сек · до {starterMission.baseDataReward.toLocaleString('ru-RU')} Data
@@ -176,12 +176,12 @@ export const Onboarding: React.FC = () => {
                   type="button"
                   onClick={handleMission}
                   disabled={!starterKey || busy}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-primary)] px-3 py-3 text-sm font-extrabold text-[var(--ui-on-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-primary)] px-3 py-3 text-[16px] font-extrabold text-[var(--ui-on-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <Crosshair className="h-4 w-4" />
                   Запустить контракт
                 </button>
-                <p className="text-center text-[10px] leading-snug text-slate-400">
+                <p className="text-center text-[11px] leading-snug text-slate-400">
                   Контракт идёт на сервере: закрой игру и вернись к готовой награде.
                 </p>
               </div>
@@ -192,8 +192,8 @@ export const Onboarding: React.FC = () => {
                 className="flex w-full flex-col items-center gap-3 rounded-2xl bg-[var(--ui-primary)] px-4 py-7 text-[var(--ui-on-primary)] transition active:scale-[0.98] cursor-pointer"
               >
                 <MousePointerClick className="h-10 w-10" />
-                <span className="font-display text-2xl font-extrabold tracking-wide">ТАП</span>
-                <span className="text-xs font-semibold opacity-80">
+                <span className="font-display text-[28px] font-extrabold tracking-wide">ТАП</span>
+                <span className="text-[13px] font-semibold opacity-80">
                   +{Math.round(player.derived.clickPower * 10) / 10} Data за тап · тапов: {player.totalClicks}
                 </span>
               </button>
@@ -202,7 +202,7 @@ export const Onboarding: React.FC = () => {
           {step === 2 && suggestion && (
             <div className="flex flex-col gap-2.5">
               <div className="rounded-xl border border-[rgba(var(--ui-primary-rgb),0.2)] bg-black/20 px-3 py-2.5">
-                <p className="text-sm font-bold text-white">
+                <p className="text-[16px] font-bold text-white">
                   {suggestion.card.iconGlyph} {suggestion.card.name}
                 </p>
                 <p className="mt-0.5 text-[11px] leading-snug text-slate-400">{suggestion.card.description}</p>
@@ -218,7 +218,7 @@ export const Onboarding: React.FC = () => {
                     style={{ width: `${Math.min(100, Math.round((player.data / Math.max(1, suggestion.price)) * 100))}%` }}
                   />
                 </div>
-                <p className="mt-1 text-right text-[10px] tabular-nums text-slate-400">
+                <p className="mt-1 text-right text-[11px] tabular-nums text-slate-400">
                   {Math.floor(player.data).toLocaleString('ru-RU')} / {suggestion.price.toLocaleString('ru-RU')} Data
                 </p>
               </div>
@@ -226,7 +226,7 @@ export const Onboarding: React.FC = () => {
                 type="button"
                 onClick={handleUpgrade}
                 disabled={!suggestion.affordable || busy}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-primary)] px-3 py-3 text-sm font-extrabold text-[var(--ui-on-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-primary)] px-3 py-3 text-[16px] font-extrabold text-[var(--ui-on-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Cpu className="h-4 w-4" />
                 {suggestion.affordable
@@ -242,7 +242,7 @@ export const Onboarding: React.FC = () => {
             <div className="flex flex-col gap-2">
               {starterMission ? (
                 <div className="rounded-xl border border-[rgba(var(--ui-primary-rgb),0.2)] bg-black/20 px-3 py-2.5">
-                  <p className="text-sm font-bold text-white">{starterMission.targetName}</p>
+                  <p className="text-[16px] font-bold text-white">{starterMission.targetName}</p>
                   <p className="mt-0.5 text-[11px] leading-snug text-slate-400">{starterMission.description}</p>
                   <p className="mt-1 text-[11px] font-semibold text-[var(--ui-secondary)]">
                     {starterMission.durationSec} сек · до {starterMission.baseDataReward.toLocaleString('ru-RU')} Data
@@ -258,7 +258,7 @@ export const Onboarding: React.FC = () => {
                 type="button"
                 onClick={handleMission}
                 disabled={!starterKey || busy}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-primary)] px-3 py-3 text-sm font-extrabold text-[var(--ui-on-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--ui-primary)] px-3 py-3 text-[16px] font-extrabold text-[var(--ui-on-primary)] transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <Crosshair className="h-4 w-4" />
                 Запустить контракт
@@ -276,7 +276,7 @@ export const Onboarding: React.FC = () => {
               type="button"
               onClick={handleMission}
               disabled={!starterKey || busy}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[rgba(var(--ui-primary-rgb),0.12)] px-3 py-3 text-sm font-extrabold text-[var(--ui-primary)] transition active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[rgba(var(--ui-primary-rgb),0.12)] px-3 py-3 text-[16px] font-extrabold text-[var(--ui-primary)] transition active:scale-[0.99] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Crosshair className="h-4 w-4" />
               Взять ещё контракт
@@ -286,7 +286,7 @@ export const Onboarding: React.FC = () => {
             <button
               type="button"
               onClick={handleTap}
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[rgba(var(--ui-primary-rgb),0.12)] px-3 py-3 text-sm font-extrabold text-[var(--ui-primary)] transition active:scale-[0.99] cursor-pointer"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-[rgba(var(--ui-primary-rgb),0.45)] bg-[rgba(var(--ui-primary-rgb),0.12)] px-3 py-3 text-[16px] font-extrabold text-[var(--ui-primary)] transition active:scale-[0.99] cursor-pointer"
             >
               <MousePointerClick className="h-4 w-4" />
               ТАП · +{Math.round(player.derived.clickPower * 10) / 10} Data · всего {player.totalClicks}
@@ -301,7 +301,7 @@ export const Onboarding: React.FC = () => {
             return (
               <li
                 key={title}
-                className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[10px] font-bold ${
+                className={`flex items-center justify-center gap-1 rounded-lg border px-2 py-1.5 text-[11px] font-bold ${
                   done
                     ? 'border-transparent bg-[rgba(var(--ui-primary-rgb),0.18)] text-[var(--ui-primary)]'
                     : active
@@ -322,7 +322,7 @@ export const Onboarding: React.FC = () => {
           })}
         </ol>
 
-        <p className="flex items-center justify-center gap-1 text-center text-[10px] text-slate-500">
+        <p className="flex items-center justify-center gap-1 text-center text-[11px] text-slate-500">
           <Zap className="h-3 w-3" />
           {v3
             ? 'Остальные вкладки откроются на 2 уровне · CPU Charge копится сам'

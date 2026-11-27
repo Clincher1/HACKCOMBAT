@@ -1,5 +1,4 @@
 @import "tailwindcss";
-
 :root {
   /* v5.0 «Сан-Мираж»: тёплая база по умолчанию — терракота, янтарь, бирюза.
      Тёмная «Неон-Сити» осталась отдельной темой, которую можно включить. */
@@ -39,19 +38,39 @@
      переменные на :root, а весь интерфейс читает их с фолбэком на тему. */
   --loc-accent: var(--ui-primary);
   --loc-accent-rgb: var(--ui-primary-rgb);
+  /* v6.9: семантика вместо хардкода. Любой цвет интерфейса берётся отсюда —
+     в .tsx не остаётся ни одного hex (проверяется scripts/qa/ui.mjs).
+     Акценты (primary/secondary/success/purple) переопределяет тема, а
+     danger/warn/магия/подложки — общие для всех тем, чтобы «опасность» и
+     «внимание» читались одинаково в любой палитре. */
+  --ui-danger: #fb7185;
+  --ui-danger-rgb: 251, 113, 133;
+  --ui-danger-strong: #ef4444;
+  --ui-danger-strong-rgb: 239, 68, 68;
+  --ui-warn: #ffb703;
+  --ui-warn-rgb: 255, 183, 3;
+  --ui-warn-soft: #ffd75e;
+  --ui-warn-strong: #ffe600;
+  --ui-magic: #a855f7;
+  --ui-magic-rgb: 168, 85, 247;
+  --ui-panel-soft: #1b2434;
+  --ui-panel-soft-rgb: 27, 36, 52;
+  --ui-track: #090d19;
+  --ui-track-rgb: 9, 13, 25;
+  --ui-border-muted: #1e293b;
+  --ui-text-faint: #94a3b8;
+  --ui-text-faint-rgb: 148, 163, 184;
 }
-* {
-  -webkit-tap-highlight-color: transparent;
-  box-sizing: border-box;
-}
-
+* { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
 html,
 body,
 #root {
   min-height: 100%;
   /* v3.6.1: фон подхватывает выбранную базовую тему (переменная из GameContext). */
   background-color: var(--cyber-bg, #0a0e1a);
-  font-family: 'Inter', 'Manrope', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  /* v6.9: тело — системный sans. Свой веб-шрифт для основного текста не нужен:
+     он экономит загрузку и не «прыгает» по весу между платформами. */
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overscroll-behavior-y: none;
 }
 
@@ -60,13 +79,14 @@ body,
    поэтому база остаётся только на html (canvas), а body и #root прозрачны —
    иначе их background снова спрячет фон локации. */
 body,
-#root {
-  background-color: transparent;
-}
-
-.font-display {
-  font-family: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: -0.01em;
+#root { background-color: transparent; }
+.font-display { font-family: 'Russo One', ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; }
+/* v6.9: числа и код — Share Tech Mono (латиница/цифры; кириллица в этом шрифте
+   отсутствует, поэтому единицы измерения остаются в системном тексте). */
+.font-num {
+  font-family: 'Share Tech Mono', ui-monospace, 'SFMono-Regular', 'Roboto Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
 }
 
 /* Фон приложения. v5.0: тёплые пятна света вместо неоновой сетки.
@@ -101,51 +121,22 @@ body,
   pointer-events: none;
 }
 
-@keyframes matrixFall {
-  0% {
-    transform: translateY(-45%);
-    opacity: 0.15;
-  }
-  50% {
-    opacity: 0.55;
-  }
-  100% {
-    transform: translateY(45%);
-    opacity: 0.12;
-  }
-}
-
-.matrix-column {
-  animation: matrixFall 5.5s linear infinite;
-}
-
 /* Скрытие полос прокрутки на мобильных фильтрах */
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* На узких Telegram-экранах верхняя панель не должна выталкивать ранг за
    пределы viewport. Текстовые подписи остаются на планшетах и десктопе, а на
    телефоне превращаются в понятные иконки с aria-label/title. */
 @media (max-width: 420px) {
-  .hud-actions {
-    gap: 0.25rem;
-  }
-
+  .hud-actions { gap: 0.25rem; }
   .hud-action {
     min-width: 2rem;
     min-height: 2rem;
     justify-content: center;
     padding-inline: 0.45rem;
   }
-
-  .hud-action-label {
-    display: none;
-  }
+  .hud-action-label { display: none; }
 }
 
 /* ============================================================================
@@ -160,30 +151,9 @@ body[data-theme='femme'] .cyber-grid-bg {
     radial-gradient(ellipse 90% 60% at 50% 0%, rgba(255, 111, 181, 0.12) 0%, transparent 70%);
   background-size: 38px 38px, 38px 38px, 100% 100%;
 }
-
-body[data-theme='femme'] {
-  color-scheme: dark;
-}
+body[data-theme='femme'] { color-scheme: dark; }
 
 /* Маскот в простое слегка «дышит» — карточка рабочего стола живее. */
-@keyframes museBreath {
-  0%, 100% {
-    transform: translateY(0) rotate(0deg);
-  }
-  50% {
-    transform: translateY(-3px) rotate(-0.6deg);
-  }
-}
-
-.muse-idle {
-  animation: museBreath 6.5s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .muse-idle {
-    animation: none;
-  }
-}
 
 /* ---------------------------------------------------------------------------
    v3.6.2: «форма» женской темы. Палитру и сцену задаёт конфиг темы, а здесь
@@ -193,7 +163,6 @@ body[data-theme='femme'] {
 body[data-theme='femme'] .rounded-xl {
   border-radius: 1rem; /* 16px вместо 12px */
 }
-
 body[data-theme='femme'] .rounded-2xl {
   border-radius: 1.25rem; /* 20px вместо 16px */
 }
@@ -202,17 +171,11 @@ body[data-theme='femme'] .rounded-2xl {
    v3.12: крик красного Петуха в рейтинге. Это локальный cosmetic burst:
    текст подпрыгивает, разлетаются искры, а тап не делает сетевой запрос.
    --------------------------------------------------------------------------- */
-.rooster-avatar-trigger {
-  cursor: pointer;
-  touch-action: manipulation;
-  outline: none;
-}
-
+.rooster-avatar-trigger { cursor: pointer; touch-action: manipulation; outline: none; }
 .rooster-avatar-trigger:focus-visible {
   border-radius: 0.85rem;
   box-shadow: 0 0 0 2px rgba(255, 48, 79, 0.9), 0 0 18px rgba(255, 48, 79, 0.65);
 }
-
 .rooster-burst {
   position: absolute;
   left: 50%;
@@ -222,7 +185,6 @@ body[data-theme='femme'] .rounded-2xl {
   pointer-events: none;
   transform: translate(-50%, -50%);
 }
-
 .rooster-burst__text {
   display: block;
   color: #fff4cf;
@@ -239,7 +201,6 @@ body[data-theme='femme'] .rounded-2xl {
   white-space: nowrap;
   animation: roosterBurstText 1.9s cubic-bezier(0.18, 0.82, 0.24, 1) both;
 }
-
 .rooster-burst__spark {
   position: absolute;
   color: #ffd166;
@@ -249,93 +210,33 @@ body[data-theme='femme'] .rounded-2xl {
   text-shadow: 0 0 8px #ff304f;
   animation: roosterBurstSpark 1.35s ease-out both;
 }
-
-.rooster-burst__spark--one {
-  --rooster-x: -42px;
-  --rooster-y: -34px;
-}
-
-.rooster-burst__spark--two {
-  --rooster-x: 49px;
-  --rooster-y: -27px;
-  animation-delay: 70ms;
-}
-
-.rooster-burst__spark--three {
-  --rooster-x: 43px;
-  --rooster-y: 25px;
-  animation-delay: 110ms;
-}
-
-.rooster-burst__spark--four {
-  --rooster-x: -48px;
-  --rooster-y: 24px;
-  animation-delay: 40ms;
-}
-
+.rooster-burst__spark--one { --rooster-x: -42px; --rooster-y: -34px; }
+.rooster-burst__spark--two { --rooster-x: 49px; --rooster-y: -27px; animation-delay: 70ms; }
+.rooster-burst__spark--three { --rooster-x: 43px; --rooster-y: 25px; animation-delay: 110ms; }
+.rooster-burst__spark--four { --rooster-x: -48px; --rooster-y: 24px; animation-delay: 40ms; }
 @keyframes roosterBurstText {
-  0% {
-    opacity: 0;
-    filter: blur(5px);
-    transform: translateY(22px) scale(0.2) rotate(-8deg);
-  }
-  16% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(-13px) scale(1.18) rotate(3deg);
-  }
-  31% {
-    transform: translateY(5px) scale(0.94) rotate(-2deg);
-  }
-  46% {
-    transform: translateY(-8px) scale(1.06) rotate(1deg);
-  }
-  68% {
-    opacity: 1;
-    transform: translateY(-35px) scale(1) rotate(0deg);
-  }
-  100% {
-    opacity: 0;
-    filter: blur(2px);
-    transform: translateY(-82px) scale(0.78) rotate(-4deg);
-  }
+  0% { opacity: 0; filter: blur(5px); transform: translateY(22px) scale(0.2) rotate(-8deg); }
+  16% { opacity: 1; filter: blur(0); transform: translateY(-13px) scale(1.18) rotate(3deg); }
+  31% { transform: translateY(5px) scale(0.94) rotate(-2deg); }
+  46% { transform: translateY(-8px) scale(1.06) rotate(1deg); }
+  68% { opacity: 1; transform: translateY(-35px) scale(1) rotate(0deg); }
+  100% { opacity: 0; filter: blur(2px); transform: translateY(-82px) scale(0.78) rotate(-4deg); }
 }
-
 @keyframes roosterBurstSpark {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) scale(0.1) rotate(0deg);
-  }
+  0% { opacity: 0; transform: translate(0, 0) scale(0.1) rotate(0deg); }
   18% {
     opacity: 1;
     transform: translate(calc(var(--rooster-x) * 0.35), calc(var(--rooster-y) * 0.35)) scale(1.25) rotate(45deg);
   }
-  100% {
-    opacity: 0;
-    transform: translate(var(--rooster-x), var(--rooster-y)) scale(0.2) rotate(180deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rooster-burst__text,
-  .rooster-burst__spark {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-  }
+  100% { opacity: 0; transform: translate(var(--rooster-x), var(--rooster-y)) scale(0.2) rotate(180deg); }
 }
 
 /* Радужный карась SolidPegasus: синий пузырьковый крик с эффектом под водой. */
-.fish-avatar-trigger {
-  cursor: pointer;
-  touch-action: manipulation;
-  outline: none;
-}
-
+.fish-avatar-trigger { cursor: pointer; touch-action: manipulation; outline: none; }
 .fish-avatar-trigger:focus-visible {
   border-radius: 0.85rem;
   box-shadow: 0 0 0 2px rgba(93, 246, 255, 0.95), 0 0 20px rgba(59, 130, 246, 0.7);
 }
-
 .fish-burst {
   position: absolute;
   left: 50%;
@@ -345,7 +246,6 @@ body[data-theme='femme'] .rounded-2xl {
   pointer-events: none;
   transform: translate(-50%, -50%);
 }
-
 .fish-burst__text {
   display: block;
   color: #d9fbff;
@@ -362,7 +262,6 @@ body[data-theme='femme'] .rounded-2xl {
   white-space: nowrap;
   animation: fishBubbleText 2.1s ease-in-out both;
 }
-
 .fish-burst__bubble {
   position: absolute;
   color: #9ff7ff;
@@ -373,82 +272,23 @@ body[data-theme='femme'] .rounded-2xl {
   text-shadow: 0 0 8px #1685e8;
   animation: fishBubbleRise 1.85s ease-out both;
 }
-
-.fish-burst__bubble--one {
-  --fish-x: -45px;
-  --fish-y: -37px;
-}
-
-.fish-burst__bubble--two {
-  --fish-x: 49px;
-  --fish-y: -32px;
-  animation-delay: 90ms;
-}
-
-.fish-burst__bubble--three {
-  --fish-x: 45px;
-  --fish-y: 28px;
-  animation-delay: 150ms;
-}
-
-.fish-burst__bubble--four {
-  --fish-x: -50px;
-  --fish-y: 25px;
-  animation-delay: 40ms;
-}
-
+.fish-burst__bubble--one { --fish-x: -45px; --fish-y: -37px; }
+.fish-burst__bubble--two { --fish-x: 49px; --fish-y: -32px; animation-delay: 90ms; }
+.fish-burst__bubble--three { --fish-x: 45px; --fish-y: 28px; animation-delay: 150ms; }
+.fish-burst__bubble--four { --fish-x: -50px; --fish-y: 25px; animation-delay: 40ms; }
 @keyframes fishBubbleText {
-  0% {
-    opacity: 0;
-    filter: blur(6px);
-    transform: translateY(20px) scale(0.32) skewX(-8deg);
-  }
-  18% {
-    opacity: 0.95;
-    filter: blur(0);
-    transform: translateY(-10px) scale(1.14) skewX(4deg);
-  }
-  33% {
-    transform: translateY(3px) scale(0.96) skewX(-3deg);
-  }
-  48% {
-    transform: translateY(-7px) scale(1.06) skewX(2deg);
-  }
-  68% {
-    opacity: 0.92;
-    transform: translateY(-36px) scale(1) skewX(-1deg);
-  }
-  100% {
-    opacity: 0;
-    filter: blur(3px);
-    transform: translateY(-86px) scale(0.78) skewX(5deg);
-  }
+  0% { opacity: 0; filter: blur(6px); transform: translateY(20px) scale(0.32) skewX(-8deg); }
+  18% { opacity: 0.95; filter: blur(0); transform: translateY(-10px) scale(1.14) skewX(4deg); }
+  33% { transform: translateY(3px) scale(0.96) skewX(-3deg); }
+  48% { transform: translateY(-7px) scale(1.06) skewX(2deg); }
+  68% { opacity: 0.92; transform: translateY(-36px) scale(1) skewX(-1deg); }
+  100% { opacity: 0; filter: blur(3px); transform: translateY(-86px) scale(0.78) skewX(5deg); }
 }
-
 @keyframes fishBubbleRise {
-  0% {
-    opacity: 0;
-    transform: translate(0, 10px) scale(0.15);
-  }
-  20% {
-    opacity: 0.9;
-    transform: translate(calc(var(--fish-x) * 0.28), calc(var(--fish-y) * 0.28)) scale(0.8);
-  }
-  62% {
-    opacity: 0.72;
-  }
-  100% {
-    opacity: 0;
-    transform: translate(var(--fish-x), var(--fish-y)) scale(0.3);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .fish-burst__text,
-  .fish-burst__bubble {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-  }
+  0% { opacity: 0; transform: translate(0, 10px) scale(0.15); }
+  20% { opacity: 0.9; transform: translate(calc(var(--fish-x) * 0.28), calc(var(--fish-y) * 0.28)) scale(0.8); }
+  62% { opacity: 0.72; }
+  100% { opacity: 0; transform: translate(var(--fish-x), var(--fish-y)) scale(0.3); }
 }
 
 /* Matrix Runner: бегущий цифровой дождь для персонального аватара useryou2202. */
@@ -462,23 +302,16 @@ body[data-theme='femme'] .rounded-2xl {
     radial-gradient(circle at 50% 46%, rgba(255, 154, 90, 0.3), transparent 56%),
     linear-gradient(135deg, #2b1a10 0%, #3c2617 52%, #1a110b 100%);
 }
-
 .matrix-avatar__rain,
 .matrix-avatar__grid,
 .matrix-avatar__scanline,
-.matrix-avatar__vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
+.matrix-avatar__vignette { position: absolute; inset: 0; pointer-events: none; }
 .matrix-avatar__rain {
   z-index: 1;
   overflow: hidden;
   opacity: 0.55;
   filter: drop-shadow(0 0 3px rgba(255, 154, 90, 0.45));
 }
-
 .matrix-avatar__column {
   position: absolute;
   top: -220%;
@@ -497,12 +330,7 @@ body[data-theme='femme'] .rounded-2xl {
   writing-mode: vertical-rl;
   animation: matrixAvatarRain 3.2s linear infinite;
 }
-
-.matrix-avatar__column::first-letter {
-  color: #fff4e6;
-  text-shadow: 0 0 4px rgba(255, 244, 230, 0.7);
-}
-
+.matrix-avatar__column::first-letter { color: #fff4e6; text-shadow: 0 0 4px rgba(255, 244, 230, 0.7); }
 .matrix-avatar__column--1 { left: 1%; animation-delay: -2.4s; animation-duration: 2.7s; }
 .matrix-avatar__column--2 { left: 10%; animation-delay: -0.8s; animation-duration: 3.4s; opacity: 0.52; }
 .matrix-avatar__column--3 { left: 19%; animation-delay: -1.9s; animation-duration: 2.9s; }
@@ -515,7 +343,6 @@ body[data-theme='femme'] .rounded-2xl {
 .matrix-avatar__column--10 { left: 82%; animation-delay: -1.05s; animation-duration: 3.6s; opacity: 0.55; }
 .matrix-avatar__column--11 { left: 91%; animation-delay: -2.2s; animation-duration: 2.75s; }
 .matrix-avatar__column--12 { left: 97%; animation-delay: -0.4s; animation-duration: 3.35s; opacity: 0.48; }
-
 .matrix-avatar__grid {
   z-index: 2;
   opacity: 0.07;
@@ -525,7 +352,6 @@ body[data-theme='femme'] .rounded-2xl {
   background-size: 9px 9px;
   mix-blend-mode: screen;
 }
-
 .matrix-avatar__scanline {
   z-index: 3;
   top: -34%;
@@ -543,13 +369,11 @@ body[data-theme='femme'] .rounded-2xl {
   opacity: 0.18;
   animation: matrixAvatarScan 2.6s ease-in-out infinite;
 }
-
 .matrix-avatar__vignette {
   z-index: 4;
   background: radial-gradient(circle, transparent 37%, rgba(0, 10, 4, 0.72) 100%);
   box-shadow: inset 0 0 11px rgba(0, 0, 0, 0.82);
 }
-
 .matrix-avatar__label {
   position: absolute;
   z-index: 5;
@@ -573,66 +397,29 @@ body[data-theme='femme'] .rounded-2xl {
   transform-origin: center;
   animation: matrixAvatarLabel 1.8s ease-in-out infinite;
 }
-
 @keyframes matrixAvatarRain {
-  0% {
-    transform: translate3d(0, 0, 0);
-  }
-  100% {
-    transform: translate3d(0, 142%, 0);
-  }
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, 142%, 0); }
 }
-
 @keyframes matrixAvatarScan {
-  0%, 100% {
-    opacity: 0;
-    transform: translateY(0);
-  }
-  18% {
-    opacity: 0.2;
-  }
-  52% {
-    opacity: 1;
-  }
-  86% {
-    opacity: 0.14;
-  }
-  100% {
-    transform: translateY(480%);
-  }
+  0%, 100% { opacity: 0; transform: translateY(0); }
+  18% { opacity: 0.2; }
+  52% { opacity: 1; }
+  86% { opacity: 0.14; }
+  100% { transform: translateY(480%); }
 }
-
 @keyframes matrixAvatarLabel {
-  0%, 100% {
-    filter: brightness(0.88);
-    text-shadow: 0 0 3px #ffffff, 0 0 7px #42ff77;
-  }
+  0%, 100% { filter: brightness(0.88); text-shadow: 0 0 3px #ffffff, 0 0 7px #42ff77; }
   50% {
     filter: brightness(1.24);
     text-shadow: 0 0 4px #ffffff, 0 0 12px #42ff77, 0 0 20px rgba(66, 255, 119, 0.8);
   }
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .matrix-avatar__column,
-  .matrix-avatar__scanline,
-  .matrix-avatar__label {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-  }
-}
-
-.matrix-avatar-trigger {
-  cursor: pointer;
-  touch-action: manipulation;
-  outline: none;
-}
-
+.matrix-avatar-trigger { cursor: pointer; touch-action: manipulation; outline: none; }
 .matrix-avatar-trigger:focus-visible {
   border-radius: 0.85rem;
   box-shadow: 0 0 0 2px rgba(66, 255, 119, 0.98), 0 0 22px rgba(66, 255, 119, 0.72);
 }
-
 .matrix-avatar__burst {
   position: absolute;
   inset: 0;
@@ -643,7 +430,6 @@ body[data-theme='femme'] .rounded-2xl {
   background: rgba(0, 25, 10, 0.32);
   box-shadow: inset 0 0 12px rgba(66, 255, 119, 0.72), 0 0 16px rgba(66, 255, 119, 0.7);
 }
-
 .matrix-avatar__burst-line {
   position: absolute;
   left: -125%;
@@ -659,12 +445,10 @@ body[data-theme='femme'] .rounded-2xl {
   white-space: nowrap;
   animation: matrixAvatarBurstLine 1.65s cubic-bezier(0.2, 0.8, 0.25, 1) both;
 }
-
 .matrix-avatar__burst-line--1 { top: 18%; --matrix-line-tilt: -5deg; }
 .matrix-avatar__burst-line--2 { top: 37%; animation-delay: 80ms; --matrix-line-tilt: 3deg; }
 .matrix-avatar__burst-line--3 { top: 58%; animation-delay: 140ms; --matrix-line-tilt: -2deg; }
 .matrix-avatar__burst-line--4 { top: 77%; animation-delay: 220ms; --matrix-line-tilt: 4deg; }
-
 .matrix-avatar__burst-label {
   position: absolute;
   left: 50%;
@@ -682,52 +466,17 @@ body[data-theme='femme'] .rounded-2xl {
   transform-origin: center;
   animation: matrixAvatarBurstLabel 1.85s ease-out both;
 }
-
 @keyframes matrixAvatarBurstLine {
-  0% {
-    opacity: 0;
-    transform: translateX(-16%) rotate(var(--matrix-line-tilt, 0deg));
-  }
-  18% {
-    opacity: 0.98;
-  }
-  56% {
-    opacity: 0.86;
-  }
-  100% {
-    opacity: 0;
-    transform: translateX(68%) rotate(var(--matrix-line-tilt, 0deg));
-  }
+  0% { opacity: 0; transform: translateX(-16%) rotate(var(--matrix-line-tilt, 0deg)); }
+  18% { opacity: 0.98; }
+  56% { opacity: 0.86; }
+  100% { opacity: 0; transform: translateX(68%) rotate(var(--matrix-line-tilt, 0deg)); }
 }
-
 @keyframes matrixAvatarBurstLabel {
-  0% {
-    opacity: 0;
-    filter: blur(7px);
-    transform: translate(-50%, 30%) scaleX(0.34) scale(0.72);
-  }
-  22% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translate(-50%, -50%) scaleX(0.48) scale(1.12);
-  }
-  66% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scaleX(0.48) scale(1);
-  }
-  100% {
-    opacity: 0;
-    filter: blur(3px);
-    transform: translate(-50%, -150%) scaleX(0.48) scale(0.82);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .matrix-avatar__burst-line,
-  .matrix-avatar__burst-label {
-    animation-duration: 0.01ms;
-    animation-iteration-count: 1;
-  }
+  0% { opacity: 0; filter: blur(7px); transform: translate(-50%, 30%) scaleX(0.34) scale(0.72); }
+  22% { opacity: 1; filter: blur(0); transform: translate(-50%, -50%) scaleX(0.48) scale(1.12); }
+  66% { opacity: 1; transform: translate(-50%, -50%) scaleX(0.48) scale(1); }
+  100% { opacity: 0; filter: blur(3px); transform: translate(-50%, -150%) scaleX(0.48) scale(0.82); }
 }
 
 /* ---------------------------------------------------------------------------
@@ -746,7 +495,6 @@ body[data-theme='femme'] .rounded-2xl {
     inset 0 0 24px rgba(217, 70, 239, 0.12);
   animation: dailyIncidentPanelPulse 1.9s ease-in-out infinite;
 }
-
 .daily-incident-panel::before {
   position: absolute;
   inset: -35%;
@@ -759,7 +507,6 @@ body[data-theme='femme'] .rounded-2xl {
   opacity: 0.5;
   animation: dailyIncidentGlow 2.6s ease-in-out infinite;
 }
-
 .daily-incident-panel::after {
   position: absolute;
   top: -24%;
@@ -780,12 +527,7 @@ body[data-theme='femme'] .rounded-2xl {
   transform: rotate(-4deg);
   animation: dailyIncidentScanline 3.1s linear infinite;
 }
-
-.daily-incident-panel > * {
-  position: relative;
-  z-index: 1;
-}
-
+.daily-incident-panel > * { position: relative; z-index: 1; }
 .daily-incident-panel__signal {
   box-shadow:
     0 0 0 1px rgba(244, 114, 182, 0.25),
@@ -793,12 +535,10 @@ body[data-theme='femme'] .rounded-2xl {
     inset 0 0 12px rgba(255, 255, 255, 0.1);
   animation: dailyIncidentSignalPulse 1.15s ease-in-out infinite;
 }
-
 .daily-incident-panel__badge {
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.42);
   animation: dailyIncidentBadgeBlink 1.45s steps(2, end) infinite;
 }
-
 .daily-incident-live-dot {
   display: inline-block;
   width: 0.45rem;
@@ -809,20 +549,15 @@ body[data-theme='femme'] .rounded-2xl {
   box-shadow: 0 0 6px #f9a8d4, 0 0 14px #e879f9;
   animation: dailyIncidentDotBlink 0.95s ease-in-out infinite;
 }
-
 .daily-incident-panel--resolved {
   border-color: rgba(110, 231, 183, 0.38);
   box-shadow: 0 0 0 1px rgba(110, 231, 183, 0.12), inset 0 0 18px rgba(16, 185, 129, 0.06);
   animation: none;
 }
-
 .daily-incident-panel--resolved::before,
 .daily-incident-panel--resolved::after,
 .daily-incident-panel--resolved .daily-incident-panel__signal,
-.daily-incident-panel--resolved .daily-incident-panel__badge {
-  animation: none;
-}
-
+.daily-incident-panel--resolved .daily-incident-panel__badge { animation: none; }
 @keyframes dailyIncidentPanelPulse {
   0%, 100% {
     border-color: rgba(244, 114, 182, 0.58);
@@ -839,95 +574,34 @@ body[data-theme='femme'] .rounded-2xl {
       inset 0 0 30px rgba(244, 114, 182, 0.2);
   }
 }
-
 @keyframes dailyIncidentGlow {
-  0%, 100% {
-    opacity: 0.28;
-    transform: scale(0.92) rotate(0deg);
-  }
-  50% {
-    opacity: 0.72;
-    transform: scale(1.04) rotate(5deg);
-  }
+  0%, 100% { opacity: 0.28; transform: scale(0.92) rotate(0deg); }
+  50% { opacity: 0.72; transform: scale(1.04) rotate(5deg); }
 }
-
 @keyframes dailyIncidentScanline {
-  0% {
-    opacity: 0;
-    transform: translateY(-180%) rotate(-4deg);
-  }
-  16%, 70% {
-    opacity: 0.7;
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(760%) rotate(-4deg);
-  }
+  0% { opacity: 0; transform: translateY(-180%) rotate(-4deg); }
+  16%, 70% { opacity: 0.7; }
+  100% { opacity: 0; transform: translateY(760%) rotate(-4deg); }
 }
-
 @keyframes dailyIncidentSignalPulse {
-  0%, 100% {
-    transform: scale(0.96);
-    filter: brightness(0.95);
-  }
-  50% {
-    transform: scale(1.08);
-    filter: brightness(1.45);
-  }
+  0%, 100% { transform: scale(0.96); filter: brightness(0.95); }
+  50% { transform: scale(1.08); filter: brightness(1.45); }
 }
-
 @keyframes dailyIncidentBadgeBlink {
-  0%, 100% {
-    opacity: 0.72;
-  }
-  50% {
-    opacity: 1;
-  }
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
 }
-
 @keyframes dailyIncidentDotBlink {
-  0%, 100% {
-    opacity: 0.38;
-    transform: scale(0.82);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.18);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .daily-incident-panel,
-  .daily-incident-panel::before,
-  .daily-incident-panel::after,
-  .daily-incident-panel__signal,
-  .daily-incident-panel__badge,
-  .daily-incident-live-dot {
-    animation: none;
-  }
+  0%, 100% { opacity: 0.38; transform: scale(0.82); }
+  50% { opacity: 1; transform: scale(1.18); }
 }
 
 /* Lightweight replacement for the alert's simple slide/fade animation. */
 @keyframes alertDrop {
-  from {
-    opacity: 0;
-    transform: translateY(-14px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
-
-.alert-drop {
-  animation: alertDrop 180ms ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .alert-drop {
-    animation: none;
-  }
-}
+.alert-drop { animation: alertDrop 180ms ease-out both; }
 
 /* ============================================================================
    ВИД ИЗ ОКНА (v4.1) — погодный слой поверх сцены.
@@ -1016,10 +690,7 @@ body[data-theme='femme'] .rounded-2xl {
 }
 
 /* ---- ночные огни (боке) ---- */
-.bd-bokeh {
-  position: absolute;
-  inset: 0;
-}
+.bd-bokeh { position: absolute; inset: 0; }
 .bd-bokeh span {
   position: absolute;
   border-radius: 50%;
@@ -1097,17 +768,6 @@ body[data-theme='femme'] .rounded-2xl {
     linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 45%);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bd-cloud,
-  .bd-sun,
-  .bd-gull,
-  .bd-bokeh span,
-  .bd-rain,
-  .bd-fog {
-    animation: none;
-  }
-}
-
 /* ==========================================================================
    v5.5 — МИР «ДЕНЬ ХАКЕРА»: фоны локаций
    --------------------------------------------------------------------------
@@ -1147,7 +807,6 @@ body[data-theme='femme'] .rounded-2xl {
   );
   pointer-events: none;
 }
-
 .loc-bg {
   position: fixed;
   inset: 0;
@@ -1208,9 +867,30 @@ body[data-theme='femme'] .rounded-2xl {
     linear-gradient(180deg, rgba(26, 20, 28, 0.58) 0%, rgba(12, 10, 14, 0.95) 100%);
 }
 
-/* Уважаем системную настройку «меньше движения»: смена локации без плавности. */
+/* v6.9: один блок «меньше движения» вместо восьми разбросанных по файлу —
+   любая анимация гасится в одном месте. */
 @media (prefers-reduced-motion: reduce) {
-  .loc-bg {
-    transition: none;
-  }
+  .rooster-burst__text,
+  .rooster-burst__spark,
+  .fish-burst__text,
+  .fish-burst__bubble,
+  .matrix-avatar__column,
+  .matrix-avatar__scanline,
+  .matrix-avatar__label,
+  .matrix-avatar__burst-line,
+  .matrix-avatar__burst-label { animation-duration: 0.01ms; animation-iteration-count: 1; }
+  .daily-incident-panel,
+  .daily-incident-panel::before,
+  .daily-incident-panel::after,
+  .daily-incident-panel__signal,
+  .daily-incident-panel__badge,
+  .daily-incident-live-dot,
+  .alert-drop,
+  .bd-cloud,
+  .bd-sun,
+  .bd-gull,
+  .bd-bokeh span,
+  .bd-rain,
+  .bd-fog { animation: none; }
+  .loc-bg { transition: none; }
 }

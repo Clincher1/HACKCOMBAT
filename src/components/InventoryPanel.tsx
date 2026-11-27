@@ -2,6 +2,7 @@ import { Check, Eye, EyeOff, Lock, Sparkles } from 'lucide-react';
 import React, { useMemo } from 'react';
 import { getInventoryItemDefinition } from '../../shared/inventory.config';
 import { useGame } from '../context/GameContext';
+import { withAlpha } from '../lib/colors';
 
 function isEquipped(player: NonNullable<ReturnType<typeof useGame>['player']>, itemKey: string): boolean {
   const item = getInventoryItemDefinition(itemKey);
@@ -52,7 +53,7 @@ export const InventoryPanel: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-[var(--ui-primary)]" />
-              <h2 id="inventory-title" className="font-display text-sm font-extrabold text-white">
+              <h2 id="inventory-title" className="font-display text-[16px] font-extrabold text-white">
                 Инвентарь профиля
               </h2>
             </div>
@@ -61,7 +62,7 @@ export const InventoryPanel: React.FC = () => {
               чтобы добавить его в публичную витрину.
             </p>
           </div>
-          <div className="shrink-0 rounded-lg border border-[var(--ui-primary)]/30 bg-black/20 px-2 py-1 text-right text-[10px] font-bold text-[var(--ui-primary)]">
+          <div className="shrink-0 rounded-lg border border-[var(--ui-primary)]/30 bg-black/20 px-2 py-1 text-right text-[11px] font-bold text-[var(--ui-primary)]">
             <div>{items.length} предметов</div>
             <div className="text-slate-400">{showcase.size} открыто</div>
           </div>
@@ -69,7 +70,7 @@ export const InventoryPanel: React.FC = () => {
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-5 text-center text-xs text-slate-400">
+        <div className="rounded-2xl border border-slate-800 bg-[var(--ui-panel)] p-5 text-center text-[13px] text-slate-400">
           Инвентарь синхронизируется…
         </div>
       ) : (
@@ -110,8 +111,8 @@ export const InventoryPanel: React.FC = () => {
                 </button>
 
                 <div
-                  className="mt-0.5 flex h-20 items-center justify-center rounded-xl border bg-black/20 text-4xl"
-                  style={{ borderColor: `${item.accent}66`, boxShadow: `inset 0 0 20px ${item.accent}12` }}
+                  className="mt-0.5 flex h-20 items-center justify-center rounded-xl border bg-black/20 text-[28px]"
+                  style={{ borderColor: withAlpha(item.accent, 0.4), boxShadow: `inset 0 0 20px ${withAlpha(item.accent, 0.07)}` }}
                 >
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt="" loading="lazy" className="h-16 w-16 object-contain" />
@@ -121,13 +122,13 @@ export const InventoryPanel: React.FC = () => {
                 </div>
 
                 <div className="mt-2 min-w-0 flex-1">
-                  <div className="truncate text-xs font-extrabold text-white" title={item.name}>
+                  <div className="truncate text-[13px] font-extrabold text-white" title={item.name}>
                     {item.name}
                   </div>
-                  <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide" style={{ color: item.accent }}>
+                  <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wide" style={{ color: item.accent }}>
                     {item.kind === 'reward' ? 'Памятный приз' : item.kind === 'frame' ? 'Рамка профиля' : item.kind === 'skin' ? 'Косметика' : item.kind === 'achievement' ? 'Достижение' : 'Союзник'}
                   </div>
-                  <p className="mt-1 line-clamp-2 min-h-[25px] text-[10px] leading-relaxed text-slate-400">
+                  <p className="mt-1 line-clamp-2 min-h-[25px] text-[11px] leading-relaxed text-slate-400">
                     {item.description}
                   </p>
                 </div>
@@ -138,7 +139,7 @@ export const InventoryPanel: React.FC = () => {
                       type="button"
                       disabled={equipped || equipBusy || visibilityBusy}
                       onClick={() => equip(item)}
-                      className={`flex w-full items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-extrabold transition cursor-pointer disabled:cursor-not-allowed ${
+                      className={`flex w-full items-center justify-center gap-1 rounded-lg px-2 py-1.5 text-[11px] font-extrabold transition cursor-pointer disabled:cursor-not-allowed ${
                         equipped
                           ? 'border border-emerald-400/40 bg-emerald-400/10 text-emerald-300'
                           : 'bg-[var(--ui-primary)] text-[var(--ui-on-primary)] hover:brightness-110'
@@ -148,11 +149,11 @@ export const InventoryPanel: React.FC = () => {
                       {equipBusy ? 'Надевание…' : equipped ? 'Надето' : 'Одеть'}
                     </button>
                   ) : (
-                    <div className="flex items-center justify-center gap-1 rounded-lg border border-slate-800 bg-[var(--ui-panel-deep)] px-2 py-1.5 text-[10px] font-bold text-slate-500">
+                    <div className="flex items-center justify-center gap-1 rounded-lg border border-slate-800 bg-[var(--ui-panel-deep)] px-2 py-1.5 text-[11px] font-bold text-slate-500">
                       <Lock className="h-3 w-3" /> Только показать
                     </div>
                   )}
-                  <div className={`text-center text-[9px] font-bold ${isPublic ? 'text-[var(--ui-primary)]' : 'text-slate-600'}`}>
+                  <div className={`text-center text-[11px] font-bold ${isPublic ? 'text-[var(--ui-primary)]' : 'text-slate-600'}`}>
                     {isPublic ? 'Открыто другим игрокам' : 'Скрыто от других игроков'}
                   </div>
                 </div>

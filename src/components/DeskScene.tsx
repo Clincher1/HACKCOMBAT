@@ -22,7 +22,9 @@ import { BackdropWeather } from './BackdropWeather';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
 import { useGame } from '../context/GameContext';
+import { CheckIcon, GlassesIcon, LockIcon, RepIcon, ScaleIcon } from './ui-icons';
 import { formatCompact } from '../lib/format';
+import { withAlpha } from '../lib/colors';
 
 interface ByteParticle {
   id: number;
@@ -79,7 +81,7 @@ export const DeskScene: React.FC = () => {
           id,
           x: 42 + Math.random() * 16,
           y: 52 + Math.random() * 10,
-          text: `🤖 +${formatCompact(clickPowerRef.current)}`,
+          text: `+${formatCompact(clickPowerRef.current)}`,
         },
       ]);
       window.setTimeout(() => {
@@ -197,13 +199,13 @@ export const DeskScene: React.FC = () => {
       {/* Инфо-строка эволюции стола + кнопка предпросмотра всех 7 этапов */}
       <div className="flex items-center justify-between gap-2 bg-[var(--ui-panel)]/90 border border-slate-800 rounded-xl px-3 py-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--ui-primary)]">
+          <div className="flex items-center gap-1.5 text-[13px] font-bold text-[var(--ui-primary)]">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
             <span className="truncate" data-qa="desk-scene-title">
               {sceneTitle}
             </span>
             {previewStage && previewStage !== derived.deskStage && (
-              <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px]">
+              <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[11px]">
                 Превью
               </span>
             )}
@@ -228,7 +230,7 @@ export const DeskScene: React.FC = () => {
               setShowStageBar((s) => !s);
               if (showStageBar) setPreviewStage(null);
             }}
-            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#162040] hover:bg-[#1e2c56] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-slate-200 transition cursor-pointer"
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-slate-200 transition cursor-pointer"
           >
             <Eye className="w-3.5 h-3.5 text-[var(--ui-primary)]" />
             <span>Этапы ({ALL_STAGES.indexOf(derived.deskStage) + 1}/7)</span>
@@ -268,7 +270,7 @@ export const DeskScene: React.FC = () => {
                           : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-500 cursor-not-allowed opacity-70'
                     }`}
                   >
-                    {unlocked ? '✓ ' : '🔒 '}Ур.{st}
+                    {unlocked ? <CheckIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> : <LockIcon className="mr-1 inline h-3 w-3 align-[-1px]" />}Ур.{st}
                   </button>
                 );
               })}
@@ -290,9 +292,9 @@ export const DeskScene: React.FC = () => {
         data-tap-state={tapReady ? 'ready' : 'blocked'}
         className="relative rounded-2xl overflow-hidden border select-none aspect-[16/10] bg-[var(--ui-panel-deep)] transition-transform duration-100 cursor-pointer touch-manipulation active:scale-[0.992] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ui-primary)]"
         style={{
-          borderColor: `${activeSkin.primaryHex}55`,
+          borderColor: withAlpha(activeSkin.primaryHex, 0.33),
           boxShadow: pulseActive
-            ? `0 0 36px ${activeSkin.primaryHex}55, inset 0 0 28px ${activeSkin.secondaryHex}44`
+            ? `0 0 36px ${withAlpha(activeSkin.primaryHex, 0.33)}, inset 0 0 28px ${withAlpha(activeSkin.secondaryHex, 0.27)}`
             : `0 0 24px rgba(var(--ui-primary-rgb),0.12)`,
         }}
       >
@@ -368,7 +370,7 @@ export const DeskScene: React.FC = () => {
           className="pointer-events-none absolute left-2.5 bottom-9 z-[3] max-w-[52%]"
         >
           <span
-            className={`flex items-center gap-1 truncate rounded-full border px-2.5 py-1 text-[10px] font-extrabold tracking-wide backdrop-blur-sm ${
+            className={`flex items-center gap-1 truncate rounded-full border px-2.5 py-1 text-[11px] font-extrabold tracking-wide backdrop-blur-sm ${
               tapReady
                 ? 'border-[rgba(var(--ui-primary-rgb),0.65)] bg-[var(--ui-panel-deep)]/85 text-[var(--ui-primary)]'
                 : 'border-slate-700/80 bg-[var(--ui-panel-deep)]/85 text-slate-400'
@@ -377,7 +379,7 @@ export const DeskScene: React.FC = () => {
             <Zap className="h-3 w-3 shrink-0" />
             <span className="truncate">
               {tapReady
-                ? `ТАП · +${formatCompact(derived.clickPower)} DATA · −1⚡`
+                ? `ТАП · +${formatCompact(derived.clickPower)} DATA · −1 CPU`
                 : 'НЕТ CPU · 1 за 2 с'}
             </span>
           </span>
@@ -400,24 +402,24 @@ export const DeskScene: React.FC = () => {
         <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 pointer-events-none">
           <div className="flex flex-wrap items-center gap-1.5">
             {derived.alignment === 'white_hat' && (
-              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-primary-rgb),0.60)] text-[var(--ui-primary)] text-[10px] font-bold">
-                🛡️ БЕЛЫЙ ХАКИНГ (+20% Data/ч • ×2 белые миссии)
+              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-primary-rgb),0.60)] text-[var(--ui-primary)] text-[11px] font-bold">
+                <RepIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> БЕЛЫЙ ХАКИНГ (+20% Data/ч • ×2 белые миссии)
               </span>
             )}
             {derived.alignment === 'black_hat' && (
-              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-secondary-rgb),0.70)] text-[var(--ui-secondary)] text-[10px] font-bold">
-                🕶️ ЧЁРНЫЙ ХАКИНГ (+50% к тапу • риск Heat)
+              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-secondary-rgb),0.70)] text-[var(--ui-secondary)] text-[11px] font-bold">
+                <GlassesIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> ЧЁРНЫЙ ХАКИНГ (+50% к тапу • риск Heat)
               </span>
             )}
             {derived.alignment === 'neutral' && (
-              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/80 border border-slate-700/80 text-slate-300 text-[10px]">
-                ⚖️ Нейтральный хакер
+              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/80 border border-slate-700/80 text-slate-300 text-[11px]">
+                <ScaleIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> Нейтральный хакер
               </span>
             )}
           </div>
 
           {derived.autoClickPerSec > 0 && (
-            <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[var(--ui-success)]/60 text-[var(--ui-success)] text-[10px] font-bold animate-pulse">
+            <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[var(--ui-success)]/60 text-[var(--ui-success)] text-[11px] font-bold animate-pulse">
               🤖 Автоклик {derived.autoClickPerSec}/сек
             </span>
           )}
@@ -434,12 +436,12 @@ export const DeskScene: React.FC = () => {
           </span>
           {locationArt
             ? locationArt.tier === 'early' && (
-                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">
+                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
                   Станция: Ур. {DESK_LATE_FROM_STAGE}
                 </span>
               )
             : stageInfo.nextLevel && (
-                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">
+                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
                   След. сцена: Ур. {stageInfo.nextLevel}
                 </span>
               )}
@@ -453,7 +455,7 @@ export const DeskScene: React.FC = () => {
             animate={{ opacity: 0, y: -76, scale: 1.12 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
             style={{ left: `${p.x}%`, top: `${p.y}%` }}
-            className="pointer-events-none absolute -translate-x-1/2 font-display text-xs sm:text-sm font-extrabold text-[var(--ui-primary)] drop-shadow-[0_0_10px_rgba(var(--ui-primary-rgb),0.95)] whitespace-nowrap"
+            className="pointer-events-none absolute -translate-x-1/2 font-display text-[13px] sm:text-[16px] font-extrabold text-[var(--ui-primary)] drop-shadow-[0_0_10px_rgba(var(--ui-primary-rgb),0.95)] whitespace-nowrap"
           >
             {p.text}
           </motion.div>
@@ -466,10 +468,10 @@ export const DeskScene: React.FC = () => {
             className="absolute inset-0 bg-[var(--ui-panel-deep)]/90 backdrop-blur-sm flex flex-col items-center justify-center p-4 text-center z-10"
           >
             <Lock className="w-9 h-9 text-rose-500 animate-bounce mb-1.5" />
-            <div className="font-display text-sm font-extrabold text-rose-400 tracking-wide">
+            <div className="font-display text-[16px] font-extrabold text-rose-400 tracking-wide">
               ПЕРЕГРЕВ РОЗЫСКА — БЛОК ТЕРМИНАЛА
             </div>
-            <p className="text-xs text-slate-300 mt-1 max-w-xs">
+            <p className="text-[13px] text-slate-300 mt-1 max-w-xs">
               Киберпатруль заблокировал консоль. Авторазблокировка через{' '}
               <span className="font-bold text-white">{lockdownRemainingSec} сек.</span>
             </p>
@@ -477,7 +479,7 @@ export const DeskScene: React.FC = () => {
               type="button"
               disabled={busyKey === 'clear_lockdown'}
               onClick={() => void clearHeatLockdown()}
-              className="mt-3 px-3.5 py-1.5 rounded-xl bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white text-xs font-bold shadow-[0_0_18px_rgba(var(--ui-secondary-rgb),0.5)] transition cursor-pointer"
+              className="mt-3 px-3.5 py-1.5 rounded-xl bg-[var(--ui-secondary)] hover:bg-[rgba(var(--ui-secondary-rgb),0.85)] text-white text-[13px] font-bold shadow-[0_0_18px_rgba(var(--ui-secondary-rgb),0.5)] transition cursor-pointer"
             >
               ⚡ Сбросить прокси за 2 💎 Crypto
             </button>
@@ -493,7 +495,7 @@ export const DeskScene: React.FC = () => {
         whileTap={{ scale: 0.96 }}
         onClick={handleTap}
         disabled={lockdownRemainingSec > 0}
-        className="relative w-full py-4 px-6 rounded-2xl font-display font-black tracking-widest uppercase text-lg sm:text-xl text-[var(--ui-on-primary)] transition overflow-hidden cursor-pointer disabled:opacity-45"
+        className="relative w-full py-4 px-6 rounded-2xl font-display font-black tracking-widest uppercase text-[20px] sm:text-[20px] text-[var(--ui-on-primary)] transition overflow-hidden cursor-pointer disabled:opacity-45"
         style={{
           // v3.6.2: градиент берём из темы — у женской он розово-лавандовый,
           // у классики прежний кибер-циан. Скин по-прежнему влияет на сцену.
@@ -529,14 +531,14 @@ export const DeskScene: React.FC = () => {
           <Terminal className="w-6 h-6 stroke-[2.5]" />
           <span>HACK</span>
           <span
-            className="text-xs font-mono font-extrabold px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85"
+            className="text-[13px] font-num font-extrabold px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85"
             style={{ color: baseTheme.palette.cyan }}
           >
             +{formatCompact(derived.clickPower)} DATA
           </span>
         </span>
         {player.energy <= 0 && (
-          <span className="block text-[10px] font-mono text-[var(--ui-panel-deep)] mt-0.5">
+          <span className="block text-[11px] font-num text-[var(--ui-panel-deep)] mt-0.5">
             Нет энергии CPU — ждите регенерации (+1⚡/{ENERGY_REGEN_SECONDS}с)
           </span>
         )}
@@ -546,8 +548,8 @@ export const DeskScene: React.FC = () => {
       {/* Быстрая сводка бустов под кнопкой HACK */}
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="rounded-xl bg-[var(--ui-panel)]/85 border border-slate-800/90 p-2">
-          <div className="text-[10px] text-slate-400">{gameplayV3 ? 'CPU Charge' : 'Сила тапа'}</div>
-          <div className="text-xs font-bold text-[var(--ui-primary)] flex items-center justify-center gap-1 mt-0.5">
+          <div className="text-[11px] text-slate-400">{gameplayV3 ? 'CPU Charge' : 'Сила тапа'}</div>
+          <div className="text-[13px] font-bold text-[var(--ui-primary)] flex items-center justify-center gap-1 mt-0.5">
             <Zap className="w-3 h-3" />{' '}
             {gameplayV3
               ? `${formatCompact(player.energy)}/${formatCompact(derived.maxEnergy)}`
@@ -555,12 +557,12 @@ export const DeskScene: React.FC = () => {
           </div>
         </div>
         <div className="rounded-xl bg-[var(--ui-panel)]/85 border border-slate-800/90 p-2">
-          <div className="text-[10px] text-slate-400">Команда</div>
-          <div className="text-xs font-bold text-[var(--ui-success)] mt-0.5">{player.team.length} / 6</div>
+          <div className="text-[11px] text-slate-400">Команда</div>
+          <div className="text-[13px] font-bold text-[var(--ui-success)] mt-0.5">{player.team.length} / 6</div>
         </div>
         <div className="rounded-xl bg-[var(--ui-panel)]/85 border border-slate-800/90 p-2">
-          <div className="text-[10px] text-slate-400">Слоты взломов</div>
-          <div className="text-xs font-bold text-[var(--ui-secondary)] mt-0.5">
+          <div className="text-[11px] text-slate-400">Слоты взломов</div>
+          <div className="text-[13px] font-bold text-[var(--ui-secondary)] mt-0.5">
             {player.activeMissions.length} / {derived.missionSlots}
           </div>
         </div>
@@ -603,24 +605,24 @@ export const OfflineBankNote: React.FC<{
       }`}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-slate-400">
+        <span className="text-[11px] text-slate-400">
           Оффлайн-копилка (до {Math.round(OFFLINE_TAP_CAP_SECONDS / 3600)} ч)
         </span>
-        <span className="text-[11px] font-mono font-bold text-[var(--ui-success)]">
+        <span className="text-[11px] font-num font-bold text-[var(--ui-success)]">
           +{formatCompact(Math.round(perHour))} DATA/час
         </span>
       </div>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[10px] text-slate-400">
-          {qualified ? '✅ копилка активна' : `Активность сегодня: ${leftMin > 0 ? `${leftMin} мин осталось` : '—'}`}
+        <span className="text-[11px] text-slate-400">
+          {qualified ? <><CheckIcon className="mr-1 inline h-3 w-3 align-[-1px] text-[var(--ui-success)]" /> копилка активна</> : `Активность сегодня: ${leftMin > 0 ? `${leftMin} мин осталось` : '—'}`}
         </span>
-        <span className={`text-[11px] font-mono font-bold ${qualified ? 'text-[var(--ui-success)]' : 'text-[#ffc400]'}`}>
+        <span className={`text-[11px] font-num font-bold ${qualified ? 'text-[var(--ui-success)]' : 'text-[var(--ui-warn)]'}`}>
           {Math.floor(activeSec / 60)} / {Math.round(requiredSec / 60)} мин
         </span>
       </div>
       <div className="h-1 rounded-full bg-slate-800/80 overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all ${qualified ? 'bg-[var(--ui-success)]' : 'bg-[#ffc400]'}`}
+          className={`h-full rounded-full transition-all ${qualified ? 'bg-[var(--ui-success)]' : 'bg-[var(--ui-warn)]'}`}
           style={{ width: `${Math.min(100, (activeSec / requiredSec) * 100)}%` }}
         />
       </div>

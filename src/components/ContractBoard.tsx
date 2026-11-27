@@ -43,7 +43,7 @@ export const ContractBoard: React.FC = () => {
         <div className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.1em] text-[var(--ui-primary)]">
           <Cpu className="h-3.5 w-3.5" /> Контракты
         </div>
-        <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--ui-text-muted)]">
+        <div className="flex items-center gap-2 text-[11px] font-bold text-[var(--ui-text-muted)]">
           <span className="flex items-center gap-1 text-[var(--ui-primary)]" title="CPU Charge — заряд на тап и запуск контракта. Копится сам, +1 за 2 секунды.">
             <Zap className="h-3 w-3" />
             {formatCompact(player.energy)}/{formatCompact(player.derived.maxEnergy)} CPU
@@ -83,8 +83,8 @@ export const ContractBoard: React.FC = () => {
           >
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <div className="truncate text-[12px] font-bold text-white">{mission.targetName}</div>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] font-semibold text-[var(--ui-success)]">
+                <div className="truncate text-[13px] font-bold text-white">{mission.targetName}</div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-[var(--ui-success)]">
                   до +{formatCompact(mission.reward)} Data · {Math.round((mission.successChance ?? 0) * 100)}%
                 </div>
               </div>
@@ -94,7 +94,7 @@ export const ContractBoard: React.FC = () => {
                   data-qa-action="collect-contract"
                   disabled={claiming}
                   onClick={() => void claimMission(mission.id)}
-                  className="flex shrink-0 items-center gap-1 rounded-xl bg-[var(--ui-success)] px-2.5 py-1.5 text-[11px] font-extrabold text-[#071005] cursor-pointer disabled:opacity-60"
+                  className="flex shrink-0 items-center gap-1 rounded-xl bg-[var(--ui-success)] px-2.5 py-1.5 text-[11px] font-extrabold text-[var(--ui-on-primary)] cursor-pointer disabled:opacity-60"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" /> Забрать
                 </button>
@@ -116,7 +116,7 @@ export const ContractBoard: React.FC = () => {
       })}
 
       <div className="flex items-center justify-between gap-2 pt-0.5">
-        <span className="text-[10px] text-[var(--ui-text-muted)]">
+        <span className="text-[11px] text-[var(--ui-text-muted)]">
           {readyContracts > 0
             ? `Готово к сбору: ${readyContracts}. Награда придёт сама при следующем входе.`
             : `Старт контракта: от ${getContractCpuCost(1)} CPU (тир 1)`}

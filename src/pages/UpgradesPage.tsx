@@ -17,6 +17,7 @@ import { computeDerivedStats } from '../../shared/mechanics';
 import type { CardCategory } from '../../shared/types';
 import { BaseUpgradeList } from '../components/BaseUpgradeList';
 import { useGame } from '../context/GameContext';
+import { CheckIcon, ChipsIcon } from '../components/ui-icons';
 import { formatCompact } from '../lib/format';
 import { triggerHapticSelection } from '../lib/telegram';
 
@@ -54,7 +55,7 @@ export const UpgradesPage: React.FC = () => {
       {/* Шапка: уровень, чипы, тир */}
       <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-primary)]/25 p-3.5 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+          <div className="text-[13px] font-bold text-white flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-[var(--ui-primary)] shrink-0" />
             <span>Мастерская Рабочего Стола (48 модулей)</span>
           </div>
@@ -62,21 +63,21 @@ export const UpgradesPage: React.FC = () => {
             Каждые 5 уровней карточек = +1 Уровень игрока. Уровни всех модулей{' '}
             <strong className="text-[var(--ui-primary)]">{totalLevels}</strong>.
           </p>
-          <p className="text-[10px] text-slate-500 mt-0.5 leading-relaxed">
+          <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
             Зелёная цифра — прибавка к доходу после следующего уровня. «Итого» — скорость до → после; баланс Data сверху — отдельно.
           </p>
         </div>
         <div className="text-right shrink-0 space-y-1">
-          <div className="font-display text-sm font-extrabold text-[var(--ui-primary)]">
+          <div className="font-display text-[16px] font-extrabold text-[var(--ui-primary)]">
             УР. {player.derived.level}
           </div>
-          <div className="text-[10px] font-bold text-[var(--ui-success)] flex items-center justify-end gap-1">
-            ⚙️ {player.chips}
+          <div className="text-[11px] font-bold text-[var(--ui-success)] flex items-center justify-end gap-1">
+            <ChipsIcon className="inline h-3 w-3 align-[-1px]" /> {player.chips}
           </div>
           <button
             type="button"
             onClick={openTutorial}
-            className="inline-flex items-center gap-1 text-[10px] font-bold text-[var(--ui-success)] hover:underline cursor-pointer"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-[var(--ui-success)] hover:underline cursor-pointer"
           >
             <BookOpen className="w-3 h-3" /> Что качать?
           </button>
@@ -91,7 +92,7 @@ export const UpgradesPage: React.FC = () => {
             triggerHapticSelection();
             setTab('cards');
           }}
-          className={`py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
+          className={`py-2 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
             tab === 'cards'
               ? 'bg-[var(--ui-primary)]/18 border-[var(--ui-primary)] text-[var(--ui-primary)]'
               : 'bg-[var(--ui-panel)] border-slate-800 text-slate-400'
@@ -105,7 +106,7 @@ export const UpgradesPage: React.FC = () => {
             triggerHapticSelection();
             setTab('base');
           }}
-          className={`relative py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
+          className={`relative py-2 rounded-xl text-[13px] font-bold flex items-center justify-center gap-1.5 border transition cursor-pointer ${
             tab === 'base'
               ? 'bg-[var(--ui-success)]/18 border-[var(--ui-success)] text-[var(--ui-success)]'
               : 'bg-[var(--ui-panel)] border-slate-800 text-slate-400'
@@ -113,7 +114,7 @@ export const UpgradesPage: React.FC = () => {
         >
           <Layers className="w-4 h-4" /> База (10)
           {baseAffordable > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--ui-secondary)] text-white text-[9px] font-extrabold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-[var(--ui-secondary)] text-white text-[11px] font-extrabold flex items-center justify-center">
               {baseAffordable}
             </span>
           )}
@@ -125,13 +126,13 @@ export const UpgradesPage: React.FC = () => {
       ) : (
         <>
           {/* Блок Тира: потолок уровней и разблокировка */}
-          <div className="rounded-2xl bg-[#0f1730] border border-[var(--ui-secondary)]/30 p-3.5 space-y-2">
+          <div className="rounded-2xl bg-[var(--ui-panel)] border border-[var(--ui-secondary)]/30 p-3.5 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="text-[11px] font-bold text-white flex items-center gap-1.5">
                 <Lock className="w-3.5 h-3.5 text-[var(--ui-secondary)]" />
                 {tierCfg.title}
               </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--ui-secondary)]/15 border border-[var(--ui-secondary)]/35 text-[var(--ui-secondary)] shrink-0">
+              <span className="text-[11px] font-bold px-2 py-0.5 rounded bg-[var(--ui-secondary)]/15 border border-[var(--ui-secondary)]/35 text-[var(--ui-secondary)] shrink-0">
                 макс. Ур. {maxLevel}
               </span>
             </div>
@@ -144,26 +145,26 @@ export const UpgradesPage: React.FC = () => {
                 const canUnlock = levelOk && chipsOk && dataOk;
                 return (
                   <>
-                    <p className="text-[10px] text-slate-400 leading-relaxed">
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
                       {nextTierCfg.description}
                     </p>
                     <div className="flex flex-wrap gap-1">
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
                           levelOk ? 'bg-[var(--ui-success)]/12 text-[var(--ui-success)]' : 'bg-slate-800/80 text-amber-300'
                         }`}
                       >
                         Ур. {nextTierCfg.requiredPlayerLevel}+
                       </span>
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
                           chipsOk ? 'bg-[var(--ui-success)]/12 text-[var(--ui-success)]' : 'bg-slate-800/80 text-amber-300'
                         }`}
                       >
-                        {nextTierCfg.chipCost} ⚙️
+                        {nextTierCfg.chipCost} <ChipsIcon className="inline h-3 w-3 align-[-1px]" />
                       </span>
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                        className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
                           dataOk ? 'bg-[var(--ui-success)]/12 text-[var(--ui-success)]' : 'bg-slate-800/80 text-amber-300'
                         }`}
                       >
@@ -174,25 +175,25 @@ export const UpgradesPage: React.FC = () => {
                       type="button"
                       disabled={!canUnlock || busyKey === 'tier'}
                       onClick={() => void unlockTier()}
-                      className={`w-full py-2 rounded-xl font-display text-xs font-bold transition cursor-pointer ${
+                      className={`w-full py-2 rounded-xl font-display text-[13px] font-bold transition cursor-pointer ${
                         canUnlock
                           ? 'bg-gradient-to-r from-[var(--ui-secondary)] to-purple-500 text-white shadow-[0_0_16px_rgba(var(--ui-secondary-rgb),0.35)]'
                           : 'bg-[var(--ui-panel-deep)] text-slate-500 border border-slate-800 cursor-not-allowed'
                       }`}
                     >
                       {canUnlock
-                        ? `🔓 ОТКРЫТЬ ТИР ${nextTierCfg.tier}`
-                        : `Тир ${nextTierCfg.tier}: ${!levelOk ? `нужен Ур. ${nextTierCfg.requiredPlayerLevel}` : !chipsOk ? `нужно ${nextTierCfg.chipCost} ⚙️` : 'нужно больше Data'}`}
+                        ? `ОТКРЫТЬ ТИР ${nextTierCfg.tier}`
+                        : `Тир ${nextTierCfg.tier}: ${!levelOk ? `нужен Ур. ${nextTierCfg.requiredPlayerLevel}` : !chipsOk ? `нужно чипов: ${nextTierCfg.chipCost}` : 'нужно больше Data'}`}
                     </button>
-                    <p className="text-[9px] text-slate-500 text-center">
+                    <p className="text-[11px] text-slate-500 text-center">
                       Чипы падают с завершённых контрактов во вкладке «Взломы»
                     </p>
                   </>
                 );
               })()
             ) : (
-              <p className="text-[10px] text-[var(--ui-success)] font-bold">
-                ✅ Тир IV открыт — все 48 модулей доступны до 60 уровня!
+              <p className="text-[11px] text-[var(--ui-success)] font-bold">
+                <CheckIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> Тир IV открыт — все 48 модулей доступны до 60 уровня!
               </p>
             )}
           </div>
@@ -211,8 +212,8 @@ export const UpgradesPage: React.FC = () => {
                   }}
                   className={`rounded-xl p-2 text-center border transition cursor-pointer ${
                     active
-                      ? 'bg-[#152042] text-white'
-                      : 'bg-[#0d1326] border-slate-800/90 text-slate-400 hover:text-slate-200'
+                      ? 'bg-[var(--ui-panel)] text-white'
+                      : 'bg-[var(--ui-panel)] border-slate-800/90 text-slate-400 hover:text-slate-200'
                   }`}
                   style={active ? { borderColor: cat.accentColor } : undefined}
                 >
@@ -299,22 +300,22 @@ export const UpgradesPage: React.FC = () => {
                   whileTap={canAfford ? { scale: 0.98 } : undefined}
                   className={`rounded-2xl border p-3 flex flex-col justify-between gap-2.5 ${
                     lockedByLevel
-                      ? 'bg-[#0b1021]/90 border-slate-800/60 opacity-80'
+                      ? 'bg-[rgba(var(--ui-panel-rgb), 0.9)] border-slate-800/60 opacity-80'
                       : 'bg-[var(--ui-panel)]/95 border-slate-800/90'
                   }`}
                 >
                   <div className="space-y-1.5">
                     <div className="flex items-start justify-between gap-1.5">
-                      <div className="w-9 h-9 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 flex items-center justify-center text-lg shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[var(--ui-panel-deep)] border border-slate-800 flex items-center justify-center text-[20px] shrink-0">
                         {lockedByLevel ? <Lock className="w-4 h-4 text-slate-500" /> : card.iconGlyph}
                       </div>
                       {lockedByLevel ? (
-                        <span className="px-2 py-0.5 rounded-md bg-amber-500/12 border border-amber-500/35 text-[10px] font-bold text-amber-300">
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/12 border border-amber-500/35 text-[11px] font-bold text-amber-300">
                           Ур. {card.minLevel}+
                         </span>
                       ) : (
                         <span
-                          className={`px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)] border text-[10px] font-bold ${
+                          className={`px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)] border text-[11px] font-bold ${
                             isMax
                               ? 'border-[var(--ui-success)]/45 text-[var(--ui-success)]'
                               : 'border-slate-700/80 text-[var(--ui-primary)]'
@@ -326,8 +327,8 @@ export const UpgradesPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-xs font-extrabold text-white leading-snug">{card.name}</h3>
-                      <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5 line-clamp-2">
+                      <h3 className="text-[13px] font-extrabold text-white leading-snug">{card.name}</h3>
+                      <p className="text-[11px] text-slate-400 leading-relaxed mt-0.5 line-clamp-2">
                         {card.description}
                       </p>
                     </div>
@@ -335,7 +336,7 @@ export const UpgradesPage: React.FC = () => {
                     <div className="flex flex-wrap gap-1 pt-0.5">
                       {!isMax && (
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${dataGainClass}`}
+                          className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${dataGainClass}`}
                           title="Точное изменение общей скорости Data/ч после покупки следующего уровня"
                         >
                           {signedDataGain} Data/ч
@@ -343,7 +344,7 @@ export const UpgradesPage: React.FC = () => {
                       )}
                       {!isMax && card.clickBonusPerLevel && (
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${tapGainClass}`}
+                          className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${tapGainClass}`}
                           title="Точное изменение Data за один тап после покупки следующего уровня"
                         >
                           {signedTapGain} Data/тап
@@ -351,27 +352,27 @@ export const UpgradesPage: React.FC = () => {
                       )}
                       {!isMax && (
                         <span
-                          className="w-full text-[9px] font-semibold text-slate-400 leading-snug"
+                          className="w-full text-[11px] font-semibold text-slate-400 leading-snug"
                           title="Слева — текущий общий доход, справа — доход после покупки"
                         >
                           Итого Data/ч: {formatCompact(player.derived.dataPerHour)} → {formatCompact(projectedDerived.dataPerHour)}
                         </span>
                       )}
                       {card.energyMaxPerLevel && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 flex items-center gap-0.5">
+                        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300 flex items-center gap-0.5">
                           <Zap className="w-2.5 h-2.5" /> +{card.energyMaxPerLevel} Energy Max
                         </span>
                       )}
                       {card.heatOnBuy && (
                         <span
-                          className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 flex items-center gap-0.5"
+                          className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-300 flex items-center gap-0.5"
                           title="Heat с учётом текущей защиты от розыска"
                         >
                           <Flame className="w-2.5 h-2.5" /> +{heatGain} Heat
                         </span>
                       )}
                       {indexMultiplier > 1.05 && (
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[var(--ui-secondary)]/12 text-[var(--ui-secondary)]">
+                        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-[var(--ui-secondary)]/12 text-[var(--ui-secondary)]">
                           индекс цен ×{indexMultiplier.toFixed(1)}
                         </span>
                       )}
@@ -394,7 +395,7 @@ export const UpgradesPage: React.FC = () => {
                       type="button"
                       disabled={isMax || lockedByLevel || !canAfford || isBusy}
                       onClick={() => void buyCard(card.key)}
-                      className={`w-full py-2 px-2.5 rounded-xl text-xs font-display font-bold transition cursor-pointer ${
+                      className={`w-full py-2 px-2.5 rounded-xl text-[13px] font-display font-bold transition cursor-pointer ${
                         isMax
                           ? 'bg-[var(--ui-success)]/15 text-[var(--ui-success)] border border-[var(--ui-success)]/35 cursor-default'
                           : lockedByLevel
@@ -407,7 +408,7 @@ export const UpgradesPage: React.FC = () => {
                       {isMax
                         ? `МАКС. УР. ${maxLevel}`
                         : lockedByLevel
-                          ? `🔒 Нужен Ур. ${card.minLevel}`
+                          ? `Нужен Ур. ${card.minLevel}`
                           : isBusy
                             ? '⏳ Покупаю…'
                             : `Купить • ${formatCompact(price)}`}
@@ -417,7 +418,7 @@ export const UpgradesPage: React.FC = () => {
                     {!isMax && !lockedByLevel && (
                       <p
                         data-qa="card-price-hours"
-                        className="text-center text-[9.5px] text-slate-500"
+                        className="text-center text-[11px] text-slate-500"
                       >
                         {priceHoursLabel(price, player.derived.level)}
                       </p>
