@@ -34,6 +34,32 @@ export interface LocationModifiers {
   heat: number;
 }
 
+/**
+ * Рабочее место в локации (v6.7).
+ *
+ * До этого место меняло только фон страницы: игрок «выходил на пляж», а сцена
+ * рабочего стола оставалась домашней. Теперь у мира есть свой кадр рабочего
+ * места — два тира, чтобы эволюция стола не терялась вне дома: «ноутбук»
+ * до 20 этапа и «полная станция» с 20-го.
+ */
+export interface LocationDeskScenes {
+  early: string;
+  late: string;
+}
+
+/** С какого этапа стола включается «полная станция» (этапы 20/25/30). */
+export const DESK_LATE_FROM_STAGE = 20;
+
+export type LocationDeskTier = 'early' | 'late';
+
+/** Готовая сцена рабочего места: что рисовать и как это подписать. */
+export interface LocationDeskArt {
+  url: string;
+  tier: LocationDeskTier;
+  /** Подпись на сцене: «Ноутбук» / «Полная станция». */
+  label: string;
+}
+
 export interface LocationWorld {
   id: LocationId;
   /** Одна строка «зачем сюда идти» — лор без полотна текста. */
@@ -43,11 +69,27 @@ export interface LocationWorld {
    * (bgClass из world.config). Картинка грузится только у активной локации.
    */
   backdrop: string | null;
+  /**
+   * Кадры рабочего места в этом мире. `null` — у места нет своего стола:
+   * так у Комнаты, где живёт семиэтапная эволюция стола.
+   */
+  deskScenes: LocationDeskScenes | null;
   modifiers: LocationModifiers;
 }
 
 /** Путь к .webp-бэкдропу (файлы уже лежат в public/assets/backdrops). */
 const BACKDROP_BASE = '/assets/backdrops';
+
+/** Путь к кадрам рабочих мест (public/assets/scenes, 16:10, ~100 КБ каждый). */
+const DESK_SCENE_BASE = '/assets/scenes';
+
+/** Пара кадров рабочего места: ноутбук → полная станция. */
+function deskScenes(id: LocationId): LocationDeskScenes {
+  return {
+    early: `${DESK_SCENE_BASE}/loc-${id}-early.webp`,
+    late: `${DESK_SCENE_BASE}/loc-${id}-late.webp`,
+  };
+}
 
 /**
  * Шесть миров. Данные подобраны по правилу «жадный платит риском, осторожный —
@@ -59,6 +101,8 @@ export const LOCATION_WORLDS: Record<LocationId, LocationWorld> = {
     id: 'room',
     tagline: 'Свой угол: тихо, дёшево и почти никто не смотрит на твой IP.',
     backdrop: `${BACKDROP_BASE}/backdrop-home-room.webp`,
+    // Дома — своя семиэтапная эволюция стола (public/assets/scenes/stage-*.webp).
+    deskScenes: null,
     // Точка отсчёта: дом ничего не множит. Всё, что дальше, — уже выбор игрока.
     modifiers: { data: 1, success: 1, heat: 1 },
   },
@@ -66,6 +110,7 @@ export const LOCATION_WORLDS: Record<LocationId, LocationWorld> = {
     id: 'street',
     tagline: 'Люди, кофе и открытый Wi-Fi: деньги мелкие, хвостов за тобой нет.',
     backdrop: `${BACKDROP_BASE}/backdrop-street-cafe.webp`,
+    deskScenes: deskScenes('street'),
     // Низкий доход, почти нет Heat: место, где отлёживается розыск.
     modifiers: { data: 1.05, success: 1, heat: 0.75 },
   },
@@ -73,24 +118,28 @@ export const LOCATION_WORLDS: Record<LocationId, LocationWorld> = {
     id: 'beach',
     tagline: 'Пляжный бар: расслабленные сети и такая же расслабленная охрана.',
     backdrop: `${BACKDROP_BASE}/backdrop-beach-day.webp`,
+    deskScenes: deskScenes('beach'),
     modifiers: { data: 1.2, success: 0.95, heat: 0.85 },
   },
   cybercafe: {
     id: 'cybercafe',
     tagline: 'Свои за стойкой: подскажут, прикроют и дадут канал без логов.',
     backdrop: `${BACKDROP_BASE}/backdrop-motel-night.webp`,
+    deskScenes: deskScenes('cybercafe'),
     modifiers: { data: 1.25, success: 1.05, heat: 1 },
   },
   techhub: {
     id: 'techhub',
     tagline: 'Стеклянный офис: быстрые деньги и живые камеры за спиной.',
     backdrop: `${BACKDROP_BASE}/backdrop-promenade.webp`,
+    deskScenes: deskScenes('techhub'),
     modifiers: { data: 1.4, success: 1, heat: 1.3 },
   },
   corpquarter: {
     id: 'corpquarter',
     tagline: 'Квартал корпораций: самые жирные контракты и самый злой Heat.',
     backdrop: `${BACKDROP_BASE}/backdrop-rooftop-sunset.webp`,
+    deskScenes: deskScenes('corpquarter'),
     modifiers: { data: 1.6, success: 0.9, heat: 1.5 },
   },
 };
@@ -113,6 +162,30 @@ export function economyModifiers(locationId: unknown, worldEnabled = true): Loca
 export function getLocationWorld(locationId: unknown): LocationWorld {
   const id = resolveLocationId(locationId);
   return LOCATION_WORLDS[id] ?? LOCATION_WORLDS[HOME_LOCATION_ID];
+}
+
+/**
+ * Кадр рабочего места для локации и этапа стола.
+ *
+ * Комната возвращает null: там сцену выбирает тема/этап/«вид из окна», и трогать
+ * эту ветку нельзя. Для остальных миров этап схлопывается в два тира, чтобы
+ * восемь этапов не превращались в восемь картинок на каждое место.
+ */
+export function locationDeskScene(locationId: unknown, stage = 1): LocationDeskArt | null {
+  const world = getLocationWorld(locationId);
+  if (!world.deskScenes) return null;
+  const safeStage = Math.max(1, Math.floor(Number(stage) || 1));
+  const tier: LocationDeskTier = safeStage >= DESK_LATE_FROM_STAGE ? 'late' : 'early';
+  return {
+    url: world.deskScenes[tier],
+    tier,
+    label: tier === 'late' ? 'Полная станция' : 'Ноутбук',
+  };
+}
+
+/** Есть ли у локации своя сцена рабочего места (для QA и ленивой загрузки). */
+export function hasLocationDeskScene(locationId: unknown): boolean {
+  return getLocationWorld(locationId).deskScenes !== null;
 }
 
 /** .webp-фон локации или null, если место живёт на градиенте. */

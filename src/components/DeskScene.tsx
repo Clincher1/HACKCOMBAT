@@ -12,6 +12,12 @@ import {
 } from '../../shared/mechanics';
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
+import {
+  DESK_LATE_FROM_STAGE,
+  hasLocationDeskScene,
+  locationDeskScene,
+  locationTagline,
+} from '../../shared/locations';
 import { BackdropWeather } from './BackdropWeather';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
@@ -41,6 +47,8 @@ export const DeskScene: React.FC = () => {
     baseTheme,
     deskBackdrop,
     gameplayV3,
+    activeLocation,
+    worldEnabled,
   } = useGame();
 
   const [particles, setParticles] = useState<ByteParticle[]>([]);
@@ -53,6 +61,10 @@ export const DeskScene: React.FC = () => {
   // `player`, который меняется на КАЖДЫЙ тап — интервал пересоздавался десятки
   // раз в секунду, и тап на телефоне начинал подтормаживать. Сила клика читается
   // через ref, поэтому счётчик всегда свежий без перезапуска таймера.
+  // v6.7: у места есть собственный кадр рабочего места ⇒ панель «Этапы» не нужна.
+  // Считаем это ДО early-return, потому что на флаге висит сброс превью ниже.
+  const hasPlaceScene = worldEnabled && hasLocationDeskScene(activeLocation.id);
+
   const clickPowerRef = useRef<number>(1);
   clickPowerRef.current = player?.derived.clickPower ?? 1;
   const autoClickPerSec = player?.derived.autoClickPerSec ?? 0;
@@ -86,6 +98,15 @@ export const DeskScene: React.FC = () => {
     }
   }, [player?.derived.level, previewStage]);
 
+  // Уехал из Комнаты с открытым превью — превью больше не к чему: сцена теперь
+  // принадлежит месту, а панели этапов на экране нет.
+  useEffect(() => {
+    if (hasPlaceScene && previewStage !== null) {
+      setPreviewStage(null);
+      setShowStageBar(false);
+    }
+  }, [hasPlaceScene, previewStage]);
+
   if (!player) return null;
 
   const { derived } = player;
@@ -111,8 +132,18 @@ export const DeskScene: React.FC = () => {
   // v4.1: «вид из окна» — отдельный косметический слой. Если он выбран, он
   // заменяет арт этапа/темы; скин стола при этом не перекрашивает фотографию
   // (hue-rotate превратил бы закат в кислоту), но продолжает жить в интерфейсе.
-  const sceneUrl = deskBackdrop?.url ?? getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
-  const sceneFilter = deskBackdrop ? 'none' : composeSceneFilter(activeSkin.cssFilter, baseTheme);
+  // v6.7: место работы меняет и сцену, а не только фон страницы. Вне Комнаты
+  // сцена — кадр рабочего места этой локации (ноутбук → полная станция), и он
+  // сильнее косметического «вида из окна»: мир важнее декора. Дома всё как было:
+  // бэкдроп из профиля, арт темы или этап стола.
+  const locationArt = hasPlaceScene ? locationDeskScene(activeLocation.id, activeStage) : null;
+  const sceneUrl =
+    locationArt?.url ?? deskBackdrop?.url ?? getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
+  const sceneFilter =
+    locationArt || deskBackdrop ? 'none' : composeSceneFilter(activeSkin.cssFilter, baseTheme);
+  // Подпись сцены: на чужом месте это «Улица · Ноутбук», дома — название этапа.
+  const sceneTitle = locationArt ? `${activeLocation.name} · ${locationArt.label}` : stageInfo.title;
+  const sceneSubtitle = locationArt ? locationTagline(activeLocation.id) : stageInfo.subtitle;
 
   /**
    * v6.4: сцена снова тап-поверхность в ОБОИХ режимах флага.
@@ -168,33 +199,47 @@ export const DeskScene: React.FC = () => {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--ui-primary)]">
             <Sparkles className="w-3.5 h-3.5 shrink-0" />
-            <span className="truncate">{stageInfo.title}</span>
+            <span className="truncate" data-qa="desk-scene-title">
+              {sceneTitle}
+            </span>
             {previewStage && previewStage !== derived.deskStage && (
               <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[10px]">
                 Превью
               </span>
             )}
           </div>
-          <p className="text-[11px] text-slate-400 truncate">{stageInfo.subtitle}</p>
+          <p className="text-[11px] text-slate-400 truncate">{sceneSubtitle}</p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setShowStageBar((s) => !s);
-            if (showStageBar) setPreviewStage(null);
-          }}
-          className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#162040] hover:bg-[#1e2c56] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-slate-200 transition cursor-pointer"
-        >
-          <Eye className="w-3.5 h-3.5 text-[var(--ui-primary)]" />
-          <span>Этапы ({ALL_STAGES.indexOf(derived.deskStage) + 1}/7)</span>
-        </button>
+        {locationArt ? (
+          // Вне дома этапы стола не показываем: сцена принадлежит месту, а не
+          // уровню. Чип объясняет, откуда взялась картинка.
+          <span
+            data-qa="desk-scene-place"
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-[var(--ui-primary)]"
+          >
+            <MapPin className="w-3.5 h-3.5" />
+            <span className="truncate max-w-[92px]">{activeLocation.name}</span>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              setShowStageBar((s) => !s);
+              if (showStageBar) setPreviewStage(null);
+            }}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#162040] hover:bg-[#1e2c56] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-slate-200 transition cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-[var(--ui-primary)]" />
+            <span>Этапы ({ALL_STAGES.indexOf(derived.deskStage) + 1}/7)</span>
+          </button>
+        )}
       </div>
 
       {/* Панель переключения уже открытых этапов. Закрытые уровни видны как
           ориентир прогрессии, но не являются интерактивными и не показывают арт. */}
       <AnimatePresence>
-        {showStageBar && (
+        {showStageBar && !locationArt && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -255,7 +300,9 @@ export const DeskScene: React.FC = () => {
         <motion.img
           key={sceneUrl}
           src={sceneUrl}
-          alt={stageInfo.title}
+          alt={sceneTitle}
+          data-qa="desk-scene"
+          data-scene-kind={locationArt ? `${activeLocation.id}:${locationArt.tier}` : 'home'}
           loading="lazy"
           initial={{ opacity: 0.4, scale: 1.03 }}
           animate={{ opacity: 1, scale: pulseActive ? 1.015 : 1 }}
@@ -265,7 +312,7 @@ export const DeskScene: React.FC = () => {
         />
 
         {/* Погода за окном: солнце, облака, чайки, дождь или ночные огни */}
-        {deskBackdrop && <BackdropWeather kind={deskBackdrop.weather} />}
+        {deskBackdrop && !locationArt && <BackdropWeather kind={deskBackdrop.weather} />}
 
         {/* Вуаль темы: мягко подкрашивает сцену под палитру базы.
             Только для сцен по уровню: у выбранной локации свой арт и своя погода,
@@ -273,7 +320,7 @@ export const DeskScene: React.FC = () => {
             для локации: к rgba-строке темы дописывался суффикс прозрачности, цвет
             становился невалидным и браузер выбрасывал весь градиент. Ветка
             удалена — визуал не изменился ни в одном из двух режимов. */}
-        {!deskBackdrop && (
+        {!deskBackdrop && !locationArt && (
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -385,11 +432,17 @@ export const DeskScene: React.FC = () => {
               {Math.round(derived.xpToNext).toLocaleString('ru-RU')} XP
             </strong>
           </span>
-          {stageInfo.nextLevel && (
-            <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">
-              След. сцена: Ур. {stageInfo.nextLevel}
-            </span>
-          )}
+          {locationArt
+            ? locationArt.tier === 'early' && (
+                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">
+                  Станция: Ур. {DESK_LATE_FROM_STAGE}
+                </span>
+              )
+            : stageInfo.nextLevel && (
+                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[10px] text-slate-400">
+                  След. сцена: Ур. {stageInfo.nextLevel}
+                </span>
+              )}
         </div>
 
         {/* Летящие байты при каждом тапе */}

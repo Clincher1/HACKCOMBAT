@@ -633,7 +633,65 @@ function expectedStart(mission, player, locationId) {
     contextSrc.includes('tapDataBoost') && contextSrc.includes('economyModifiers')
   );
 
-  // ── D. Перф: картинки не попадают в главный бандл и не прелоадятся ─────
+  // ── D. Рабочее место локации (v6.7) ─────────────────────────────────────
+  // До этой версии место меняло только фон страницы: игрок «выходил на пляж»,
+  // а сцена стола оставалась домашней. Проверяем, что сцена переехала вместе с ним.
+  check(
+    'у Комнаты нет своей сцены — там живут 7 этапов стола',
+    loc.locationDeskScene('room', 30) === null,
+    String(loc.locationDeskScene('room', 30))
+  );
+
+  const placeWorlds = loc.listLocationWorlds().filter((world) => world.id !== 'room');
+  check(
+    'у всех пяти внешних миров есть пара кадров рабочего места',
+    placeWorlds.length === 5 &&
+      placeWorlds.every((world) => Boolean(world.deskScenes?.early) && Boolean(world.deskScenes?.late)),
+    placeWorlds.map((world) => `${world.id}:${world.deskScenes ? 'ok' : 'нет'}`).join(', ')
+  );
+  check(
+    'кадры рабочих мест реально лежат в public/assets/scenes',
+    placeWorlds.every((world) =>
+      [world.deskScenes.early, world.deskScenes.late].every((url) =>
+        fs.existsSync(path.join(REPO, 'public', url))
+      )
+    )
+  );
+  check(
+    'эволюция не потерялась: до 20 этапа ноутбук, с 20 — станция',
+    loc.locationDeskScene('beach', 1)?.tier === 'early' &&
+      loc.locationDeskScene('beach', 15)?.tier === 'early' &&
+      loc.locationDeskScene('beach', loc.DESK_LATE_FROM_STAGE)?.tier === 'late' &&
+      loc.locationDeskScene('beach', 30)?.tier === 'late' &&
+      loc.locationDeskScene('beach', 30)?.url !== loc.locationDeskScene('beach', 1)?.url,
+    `${loc.locationDeskScene('beach', 1)?.url} → ${loc.locationDeskScene('beach', 30)?.url}`
+  );
+  check(
+    'у каждого мира свой кадр — места не перепутаны',
+    new Set(placeWorlds.map((world) => loc.locationDeskScene(world.id, 1)?.url)).size === placeWorlds.length
+  );
+  check(
+    'неизвестная локация падает на Комнату: сцены места не появляется',
+    loc.locationDeskScene('moon-base', 25) === null && loc.hasLocationDeskScene('moon-base') === false
+  );
+  check(
+    'сцена места сильнее косметического «вида из окна»',
+    /locationArt\?\.url \?\? deskBackdrop\?\.url/.test(sceneSrc)
+  );
+  check(
+    'погода и вуаль темы не накладываются поверх сцены места',
+    /deskBackdrop && !locationArt/.test(sceneSrc) && /!deskBackdrop && !locationArt/.test(sceneSrc)
+  );
+  check(
+    'панель этапов скрыта вне Комнаты, а место подписано чипом',
+    /showStageBar && !locationArt/.test(sceneSrc) && sceneSrc.includes('data-qa="desk-scene-place"')
+  );
+  check(
+    'сцена получила data-атрибут вида (QA и отладка)',
+    sceneSrc.includes('data-qa="desk-scene"') && sceneSrc.includes("data-scene-kind={")
+  );
+
+  // ── E. Перф: картинки не попадают в главный бандл и не прелоадятся ─────
   const distIndex = path.join(REPO, 'dist/index.html');
   if (fs.existsSync(distIndex)) {
     const html = fs.readFileSync(distIndex, 'utf8');
