@@ -1,3 +1,4 @@
+import { PROLOGUE_SCENES } from './story.prologue';
 import type { PlayerState } from './types';
 
 /**
@@ -34,10 +35,9 @@ export const FIRST_CHAPTER_STEPS: readonly ChapterStepConfig[] = [
   {
     id: 'terminal',
     title: 'Собери терминал',
-    deskBrief:
-      'Новый оператор начинает не с громкого рейда, а с рабочего железа. Подтяни первую карточку и приготовь узел к выходу в сеть.',
-    missionBrief:
-      'Сначала собери рабочий узел: первая карточка откроет путь к нормальным контрактам.',
+    // v6.11: своих текстов у пролога больше нет — ровно та же сцена, что в сюжете.
+    deskBrief: PROLOGUE_SCENES.terminal,
+    missionBrief: PROLOGUE_SCENES.terminal,
     href: '/upgrades',
     actionLabel: 'Открыть апгрейды',
     missionKeys: [],
@@ -45,10 +45,8 @@ export const FIRST_CHAPTER_STEPS: readonly ChapterStepConfig[] = [
   {
     id: 'first-trace',
     title: 'Оставь первый след',
-    deskBrief:
-      'Терминал проснулся. Теперь выбери безопасную вымышленную цель и забери первый результат операции.',
-    missionBrief:
-      'Первый след уже рядом: запусти доступную цель T1 и вернись за результатом.',
+    deskBrief: PROLOGUE_SCENES.firstTrace,
+    missionBrief: PROLOGUE_SCENES.firstTrace,
     href: '/hacks',
     actionLabel: 'Открыть скан сети',
     missionKeys: ['scam_shop', 'fake_lottery', 'retro_blog', 'pixel_arcade', 'dev_forum'],
@@ -56,10 +54,8 @@ export const FIRST_CHAPTER_STEPS: readonly ChapterStepConfig[] = [
   {
     id: 'network-noise',
     title: 'Услышь шум в сети',
-    deskBrief:
-      'Сеть заметила твой почерк. Достигни 3 уровня и закрой ещё один контракт — после этого откроются первые T2-цели.',
-    missionBrief:
-      'Ищи цели T2: «Копия входа в банк» или «Ферма спам-звонков». Если их нет в текущем скане, дождись обновления или выбери доступную цель.',
+    deskBrief: PROLOGUE_SCENES.networkNoise,
+    missionBrief: PROLOGUE_SCENES.networkNoise,
     href: '/hacks',
     actionLabel: 'Проверить T2-цели',
     missionKeys: ['phishing_bank', 'bot_spam_net'],

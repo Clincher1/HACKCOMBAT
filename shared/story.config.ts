@@ -19,6 +19,7 @@
  * jsonb, новой таблицы и миграции не требуется.
  */
 import { expectedHourlyIncome } from './pricing.config';
+import { PROLOGUE_SCENES } from './story.prologue';
 import type { PlayerState } from './types';
 
 /** Факт прогрессии, который может требовать шаг. */
@@ -32,7 +33,13 @@ export type StoryFactKey =
   | 'pets'
   | 'petFeedings'
   | 'achievements'
-  | 'bestHeatEscape';
+  | 'bestHeatEscape'
+  /**
+   * v6.11: успешные взломы по тирам контракта (1..6), суммарно. Счётчик
+   * серверный (stats.hacksByTier), в шагах пока не используется — резерв под
+   * контракты «пройди цель T3» и будущие главы.
+   */
+  | 'hacksByTier';
 
 export interface StoryFacts {
   level: number;
@@ -45,6 +52,8 @@ export interface StoryFacts {
   petFeedings: number;
   achievements: number;
   bestHeatEscape: number;
+  /** Сумма успешных взломов по всем тирам: тир-разбивка живёт в stats. */
+  hacksByTier: number;
 }
 
 export interface StoryRequirement {
@@ -74,13 +83,25 @@ export interface StoryStep {
   reward: StoryReward;
 }
 
+/** Ключ иконки обложки: глиф в данных больше не хранится (см. ui-icons). */
+export type StoryCoverKey =
+  | 'ice'
+  | 'antenna'
+  | 'signal'
+  | 'shades'
+  | 'disk'
+  | 'fog'
+  | 'moon'
+  | 'city'
+  | 'gate';
+
 export interface StoryArc {
   id: string;
   /** 0 — Пролог, дальше по порядку. */
   order: number;
   title: string;
   subtitle: string;
-  cover: string;
+  cover: StoryCoverKey;
   /** Уровень, с которого глава открывается. */
   requiredLevel: number;
   /** Одна строка «состояние мира» после прохождения главы. */
@@ -99,31 +120,28 @@ export const STORY_ARCS: StoryArc[] = [
     order: 0,
     title: 'Пролог · Холодный старт',
     subtitle: 'Первое железо, первый след, первый шум в сети',
-    cover: '🧊',
+    cover: 'ice',
     requiredLevel: 1,
     flavor: 'Терминал собран, след оставлен. Сеть запомнила твой почерк.',
     steps: [
       {
         id: 'prologue:1',
         title: 'Собери терминал',
-        scene:
-          'Первое железо пахнет пылью и припоем. Собирай не для красоты — для дела: без рабочей станции город тебя не услышит. Потом будет поздно объяснять, что ты просто мимо шёл.',
+        scene: PROLOGUE_SCENES.terminal,
         requirement: { key: 'cardLevels', value: 1, label: '1 уровень карточки' },
         reward: { dataHours: 0.25, crypto: 2 },
       },
       {
         id: 'prologue:2',
         title: 'Оставь первый след',
-        scene:
-          'Сеть полна мелких целей: поддельные витрины, фальшивые лотереи, форумы, где торгуют чужими паролями. Возьми одну и уйди тихо. Первый след не должен стать последним.',
+        scene: PROLOGUE_SCENES.firstTrace,
         requirement: { key: 'missions', value: 1, label: '1 контракт' },
         reward: { dataHours: 0.25, crypto: 2 },
       },
       {
         id: 'prologue:3',
         title: 'Услышь шум в сети',
-        scene:
-          'Между строк служебного трафика — ритм. Он не случайный: кто-то уже слушает твой канал. Дорасти до третьего уровня и пойми, чей это почерк.',
+        scene: PROLOGUE_SCENES.networkNoise,
         requirement: { key: 'level', value: 3, label: '3 уровень' },
         reward: { dataHours: 0.3, crypto: 3 },
       },
@@ -135,7 +153,7 @@ export const STORY_ARCS: StoryArc[] = [
     order: 1,
     title: 'Глава 1 · Первый контакт',
     subtitle: 'В сети появился второй голос',
-    cover: '📡',
+    cover: 'antenna',
     requiredLevel: 2,
     flavor: 'В сети есть второй голос. Он знает, что ты здесь, и пока молчит.',
     steps: [
@@ -179,7 +197,7 @@ export const STORY_ARCS: StoryArc[] = [
     order: 2,
     title: 'Глава 2 · Шум в эфире',
     subtitle: 'Relay передаёт привет короткими пакетами',
-    cover: '📶',
+    cover: 'signal',
     requiredLevel: 8,
     flavor: 'Relay отвечает короткими пакетами. Кто-то передаёт тебе привет из эфира.',
     steps: [
@@ -231,7 +249,7 @@ export const STORY_ARCS: StoryArc[] = [
     order: 3,
     title: 'Глава 3 · Люди в тени',
     subtitle: 'Первый человек, которому можно звонить в три ночи',
-    cover: '🕶️',
+    cover: 'shades',
     requiredLevel: 15,
     flavor: 'У тебя есть человек, которому можно звонить в три ночи. Это дороже любого канала.',
     steps: [
@@ -283,7 +301,7 @@ export const STORY_ARCS: StoryArc[] = [
     order: 4,
     title: 'Глава 4 · Рынок данных',
     subtitle: 'Тишина тоже товар — и у неё есть цена',
-    cover: '💾',
+    cover: 'disk',
     requiredLevel: 22,
     flavor: 'Ты научился продавать тишину. Осторожно: тишина — тоже товар.',
     steps: [
@@ -335,7 +353,7 @@ export const STORY_ARCS: StoryArc[] = [
     order: 5,
     title: 'Глава 5 · Тихая неделя',
     subtitle: 'Неделя без сирен — значит, кто-то готовит счёт',
-    cover: '🌫️',
+    cover: 'fog',
     requiredLevel: 30,
     flavor: 'Неделя без сирен. Слишком тихо: значит, кто-то уже готовит счёт.',
     steps: [
@@ -387,7 +405,7 @@ export const STORY_ARCS: StoryArc[] = [
     order: 6,
     title: 'Глава 6 · Ночной рынок',
     subtitle: 'Рынок знает твой ник; утро делает вид, что нет',
-    cover: '🌙',
+    cover: 'moon',
     requiredLevel: 38,
     flavor: 'Ночной рынок знает твой ник. Утро делает вид, что не знает.',
     steps: [
@@ -439,7 +457,7 @@ export const STORY_ARCS: StoryArc[] = [
     order: 7,
     title: 'Глава 7 · Корпоративный периметр',
     subtitle: 'Город переписывает тебя в свои схемы — на равных',
-    cover: '🏙️',
+    cover: 'city',
     requiredLevel: 45,
     flavor: 'Периметр взят. Город переписал тебя в свои схемы — теперь на равных.',
     steps: [
@@ -494,6 +512,66 @@ export const STORY_ARCS: StoryArc[] = [
     ],
     reward: { dataHours: 3, crypto: 60 },
   },
+  {
+    id: 'global',
+    order: 8,
+    title: 'Глава 8 · Global Hack',
+    subtitle: 'Врата открыты с той стороны',
+    cover: 'gate',
+    requiredLevel: 50,
+    flavor: 'Врата Global Hack открыты с обеих сторон. Город больше не ставит тебя в свои схемы — теперь ты ставишь.',
+    steps: [
+      {
+        id: 'global:1',
+        title: 'Эхо в чужих логах',
+        scene:
+          'Город перестал быть фоном. Каждый тап теперь эхо в чужих логах: кто-то собрал твою пачку и учится на ней. Продолжай — эхо тоже данные.',
+        requirement: { key: 'clicks', value: 5000, label: '5 000 тапов' },
+        reward: { dataHours: 2, crypto: 8 },
+      },
+      {
+        id: 'global:2',
+        title: 'Биография из заказов',
+        scene:
+          'Триста контрактов — это не сумма, это биография. Заказчики начали узнавать твой почерк раньше, чем ты сам. Почерк — тоже улика.',
+        requirement: { key: 'missions', value: 300, label: '300 контрактов' },
+        reward: { dataHours: 2.5, crypto: 9, chips: 3 },
+      },
+      {
+        id: 'global:3',
+        title: 'Без чеков',
+        scene:
+          'Серые взломы не оставляют чеков. Тридцать раз войти и выйти так, будто тебя не было, — это уже стиль, а не удача.',
+        requirement: { key: 'greyMissions', value: 30, label: '30 серых взломов' },
+        reward: { dataHours: 3, crypto: 10 },
+      },
+      {
+        id: 'global:4',
+        title: 'Слишком много медалей',
+        scene:
+          'Шестьдесят знаков в кармане — много для того, кто предпочитает тень. Тень заметили. Значит, пора стать заметной на своих условиях.',
+        requirement: { key: 'achievements', value: 60, label: '60 достижений' },
+        reward: { dataHours: 3.5, crypto: 11, chips: 3 },
+      },
+      {
+        id: 'global:5',
+        title: 'Очередь тишины',
+        scene:
+          'За воротами Global Hack тихо. Слишком тихо для места, куда стягивается весь город. Тишина — это очередь. Займи свою.',
+        requirement: { key: 'level', value: 52, label: '52 уровень' },
+        reward: { dataHours: 4, crypto: 12 },
+      },
+      {
+        id: 'global:6',
+        title: 'След, который не стереть',
+        scene:
+          'Периметр позади, врата впереди. Global Hack не спрашивает имя — он читает след. Оставь след, который нельзя стереть.',
+        requirement: { key: 'level', value: 55, label: '55 уровень' },
+        reward: { dataHours: 5, crypto: 14 },
+      },
+    ],
+    reward: { dataHours: 8, crypto: 60, chips: 5 },
+  },
 ];
 
 /** Быстрый доступ по id (сервер ищет шаг по нему, а не перебором в цикле). */
@@ -534,6 +612,8 @@ export function storyFactsFromPlayer(
     petFeedings: player.stats.petFeedings,
     achievements: player.achievements.length,
     bestHeatEscape: player.stats.bestHeatEscape,
+    // Один факт для сюжета: сервер хранит разбивку по тирам, шагам нужна сумма.
+    hacksByTier: Object.values(player.stats.hacksByTier ?? {}).reduce((sum, n) => sum + n, 0),
   };
 }
 
@@ -552,8 +632,8 @@ export function describeStoryReward(reward: StoryReward, arcLevel: number): stri
   const parts: string[] = [];
   const data = storyDataReward(reward, arcLevel);
   if (data > 0) parts.push(`+${data.toLocaleString('ru-RU')} Data`);
-  if (reward.crypto) parts.push(`+${reward.crypto} 💎`);
-  if (reward.chips) parts.push(`+${reward.chips} ⚙️`);
+  if (reward.crypto) parts.push(`+${reward.crypto} Crypto`);
+  if (reward.chips) parts.push(`+${reward.chips} чипов`);
   return parts.join(' · ');
 }
 
@@ -622,7 +702,7 @@ export interface StorySnapshot {
   arcId: string;
   title: string;
   subtitle: string;
-  cover: string;
+  cover: StoryCoverKey;
   requiredLevel: number;
   flavor: string;
   done: number;

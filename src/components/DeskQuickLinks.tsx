@@ -70,7 +70,7 @@ export const DeskQuickLinks: React.FC = () => {
         to="/story"
         qa="story-strip"
         title="История"
-        subtitle={story ? `${story.cover} ${story.title}` : 'главы мира'}
+        subtitle={story ? story.title : 'главы мира'}
         progress={story && story.claimable > 0 ? `${story.claimable}` : undefined}
         icon={<BookOpen className="h-4 w-4" />}
         accent="--ui-secondary"
