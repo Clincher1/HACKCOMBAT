@@ -47,6 +47,7 @@ export {
   Bot as HelpIcon,
   Briefcase as BriefcaseIcon,
   Archive as ArchiveIcon,
+  ArrowRight as ArrowRightIcon,
 } from 'lucide-react';
 
 export type UiIconProps = { className?: string };
