@@ -1,4 +1,4 @@
-import { ChevronDown, Clock3, Gem, Lock, ScrollText, Sparkles, Trophy } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 import {
   buildStoryViews,
@@ -17,7 +17,17 @@ import {
   getWeeklySlot,
 } from '../../shared/events.config';
 import { useGame } from '../context/GameContext';
-import { CheckIcon, CircleBulletIcon, TargetIcon } from '../components/ui-icons';
+import {
+  CheckIcon,
+  CircleBulletIcon,
+  ClockIcon,
+  CryptoIcon,
+  LockIcon,
+  ScrollIcon,
+  SparkIcon,
+  TargetIcon,
+  TrophyIcon,
+} from '../components/ui-icons';
 
 /**
  * Экран «История» (v6.8).
@@ -49,9 +59,15 @@ const StepRow: React.FC<{
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-[13px] font-bold text-slate-100">
-            {step.claimed ? <CheckIcon className="mr-1 inline h-3 w-3 align-[-1px] text-[var(--ui-success)]" /> : claimable ? <TargetIcon className="mr-1 inline h-3 w-3 align-[-1px] text-[var(--ui-primary)]" /> : <CircleBulletIcon className="mr-1 inline h-2 w-2 align-[1px] text-slate-600" />}
-            {step.title}
+          <p className="flex items-center gap-1.5 text-[13px] font-bold text-slate-100">
+            {step.claimed ? (
+              <CheckIcon className="h-3.5 w-3.5 shrink-0 text-[var(--ui-success)]" />
+            ) : claimable ? (
+              <TargetIcon className="h-3.5 w-3.5 shrink-0 text-[var(--ui-primary)]" />
+            ) : (
+              <CircleBulletIcon className="h-3 w-3 shrink-0 text-slate-500" />
+            )}
+            <span className="truncate">{step.title}</span>
           </p>
           <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{step.scene}</p>
         </div>
@@ -114,13 +130,13 @@ const ArcCard: React.FC<{
         onClick={() => setOpen((value) => !value)}
         className="flex w-full items-center gap-2.5 text-left"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-panel-deep)] text-[20px]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-panel-deep)] text-[16px]">
           {arc.cover}
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">
-            <span className="truncate text-[16px] font-extrabold text-slate-100">{arc.title}</span>
-            {!arc.open && <Lock className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
+            <span className="truncate text-[13px] font-extrabold text-slate-100">{arc.title}</span>
+            {!arc.open && <LockIcon className="h-3.5 w-3.5 shrink-0 text-slate-500" />}
             {claimable > 0 && (
               <span className="shrink-0 rounded-full bg-[var(--ui-primary)] px-1.5 text-[11px] font-extrabold text-[var(--ui-panel-deep)]">
                 {claimable}
@@ -153,7 +169,7 @@ const ArcCard: React.FC<{
             ))}
           </ul>
           <p className="mt-2 flex items-center gap-1.5 text-[11px] text-slate-400">
-            <Trophy className="h-3 w-3 text-[var(--ui-primary)]" />
+            <TrophyIcon className="h-3 w-3 text-[var(--ui-primary)]" />
             За всю главу:{' '}
             <strong className="font-bold text-slate-200">
               {describeStoryReward(arc.reward, arc.requiredLevel)}
@@ -190,8 +206,8 @@ export const StoryPage: React.FC = () => {
     <div className="space-y-3 pb-4" data-qa="story-page">
       <header className="rounded-2xl border border-[rgba(var(--ui-primary-rgb),0.30)] bg-[var(--ui-panel)]/85 p-3.5">
         <div className="flex items-center gap-2">
-          <ScrollText className="h-4 w-4 text-[var(--ui-primary)]" />
-          <h1 className="font-display text-[16px] font-extrabold tracking-wide text-slate-100">История</h1>
+          <ScrollIcon className="h-4 w-4 text-[var(--ui-primary)]" />
+          <h1 className="font-display text-[13px] font-extrabold tracking-wide text-slate-100">История</h1>
           <span className="ml-auto text-[11px] font-bold text-slate-400">
             Главы {closed}/{views.length}
           </span>
@@ -212,12 +228,12 @@ export const StoryPage: React.FC = () => {
         data-qa="story-events"
       >
         <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-slate-200">
-          <Sparkles className="h-3.5 w-3.5 text-[var(--ui-primary)]" />
+          <SparkIcon className="h-3.5 w-3.5 text-[var(--ui-primary)]" />
           {weekly.event.emoji} {weekly.event.title}
         </div>
         <p className="mt-1 text-[11px] text-slate-400">{weekly.event.showcase}</p>
         <p className="mt-1 flex items-center gap-1 text-[11px] text-[var(--ui-text-muted)]">
-          <Clock3 className="h-3 w-3" /> сейчас · до {formatEventEnd(weekly.endMs)} ·{' '}
+          <ClockIcon className="h-3 w-3" /> сейчас · до {formatEventEnd(weekly.endMs)} ·{' '}
           {describeEventModifiers(weekly.event.modifiers) || 'без модификаторов'}
         </p>
         <p className="mt-1.5 border-t border-slate-800 pt-1.5 text-[11px] text-slate-400">

@@ -594,7 +594,7 @@ async function call(tgId, route, body = undefined) {
   const stripSrc = fs.readFileSync(path.join(REPO, 'src/components/DeskQuickLinks.tsx'), 'utf8');
   check(
     'строка мира на столе не тянет тексты глав в главный бандл',
-    !/from '[^']*story\.config'/.test(stripSrc) && !/from "[^"]*story\.config"/.test(stripSrc) && stripSrc.includes('useGame()')
+    !/from '[^']*story\.config'/.test(stripSrc) && !/from "[^"]*story\.config"/.test(stripSrc) && !/from '[^']*events\.config'/.test(stripSrc) && stripSrc.includes('useGame()')
   );
   const storyPageSrc = fs.readFileSync(path.join(REPO, 'src/pages/StoryPage.tsx'), 'utf8');
   check(
