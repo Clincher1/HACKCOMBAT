@@ -14,7 +14,7 @@
     "qa:clicks": "node scripts/qa/clicks.mjs",
     "qa:offline": "node scripts/qa/offline-v32.mjs",
     "qa:integrity": "npx esbuild scripts/qa/integrity.ts --bundle --platform=node --format=cjs --outfile=/tmp/hk-integrity.cjs --log-level=warning && node /tmp/hk-integrity.cjs",
-    "qa:all": "npm run build && npm run qa:integrity && npm run qa:offline && npm run qa:daily-incident && npm run qa:profile-frame-gifts && npm run qa:profile-inventory-gifts && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:daily && npm run qa:contracts && npm run qa:hacks && npm run qa:lollipop && npm run qa:season && npm run qa:mission-costs && npm run qa:pets && npm run qa:profile-frames && npm run qa:leaderboard && npm run qa:themes && npm run qa:cosmetics && npm run qa:backdrops && npm run qa:demo && npm run qa:profile-inventory && npm run qa:funnel && npm run qa:onboarding && npm run qa:world && npm run qa:locations && npm run qa:retention && npm run qa:overlays && npm run qa:gameplay && npm run qa:economy && npm run qa:story && npm run qa:ui && npm run qa:release",
+    "qa:all": "npm run build && npm run qa:integrity && npm run qa:offline && npm run qa:daily-incident && npm run qa:profile-frame-gifts && npm run qa:profile-inventory-gifts && npm run qa:buy && npm run qa:donate && npm run qa:referral && npm run qa:chips && npm run qa:daily && npm run qa:contracts && npm run qa:hacks && npm run qa:lollipop && npm run qa:season && npm run qa:mission-costs && npm run qa:pets && npm run qa:profile-frames && npm run qa:leaderboard && npm run qa:themes && npm run qa:cosmetics && npm run qa:backdrops && npm run qa:demo && npm run qa:profile-inventory && npm run qa:funnel && npm run qa:onboarding && npm run qa:world && npm run qa:locations && npm run qa:retention && npm run qa:overlays && npm run qa:gameplay && npm run qa:economy && npm run qa:story && npm run qa:ui && npm run qa:bundle && npm run qa:release",
     "qa:buy": "node scripts/qa/buy-fast.mjs",
     "qa:donate": "node scripts/qa/donates.mjs",
     "qa:referral": "node scripts/qa/referral.mjs",
@@ -46,6 +46,7 @@
     "qa:economy": "node scripts/qa/economy.mjs",
     "qa:story": "node scripts/qa/story.mjs",
     "qa:ui": "node scripts/qa/ui.mjs",
+    "qa:bundle": "node scripts/qa/bundle-budget.mjs",
     "qa:release": "node scripts/qa/release-branch.mjs",
     "qa:overlays": "npx esbuild scripts/qa/overlays.ts --bundle --platform=node --format=cjs --jsx=automatic --banner:js=\"$(cat scripts/qa/prelude.cjs)\" --outfile=/tmp/hk-overlays.cjs --log-level=warning && node /tmp/hk-overlays.cjs"
   },

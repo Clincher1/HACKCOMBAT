@@ -1,0 +1,95 @@
+# ============================================================================
+# HACKER KOMBAT — инварианты визуала и экономики (v6.10).
+# ----------------------------------------------------------------------------
+# Зачем: правила «нет хардкод-hex», «эмодзи не иконка», «шкала 11/13/16/20/28»,
+# «престиж не врёт о цене каталога» и «главный чанк не растёт» до этого жили в
+# скриптах, которые можно было забыть запустить. Теперь они — гейт на каждом PR.
+#
+# Что проверяется:
+#   • tsc -b                      — типы;
+#   • node scripts/qa/ui.mjs      — палитра/hex, иконки/эмодзи, типографика,
+#                                   шрифты, HUD+навигация, бюджет CSS;
+#   • node scripts/qa/economy.mjs — экономика, включая престиж «цена = часы»;
+#   • node scripts/qa/bundle-budget.mjs — +0.6 kB gzip к главному чанку максимум.
+#
+# Почему не qa:all: полный набор поднимает эмуляцию API и занимает десятки
+# минут; он остаётся в релизном прогоне (land-release). Здесь — быстрые
+# инварианты, которые должны краснеть за ~2 минуты.
+#
+# Секретов не требуется: только встроенный GITHUB_TOKEN (read).
+# ============================================================================
+name: qa-invariants
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Новый коммит в ту же ветку отменяет прошлый прогон: PR не копит очередь.
+  group: qa-invariants-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  invariants:
+    name: invariants (ui + economy + budget)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --fund=false
+
+      - name: Типы (tsc -b)
+        run: npx tsc -b
+
+      - name: Бандл приложения
+        run: npm run build
+
+      - name: Ядро для QA (bundle-api)
+        run: node scripts/bundle-api.mjs
+
+      # Блок A–F: палитра, иконки, типографика, шрифты, HUD, CSS.
+      # Скан хардкод-hex и эмодзи-иконок живёт внутри ui.mjs (проверки
+      # «в .tsx нет ни одного хардкод-hex» и «эмодзи не используются в роли
+      # иконок»), поэтому отдельным grep его дублировать нельзя: grep не знает
+      # про исключения (hex в shared/*.config.ts, эмодзи в текстах сообщений).
+      - name: QA — визуальные инварианты (ui)
+        run: node scripts/qa/ui.mjs
+
+      - name: QA — экономика и престиж (economy)
+        run: node scripts/qa/economy.mjs
+
+      - name: QA — бюджет главного чанка
+        run: node scripts/qa/bundle-budget.mjs
+
+      - name: Сводка в job summary
+        if: always()
+        run: |
+          {
+            echo "## qa-invariants"
+            echo ""
+            echo "| гейт | скрипт |"
+            echo "| --- | --- |"
+            echo "| визуал | \`scripts/qa/ui.mjs\` |"
+            echo "| экономика | \`scripts/qa/economy.mjs\` |"
+            echo "| бандл | \`scripts/qa/bundle-budget.mjs\` |"
+            echo ""
+            echo "Правила: hex только в конфигах/теме, иконки — lucide через"
+            echo "\`src/components/ui-icons.tsx\`, шкала 11/13/16/20/28 px,"
+            echo "главный чанк +0.6 kB gzip максимум."
+          } >> "$GITHUB_STEP_SUMMARY"
