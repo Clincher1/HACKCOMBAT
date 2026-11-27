@@ -17,6 +17,7 @@ import {
   getWeeklySlot,
 } from '../../shared/events.config';
 import { useGame } from '../context/GameContext';
+import { StoryCoverIcon } from '../components/StoryCoverIcon';
 import {
   CheckIcon,
   CircleBulletIcon,
@@ -130,8 +131,8 @@ const ArcCard: React.FC<{
         onClick={() => setOpen((value) => !value)}
         className="flex w-full items-center gap-2.5 text-left"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-panel-deep)] text-[16px]">
-          {arc.cover}
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--ui-panel-deep)] text-[var(--ui-primary)]">
+          <StoryCoverIcon cover={arc.cover} className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5">

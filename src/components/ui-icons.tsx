@@ -48,6 +48,14 @@ export {
   Briefcase as BriefcaseIcon,
   Archive as ArchiveIcon,
   ArrowRight as ArrowRightIcon,
+  CloudFog as FogIcon,
+  DoorOpen as GateIcon,
+  HardDrive as DiskIcon,
+  Radar as AntennaIcon,
+  Snowflake as IceIcon,
+  Satellite as SatelliteIcon,
+  Building2 as CityIcon,
+  MoonStar as MoonIcon,
 } from 'lucide-react';
 
 export type UiIconProps = { className?: string };
@@ -122,3 +130,4 @@ export const StageIcon: React.FC<{ stage: number; locked?: boolean; className?: 
   const Component = STAGE_ICONS[stage] ?? Monitor;
   return <Component className={className} />;
 };
+

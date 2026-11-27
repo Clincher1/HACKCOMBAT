@@ -462,6 +462,12 @@ export interface PlayerProgressStats {
   /** Опыт по классам целей: сколько успехов и провалов было для каждого типа. */
   hackSuccessByType: Record<string, number>;
   hackFailByType: Record<string, number>;
+  /**
+   * v6.11: успешные взломы по тирам (ключ — тир 1..6). Инкрементируется только
+   * на исходе success; провал и частичный результат счётчик не двигают.
+   * Живёт в существующем players.stats jsonb — миграции не требуется.
+   */
+  hacksByTier: Record<string, number>;
   /** Всего XP добыто (дублирует players.xp для статистики профиля). */
   totalXpEarned: number;
   /** Когда последний раз начислялась «фоновая копилка тапов» (ISO). */

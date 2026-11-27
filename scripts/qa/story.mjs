@@ -1,8 +1,8 @@
 /**
- * HACKER KOMBAT — QA v6.8: сюжет и ивенты.
+ * HACKER KOMBAT — QA v6.11: сюжет и ивенты.
  *
  * Проверяет то, что нельзя увидеть глазами:
- *   A. S СЮЖЕТ-КОНФИГ. Восемь глав по уровням, 3–6 шагов, уникальные id,
+ *   A. S СЮЖЕТ-КОНФИГ. Девять глав по уровням (до Global Hack), 3–6 шагов, уникальные id,
  *      требования — только существующие факты прогрессии, награды в разумных
  *      пределах (Data в часах дохода, Crypto не ломает экономику v6.6).
  *   B. СЕРВЕР. Глава закрыта до уровня, шаг не принимает невыполненный прогресс,
@@ -85,6 +85,8 @@ const ALLOWED_FACTS = new Set([
   'petFeedings',
   'achievements',
   'bestHeatEscape',
+  // v6.11: суммарные успешные взломы по тирам (разбивка — в stats.hacksByTier).
+  'hacksByTier',
 ]);
 
 const XP_LOW = 0;
@@ -94,6 +96,7 @@ const XP_MAX = cfg.getTotalXpForLevel(50);
 const TG_LOW = 991000101; // низкий уровень: главы закрыты
 const TG_FACTS = 991000202; // всё выполнено, но ничего не забрано
 const TG_PARTIAL = 991000303; // выполнено частично (для отказа)
+const TG_GLOBAL = 991000606; // 55 уровень: глава 8 «Global Hack»
 const TG_HEAT = 991000404; // тихая неделя: Heat ×0.5
 const TG_MARKET = 991000505; // ночной рынок: без модификатора Heat
 
@@ -191,6 +194,21 @@ const records = {
     totalMissions: 1,
     stats: { ...makeRecord(TG_PARTIAL, XP_MID).stats, greyMissions: 0, petFeedings: 0, bestHeatEscape: 0 },
   }),
+  // Глава 8 целиком: 55 уровень, 6000 тапов, 320 контрактов, 30 серых, 60 достижений.
+  [TG_GLOBAL]: makeRecord(TG_GLOBAL, cfg.getTotalXpForLevel(55), {
+    totalClicks: 6000,
+    totalMissions: 320,
+    achievements: Array.from({ length: 60 }, (_, i) => `qa_g_ach_${i + 1}`),
+    chips: 10,
+    crypto: 20,
+    stats: {
+      ...makeRecord(TG_GLOBAL, cfg.getTotalXpForLevel(55)).stats,
+      greyMissions: 30,
+      petFeedings: 5,
+      bestHeatEscape: 90,
+      hacksByTier: {},
+    },
+  }),
   [TG_HEAT]: makeRecord(TG_HEAT, XP_MID, { achievements: achievementsAll }),
   [TG_MARKET]: makeRecord(TG_MARKET, XP_MID, { achievements: achievementsAll }),
 };
@@ -264,18 +282,18 @@ async function call(tgId, route, body = undefined) {
 }
 
 (async () => {
-  console.log('=== HACKER KOMBAT — QA v6.8: сюжет и ивенты ===\n');
+  console.log('=== HACKER KOMBAT — QA v6.11: сюжет и ивенты ===\n');
 
   // ── A. Конфиг сюжета ────────────────────────────────────────────────────
   const arcs = cfg.STORY_ARCS;
-  check('восемь глав: Пролог + семь вех', arcs.length === 8, `${arcs.length}`);
+  check('девять глав: Пролог + семь вех + Global Hack', arcs.length === 9, `${arcs.length}`);
   check(
-    'главы открываются по уровням 1/2/8/15/22/30/38/45',
-    arcs.map((arc) => arc.requiredLevel).join(',') === '1,2,8,15,22,30,38,45',
+    'главы открываются по уровням 1/2/8/15/22/30/38/45/50',
+    arcs.map((arc) => arc.requiredLevel).join(',') === '1,2,8,15,22,30,38,45,50',
     arcs.map((arc) => arc.requiredLevel).join(',')
   );
   check(
-    'порядок глав непрерывен (order 0…7)',
+    'порядок глав непрерывен (order 0…8)',
     arcs.every((arc, index) => arc.order === index)
   );
   check(
@@ -301,9 +319,11 @@ async function call(tgId, route, body = undefined) {
   );
   const totalCrypto = allSteps.reduce((sum, step) => sum + (step.reward.crypto ?? 0), 0) +
     arcs.reduce((sum, arc) => sum + (arc.reward.crypto ?? 0), 0);
+  // v6.11: глава 8 добавила 124 Crypto, поэтому потолок поднят с 500 до 700:
+  // 569 на 44 шага — это по-прежнему «две-три рамки профиля за весь сюжет».
   check(
-    'Crypto за весь сюжет не ломает экономику (≤ 500 — это ~две рамки профиля за 40 шагов)',
-    totalCrypto > 0 && totalCrypto <= 500,
+    'Crypto за весь сюжет не ломает экономику (≤ 700)',
+    totalCrypto > 0 && totalCrypto <= 700,
     `${totalCrypto} Crypto`
   );
   check(
@@ -317,9 +337,93 @@ async function call(tgId, route, body = undefined) {
     allSteps.every((step) => step.scene.split(/[.!?]\s/).length >= 2 && step.scene.length <= 320),
     `макс ${Math.max(...allSteps.map((step) => step.scene.length))} символов`
   );
+  // v6.11: обложка — ключ маппера ui-icons, а не текстовый эмодзи-глиф.
+  const COVER_KEYS = new Set(['ice', 'antenna', 'signal', 'shades', 'disk', 'fog', 'moon', 'city', 'gate']);
+  const EMOJI = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u;
   check(
     'у каждой главы есть флавор мира и обложка',
     arcs.every((arc) => arc.flavor.length > 20 && Boolean(arc.cover))
+  );
+  check(
+    'обложки — ключи маппера, эмодзи-глифов в данных нет',
+    arcs.every((arc) => COVER_KEYS.has(arc.cover) && !EMOJI.test(arc.cover)),
+    arcs.map((arc) => arc.cover).join(',')
+  );
+  check(
+    'в текстах глав не осталось эмодзи-иконок',
+    arcs.every((arc) => !EMOJI.test(arc.title + arc.subtitle + arc.flavor)) &&
+      allSteps.every((step) => !EMOJI.test(step.scene + step.title))
+  );
+
+  // ── A2. Глава 8 «Global Hack»: контент заказчика как есть ────────────────
+  const globalArc = arcs.find((arc) => arc.id === 'global');
+  check('глава 8 существует и стоит последней', Boolean(globalArc) && arcs[arcs.length - 1].id === 'global');
+  check(
+    'Г8 открывается на 50 уровне, подзаголовок — «Врата открыты с той стороны»',
+    globalArc?.requiredLevel === 50 && globalArc?.subtitle === 'Врата открыты с той стороны',
+    `${globalArc?.requiredLevel} · ${globalArc?.subtitle}`
+  );
+  check(
+    'Г8: шесть шагов с id global:1…6',
+    globalArc?.steps.length === 6 && globalArc.steps.every((step, i) => step.id === `global:${i + 1}`),
+    (globalArc?.steps ?? []).map((step) => step.id).join(',')
+  );
+  check(
+    'Г8: задачи по фактам 5000 тапов / 300 контрактов / 30 серых / 60 достижений / 52 и 55 уровни',
+    (globalArc?.steps ?? []).map((step) => `${step.requirement.key}=${step.requirement.value}`).join(',') ===
+      'clicks=5000,missions=300,greyMissions=30,achievements=60,level=52,level=55',
+    (globalArc?.steps ?? []).map((step) => `${step.requirement.key}=${step.requirement.value}`).join(',')
+  );
+  check(
+    'Г8: Data задана в часах 2/2.5/3/3.5/4/5, Crypto 8/9/10/11/12/14',
+    (globalArc?.steps ?? []).map((step) => step.reward.dataHours).join(',') === '2,2.5,3,3.5,4,5' &&
+      (globalArc?.steps ?? []).map((step) => step.reward.crypto).join(',') === '8,9,10,11,12,14',
+    (globalArc?.steps ?? []).map((step) => step.reward.dataHours).join(',')
+  );
+  check(
+    'Г8: чипы только на шагах 2 и 4 — по 3 (первое использование reward.chips)',
+    globalArc?.steps.filter((step) => (step.reward.chips ?? 0) > 0).length === 2 &&
+      globalArc.steps[1].reward.chips === 3 &&
+      globalArc.steps[3].reward.chips === 3,
+    (globalArc?.steps ?? []).map((step) => step.reward.chips ?? 0).join(',')
+  );
+  check(
+    'Г8: бонус главы 8 часов Data + 60 Crypto + 5 чипов',
+    globalArc?.reward.dataHours === 8 && globalArc?.reward.crypto === 60 && globalArc?.reward.chips === 5,
+    JSON.stringify(globalArc?.reward ?? null)
+  );
+  check(
+    'Г8: флавор мира — строка заказчика',
+    globalArc?.flavor ===
+      'Врата Global Hack открыты с обеих сторон. Город больше не ставит тебя в свои схемы — теперь ты ставишь.'
+  );
+  check(
+    'сцены Г8 в диапазоне остальных глав (81–169 символов)',
+    (globalArc?.steps ?? []).every((step) => step.scene.length >= 81 && step.scene.length <= 169),
+    (globalArc?.steps ?? []).map((step) => step.scene.length).join(',')
+  );
+
+  // ── A3. Пролог: один источник текста на два экрана ───────────────────────
+  const storySrc = fs.readFileSync(path.join(REPO, 'shared/story.config.ts'), 'utf8');
+  const chapterSrc = fs.readFileSync(path.join(REPO, 'shared/chapter.config.ts'), 'utf8');
+  const prologSrc = fs.readFileSync(path.join(REPO, 'shared/story.prologue.ts'), 'utf8');
+  check(
+    'пролог в сюжете берёт сцены из общего модуля',
+    /scene:\s*PROLOGUE_SCENES\.terminal/.test(storySrc) &&
+      /scene:\s*PROLOGUE_SCENES\.firstTrace/.test(storySrc) &&
+      /scene:\s*PROLOGUE_SCENES\.networkNoise/.test(storySrc)
+  );
+  check(
+    'онбординг /hacks не держит своих текстов — читает те же строки',
+    /from '\.\/story\.prologue'/.test(chapterSrc) &&
+      /deskBrief:\s*PROLOGUE_SCENES\.\w+/.test(chapterSrc) &&
+      /missionBrief:\s*PROLOGUE_SCENES\.\w+/.test(chapterSrc) &&
+      !chapterSrc.includes('Новый оператор начинает не с громкого рейда')
+  );
+  check(
+    'общий модуль пролога — три сцены и никаких других глав',
+    (prologSrc.match(/^\s{2}[a-zA-Z]+:/gm) ?? []).length === 3 &&
+      !prologSrc.includes('Global Hack')
   );
   check(
     'сюжет переживает престиж (в списке «остаётся»)',
@@ -440,6 +544,87 @@ async function call(tgId, route, body = undefined) {
     'снимок подсказывает, сколько наград уже можно забрать',
     Number.isInteger(partialInit.story.claimable) && partialInit.story.claimable >= 0,
     String(partialInit.story.claimable)
+  );
+
+  // ── B2. Глава 8: выплаты, чипы, одноразовость ───────────────────────────
+  const globalInit = await call(TG_GLOBAL, 'init');
+  const g1Before = { crypto: globalInit.player.crypto, chips: globalInit.player.chips, data: globalInit.player.data };
+  const g1 = await call(TG_GLOBAL, 'story', { action: 'claim', stepId: 'global:1' });
+  check('Г8 открыта на 50 уровне и шаг забирается', g1.ok === true, String(g1.error ?? ''));
+  check(
+    'Г8:1 платит Data по формуле часов главы (2 ч дохода L50)',
+    Math.round(g1.player.data - g1Before.data) === cfg.storyDataReward(globalArc.steps[0].reward, 50),
+    `${Math.round(g1.player.data - g1Before.data)} vs ${cfg.storyDataReward(globalArc.steps[0].reward, 50)}`
+  );
+  check(
+    'Г8:1 не выдаёт чипов (они только на шагах 2 и 4)',
+    g1.player.chips === g1Before.chips,
+    `${g1.player.chips} vs ${g1Before.chips}`
+  );
+  const g1Again = await call(TG_GLOBAL, 'story', { action: 'claim', stepId: 'global:1' });
+  check(
+    'Г8: повторный забор шага отклонён и ничего не платит',
+    g1Again.ok === false || (g1Again.player?.crypto ?? 0) <= g1.player.crypto,
+    String(g1Again.error ?? '')
+  );
+
+  const g2 = await call(TG_GLOBAL, 'story', { action: 'claim', stepId: 'global:2' });
+  // Чипы сюжета проверяем по алерту, а не по балансу: за тот же шаг могут
+  // прилететь чипы за достижения, и дельта баланса врёт.
+  const g2Alert = (g2.alerts ?? []).find((alert) => String(alert.title) === 'Биография из заказов');
+  check(
+    'Г8:2 выдаёт 3 чипа — первое использование reward.chips',
+    g2.ok === true && /\+3 ⚙️ Чипов/.test(String(g2Alert?.message ?? '')),
+    String(g2Alert?.message ?? 'алерта нет')
+  );
+
+  let gLast = null;
+  for (const stepId of ['global:3', 'global:4', 'global:5', 'global:6']) {
+    gLast = await call(TG_GLOBAL, 'story', { action: 'claim', stepId });
+    if (!gLast.ok) break;
+  }
+  check('глава 8 закрывается целиком', gLast?.ok === true, String(gLast?.error ?? ''));
+  const bonusAlert = (gLast?.alerts ?? []).find((alert) => /Глава закрыта/.test(String(alert.title)));
+  check(
+    'Г8: бонус 60 Crypto + 5 чипов объявлен игроку',
+    /\+60 💎/.test(String(bonusAlert?.message ?? '')) && /\+5 ⚙️/.test(String(bonusAlert?.message ?? '')),
+    String(bonusAlert?.message ?? 'алерта нет')
+  );
+  check(
+    'Г8: бонус главы начислен ровно один раз',
+    gLast.player.stats.storyChaptersPaid.filter((id) => id === 'global').length === 1,
+    JSON.stringify(gLast.player.stats.storyChaptersPaid)
+  );
+  check(
+    'после Г8 строка мира на столе — флавор Global Hack',
+    gLast.story?.flavor === globalArc.flavor && gLast.story.completedArcs >= 1,
+    `${gLast.story?.completedArcs} · ${gLast.story?.flavor}`
+  );
+
+  // ── B3. hacksByTier: только успешные взломы ─────────────────────────────
+  const engineSrc = fs.readFileSync(path.join(REPO, 'api/_lib/gameEngine.ts'), 'utf8');
+  check(
+    'hacksByTier инкрементируется внутри ветки success',
+    /if \(outcome === 'success'\) \{/.test(engineSrc) &&
+      /if \(outcome === 'success'\) \{[\s\S]{0,700}hacksByTier\[/.test(engineSrc) &&
+      !/else if \(outcome === 'fail'\) \{[\s\S]{0,400}hacksByTier\[/.test(engineSrc),
+    'инкремент должен стоять только в успехе'
+  );
+  check(
+    'сюжетный факт hacksByTier — сумма по тирам',
+    /hacksByTier: Object\.values\(record\.stats\.hacksByTier \?\? \{\}\)\.reduce/.test(engineSrc)
+  );
+  const tierStartKey = (globalInit.player.availableMissionKeys ?? [])[0];
+  const tierStart = tierStartKey ? await call(TG_GLOBAL, 'missions', { action: 'start', missionKey: tierStartKey }) : null;
+  const tierMission = (tierStart?.player?.activeMissions ?? [])[0];
+  const tierSkip = tierMission
+    ? await call(TG_GLOBAL, 'missions', { action: 'skip', missionId: tierMission.id })
+    : null;
+  const tierMap = tierSkip?.player?.stats?.hacksByTier ?? {};
+  check(
+    'частичный результат (пропуск за Crypto) не двигает счётчик тиров',
+    Boolean(tierSkip) && Object.values(tierMap).reduce((sum, n) => sum + n, 0) === 0,
+    JSON.stringify(tierMap)
   );
 
   // ── C. Ивенты: окна, ротация, модификаторы ──────────────────────────────
@@ -577,7 +762,6 @@ async function call(tgId, route, body = undefined) {
   );
 
   // ── D. Исходники: модификаторы и ленивый экран ──────────────────────────
-  const engineSrc = fs.readFileSync(path.join(REPO, 'api/_lib/gameEngine.ts'), 'utf8');
   check(
     'Heat контракта умножается на модификатор ивента',
     /where\.mods\.heat \* eventMods\.heatMult/.test(engineSrc)

@@ -283,6 +283,7 @@ const EMPTY_STATS: PlayerProgressStats = {
   trackEventsDay: null,
   hackSuccessByType: {},
   hackFailByType: {},
+  hacksByTier: {},
   totalXpEarned: 0,
   lastTapClaimAt: null,
   activeDayKey: null,
@@ -708,6 +709,8 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     locationId: getLocation(src.locationId)?.id,
     hackSuccessByType: numRecord(src.hackSuccessByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     hackFailByType: numRecord(src.hackFailByType, new Set(['bad', 'good', 'neutral', 'grey'])),
+    // v6.11: ключ — тир контракта 1..6, значение — успешные взломы этого тира.
+    hacksByTier: numRecord(src.hacksByTier, new Set(['1', '2', '3', '4', '5', '6'])),
     totalXpEarned: num(src.totalXpEarned, 1e12),
     lastTapClaimAt:
       typeof src.lastTapClaimAt === 'string' && !Number.isNaN(new Date(src.lastTapClaimAt).getTime())
@@ -2071,6 +2074,7 @@ function storyFactsFromRecord(record: StoredPlayerRecord) {
     petFeedings: record.stats.petFeedings,
     achievements: record.achievements.length,
     bestHeatEscape: record.stats.bestHeatEscape,
+    hacksByTier: Object.values(record.stats.hacksByTier ?? {}).reduce((sum, n) => sum + n, 0),
   };
 }
 
@@ -3760,6 +3764,14 @@ export async function handleMissionAction(
     if (outcome === 'success') {
       const ok = record.stats.hackSuccessByType;
       ok[mission.targetType] = (ok[mission.targetType] ?? 0) + 1;
+      // v6.11: тир берём из конфига контракта (в активной миссии он не хранится,
+      // чтобы старые сейвы не зависели от нового поля). Провал и частичный
+      // результат счётчик не двигают — «успешный взлом» значит именно success.
+      const tierCfg = MISSIONS_CONFIG.find((m) => m.key === mission.missionKey);
+      if (tierCfg) {
+        const tierKey = String(tierCfg.tier);
+        record.stats.hacksByTier[tierKey] = (record.stats.hacksByTier[tierKey] ?? 0) + 1;
+      }
     } else if (outcome === 'fail') {
       const bad = record.stats.hackFailByType;
       bad[mission.targetType] = (bad[mission.targetType] ?? 0) + 1;
@@ -4196,7 +4208,7 @@ export async function handleStoryClaim(
     alerts.push({
       id: crypto.randomUUID(),
       type: 'success',
-      title: `${arc.cover} ${step.title}`,
+      title: step.title,
       message: rewardParts.length > 0 ? `Шаг закрыт. ${rewardParts.join(' · ')}.` : 'Шаг закрыт.',
     });
 
