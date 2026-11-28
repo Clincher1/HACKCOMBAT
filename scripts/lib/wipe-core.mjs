@@ -41,6 +41,10 @@ export const PLAYER_TABLES = [
   'new_year_candy',
   'pets',
   'team',
+  // «Инвентарь оживает»: предметы и журнал дропа уходят вместе с игроком.
+  // Оба ключа по player_id с ON DELETE CASCADE (миграция 022).
+  'player_items',
+  'item_drops',
   'operator_archive',
   'operator_legacy_cutoff',
   'referral_codes',
@@ -79,7 +83,7 @@ export function buildPlan() {
       table: 'players',
       action: 'delete',
       filterColumn: 'id',
-      note: 'каскад заберёт achievements, base_upgrades, cards, missions, new_year_candy, pets, team',
+      note: 'каскад заберёт achievements, base_upgrades, cards, missions, new_year_candy, pets, team, player_items, item_drops',
     },
     { table: 'operator_archive', action: 'delete', filterColumn: 'tg_id', note: 'архив оператора по tg' },
     { table: 'operator_legacy_cutoff', action: 'delete', filterColumn: 'tg_id', note: 'легаси-метки по tg' },

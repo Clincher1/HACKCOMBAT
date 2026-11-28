@@ -173,6 +173,7 @@ export const TopHud: React.FC = () => {
               type="button"
               onClick={() => setInventoryOpen(true)}
               data-qa="hud-inventory"
+              data-new={player.stats.hasNewItems ? '' : undefined}
               aria-label="Инвентарь"
               className={`${HUD_GLOW_BUTTON} hud-glow--primary text-[var(--ui-primary)]`}
             >

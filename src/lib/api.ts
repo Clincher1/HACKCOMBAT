@@ -19,7 +19,7 @@ export class ApiError extends Error {
   }
 }
 
-async function apiRequest<T>(path: string, method: 'GET' | 'POST' = 'POST', body?: unknown): Promise<T> {
+export async function apiRequest<T>(path: string, method: 'GET' | 'POST' = 'POST', body?: unknown): Promise<T> {
   const tg = initTelegramMiniApp();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

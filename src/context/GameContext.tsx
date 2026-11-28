@@ -141,6 +141,8 @@ export interface GameContextValue {
   buyOrEquipSkin: (skinKey: string) => Promise<void>;
   buyOrEquipProfileFrame: (frameKey: string) => Promise<void>;
   setInventoryVisibility: (itemKey: string, visible: boolean) => Promise<void>;
+  /** Применить серверный ответ, полученный не через runAction (ленивые экраны). */
+  syncFromServer: (res: ApiSyncResponse) => void;
   /** Выбранная бесплатная базовая тема (v3.6.1). */
   baseTheme: BaseThemeConfig;
   setBaseTheme: (key: BaseThemeKey) => Promise<void>;
@@ -1195,6 +1197,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [runAction]
   );
 
+
+
   const setBaseTheme = useCallback(
     (key: BaseThemeKey) =>
       runAction(`theme:${key}`, (clicks) => gameApi.skinAction('set_theme', key, clicks), true, 'light'),
@@ -1587,6 +1591,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       buyOrEquipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
+      syncFromServer: applyServerSync,
       baseTheme,
       setBaseTheme,
       deskBackdrop,
@@ -1663,6 +1668,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       buyOrEquipSkin,
       buyOrEquipProfileFrame,
       setInventoryVisibility,
+      applyServerSync,
       baseTheme,
       setBaseTheme,
       deskBackdrop,

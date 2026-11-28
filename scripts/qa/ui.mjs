@@ -489,10 +489,11 @@ check(
     /Предметы появятся позже/.test(inventorySource)
 );
 check(
-  'инвентарь: механики нет — экран не читает игрока, инвентарь и API',
-  !inventorySource.includes('useGame') &&
-    !inventorySource.includes('gameApi') &&
-    !/inventory\.ownedKeys|player\./.test(inventorySource)
+  'инвентарь: экран читает только player.items и не пересчитывает баланс сам',
+  inventorySource.includes('useGame') &&
+    inventorySource.includes('player?.items') &&
+    !/player\.(data|crypto|energy|heat)\s*[-+]?=/.test(inventorySource) &&
+    !/inventory\.ownedKeys/.test(inventorySource)
 );
 check('инвентарь: кнопка закрытия ≥ 44 px', inventorySource.includes('min-h-[44px] min-w-[44px]'));
 
