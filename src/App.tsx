@@ -1,6 +1,6 @@
 import { RefreshCw, WifiOff } from 'lucide-react';
 import React, { Suspense } from 'react';
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AlertStack } from './components/AlertStack';
 import { BottomNav } from './components/BottomNav';
 import { LocationBackdrop } from './components/LocationBackdrop';
@@ -48,17 +48,6 @@ const ModalsAndOverlays = React.lazy(async () => {
   const module = await import('./components/Modals');
   return { default: module.ModalsAndOverlays };
 });
-// v4.3: демо-витрина всех открытий.
-// v6.4: билд-тайм флаг __HK_DEMO__ (см. vite.config.mts) — в прод-сборке он
-// false, поэтому динамический import вырезается и чанк витрины не эмитится.
-// Для отладки: VITE_ENABLE_DEMO=1 npm run build (или npm run dev — там true).
-const DemoPage = __HK_DEMO__
-  ? React.lazy(async () => {
-      const module = await import('./pages/DemoPage');
-      return { default: module.DemoPage };
-    })
-  : null;
-
 const RouteLoading: React.FC = () => (
   <div className="min-h-[55vh] flex flex-col items-center justify-center text-center">
     <div className="w-9 h-9 rounded-xl border-2 border-[var(--ui-primary)] border-t-transparent animate-spin mb-3" />
@@ -182,28 +171,11 @@ const AppShell: React.FC = () => {
 };
 
 /**
- * /demo живёт ВНЕ GameProvider: витрина не должна зависеть от Telegram-сессии,
- * от /api/init и не может ничего записать в живой сейв. Остальные маршруты —
- * обычная игра.
+ * v1.1: демо-витрины контента в игре больше нет — маршрут удалён вместе со
+ * страницей, каталогом и build-флагом. Любой путь, включая старую закладку с
+ * витриной, открывает обычную игру.
  */
 const AppRoutes: React.FC = () => {
-  const { pathname } = useLocation();
-  const normalized = pathname.replace(/\/+$/, '') || '/';
-
-  if (__HK_DEMO__ && DemoPage && normalized === '/demo') {
-    return (
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-[var(--ui-panel-deep)] flex items-center justify-center">
-            <div className="w-9 h-9 rounded-xl border-2 border-[var(--ui-secondary)] border-t-transparent animate-spin" />
-          </div>
-        }
-      >
-        <DemoPage />
-      </Suspense>
-    );
-  }
-
   return (
     <GameProvider>
       <AppShell />

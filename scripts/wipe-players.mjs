@@ -18,9 +18,12 @@
  * referral_codes, referrals). Админский аккаунт вайпается наравне со всеми.
  *
  * Что остаётся: client_events (телеметрия по дням) — только отвязывается от
- * игрока; donations (денежная история) — не трогаем, только player_id → NULL
- * делает сама БД (FK ON DELETE SET NULL). Удалить деньги можно явно:
- * --include-donations.
+ * игрока.
+ *
+ * v1.1: таблица donations к игре не относится (донат живёт в боте, в Telegram
+ * Stars), поэтому в план вайпа не входит вообще — ни шагом, ни флагом. Её
+ * единственное касание — FK ON DELETE SET NULL у игрока, который БД делает сама
+ * при удалении записи игрока. Строки и таблицу не трогаем.
  *
  * Окружение: SUPABASE_URL (+ VITE_SUPABASE_URL как запасной) и
  * SUPABASE_SERVICE_ROLE_KEY. В Vercel они уже есть — тем же ключом пользуется API.
@@ -53,7 +56,6 @@ const ORDER_BY = {
   pets: 'id',
   team: 'id',
   client_events: 'id',
-  donations: 'id',
   new_year_candy: 'player_id',
   operator_archive: 'tg_id',
   operator_legacy_cutoff: 'tg_id',
@@ -69,7 +71,6 @@ function usage() {
     '  node scripts/wipe-players.mjs --backup-only  сделать бэкап в backups/ и выйти',
     '  node scripts/wipe-players.mjs --confirm      бэкап → вайп → сверка',
     '',
-    '  --include-donations  удалить и денежную историю (по умолчанию сохраняется)',
     '  --out <file>         путь бэкапа (по умолчанию backups/players-<дата>.json)',
     '  --json               машинный вывод статистики (dry-run)',
     '',
@@ -79,12 +80,11 @@ function usage() {
 }
 
 function parseArgs(argv) {
-  const args = { confirm: false, backupOnly: false, includeDonations: false, out: null, json: false, help: false };
+  const args = { confirm: false, backupOnly: false, out: null, json: false, help: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--confirm') args.confirm = true;
     else if (arg === '--backup-only') args.backupOnly = true;
-    else if (arg === '--include-donations') args.includeDonations = true;
     else if (arg === '--json') args.json = true;
     else if (arg === '--help' || arg === '-h') args.help = true;
     else if (arg === '--out') {
@@ -203,7 +203,7 @@ async function main() {
     console.log(usage());
     return 0;
   }
-  const plan = assertPlanSafe(buildPlan({ includeDonations: args.includeDonations }));
+  const plan = assertPlanSafe(buildPlan());
   const env = resolveEnv();
   if (!env.url || !env.key) {
     console.error('Нет окружения: нужны SUPABASE_URL (или VITE_SUPABASE_URL) и SUPABASE_SERVICE_ROLE_KEY.');
@@ -274,7 +274,6 @@ async function main() {
   console.log('\nСверка после вайпа:');
   console.log(`  players: ${counts.players} → ${after.players}`);
   console.log(`  client_events: ${after.client_events} строк, привязано к игрокам: ${detachedLeft ?? 0}`);
-  console.log(`  donations: ${after.donations} строк (история сохранена${args.includeDonations ? ' — но запрошено удаление' : ''})`);
   if (problems.length > 0) {
     for (const problem of problems) console.error(`  ✗ ${problem}`);
     return 1;

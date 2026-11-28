@@ -276,6 +276,182 @@ check(
     !fs.existsSync(path.join(SRC, 'components/StoryStrip.tsx'))
 );
 
+// ── G. Узкие экраны: карточки тем без обрезанного текста ───────────────────
+/**
+ * Геометрия онбординга и магазина тем считается той же арифметикой, что видит
+ * браузер: 3 колонки в модале max-w-lg, p-3/p-5 снаружи, p-3.5/p-5 внутри,
+ * p-2.5/p-3 в карточке. Ширины 320–390 px — самые узкие реальные телефоны.
+ * Проверяем две вещи, которые заказчик видел срезанными:
+ *   1) плашка «бесплатно» — теперь на всю ширину карточки, обязана влезать;
+ *   2) «HACKER KOMBAT» — SVG с viewBox, обязан масштабироваться, а не обрезаться.
+ */
+function themeCardInner(viewport) {
+  const narrow = viewport < 640;
+  const modalW = Math.min(viewport, 512) - (narrow ? 12 : 20) * 2; // p-3 / sm:p-5
+  const contentW = modalW - (narrow ? 14 : 20) * 2; // p-3.5 / sm:p-5
+  const gap = narrow ? 8 : 10; // gap-2 / sm:gap-2.5
+  const cardW = (contentW - gap * 2) / 3;
+  return cardW - (narrow ? 8 : 12) * 2; // p-2 / sm:p-3
+}
+
+/** Ширина строки: консервативная оценка (0.62em на символ + трекинг). */
+const textWidth = (text, fontSize, letterSpacing = 0) => {
+  const perChar = /[А-ЯA-Z]/.test(text[0]) ? 0.72 : 0.62;
+  return text.length * fontSize * perChar + Math.max(0, text.length - 1) * letterSpacing;
+};
+
+const onboardingSource = read('src/components/ThemeOnboardingModal.tsx');
+const shopSource = read('src/components/Modals.tsx');
+
+check(
+  'темы: плашка цены — на всю ширину карточки (не может срезаться справа)',
+  (onboardingSource.match(/data-qa="theme-price"/g) ?? []).length === 1 &&
+    onboardingSource.includes('mt-2 w-full truncate rounded-md px-0.5 py-0.5 text-center') &&
+    (shopSource.match(/data-qa="theme-price"/g) ?? []).length === 1 &&
+    shopSource.includes('mt-1.5 w-full truncate rounded-md px-1 py-0.5 text-center')
+);
+check(
+  'темы: в верхней строке карточки нет текстового бейджа (только глиф и отметка)',
+  !/justify-between gap-1">\s*<span className="text-\[20px\]/.test(onboardingSource) &&
+    !onboardingSource.includes('rounded-md bg-black/35 px-1.5 py-0.5 text-[11px] font-bold text-white/85')
+);
+
+const priceLabels = ['бесплатно', 'ВЫБРАНО', 'СОХРАНЯЮ', 'ВКЛЮЧЕНО'];
+const priceOverflow = [];
+for (const viewport of [320, 360, 390, 414]) {
+  const inner = themeCardInner(viewport);
+  for (const label of priceLabels) {
+    // 11 px — минимальный размер шкалы; px-0.5 = 4 px горизонтальных отступов.
+    // Заглавные статусы шире строчной «бесплатно» — считаем их по 0.72em.
+    const width = textWidth(label, 11, 0) * (label === label.toUpperCase() ? 1 : 1) + 4;
+    if (width > inner) priceOverflow.push(`${label}@${viewport}: ${width.toFixed(1)} > ${inner.toFixed(1)}`);
+  }
+}
+check(
+  'темы: «бесплатно» и статусы влезают в карточку на 320–414 px',
+  priceOverflow.length === 0,
+  priceOverflow.join(' | ') || `карточка на 320 px: ${themeCardInner(320).toFixed(1)} px`
+);
+
+const logoMatch = onboardingSource.match(/viewBox="0 0 (\d+) (\d+)"/);
+const fontSizeMatches = (onboardingSource.match(/fontSize="(\d+(?:\.\d+)?)"/g) ?? []).map((m) => m.match(/[\d.]+/)[0]);
+const letterSpacingMatches = (onboardingSource.match(/letterSpacing="(\d+(?:\.\d+)?)"/g) ?? []).map((m) => m.match(/[\d.]+/)[0]);
+check(
+  'темы: логотип в превью — SVG с viewBox и w-full (масштабируется, а не обрезается)',
+  !!logoMatch &&
+    onboardingSource.includes('data-qa="theme-preview-logo"') &&
+    onboardingSource.includes('className="mx-auto block h-auto w-full"') &&
+    onboardingSource.includes('preserveAspectRatio="xMidYMid meet"') &&
+    !/text-\[20px\] font-black leading-none tracking/.test(onboardingSource)
+);
+const logoOverflow = [];
+if (logoMatch) {
+  const viewBoxWidth = Number(logoMatch[1]);
+  const lines = [
+    { text: 'HACKER', fontSize: Number(fontSizeMatches[0] ?? 0), letterSpacing: Number(letterSpacingMatches[0] ?? 0) },
+    { text: 'KOMBAT', fontSize: Number(fontSizeMatches[1] ?? 0), letterSpacing: Number(letterSpacingMatches[1] ?? 0) },
+  ];
+  for (const line of lines) {
+    // 0.72em на заглавную — запас под Russo One и системный фолбэк.
+    const width = line.text.length * line.fontSize * 0.72 + (line.text.length - 1) * line.letterSpacing;
+    if (width > viewBoxWidth) logoOverflow.push(`${line.text}: ${width.toFixed(1)} > ${viewBoxWidth}`);
+  }
+}
+check(
+  'темы: «HACKER KOMBAT» вписан в viewBox (не выходит за превью)',
+  !!logoMatch && logoOverflow.length === 0,
+  logoOverflow.join(' | ')
+);
+check(
+  'темы: превью логотипа обрезает по своей рамке, а не по краю карточки',
+  /mt-4 min-w-0 overflow-hidden rounded-xl border border-white\/15 bg-black\/25/.test(onboardingSource)
+);
+
+// ── H. Инвентарь: заметная кнопка и экран-заготовка ────────────────────────
+const hudSource = read('src/components/TopHud.tsx');
+const inventorySource = read('src/components/InventoryScreen.tsx');
+check(
+  'инвентарь: кнопка в HUD рядом с блоком уровня',
+  hudSource.includes('data-qa="hud-inventory"') &&
+    hudSource.indexOf('data-qa="hud-profile"') < hudSource.indexOf('data-qa="hud-inventory"') &&
+    hudSource.indexOf('data-qa="hud-inventory"') < hudSource.indexOf('setDailyModalOpen(true)')
+);
+check(
+  'инвентарь: кнопка ≥ 44 px и иконка из хаба',
+  hudSource.includes('inventory-glow grid h-11 w-11 place-items-center') &&
+    hudSource.includes('<PackageIcon') &&
+    hudSource.includes('aria-label="Инвентарь"')
+);
+check(
+  'инвентарь: подсветка на токенах темы (класс в CSS + prefers-reduced-motion)',
+  cssSrc.includes('.inventory-glow') &&
+    /@keyframes inventoryGlowPulse/.test(cssSrc) &&
+    /--ui-primary-rgb/.test(cssSrc.slice(cssSrc.indexOf('.inventory-glow'))) &&
+    /\.inventory-glow \{ animation: none; \}/.test(cssSrc)
+);
+check(
+  'инвентарь: экран открывается через ModalFrame (подложка без карточки невозможна)',
+  inventorySource.includes('<ModalFrame') && hudSource.includes('<InventoryScreen open={inventoryOpen}')
+);
+check(
+  'инвентарь: пустая заготовка с понятной заглушкой',
+  inventorySource.includes('data-qa="inventory-empty"') &&
+    inventorySource.includes("'Инвентарь пуст'") &&
+    /Предметы появятся позже/.test(inventorySource)
+);
+check(
+  'инвентарь: механики нет — экран не читает игрока, инвентарь и API',
+  !inventorySource.includes('useGame') &&
+    !inventorySource.includes('gameApi') &&
+    !/inventory\.ownedKeys|player\./.test(inventorySource)
+);
+check('инвентарь: кнопка закрытия ≥ 44 px', inventorySource.includes('min-h-[44px] min-w-[44px]'));
+
+// ── I. Вне игрового контура: демо-витрины и donations ──────────────────────
+check(
+  'демо-витрины нет: страница, каталог и QA удалены',
+  !fs.existsSync(path.join(SRC, 'pages/DemoPage.tsx')) &&
+    !fs.existsSync(path.join(SRC, 'demo')) &&
+    !fs.existsSync(path.join(REPO, 'scripts/qa/demo.ts'))
+);
+const appSource = read('src/App.tsx');
+check(
+  'демо-роут недоступен: в App нет ни страницы, ни маршрута, ни build-флага',
+  !/DemoPage|__HK_DEMO__|'\/demo'|"\/demo"/.test(appSource)
+);
+const demoMentions = tsxFiles.filter((file) => {
+  // Комментарии не считаются интерфейсом (как и в остальных сканах этого сьюта).
+  const text = stripComments(fs.readFileSync(file, 'utf8'));
+  return /Демо-версия|демо-витрин|все открытия/i.test(text);
+});
+check(
+  'профиль и UI не упоминают демо-версию',
+  demoMentions.length === 0 && !read('src/pages/ProfilePage.tsx').includes('to="/demo"'),
+  demoMentions.map((file) => rel(file)).join(', ')
+);
+check(
+  'в vite.config нет билд-флага витрины',
+  !read('vite.config.mts').includes('__HK_DEMO__') && !read('src/vite-env.d.ts').includes('__HK_DEMO__')
+);
+
+// Игровой клиент не знает про таблицу пожертвований бота (v1.1).
+const clientDonationRefs = walk(SRC)
+  .filter((file) => /\.(ts|tsx)$/.test(file))
+  .filter((file) => /donations/i.test(fs.readFileSync(file, 'utf8')));
+check(
+  'игровой клиент не ссылается на таблицу donations',
+  clientDonationRefs.length === 0,
+  clientDonationRefs.map((file) => rel(file)).join(', ')
+);
+// Единственный, кто вправе ходить в таблицу — бот-слой оплаты Stars.
+const apiFiles = walk(path.join(REPO, 'api')).filter((file) => file.endsWith('.ts'));
+const tableReaders = apiFiles.filter((file) => /\.from\(\s*['"]donations['"]\s*\)/.test(fs.readFileSync(file, 'utf8')));
+check(
+  'таблицу donations читает только бот-слой (api/_lib/donations.ts)',
+  tableReaders.length === 1 && rel(tableReaders[0]) === path.join('api', '_lib', 'donations.ts'),
+  tableReaders.map((file) => rel(file)).join(', ')
+);
+
 // ── F. CSS ─────────────────────────────────────────────────────────────────
 const cssLines = cssSrc.split('\n').length;
 check('index.css не разросся (≤ 900 строк после ревизии)', cssLines <= 900, `${cssLines} строк`);

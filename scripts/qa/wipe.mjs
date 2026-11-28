@@ -9,7 +9,8 @@
  *   3) вайп обнуляет игроков и всех их детей, включая tg-keyed хвосты;
  *   4) телеметрия выживает и теряет привязку к игроку (отвязка ДО удаления —
  *      иначе CASCADE уносит события вместе с игроком);
- *   5) денежная история (donations) остаётся, только player_id → NULL;
+ *   5) таблица donations (бот, Telegram Stars) вне игрового контура: её нет в
+ *      плане, нет флага, и игровой код её не читает;
  *   6) сверка после вайпа ловит и остатки, и неотвязанную телеметрию;
  *   7) новый игрок после вайпа получает чистый старт + пролог/ивенты;
  *   8) анонс точки запуска показывается ровно один раз на аккаунт.
@@ -91,11 +92,6 @@ function seedDb() {
       { id: 3, player_id: null, event: 'boot' },
       { id: 4, player_id: 'p-admin', event: 'error' },
     ],
-    // деньги: не прогресс, но привязаны к игроку
-    donations: [
-      { id: 'd-1', player_id: 'p-1', tg_id: 111, stars: 50 },
-      { id: 'd-2', player_id: null, tg_id: 222, stars: 20 },
-    ],
     operator_archive: [{ tg_id: 111, entry_key: 'op-1' }, { tg_id: 222, entry_key: 'op-2' }],
     operator_legacy_cutoff: [{ tg_id: 111, total_missions: 42 }],
     referral_codes: [{ tg_id: 111, code: 'ABC123' }],
@@ -125,10 +121,6 @@ function applyStep(db, step) {
   if (step.table === 'players') {
     for (const child of CASCADE_CHILDREN) {
       db[child] = db[child].filter((row) => !ids.has(row.player_id));
-    }
-    // donations: ON DELETE SET NULL
-    for (const row of db.donations) {
-      if (ids.has(row.player_id)) row.player_id = null;
     }
   }
   return before;
@@ -174,11 +166,18 @@ check('план: гарды проходят', (() => {
 })());
 check('план: players удаляется', plan.some((step) => step.table === 'players' && step.action === 'delete'));
 check('план: телеметрия только отвязывается', plan.every((step) => step.action === 'detach' ? step.table === 'client_events' : true));
-check('план: donations по умолчанию не трогаем', !plan.some((step) => step.table === 'donations'));
-
-const planWithMoney = assertPlanSafe(buildPlan({ includeDonations: true }));
-check('план: --include-donations добавляет деньги с пометкой',
-  planWithMoney.some((step) => step.table === 'donations' && step.note.includes('денежной')));
+// v1.1: donations — таблица бота, в плане её нет ни при каких флагах.
+check('план: таблицы бота (donations) в плане нет', !plan.some((step) => step.table === 'donations'));
+check('план: флага --include-donations в CLI больше нет',
+  !fs.readFileSync(path.join(process.cwd(), 'scripts/wipe-players.mjs'), 'utf8').includes('--include-donations'));
+check('гард: donations в плане — отказ (это не игровая таблица)', (() => {
+  try {
+    assertPlanSafe([...plan, { table: 'donations', action: 'delete', filterColumn: 'tg_id' }]);
+    return false;
+  } catch {
+    return true;
+  }
+})());
 
 let guardUnknown = false;
 try {
@@ -215,7 +214,12 @@ check('гард: дубль таблицы в плане — отказ', guardD
 // Дети каскада не ходят в плане отдельными шагами — их забирает удаление players.
 check('все игровые таблицы объявлены', PLAYER_TABLES.every((table) =>
   plan.some((step) => step.table === table) || CASCADE_CHILDREN.includes(table)));
-check('сохраняемые таблицы известны', PRESERVED_TABLES.length === 2 && PRESERVED_TABLES.includes('client_events'));
+check('сохраняемые таблицы известны: только телеметрия',
+  PRESERVED_TABLES.length === 1 && PRESERVED_TABLES[0] === 'client_events');
+check('donations вне плана и вне статистики вайпа',
+  !plan.some((step) => step.table === 'donations') &&
+    !PRESERVED_TABLES.includes('donations') &&
+    !PLAYER_TABLES.includes('donations'));
 
 // ============================================================================
 // 3. DRY-RUN ничего не пишет
@@ -255,12 +259,7 @@ check('вайп: tg-keyed хвосты пусты',
   ['operator_archive', 'operator_legacy_cutoff', 'referral_codes', 'referrals'].every((table) => after[table] === 0));
 check('вайп: телеметрия сохранена', after.client_events === 4, `${after.client_events} событий`);
 check('вайп: привязок к игрокам не осталось', detachedLeftOf(wiped) === 0);
-check('вайп: деньги сохранены', after.donations === 2 && wiped.donations.every((row) => row.stars > 0));
-check('вайп: у денег обнулён player_id', wiped.donations.every((row) => row.player_id === null));
 check('вайп: сверка чистая', verifyAfterWipe(after, plan, detachedLeftOf(wiped)).length === 0);
-
-const withMoney = runPlan(clone(seedDb()), planWithMoney);
-check('вайп с --include-donations: денег 0', withMoney.donations.length === 0);
 
 const broken = clone(seedDb());
 broken.missions = [{ id: 'm-x', player_id: 'p-1' }];
