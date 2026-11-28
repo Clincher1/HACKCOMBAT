@@ -186,7 +186,7 @@ export interface SkinConfig {
 export type AlignmentBranch = 'neutral' | 'white_hat' | 'black_hat';
 
 /** Предметы постоянного профиля: всё, что игрок получил и может показать. */
-export type InventoryItemKind = 'reward' | 'frame' | 'skin' | 'achievement' | 'companion';
+export type InventoryItemKind = 'reward' | 'frame' | 'skin' | 'achievement' | 'companion' | 'consumable';
 export type InventoryEquipAction = 'profile_frame' | 'skin' | null;
 
 export interface InventoryItemDefinition {
@@ -202,6 +202,37 @@ export interface InventoryItemDefinition {
   equipAction: InventoryEquipAction;
   equipKey?: string;
   imageUrl?: string;
+}
+
+/** Редкость расходника: чем выше, тем реже выпадает и тем сильнее эффект. */
+export type ItemRarity = 'common' | 'rare' | 'epic';
+
+/**
+ * Эффект расходника. Описание — данные, а не поведение: сам эффект считает
+ * только сервер (см. `applyInventoryAction` в api/_lib/gameEngine.ts).
+ */
+export type ConsumableEffect =
+  | { kind: 'energy'; amount: number }
+  | { kind: 'heat'; amount: number }
+  | { kind: 'exploit'; successBonus: number }
+  | { kind: 'channel'; multiplier: number; durationSec: number }
+  | { kind: 'phoenix'; refundPct: number };
+
+/** Предмет, который выпадает из игры и тратится по кнопке «Применить». */
+export interface ConsumableItemDefinition extends InventoryItemDefinition {
+  kind: 'consumable';
+  rarity: ItemRarity;
+  effect: ConsumableEffect;
+  /** Сколько секунд длится эффект (для карточки и таймера в UI). */
+  durationLabel?: string;
+}
+
+/** Стопка предметов в инвентаре игрока (player_items). */
+export interface PlayerItemStack {
+  key: string;
+  qty: number;
+  firstAcquiredAt: string;
+  updatedAt: string;
 }
 
 export interface PlayerInventoryState {
@@ -536,6 +567,20 @@ export interface PlayerProgressStats {
    */
   equippedUi?: string;
   equippedAvatar?: string;
+  /**
+   * v1 «Инвентарь оживает»: есть непросмотренный дроп — точка на кнопке
+   * инвентаря. Живёт в существующем stats jsonb, сбрасывается при открытии.
+   */
+  hasNewItems?: boolean;
+  /**
+   * v1: «Эксплойт-инъекция» применена и ждёт следующего контракта.
+   * Тратится при старте контракта, не при применении.
+   */
+  exploitInjectionReady?: boolean;
+  /** v1: до какого момента (ISO) действует «Модификатор канала» ×1.25 Data. */
+  channelBoostUntil?: string | null;
+  /** v1: уровни 5/10/15/20, за которые гарантированный предмет уже выдан. */
+  itemMilestones?: string[];
   /** v4.0: постоянные предметы профиля, вручную выданные награды и витрина. */
   inventoryOwned?: string[];
   inventoryShowcase?: string[];
@@ -668,6 +713,8 @@ export interface PlayerState {
   missionsRefreshedAt: string;
   achievements: string[];
   inventory: PlayerInventoryState;
+  /** Выпавшие расходники: ключ, количество и время первого получения. */
+  items: PlayerItemStack[];
   derived: DerivedStats;
 }
 

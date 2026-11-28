@@ -9,6 +9,15 @@ import {
   type ApiResponse,
 } from '../_lib/http';
 
+/**
+ * Инвентарь: единственный канал записи по предметам.
+ *   set_public — показать/скрыть предмет профиля (без начисления);
+ *   use        — применить расходник (эффект считает только сервер);
+ *   seen       — погасить точку «есть новый дроп» на HUD.
+ * Клиент ничего не начисляет и не списывает: только просит и отображает ответ.
+ */
+const INVENTORY_ACTIONS = new Set(['set_public', 'use', 'seen']);
+
 export default async function handler(req: ApiRequest, res: ApiResponse) {
   if (!enforceHttpSecurity(req, res)) return;
   if (req.method !== 'POST') {
@@ -17,22 +26,23 @@ export default async function handler(req: ApiRequest, res: ApiResponse) {
 
   try {
     const body = await readJsonBody<{
-      action?: 'set_public';
+      action?: 'set_public' | 'use' | 'seen';
       itemKey?: string;
       visible?: boolean;
       clicks?: number;
     }>(req);
     const user = authenticateRequest(req, body);
-    if (body.action !== 'set_public') {
+    const action = typeof body.action === 'string' ? body.action : '';
+    if (!INVENTORY_ACTIONS.has(action)) {
       return sendJson(res, 400, { ok: false, error: 'Invalid inventory action' });
     }
     const itemKey = typeof body.itemKey === 'string' ? body.itemKey.slice(0, 120) : '';
-    if (!itemKey) {
+    if (action !== 'seen' && !itemKey) {
       return sendJson(res, 400, { ok: false, error: 'Не указан предмет' });
     }
     const result = await handleInventoryAction(
       user,
-      'set_public',
+      action as 'set_public' | 'use' | 'seen',
       itemKey,
       body.visible !== false,
       sanitizeClicks(body.clicks)

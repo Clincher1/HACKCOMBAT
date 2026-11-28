@@ -67,6 +67,9 @@ const CASCADE_CHILDREN = [
   'new_year_candy',
   'pets',
   'team',
+  // миграция 022: предметы и журнал дропа висят на players(id) ON DELETE CASCADE
+  'player_items',
+  'item_drops',
   'client_events', // CASCADE в БД — именно поэтому отвязка обязана быть первой
 ];
 
@@ -85,6 +88,14 @@ function seedDb() {
     pets: players.map((p) => ({ id: `pet-${p.id}`, player_id: p.id })),
     team: players.map((p) => ({ id: `t-${p.id}`, player_id: p.id })),
     new_year_candy: players.map((p) => ({ player_id: p.id, uses_remaining: 2 })),
+    player_items: players.map((p) => ({ player_id: p.id, item_key: 'consumable:coffee_raf', qty: 2 })),
+    item_drops: players.map((p, i) => ({
+      id: i + 1,
+      player_id: p.id,
+      item_key: 'consumable:coffee_raf',
+      source: 'hack',
+      outcome: 'success',
+    })),
     // телеметрия: строки живут дольше игроков
     client_events: [
       { id: 1, player_id: 'p-1', event: 'session' },

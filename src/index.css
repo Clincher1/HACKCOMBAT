@@ -870,6 +870,10 @@ body[data-theme='femme'] .rounded-2xl {
   50% { box-shadow: 0 0 0 3px rgba(var(--hud-glow), 0.14), 0 0 18px rgba(var(--hud-glow), 0.55); border-color: rgba(var(--hud-glow), 0.85); }
 }
 .hud-glow__dot { position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 9999px; background: rgb(var(--hud-glow, var(--ui-primary-rgb))); box-shadow: 0 0 8px rgb(var(--hud-glow, var(--ui-primary-rgb))); }
+/* v1 «Инвентарь оживает»: непросмотренный дроп. Флаг stats.hasNewItems ставит
+   сервер, а индикатор рисует CSS — в разметке только атрибут, без лишних узлов.
+   Псевдоэлемент, чтобы не плодить span и не тащить его в главный чанк. */
+.hud-glow[data-new]::after { content: ''; position: absolute; top: -2px; left: -2px; width: 10px; height: 10px; border-radius: 9999px; background: var(--ui-warn); box-shadow: 0 0 6px var(--ui-warn); }
 
 /* Корпоративный квартал — стекло и холодный розовый отблеск. */
 .loc-bg-corpquarter {

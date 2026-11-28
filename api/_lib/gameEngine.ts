@@ -149,6 +149,15 @@ import {
   getInventoryItemDefinition,
 } from '../../shared/inventory.config';
 import {
+  EXPLOIT_INJECTION_ITEM_KEY,
+  getConsumableItem,
+  LEVEL_ITEM_MILESTONES,
+  PHOENIX_PROTOCOL_ITEM_KEY,
+  rollItemDrop,
+  rollLevelItem,
+  type ItemDropSource,
+} from '../../shared/consumables.config';
+import {
   ACTIVE_SEASON_EVENT,
   getSeasonEventDayNumber,
   getSeasonEventDayTasks,
@@ -186,6 +195,7 @@ import type {
   PublicProfileItem,
   PublicProfileResponse,
   PlayerInventoryState,
+  PlayerItemStack,
   PendingOfflineEarnings,
   ReferralLedgerEntry,
   ReferralPayload,
@@ -261,6 +271,16 @@ export interface StoredPlayerRecord {
   availableMissionKeys: string[];
   missionsRefreshedAt: string;
   achievements: string[];
+  /** «Инвентарь оживает»: выпавшие расходники (зеркало таблицы player_items). */
+  items: Record<string, StoredItem>;
+}
+
+/** Стопка предмета в сейве игрока. */
+export interface StoredItem {
+  key: string;
+  qty: number;
+  firstAcquiredAt: string;
+  updatedAt: string;
 }
 
 const EMPTY_STATS: PlayerProgressStats = {
@@ -789,6 +809,14 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     referredByTgId: safeTgId(src.referredByTgId),
     referralQualifiedAt: isoOrNull(src.referralQualifiedAt),
     refereeWelcomeGranted: src.refereeWelcomeGranted === true,
+    // ------------------------------------------------------------------
+    // v1 «Инвентарь оживает». normalizeStats — белый список, поэтому
+    // неперечисленные здесь поля молча теряются при каждом сохранении.
+    // ------------------------------------------------------------------
+    hasNewItems: src.hasNewItems === true,
+    exploitInjectionReady: src.exploitInjectionReady === true,
+    channelBoostUntil: isoOrNull(src.channelBoostUntil),
+    itemMilestones: keyArr(src.itemMilestones, 8),
   };
 }
 
@@ -907,6 +935,247 @@ function getPublicInventoryItems(record: InventoryRecordLike, keys: string[]): P
       } as PublicProfileItem;
     })
     .filter((item): item is PublicProfileItem => item !== null);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * «Инвентарь оживает»: расходники.
+ * Выдача и списание — только сервер: RPC grant_item / consume_item
+ * (player_items + item_drops в одной транзакции) в Supabase, а в
+ * memory-fallback — тот же контракт в локальном JSON. Клиент лишь просит
+ * «применить», все цифры считаются здесь.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** Множитель «Модификатора канала» (15 минут ×1.25 Data с тапов). */
+export const CHANNEL_BOOST_MULTIPLIER = 1.25;
+/** Бонус «Эксплойт-инъекции» к шансу следующего контракта. */
+export const EXPLOIT_INJECTION_BONUS = 0.15;
+/** Доля возврата входа «Протоколом-Фениксом» при провале контракта. */
+export const PHOENIX_REFUND_PCT = 0.5;
+
+const ITEM_RARITY_TITLES: Record<string, string> = {
+  common: 'Обычный',
+  rare: 'Редкий',
+  epic: 'Эпический',
+};
+
+function normalizeStoredItems(raw: unknown): Record<string, StoredItem> {
+  if (!raw || typeof raw !== 'object') return {};
+  const result: Record<string, StoredItem> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!getConsumableItem(key)) continue;
+    const entry = (value ?? {}) as Partial<StoredItem>;
+    const qty = Math.floor(safeNonNeg(entry.qty, 0));
+    if (qty <= 0) continue;
+    const firstAt =
+      typeof entry.firstAcquiredAt === 'string' ? entry.firstAcquiredAt : new Date().toISOString();
+    result[key] = {
+      key,
+      qty,
+      firstAcquiredAt: firstAt,
+      updatedAt: typeof entry.updatedAt === 'string' ? entry.updatedAt : firstAt,
+    };
+  }
+  return result;
+}
+
+function itemStacks(record: StoredPlayerRecord): PlayerItemStack[] {
+  return Object.values(record.items ?? {})
+    .filter((item) => item.qty > 0 && Boolean(getConsumableItem(item.key)))
+    .sort((a, b) => a.firstAcquiredAt.localeCompare(b.firstAcquiredAt) || a.key.localeCompare(b.key))
+    .map((item) => ({
+      key: item.key,
+      qty: item.qty,
+      firstAcquiredAt: item.firstAcquiredAt,
+      updatedAt: item.updatedAt,
+    }));
+}
+
+function getItemQty(record: StoredPlayerRecord, key: string): number {
+  return Math.max(0, Math.floor(safeNonNeg(record.items?.[key]?.qty, 0)));
+}
+
+/** Режим записи предметов: без клиента Supabase падаем в локальный журнал. */
+function itemStorageMode(mode: 'supabase' | 'memory-fallback'): 'supabase' | 'memory-fallback' {
+  return mode === 'supabase' && getSupabaseAdmin() ? 'supabase' : 'memory-fallback';
+}
+
+/**
+ * Выдача одного предмета. Возвращает новое количество в стопке.
+ *
+ * В Supabase атомарность держит RPC: upsert qty+1 и строка журнала — одна
+ * транзакция, а ON CONFLICT DO UPDATE сериализует параллельные вызовы, так что
+ * два одновременных дропа дают qty+2 и две строки журнала, но не дубль.
+ */
+async function grantItemToPlayer(
+  record: StoredPlayerRecord,
+  mode: 'supabase' | 'memory-fallback',
+  itemKey: string,
+  source: ItemDropSource,
+  outcome: string | null = null
+): Promise<number> {
+  const cfg = getConsumableItem(itemKey);
+  if (!cfg) throw new Error('Неизвестный предмет');
+  const nowIso = new Date().toISOString();
+  const storage = itemStorageMode(mode);
+  const previous = record.items?.[itemKey];
+  let nextQty = getItemQty(record, itemKey) + 1;
+
+  if (storage === 'supabase') {
+    const sb = getSupabaseAdmin();
+    if (!sb) throw new Error('Нет клиента Supabase');
+    const { data, error } = await sb.rpc('grant_item', {
+      p_player_id: record.id,
+      p_item_key: itemKey,
+      p_source: source,
+      p_outcome: outcome,
+    });
+    if (error) throw new Error(`grant_item: ${error.message}`);
+    const responseValue = Array.isArray(data) ? data[0] : data;
+    const fromDb = Number(responseValue);
+    if (!Number.isFinite(fromDb) || fromDb <= 0) throw new Error('grant_item: пустой ответ');
+    nextQty = fromDb;
+  } else {
+    const db = getLocalDb();
+    const journal = Array.isArray(db.itemDrops) ? db.itemDrops : [];
+    journal.push({ playerId: record.id, key: itemKey, source, outcome, createdAt: nowIso });
+    // Локальный журнал не должен пухнуть в dev-режиме — храним последние 2000 строк.
+    db.itemDrops = journal.length > 2000 ? journal.slice(-2000) : journal;
+  }
+
+  record.items = record.items ?? {};
+  record.items[itemKey] = {
+    key: itemKey,
+    qty: nextQty,
+    firstAcquiredAt: previous?.firstAcquiredAt ?? nowIso,
+    updatedAt: nowIso,
+  };
+  if (storage === 'memory-fallback') persistLocalDb();
+  return nextQty;
+}
+
+/**
+ * Списание предмета. false — предмета не хватает.
+ * В Supabase списание делает consume_item одним UPDATE с условием qty >= p_qty,
+ * поэтому одно и то же применение не может пройти дважды при гонке.
+ */
+async function consumeItemFromPlayer(
+  record: StoredPlayerRecord,
+  mode: 'supabase' | 'memory-fallback',
+  itemKey: string,
+  qty = 1
+): Promise<boolean> {
+  const owned = getItemQty(record, itemKey);
+  if (owned < qty) return false;
+  const nowIso = new Date().toISOString();
+  const storage = itemStorageMode(mode);
+  let left = owned - qty;
+
+  if (storage === 'supabase') {
+    const sb = getSupabaseAdmin();
+    if (!sb) return false;
+    const { data, error } = await sb.rpc('consume_item', {
+      p_player_id: record.id,
+      p_item_key: itemKey,
+      p_qty: qty,
+    });
+    if (error) return false;
+    const responseValue = Array.isArray(data) ? data[0] : data;
+    if (responseValue === null || responseValue === undefined) return false;
+    const fromDb = Number(responseValue);
+    left = Number.isFinite(fromDb) ? Math.max(0, fromDb) : left;
+  }
+
+  record.items = record.items ?? {};
+  const previous = record.items[itemKey];
+  if (left <= 0) {
+    delete record.items[itemKey];
+  } else {
+    record.items[itemKey] = {
+      key: itemKey,
+      qty: left,
+      firstAcquiredAt: previous?.firstAcquiredAt ?? nowIso,
+      updatedAt: nowIso,
+    };
+  }
+  if (storage === 'memory-fallback') persistLocalDb();
+  return true;
+}
+
+function buildItemDropAlert(itemKey: string, source: ItemDropSource): GameAlert {
+  const cfg = getConsumableItem(itemKey);
+  const name = cfg?.name ?? 'Предмет';
+  const rarity = cfg ? ITEM_RARITY_TITLES[cfg.rarity] ?? '' : '';
+  const where = source === 'level' ? 'за новый уровень' : source === 'mission' ? 'за контракт' : 'за взлом';
+  return {
+    id: crypto.randomUUID(),
+    type: 'success',
+    title: `Вы получили: ${name}`,
+    message: `${rarity} дроп ${where}. Примени в инвентаре.`,
+  };
+}
+
+/**
+ * Ролл дропа ПОСЛЕ успешного исхода и запись. Возвращает выданный предмет.
+ * Ошибка выдачи не ломает сам экшен: игрок просто не получает предмет и
+ * уведомление, но взлом/контракт остаются засчитанными.
+ */
+async function rollAndGrantLoot(
+  record: StoredPlayerRecord,
+  mode: 'supabase' | 'memory-fallback',
+  alerts: GameAlert[],
+  source: 'hack' | 'mission',
+  options: { difficulty?: string } = {}
+): Promise<string | null> {
+  const item = rollItemDrop(source, options);
+  if (!item) return null;
+  try {
+    await grantItemToPlayer(record, mode, item.key, source, 'success');
+  } catch (err) {
+    console.warn('[inventory] drop failed', (err as Error).message);
+    return null;
+  }
+  record.stats.hasNewItems = true;
+  alerts.push(buildItemDropAlert(item.key, source));
+  return item.key;
+}
+
+/**
+ * Гарантированный предмет на уровнях 5/10/15/20.
+ * Метка уровня пишется ДО выдачи: повторный sync не выдаст второй предмет.
+ */
+async function grantLevelMilestoneItems(
+  record: StoredPlayerRecord,
+  mode: 'supabase' | 'memory-fallback',
+  alerts: GameAlert[]
+): Promise<void> {
+  const level = getLevelProgress(Math.floor(safeNonNeg(record.xp, 0))).level;
+  const granted = Array.isArray(record.stats.itemMilestones) ? record.stats.itemMilestones : [];
+  const pending = LEVEL_ITEM_MILESTONES.filter(
+    (milestone) => level >= milestone && !granted.includes(`level_${milestone}`)
+  );
+  if (pending.length === 0) return;
+  record.stats.itemMilestones = [...granted];
+  for (const milestone of pending) {
+    record.stats.itemMilestones.push(`level_${milestone}`);
+    const item = rollLevelItem();
+    try {
+      await grantItemToPlayer(record, mode, item.key, 'level', `milestone_${milestone}`);
+    } catch (err) {
+      console.warn('[inventory] milestone drop failed', (err as Error).message);
+      continue;
+    }
+    record.stats.hasNewItems = true;
+    alerts.push(buildItemDropAlert(item.key, 'level'));
+  }
+}
+
+function channelBoostUntilMs(record: StoredPlayerRecord): number {
+  const parsed = Date.parse(String(record.stats.channelBoostUntil ?? ''));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function isChannelBoostActive(record: StoredPlayerRecord, nowMs: number = Date.now()): boolean {
+  return channelBoostUntilMs(record) > nowMs;
 }
 
 function ensureDailyTasks(record: StoredPlayerRecord, dayKey: string): DailyTaskState {
@@ -1243,6 +1512,17 @@ export interface LocalDatabase {
   playersByTgId: Record<string, StoredPlayerRecord>;
   /** v3.4: леджер донатов (ключ — telegram_payment_charge_id). */
   donations?: Record<string, unknown>;
+  /** «Инвентарь оживает»: журнал дропа — локальный аналог таблицы item_drops. */
+  itemDrops?: StoredItemDrop[];
+}
+
+/** Строка журнала дропа (локальный режим). */
+export interface StoredItemDrop {
+  playerId: string;
+  key: string;
+  source: ItemDropSource;
+  outcome: string | null;
+  createdAt: string;
 }
 
 // XP у NPC выводим из кривой уровней: иначе в рейтинге «по опыту» они
@@ -1503,6 +1783,7 @@ function createFreshRecord(user: VerifiedTelegramUser): StoredPlayerRecord {
     availableMissionKeys: offer.keys,
     missionsRefreshedAt: offer.refreshedAt,
     achievements: [],
+    items: {},
   };
 }
 
@@ -1576,6 +1857,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
       rec.pets = Array.isArray(rec.pets) ? rec.pets : [];
       rec.baseUpgrades = rec.baseUpgrades && typeof rec.baseUpgrades === 'object' ? rec.baseUpgrades : {};
       rec.stats = normalizeStats(rec.stats);
+      rec.items = normalizeStoredItems(rec.items);
     }
     const localRecord = db.playersByTgId[key];
     ensurePermanentProfileFrameGifts(localRecord.stats, localRecord.tgId);
@@ -1656,6 +1938,28 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     if (lvl > 0) baseUpgradesMap[cfg.key] = lvl;
   }
 
+  // Миграция 022 может быть ещё не применена — тогда просто пустой инвентарь:
+  // игра обязана работать до накатки SQL владельцем. Ошибку не глушим молча в лог.
+  let itemsMap: Record<string, StoredItem> = {};
+  const itemsRes = await sb
+    .from('player_items')
+    .select('item_key, qty, first_acquired_at, updated_at')
+    .eq('player_id', pid);
+  if (itemsRes.error) {
+    console.warn('[inventory] player_items не прочитан:', itemsRes.error.message);
+  } else {
+    const raw: Record<string, StoredItem> = {};
+    for (const row of itemsRes.data ?? []) {
+      raw[String(row.item_key)] = {
+        key: String(row.item_key),
+        qty: Number(row.qty) || 0,
+        firstAcquiredAt: String(row.first_acquired_at ?? new Date().toISOString()),
+        updatedAt: String(row.updated_at ?? new Date().toISOString()),
+      };
+    }
+    itemsMap = normalizeStoredItems(raw);
+  }
+
   const energyUpdatedIso = String(playerRow.energy_updated ?? new Date().toISOString());
   const dbEnergyTs = Date.parse(energyUpdatedIso);
   // Даже после холодного рестарта Lambda берём timestamp последнего обновления энергии из PostgreSQL!
@@ -1711,6 +2015,7 @@ async function loadPlayerRecord(user: VerifiedTelegramUser): Promise<{
     availableMissionKeys: offer.keys,
     missionsRefreshedAt: offer.refreshedAt,
     achievements: Array.from(new Set((achRes.data ?? []).map((a) => String(a.key)))),
+    items: itemsMap,
   };
 
   migrateLegacyEquippedSkins(record);
@@ -2531,6 +2836,11 @@ async function syncTimeAndRules(
     }
   }
 
+  // 9. Гарантированный предмет за уровни 5/10/15/20. Проверка живёт здесь, а не
+  // в награде за контракт: уровень растёт от любых действий (тапы, взломы,
+  // покупки), и предмет должен выдаваться один раз, независимо от источника XP.
+  await grantLevelMilestoneItems(record, mode, alerts);
+
   // Все пути синхронизации (включая atomic mission claim) выходят с конечным
   // Data-снимком, а не надеются, что последующий savePlayerCore успеет clamp.
   record.data = safeDataBalance(record.data);
@@ -2591,6 +2901,8 @@ function buildResponse(
     missionsRefreshedAt: record.missionsRefreshedAt,
     achievements: record.achievements,
     inventory: getInventoryState(record),
+    // «Инвентарь оживает»: только серверные стопки из player_items.
+    items: itemStacks(record),
     derived,
   };
 
@@ -2835,15 +3147,129 @@ export async function handleRetentionAction(
  *
  * Возвращает, сколько кликов реально зачтено (клиент досылает остаток).
  */
+/**
+ * «Инвентарь оживает»: применение расходника.
+ * Все эффекты считаются здесь, на сервере, и только здесь: клиент присылает
+ * ключ предмета и получает обновлённый стейт. Списывает предмет ровно один раз
+ * и только если он есть в player_items (проверка + списание атомарны в RPC).
+ */
+async function applyConsumableItem(
+  record: StoredPlayerRecord,
+  mode: 'supabase' | 'memory-fallback',
+  itemKey: string,
+  alerts: GameAlert[]
+): Promise<void> {
+  const cfg = getConsumableItem(itemKey);
+  if (!cfg) throw new Error('Этот предмет нельзя применить');
+  if (getItemQty(record, itemKey) <= 0) {
+    throw new Error('Этого предмета нет в инвентаре');
+  }
+  if (!cfg.usable) {
+    throw new Error('Этот предмет срабатывает сам — применить вручную нельзя');
+  }
+
+  const effect = cfg.effect;
+  const nowMs = Date.now();
+  const derived = deriveStats(record);
+
+  if (effect.kind === 'energy') {
+    const before = record.energy;
+    record.energy = Math.min(derived.maxEnergy, record.energy + effect.amount);
+    record.energyUpdated = new Date(nowMs).toISOString();
+    if (!(await consumeItemFromPlayer(record, mode, itemKey))) {
+      record.energy = before;
+      throw new Error('Предмет не списался — попробуй ещё раз');
+    }
+    const gained = Math.round(record.energy - before);
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `☕ ${cfg.name} применён`,
+      message:
+        gained < effect.amount
+          ? `+${gained} CPU Charge: остаток сгорел, заряд уже на капе ${derived.maxEnergy}.`
+          : `+${gained} CPU Charge. Терминал остыл, можно вскрывать узлы.`,
+    });
+    return;
+  }
+
+  if (effect.kind === 'heat') {
+    const before = record.heat;
+    record.heat = Math.max(0, record.heat + effect.amount);
+    if (!(await consumeItemFromPlayer(record, mode, itemKey))) {
+      record.heat = before;
+      throw new Error('Предмет не списался — попробуй ещё раз');
+    }
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `🧊 ${cfg.name} применён`,
+      message: `Heat ${before} → ${record.heat}. Патруль не дотягивается до порога.`,
+    });
+    return;
+  }
+
+  if (effect.kind === 'channel') {
+    // Таймер только продлевается: ×1.25 один, повтор не складывается.
+    record.stats.channelBoostUntil = new Date(nowMs + effect.durationSec * 1000).toISOString();
+    if (!(await consumeItemFromPlayer(record, mode, itemKey))) {
+      record.stats.channelBoostUntil = null;
+      throw new Error('Предмет не списался — попробуй ещё раз');
+    }
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `📡 ${cfg.name} применён`,
+      message: `Data с тапов ×${effect.multiplier} до ${new Date(nowMs + effect.durationSec * 1000).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}. Повторное применение продлит таймер.`,
+    });
+    return;
+  }
+
+  if (effect.kind === 'exploit') {
+    // Флаг, а не мгновенный бонус: списывается предмет при запуске контракта.
+    record.stats.exploitInjectionReady = true;
+    alerts.push({
+      id: crypto.randomUUID(),
+      type: 'success',
+      title: `💉 ${cfg.name} заряжена`,
+      message: `Следующий контракт получит +${Math.round(effect.successBonus * 100)}% к шансу успеха. Предмет спишется при запуске.`,
+    });
+    return;
+  }
+
+  throw new Error('Этот предмет срабатывает сам — применить вручную нельзя');
+}
+
 export async function handleInventoryAction(
   user: VerifiedTelegramUser,
-  action: 'set_public',
+  action: 'set_public' | 'use' | 'seen',
   itemKey: string,
   visible: boolean,
   pendingClicks = 0
 ): Promise<ApiSyncResponse> {
   return withPlayerLock(user.tgId, async () => {
     const { record, mode } = await loadPlayerRecord(user);
+
+    // Отметка «дроп просмотрен»: гасит точку на HUD и ничего не начисляет.
+    if (action === 'seen') {
+      const alerts: GameAlert[] = [];
+      await syncTimeAndRules(record, mode, alerts);
+      const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+      record.stats.hasNewItems = false;
+      await savePlayerCore(record, mode);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    if (action === 'use') {
+      const alerts: GameAlert[] = [];
+      await syncTimeAndRules(record, mode, alerts);
+      const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+      await applyConsumableItem(record, mode, itemKey, alerts);
+      await syncTimeAndRules(record, mode, alerts);
+      await savePlayerCore(record, mode);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
     const inventory = getInventoryState(record);
     if (!inventory.ownedKeys.includes(itemKey)) {
       throw new Error('Этого предмета нет в инвентаре');
@@ -3038,7 +3464,11 @@ async function applyPendingClicks(
   const clickBoost = lollipopMultiplier(record.stats.lollipop, nowMs);
   // v6.5: место работы множит только Data — CPU/Energy тап тратит как раньше.
   const tapLocationBoost = locationEconomy(record.stats).mods.data;
-  record.data += Math.round(validClicks * derived.clickPower * clickBoost * tapLocationBoost * 100) / 100;
+  // «Модификатор канала»: 15 минут ×1.25 Data с тапов. Множитель один и не
+  // складывается сам с собой — повторное применение лишь продлевает таймер.
+  const channelBoost = isChannelBoostActive(record, nowMs) ? CHANNEL_BOOST_MULTIPLIER : 1;
+  record.data +=
+    Math.round(validClicks * derived.clickPower * clickBoost * tapLocationBoost * channelBoost * 100) / 100;
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
   incrementDailyTaskProgress(record, 'tap', validClicks);
@@ -3527,7 +3957,20 @@ export async function handleMissionAction(
         tierFails: record.stats.hackFailByType[cfg.targetType] ?? 0,
         successMultiplier: where.mods.success,
       });
-      const successChance = Math.round(odds.chance * 1000) / 1000;
+      let successChance = Math.round(odds.chance * 1000) / 1000;
+
+      // «Эксплойт-инъекция»: +15% к шансу ЭТОГО контракта. Тратится здесь, в
+      // момент запуска: предмет «висит» до первого контракта, но не может
+      // копиться — флаг живёт в stats и после запуска сбрасывается.
+      let exploitInjectionUsed = false;
+      if (record.stats.exploitInjectionReady) {
+        record.stats.exploitInjectionReady = false;
+        if (await consumeItemFromPlayer(record, mode, EXPLOIT_INJECTION_ITEM_KEY)) {
+          exploitInjectionUsed = true;
+          successChance =
+            Math.round(Math.min(0.96, odds.chance + EXPLOIT_INJECTION_BONUS) * 1000) / 1000;
+        }
+      }
 
       // Денежная награда за успешный взлом. Растёт по уровню игрока, но решает всё-таки успех.
       const whiteHatBonus = derived.alignment === 'white_hat' && cfg.targetType === 'bad' ? 2 : 1;
@@ -3654,6 +4097,15 @@ export async function handleMissionAction(
       incrementDailyTaskProgress(record, 'mission_start', 1);
       incrementContractProgress(record, 'cpu', entryCost.energy);
       incrementSeasonEventProgress(record, 'mission_start', 1);
+
+      if (exploitInjectionUsed) {
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'success',
+          title: '💉 Эксплойт-инъекция применена',
+          message: `Шанс успеха повышен на ${Math.round(EXPLOIT_INJECTION_BONUS * 100)}% — сейчас ${Math.round(successChance * 100)}%. Предмет списан при запуске.`,
+        });
+      }
 
       alerts.push({
         id: crypto.randomUUID(),
@@ -3859,6 +4311,38 @@ export async function handleMissionAction(
           `Подними силу железа (карточки, База) или вернись на цели попроще — Chance сейчас ` +
           `${Math.round((mission.successChance ?? 0) * 100)}%.`,
       });
+    }
+
+    // «Протокол-Феникс»: провал контракта возвращает 50% входа (Data и CPU).
+    // Предмет сгорает автоматически; нет предмета — ничего не происходит и
+    // никакого утешительного бонуса не появляется.
+    if (outcome === 'fail') {
+      const phoenixCfg = getConsumableItem(PHOENIX_PROTOCOL_ITEM_KEY);
+      const refundPct =
+        phoenixCfg && phoenixCfg.effect.kind === 'phoenix' ? phoenixCfg.effect.refundPct : PHOENIX_REFUND_PCT;
+      if (
+        refundPct > 0 &&
+        getItemQty(record, PHOENIX_PROTOCOL_ITEM_KEY) > 0 &&
+        (await consumeItemFromPlayer(record, mode, PHOENIX_PROTOCOL_ITEM_KEY))
+      ) {
+        const refundData = Math.floor(Math.max(0, mission.entryDataCost ?? 0) * refundPct);
+        const refundEnergy = Math.floor(Math.max(0, mission.entryEnergyCost ?? 0) * refundPct);
+        record.data = safeDataBalance(record.data + refundData);
+        const energyCap = deriveStats(record).maxEnergy;
+        record.energy = Math.min(energyCap, Math.max(0, record.energy + refundEnergy));
+        alerts.push({
+          id: crypto.randomUUID(),
+          type: 'success',
+          title: '🐦 Протокол-Феникс сработал',
+          message: `Провал оплачен не до конца: возвращено +${refundData.toLocaleString('ru-RU')} Data и +${refundEnergy} CPU Charge (${Math.round(refundPct * 100)}% входа). Предмет сгорел.`,
+        });
+      }
+    }
+
+    // «Инвентарь оживает»: 8% на предмет за успешный контракт. Провал и
+    // частичный результат дропа не дают — награда только за чистый успех.
+    if (outcome === 'success') {
+      await rollAndGrantLoot(record, mode, alerts, 'mission');
     }
 
     await syncTimeAndRules(record, mode, alerts);
@@ -4402,8 +4886,15 @@ export async function handleHackAction(
         id: crypto.randomUUID(),
         type: 'success',
         title: `${difficulty.icon} Взлом закрыт: +${dataGain.toLocaleString('ru-RU')} Data`,
-        message: `Узлов вскрыто: ${safeHits} из ${nodes.safe}. Ловушек: ${trapHits}${heatGain > 0 ? ` (+${heatGain} Heat)` : ''}.`,
+        message: `Узлов вскрыто: ${safeHits} из ${nodes.safe}. Ловушек: ${trapHits}${heatGain > 0 ? ` (+${heatGain} Heat)`: ''}.`,
       });
+    }
+
+    // «Инвентарь оживает»: ролл дропа ТОЛЬКО после успешного исхода и только на
+    // сервере. easy 10% / medium 15% / hard 20%, внутри — 85/12/3 по редкости.
+    // Тапы сюда не относятся: дропа с тапов не существует.
+    if (safeHits > 0) {
+      await rollAndGrantLoot(record, mode, alerts, 'hack', { difficulty: difficulty.key });
     }
 
     await savePlayerCore(record, mode, undefined, expectedData);

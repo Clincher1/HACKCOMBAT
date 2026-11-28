@@ -90,3 +90,22 @@ from public.players;
   назначение для этих игроков при каждом серверном sync.
 - `018_personal_inventory_gift_useryou2202.sql` тем же идемпотентным способом
   выдаёт набор подарков игроку `useryou2202` (`6623819182`).
+
+## 022: «Инвентарь оживает»
+
+- `022_inventory.sql` создаёт `player_items` (стопки расходников, PK `player_id + item_key`,
+  `ON DELETE CASCADE` на `players`) и `item_drops` (журнал выдачи: `source` только
+  `hack | mission | level`). Существующие таблицы, `players.stats` и прогресс не меняются:
+  аддитивная миграция, старые сейвы читаются без правок.
+- `grant_item(p_player_id, p_item_key, p_source, p_outcome)` — одна транзакция:
+  upsert `qty + 1` и строка журнала. `ON CONFLICT DO UPDATE` берёт блокировку строки,
+  поэтому параллельные вызовы сериализуются и количество не теряется.
+- `consume_item(p_player_id, p_item_key, p_qty)` — один `UPDATE ... WHERE qty >= p_qty`
+  и `DELETE` при нуле; `NULL` означает «предмета не хватает», двойного применения нет.
+- Обе функции `SECURITY DEFINER SET search_path = public`; `anon`/`authenticated` не имеют
+  прав ни на таблицы, ни на функции (`REVOKE ALL` + `GRANT ... TO service_role`).
+  RLS включён, политик нет: доступ только серверным service-role.
+- После применения проверить `to_regclass('public.player_items')`,
+  `to_regclass('public.item_drops')` и `to_regprocedure('public.grant_item(uuid,text,text,text)')`.
+  Вайп сносит обе таблицы каскадом — они объявлены в `PLAYER_TABLES` (`scripts/lib/wipe-core.mjs`).
+
