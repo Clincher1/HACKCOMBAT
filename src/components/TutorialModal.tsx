@@ -220,7 +220,7 @@ export const TutorialModal: React.FC = () => {
                   <div className="space-y-2">
                     <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-cyan-500/30 p-3">
                       <div className="font-bold text-[var(--ui-primary)]">
-                        🖥️ Этап 1 (Ур. 1–10): Старт — Hardware + Comfort
+                        🖥️ Фаза 1 (Ур. 1–10): Старт — Hardware + Comfort
                       </div>
                       <p className="mt-1">
                         Начни с дешёвых карт <strong>Мех. Клавиатура</strong> и{' '}
@@ -232,7 +232,7 @@ export const TutorialModal: React.FC = () => {
 
                     <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-[var(--ui-success)]/30 p-3">
                       <div className="font-bold text-[var(--ui-success)]">
-                        🤖 Этап 2 (Ур. 10–25): Автономный доход — Software + Команда
+                        🤖 Фаза 2 (Ур. 10–25): Автономный доход — Software + Команда
                       </div>
                       <p className="mt-1">
                         Качай <strong>Software</strong> (<em>Ботнет, Эксплойт-пак, ИИ-ассистент</em>)
@@ -244,7 +244,7 @@ export const TutorialModal: React.FC = () => {
 
                     <div className="rounded-xl bg-[var(--ui-panel-deep)] border border-rose-500/30 p-3">
                       <div className="font-bold text-rose-300">
-                        🔥 Этап 3 (Ур. 25–60+): Мегапроекты и Darknet
+                        🔥 Фаза 3 (Ур. 25–60+): Мегапроекты и Darknet
                       </div>
                       <p className="mt-1">
                         Карты <strong>Darknet</strong> дают <strong>самый огромный доход в игре</strong>{' '}

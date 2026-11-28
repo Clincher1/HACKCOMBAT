@@ -4,7 +4,7 @@ import type {
   LeaderboardSort,
   PublicProfileResponse,
 } from '../../shared/types';
-import { initTelegramMiniApp } from './telegram';
+import { initTelegramProfile } from './telegram';
 
 /** Ошибка API со статусом ответа: нужна, чтобы мягко обрабатывать 429 (rate limit) без пугающих тостов. */
 export class ApiError extends Error {
@@ -20,7 +20,9 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, method: 'GET' | 'POST' = 'POST', body?: unknown): Promise<T> {
-  const tg = initTelegramMiniApp();
+  // v1.4: профиль готовит динамически загруженный SDK Telegram. Промис
+  // кешируется в lib/telegram, поэтому ожидание стоит один чанк на сессию.
+  const tg = await initTelegramProfile();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Demo-User-Id': String(tg.tgId),
@@ -57,8 +59,8 @@ export const gameApi = {
    * Досылаем его на самый первый init; сервер принимает fallback только после
    * успешной проверки Telegram initData и всё равно проверяет код/новизну игрока.
    */
-  init: () => {
-    const tg = initTelegramMiniApp();
+  init: async () => {
+    const tg = await initTelegramProfile();
     return apiRequest<ApiSyncResponse>('/api/init', 'POST', {
       ...(tg.startParam ? { startParam: tg.startParam } : {}),
     });

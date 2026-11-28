@@ -14,8 +14,22 @@ export const AlertStack: React.FC = () => {
     return () => window.clearTimeout(timer);
   }, [latestId, dismissAlert]);
 
+  /**
+   * v1.4 (R4): алерт стоит ПОД верхней панелью, а не поверх неё.
+   *
+   * Было: `top-24` (96 px). HUD с ресурсами и шкалой Heat выше — уведомление
+   * ложилось ровно на строку ресурсов, и подпись слева срезалась. Теперь
+   * смещение считается от реальной высоты HUD (`--hk-hud-h`, публикует
+   * TopHud через ResizeObserver) плюс 8 px зазора. Фолбэк 156 px — оценка
+   * HUD на 320 px без онбординга: даже без наблюдателя алерт ниже панели.
+   */
   return (
-    <div className="fixed top-24 inset-x-0 z-40 pointer-events-none px-4" aria-live="polite">
+    <div
+      className="fixed inset-x-0 z-40 pointer-events-none px-4"
+      style={{ top: 'calc(var(--hk-hud-h, 156px) + 8px)' }}
+      aria-live="polite"
+      data-qa="alert-stack"
+    >
       <div className="max-w-md mx-auto">
         {alerts.slice(0, 1).map((alert) => {
             const borderClass =

@@ -18,6 +18,13 @@ import {
   locationDeskScene,
   locationTagline,
 } from '../../shared/locations';
+import {
+  DESK_STAGE_KEYS,
+  DESK_STAGE_TOTAL,
+  deskStageLabel,
+  deskStageNumber,
+  type DeskStage,
+} from '../../shared/desk-stages.config';
 import { BackdropWeather } from './BackdropWeather';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import type { DerivedStats, PlayerProgressStats } from '../../shared/types';
@@ -33,7 +40,9 @@ interface ByteParticle {
   text: string;
 }
 
-const ALL_STAGES: (1 | 5 | 10 | 15 | 20 | 25 | 30)[] = [1, 5, 10, 15, 20, 25, 30];
+// v1.4: список этапов больше не дублируется в компоненте — он живёт в
+// shared/desk-stages.config.ts вместе с границами уровней и артами (R2).
+const ALL_STAGES = DESK_STAGE_KEYS;
 // v5.0: вместо HEX-мусора — короткие человеческие подтверждения.
 const BYTE_SNIPPETS = ['+Data', 'ок', 'пакет', 'готово', '+Data', 'кафе', 'налито'];
 
@@ -55,7 +64,7 @@ export const DeskScene: React.FC = () => {
 
   const [particles, setParticles] = useState<ByteParticle[]>([]);
   const [pulseActive, setPulseActive] = useState(false);
-  const [previewStage, setPreviewStage] = useState<1 | 5 | 10 | 15 | 20 | 25 | 30 | null>(null);
+  const [previewStage, setPreviewStage] = useState<DeskStage | null>(null);
   const [showStageBar, setShowStageBar] = useState(false);
 
   // Автономная визуальная вспышка Botmaster (автоклик 1/сек).
@@ -112,6 +121,34 @@ export const DeskScene: React.FC = () => {
   if (!player) return null;
 
   const { derived } = player;
+  /**
+   * v1.4 (R3): статус ветки — отдельная строка над сценой, а не баннер поверх
+   * арта. Подпись короткая и однострочная (на 320 px она обрезается, но не
+   * переносится в 2–3 строки), полный текст живёт в title/aria.
+   */
+  const alignmentLabel =
+    derived.alignment === 'white_hat'
+      ? {
+          short: 'Белый хакинг · +20% Data/ч · ×2 белые миссии',
+          long: 'Белый хакинг: +20% Data в час и двойная награда белых миссий',
+          className:
+            'bg-[var(--ui-panel-deep)]/85 border-[rgba(var(--ui-primary-rgb),0.60)] text-[var(--ui-primary)]',
+          icon: <RepIcon className="mr-1 inline h-3 w-3 shrink-0 align-[-1px]" />,
+        }
+      : derived.alignment === 'black_hat'
+        ? {
+            short: 'Чёрный хакинг · +50% к тапу · риск Heat',
+            long: 'Чёрный хакинг: +50% к силе тапа, но каждый взлом добавляет Heat',
+            className:
+              'bg-[var(--ui-panel-deep)]/85 border-[rgba(var(--ui-secondary-rgb),0.70)] text-[var(--ui-secondary)]',
+            icon: <GlassesIcon className="mr-1 inline h-3 w-3 shrink-0 align-[-1px]" />,
+          }
+        : {
+            short: 'Нейтральный хакер',
+            long: 'Нейтральный хакер: без бонусов и без штрафов ветки',
+            className: 'bg-[var(--ui-panel-deep)]/80 border-slate-700/80 text-slate-300',
+            icon: <ScaleIcon className="mr-1 inline h-3 w-3 shrink-0 align-[-1px]" />,
+          };
   const activeStage = previewStage ?? derived.deskStage;
   const stageInfo = getDeskStageInfo(activeStage);
   // v3.6.5: арт стола реагирует ТОЛЬКО на скин категории «рабочий стол».
@@ -233,7 +270,7 @@ export const DeskScene: React.FC = () => {
             className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--ui-panel)] hover:bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-slate-200 transition cursor-pointer"
           >
             <Eye className="w-3.5 h-3.5 text-[var(--ui-primary)]" />
-            <span>Этапы ({ALL_STAGES.indexOf(derived.deskStage) + 1}/7)</span>
+            <span>Этапы ({deskStageNumber(derived.deskStage)}/{DESK_STAGE_TOTAL})</span>
           </button>
         )}
       </div>
@@ -257,7 +294,11 @@ export const DeskScene: React.FC = () => {
                     key={st}
                     type="button"
                     disabled={!unlocked}
-                    aria-label={unlocked ? `Посмотреть этап рабочего стола: уровень ${st}` : `Этап уровня ${st} закрыт`}
+                    aria-label={
+                      unlocked
+                        ? `Посмотреть этап рабочего стола: этап ${deskStageNumber(st)} из ${DESK_STAGE_TOTAL} (открыт с Ур. ${st})`
+                        : `Этап ${deskStageNumber(st)} из ${DESK_STAGE_TOTAL} закрыт — откроется на Ур. ${st}`
+                    }
                     onClick={() => {
                       if (!unlocked) return;
                       setPreviewStage(st === derived.deskStage ? null : st);
@@ -270,7 +311,8 @@ export const DeskScene: React.FC = () => {
                           : 'bg-[var(--ui-panel-deep)] border-slate-800 text-slate-500 cursor-not-allowed opacity-70'
                     }`}
                   >
-                    {unlocked ? <CheckIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> : <LockIcon className="mr-1 inline h-3 w-3 align-[-1px]" />}Ур.{st}
+                    {unlocked ? <CheckIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> : <LockIcon className="mr-1 inline h-3 w-3 align-[-1px]" />}
+                    {deskStageLabel(st)}
                   </button>
                 );
               })}
@@ -278,6 +320,30 @@ export const DeskScene: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* v1.4 (R3): ветка и автоклик — отдельной строкой в потоке над сценой.
+          Раньше баннер «БЕЛЫЙ ХАКИНГ» лежал поверх арта: на 320–360 px он
+          переносился в две-три строки, и шапка сцены («Этапы») визуально
+          оставалась под ним. Теперь строка физически не может перекрыть ни
+          шапку, ни тап-поверхность арта. Проверяется в qa:ui. */}
+      <div className="flex items-center justify-between gap-2" data-qa="desk-status">
+        <span
+          data-qa="desk-alignment"
+          title={alignmentLabel.long}
+          className={`min-w-0 truncate rounded-lg border px-2 py-1 text-[11px] font-bold ${alignmentLabel.className}`}
+        >
+          {alignmentLabel.icon}
+          {alignmentLabel.short}
+        </span>
+        {derived.autoClickPerSec > 0 && (
+          <span
+            data-qa="desk-autoclick"
+            className="shrink-0 rounded-lg border border-[var(--ui-success)]/60 bg-[var(--ui-panel-deep)]/85 px-2 py-1 text-[11px] font-bold text-[var(--ui-success)]"
+          >
+            Автоклик {derived.autoClickPerSec}/сек
+          </span>
+        )}
+      </div>
 
       {/* Центральная интерактивная сцена рабочего стола хакера */}
       {/* v6.4: сцена — главная тап-поверхность при любом значении флага.
@@ -398,33 +464,6 @@ export const DeskScene: React.FC = () => {
           }`}
         />
 
-        {/* Верхние бейджи трёх направлений и автоклика Botmaster */}
-        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2 pointer-events-none">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {derived.alignment === 'white_hat' && (
-              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-primary-rgb),0.60)] text-[var(--ui-primary)] text-[11px] font-bold">
-                <RepIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> БЕЛЫЙ ХАКИНГ (+20% Data/ч • ×2 белые миссии)
-              </span>
-            )}
-            {derived.alignment === 'black_hat' && (
-              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[rgba(var(--ui-secondary-rgb),0.70)] text-[var(--ui-secondary)] text-[11px] font-bold">
-                <GlassesIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> ЧЁРНЫЙ ХАКИНГ (+50% к тапу • риск Heat)
-              </span>
-            )}
-            {derived.alignment === 'neutral' && (
-              <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/80 border border-slate-700/80 text-slate-300 text-[11px]">
-                <ScaleIcon className="mr-1 inline h-3 w-3 align-[-1px]" /> Нейтральный хакер
-              </span>
-            )}
-          </div>
-
-          {derived.autoClickPerSec > 0 && (
-            <span className="px-2 py-0.5 rounded-md bg-[var(--ui-panel-deep)]/85 border border-[var(--ui-success)]/60 text-[var(--ui-success)] text-[11px] font-bold animate-pulse">
-              🤖 Автоклик {derived.autoClickPerSec}/сек
-            </span>
-          )}
-        </div>
-
         {/* Нижний прогресс-индикатор до следующего уровня */}
         <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-slate-300 pointer-events-none">
           <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800">
@@ -437,12 +476,12 @@ export const DeskScene: React.FC = () => {
           {locationArt
             ? locationArt.tier === 'early' && (
                 <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
-                  Станция: Ур. {DESK_LATE_FROM_STAGE}
+                  Полная станция с Ур. {DESK_LATE_FROM_STAGE}
                 </span>
               )
-            : stageInfo.nextLevel && (
+            : stageInfo.nextLevel !== null && (
                 <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
-                  След. сцена: Ур. {stageInfo.nextLevel}
+                  Следующий этап с Ур. {stageInfo.nextLevel}
                 </span>
               )}
         </div>

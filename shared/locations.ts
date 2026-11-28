@@ -47,10 +47,42 @@ export interface LocationDeskScenes {
   late: string;
 }
 
-/** С какого этапа стола включается «полная станция» (этапы 20/25/30). */
-export const DESK_LATE_FROM_STAGE = 20;
-
 export type LocationDeskTier = 'early' | 'late';
+
+/**
+ * Тир кадра рабочего места в чужой локации (v1.4).
+ *
+ * Вне Комнаты арт не дробится на семь этапов: два кадра на место — «ноутбук» и
+ * «полная станция». Граница задана в конфиге, чтобы сцена, подпись и QA читали
+ * одно и то же число. `fromStage`/`toStage` — ключи этапов, то есть уровни
+ * игрока, на которых этап начинается (см. shared/desk-stages.config.ts).
+ */
+export const LOCATION_DESK_TIERS: readonly {
+  tier: LocationDeskTier;
+  fromStage: number;
+  toStage: number | null;
+  label: string;
+}[] = [
+  { tier: 'early', fromStage: 1, toStage: 19, label: 'Ноутбук' },
+  { tier: 'late', fromStage: 20, toStage: null, label: 'Полная станция' },
+] as const;
+
+/** С какого этапа включается «полная станция» (этапы 20/25/30). */
+export const DESK_LATE_FROM_STAGE = LOCATION_DESK_TIERS[LOCATION_DESK_TIERS.length - 1].fromStage;
+
+/** Тир кадра для этапа: правило живёт здесь, а не в компоненте. */
+export function locationDeskTierForStage(stage: unknown): LocationDeskTier {
+  const safeStage = Math.max(1, Math.floor(Number(stage) || 1));
+  const found = LOCATION_DESK_TIERS.find(
+    (item) => safeStage >= item.fromStage && (item.toStage === null || safeStage <= item.toStage)
+  );
+  return found?.tier ?? 'early';
+}
+
+/** Подпись кадра: «Ноутбук» / «Полная станция». */
+export function locationDeskTierLabel(tier: LocationDeskTier): string {
+  return LOCATION_DESK_TIERS.find((item) => item.tier === tier)?.label ?? LOCATION_DESK_TIERS[0].label;
+}
 
 /** Готовая сцена рабочего места: что рисовать и как это подписать. */
 export interface LocationDeskArt {
@@ -174,12 +206,11 @@ export function getLocationWorld(locationId: unknown): LocationWorld {
 export function locationDeskScene(locationId: unknown, stage = 1): LocationDeskArt | null {
   const world = getLocationWorld(locationId);
   if (!world.deskScenes) return null;
-  const safeStage = Math.max(1, Math.floor(Number(stage) || 1));
-  const tier: LocationDeskTier = safeStage >= DESK_LATE_FROM_STAGE ? 'late' : 'early';
+  const tier = locationDeskTierForStage(stage);
   return {
     url: world.deskScenes[tier],
     tier,
-    label: tier === 'late' ? 'Полная станция' : 'Ноутбук',
+    label: locationDeskTierLabel(tier),
   };
 }
 

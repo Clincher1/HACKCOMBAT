@@ -62,10 +62,11 @@ export default defineConfig(({ command, mode }) => {
         output: {
           manualChunks: {
             react: ['react', 'react-dom', 'react-router-dom'],
-            // Framer Motion is used by the desk and modal routes only. Do not
-            // promote it into the entry preload: keep the first Telegram paint
-            // free of animation code and load it with the route that needs it.
-            sdk: ['@telegram-apps/sdk-react', '@supabase/supabase-js'],
+            // v1.4: чанк `sdk` удалён вместе со статическим импортом Telegram SDK.
+            // Он всё равно был отдельным файлом, но `index.html` его
+            // modulepreload-ил, поэтому 23.2 kB gzip уезжали в стартовый payload.
+            // Теперь `src/lib/telegram.ts` грузит SDK через import() перед первым
+            // запросом к API, и Rollup кладёт его в ленивый чанк сам.
           },
         },
       },

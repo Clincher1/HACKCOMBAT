@@ -1,4 +1,4 @@
-import { Droplet, Archive, Armchair, Building, Building2, Gamepad2, Globe, Laptop, Lock, Monitor, MoonStar, Package, Palmtree, Phone, Satellite, Sparkles, Target, Trophy, Briefcase } from 'lucide-react';
+import { Archive, Armchair, Building, Building2, Gamepad2, Globe, Laptop, Lock, Monitor, MoonStar, Package, Palmtree, Phone, Satellite, Shirt, Sparkles, Target, Trophy, Briefcase } from 'lucide-react';
 import React from 'react';
 
 /**
@@ -16,10 +16,15 @@ import React from 'react';
  * каждую иконку: обёртка стоит байтов, а выигрыша не даёт.
  */
 /**
- * Дверь в косметику в HUD — капля краски (`Droplet`): палитра читалась бы
- * лучше, но новый модуль lucide стоит ≈0.23 kB gzip в главном чанке, а бюджет
- * 113.4 kB уже занят. Капля не дублирует ни одну иконку HUD (Data — Sparkles,
- * Crypto — Gem, Чипы — Cog) и означает «перекрасить оформление».
+ * Дверь в косметику в HUD — футболка (`Shirt`), v1.4.
+ *
+ * Было: капля (`Droplet`). На живом прогоне она читалась как «заряд»: в HUD
+ * рядом стоит молния CPU, и две «капающие» пиктограммы сливались (R5).
+ * Палитра/кисть решены как запрещённые бюджетом (≈0.52 kB gzip каждая против
+ * ≈0.40 у футболки), поэтому берём футболку — она означает «сменить облик»
+ * и не дублирует ни одну иконку HUD (Data — Sparkles, Crypto — Gem, Чипы — Cog,
+ * инвентарь — Package). Маржинальная цена в бандле ≈0.2 kB gzip, и она
+ * компенсирована выносом Telegram SDK в ленивый чанк (см. qa:bundle).
  */
 export {
   BookOpen as BookIcon,
@@ -29,7 +34,7 @@ export {
   Clock3 as ClockIcon,
   Cog as ChipsIcon,
   Cpu as PrestigeIcon,
-  Droplet as CosmeticsIcon,
+  Shirt as CosmeticsIcon,
   Gem as CryptoIcon,
   Glasses as GlassesIcon,
   Lock as LockIcon,

@@ -333,8 +333,18 @@ seed(
 );
 seed(TG.cooling, makeRecord(TG.cooling, { heat: 30, items: { 'consumable:cooling_rod': { key: 'consumable:cooling_rod', qty: 1, firstAcquiredAt: nowIso, updatedAt: nowIso } } }));
 const MISSION_KEYS = ['scam_shop', 'fake_lottery'];
-seed(TG.exploit, makeRecord(TG.exploit, { xp: 5000, availableMissionKeys: MISSION_KEYS, items: { 'consumable:exploit_injection': { key: 'consumable:exploit_injection', qty: 1, firstAcquiredAt: nowIso, updatedAt: nowIso } } }));
-seed(TG.exploitBase, makeRecord(TG.exploitBase, { xp: 5000, availableMissionKeys: MISSION_KEYS }));
+/**
+ * Рубеж 5 уже получен (itemMilestones).
+ *
+ * Без этой отметки первый же запрос на 5-м уровне выдавал ГАРАНТИРОВАННЫЙ
+ * предмет рубежа, а его ключ выбирается случайно: примерно в одном прогоне из
+ * десяти выпадал второй `consumable:exploit_injection`, стопка становилась 2 →
+ * проверки «предмет НЕ списан при применении» и «списана при старте» падали
+ * на ровном месте (плавающий FAIL, ловился ~10% прогонов). Рубеж в этих двух
+ * сценариях не проверяется — он проверяется отдельным блоком «уровни».
+ */
+seed(TG.exploit, makeRecord(TG.exploit, { xp: 5000, availableMissionKeys: MISSION_KEYS, stats: { itemMilestones: ['level_5'] }, items: { 'consumable:exploit_injection': { key: 'consumable:exploit_injection', qty: 1, firstAcquiredAt: nowIso, updatedAt: nowIso } } }));
+seed(TG.exploitBase, makeRecord(TG.exploitBase, { xp: 5000, availableMissionKeys: MISSION_KEYS, stats: { itemMilestones: ['level_5'] } }));
 seed(TG.channel, makeRecord(TG.channel, { items: { 'consumable:channel_modifier': { key: 'consumable:channel_modifier', qty: 2, firstAcquiredAt: nowIso, updatedAt: nowIso } } }));
 seed(TG.channelBase, makeRecord(TG.channelBase));
 seed(
