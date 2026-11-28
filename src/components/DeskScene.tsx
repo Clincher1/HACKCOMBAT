@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ChevronRight, Eye, Lock, MapPin, Sparkles, Terminal, Zap } from 'lucide-react';
+import { ChevronRight, Eye, Lock, Sparkles, Terminal, Zap } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ENERGY_REGEN_SECONDS,
@@ -13,7 +13,6 @@ import {
 import { SKINS_CONFIG } from '../../shared/skins.config';
 import { composeSceneFilter, getThemeScene } from '../../shared/themes.config';
 import {
-  DESK_LATE_FROM_STAGE,
   hasLocationDeskScene,
   locationDeskScene,
   locationTagline,
@@ -180,8 +179,16 @@ export const DeskScene: React.FC = () => {
     locationArt?.url ?? deskBackdrop?.url ?? getThemeScene(baseTheme, activeStage) ?? stageInfo.sceneUrl;
   const sceneFilter =
     locationArt || deskBackdrop ? 'none' : composeSceneFilter(activeSkin.cssFilter, baseTheme);
-  // Подпись сцены: на чужом месте это «Улица · Ноутбук», дома — название этапа.
-  const sceneTitle = locationArt ? `${activeLocation.name} · ${locationArt.label}` : stageInfo.title;
+  /**
+   * Подпись сцены (v1.5, пакет «Чистый стол»).
+   *
+   * Было: дома «Ур. N — Название этапа», на чужом месте «Улица · Ноутбук».
+   * Стало: дома — «Этап N/7 — Название» (номер этапа, не уровень), в чужом
+   * месте — только название места и его лор. Тир рабочего места («ноутбук»
+   * /«полная станция») со сцены убран совсем: это информация об этапе, а
+   * этапы живут в кнопке «Этапы» и на её экране.
+   */
+  const sceneTitle = locationArt ? activeLocation.name : stageInfo.title;
   const sceneSubtitle = locationArt ? locationTagline(activeLocation.id) : stageInfo.subtitle;
 
   /**
@@ -233,34 +240,33 @@ export const DeskScene: React.FC = () => {
 
   return (
     <div className="space-y-3">
-      {/* Инфо-строка эволюции стола + кнопка предпросмотра всех 7 этапов */}
+      {/* Шапка сцены: подпись этапа/места + кнопка «Этапы».
+          v1.5 («Чистый стол»): подпись приглушена до второстепенной — 11 px,
+          muted-токен, без жирности и без акцентного цвета, чтобы не спорить с
+          заголовком локации в HUD. Уровней здесь нет вообще: номер уровня
+          принадлежит игроку (HUD), этапы — экрану кнопки «Этапы». */}
       <div className="flex items-center justify-between gap-2 bg-[var(--ui-panel)]/90 border border-slate-800 rounded-xl px-3 py-2">
         <div className="min-w-0">
-          <div className="flex items-center gap-1.5 text-[13px] font-bold text-[var(--ui-primary)]">
-            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+          <div className="flex items-center gap-1.5 text-[11px] font-normal text-[var(--ui-text-muted)]">
+            <Sparkles className="w-3 h-3 shrink-0 opacity-70" />
             <span className="truncate" data-qa="desk-scene-title">
               {sceneTitle}
             </span>
             {previewStage && previewStage !== derived.deskStage && (
-              <span className="px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 text-[11px]">
+              <span className="shrink-0 rounded bg-amber-500/20 px-1.5 py-0.2 text-[11px] text-amber-300">
                 Превью
               </span>
             )}
           </div>
-          <p className="text-[11px] text-slate-400 truncate">{sceneSubtitle}</p>
+          <p
+            data-qa="desk-scene-subtitle"
+            className="truncate text-[11px] text-[var(--ui-text-faint)]"
+          >
+            {sceneSubtitle}
+          </p>
         </div>
 
-        {locationArt ? (
-          // Вне дома этапы стола не показываем: сцена принадлежит месту, а не
-          // уровню. Чип объясняет, откуда взялась картинка.
-          <span
-            data-qa="desk-scene-place"
-            className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--ui-panel)] border border-[rgba(var(--ui-primary-rgb),0.30)] text-[11px] font-semibold text-[var(--ui-primary)]"
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            <span className="truncate max-w-[92px]">{activeLocation.name}</span>
-          </span>
-        ) : (
+        {locationArt ? null : (
           <button
             type="button"
             onClick={() => {
@@ -464,27 +470,10 @@ export const DeskScene: React.FC = () => {
           }`}
         />
 
-        {/* Нижний прогресс-индикатор до следующего уровня */}
-        <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-[11px] text-slate-300 pointer-events-none">
-          <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800">
-            До Ур. {derived.level + 1}:{' '}
-            <strong className="text-[var(--ui-primary)]">
-              {Math.round(derived.xpIntoLevel).toLocaleString('ru-RU')}/
-              {Math.round(derived.xpToNext).toLocaleString('ru-RU')} XP
-            </strong>
-          </span>
-          {locationArt
-            ? locationArt.tier === 'early' && (
-                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
-                  Полная станция с Ур. {DESK_LATE_FROM_STAGE}
-                </span>
-              )
-            : stageInfo.nextLevel !== null && (
-                <span className="bg-[var(--ui-panel-deep)]/80 px-2 py-0.5 rounded border border-slate-800 text-[11px] text-slate-400">
-                  Следующий этап с Ур. {stageInfo.nextLevel}
-                </span>
-              )}
-        </div>
+        {/* v1.5 («Чистый стол»): нижний ряд «До Ур. N: XP» и чипы
+            «Полная станция с Ур. 20» / «Следующий этап с Ур. 10» удалены.
+            Поверх сцены не остаётся ни одного текста про уровни: прогресс XP
+            виден шкалой и числом в HUD, этапы — за кнопкой «Этапы». */}
 
         {/* Летящие байты при каждом тапе */}
         {particles.map((p) => (

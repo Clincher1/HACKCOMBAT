@@ -606,12 +606,10 @@ check(
   'R2: туториал больше не называет фазы прокачки «Этапами» (нет третьего значения слова)',
   !/Этап \d+ \(Ур\./.test(tutorialSource) && /Фаза 1 \(Ур\./.test(tutorialSource)
 );
-const PLAYER_LEVEL_LABELS = [
-  'Ур. {derived.level',
-  'Ур. {DESK_LATE_FROM_STAGE}',
-  'Ур. {stageInfo.nextLevel}',
-  'Ур. ${st}',
-];
+// v1.5 («Чистый стол»): на самой сцене уровней не осталось вовсе. Единственные
+// вхождения «Ур.» в файле — aria-label'ы чипов внутри панели «Этапы» (это экран
+// этапов, а не поверхность сцены; нужны для скринридера).
+const PLAYER_LEVEL_LABELS = ['Ур. ${st}'];
 const playerLevelOccurrences = PLAYER_LEVEL_LABELS.reduce(
   (sum, fragment) => sum + (deskMarkup.split(fragment).length - 1),
   0
@@ -652,6 +650,23 @@ for (const viewport of [320, 360, 390, 414]) {
   const slack = deskHeaderSlack(viewport);
   if (slack < DESK_HEADER.minTitle) headerOverflow.push(`@${viewport}: ${slack.toFixed(1)} < ${DESK_HEADER.minTitle}`);
 }
+// R3b (v1.5 «Чистый стол»): поверх сцены нет ни уровней, ни тира рабочего места.
+check(
+  'R3b: на тап-поверхности сцены нет текста про уровни и чипов этапа/тира',
+  !/Ур\./.test(stripComments(tapSurfaceBlock)) &&
+    !stripComments(tapSurfaceBlock).includes('До Ур.') &&
+    !deskMarkup.includes('Полная станция с Ур.') &&
+    !deskMarkup.includes('Следующий этап с Ур.')
+);
+const plaqueIndex = deskMarkup.indexOf('data-qa="desk-scene-title"');
+const plaqueBlock = plaqueIndex >= 0 ? deskMarkup.slice(Math.max(0, plaqueIndex - 340), plaqueIndex + 620) : '';
+check(
+  'R3c: подпись этапа приглушена до второстепенной (11 px, muted-токен, без жирности)',
+  plaqueBlock.includes('text-[11px] font-normal text-[var(--ui-text-muted)]') &&
+    plaqueBlock.includes('text-[11px] text-[var(--ui-text-faint)]') &&
+    !plaqueBlock.includes('text-[13px] font-bold'),
+  plaqueBlock ? 'плашка сцены' : 'подпись не найдена'
+);
 check(
   'R3: кнопка «Этапы» не может уехать за край и не перекрывается на 320–414 px',
   headerOverflow.length === 0 &&
