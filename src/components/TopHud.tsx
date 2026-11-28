@@ -1,5 +1,5 @@
 import { BookOpen, ChevronRight, Flame, Gift, Zap } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
@@ -60,6 +60,32 @@ export const TopHud: React.FC = () => {
     worldEnabled,
     activeLocation,
   } = useGame();
+
+  /**
+   * v1.4 (R4): HUD публикует свою реальную высоту в CSS-переменную
+   * `--hk-hud-h`. По ней AlertStack встаёт ПОД панель, а не поверх ресурсов.
+   * Высота зависит от режима (онбординг прячет Heat, леденец добавляет строку),
+   * поэтому считаем её ResizeObserver'ом, а не константой.
+   */
+  const headerRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const node = headerRef.current;
+    if (!node || typeof document === 'undefined') return;
+    const publish = () => {
+      const height = Math.round(node.getBoundingClientRect().height);
+      if (height > 0) {
+        document.documentElement.style.setProperty('--hk-hud-h', `${height}px`);
+      }
+    };
+    publish();
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', publish);
+      return () => window.removeEventListener('resize', publish);
+    }
+    const observer = new ResizeObserver(publish);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
 
   if (!player) return null;
 
@@ -123,7 +149,11 @@ export const TopHud: React.FC = () => {
 
   return (
     <>
-    <header className="sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.94)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2 pb-2">
+    <header
+      ref={headerRef}
+      data-qa="hud"
+      className="sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.94)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2 pb-2"
+    >
       <div className="mx-auto max-w-xl space-y-1.5">
         {/* Строка 1: профиль (одна кнопка) + два действия. */}
         <div className="flex items-center justify-between gap-2">

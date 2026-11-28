@@ -47,7 +47,8 @@ import { isGameplayV3Enabled } from '../../shared/config';
 import { isStepComplete, onboardingViewState } from '../lib/onboarding';
 import { trackReferralFirstSession } from '../lib/referralTracking';
 import {
-  initTelegramMiniApp,
+  initTelegramProfile,
+  peekTelegramProfile,
   renameDemoIdentity,
   triggerHapticImpact,
   triggerHapticNotification,
@@ -269,7 +270,9 @@ export function tapDataBoost(player: PlayerState): number {
 }
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => initTelegramMiniApp());
+  // v1.4: синхронный снимок для первого рендера; настоящий профиль приходит
+  // из initTelegramProfile() перед первым запросом к API (SDK грузится лениво).
+  const [tgProfile, setTgProfile] = useState<TelegramProfileInfo>(() => peekTelegramProfile());
   const [player, setPlayer] = useState<PlayerState | null>(null);
   // Базовая тема — производная от player.stats.baseTheme (сервер — источник истины).
   // v4.1: активный «вид из окна». Живёт в stats, поэтому переживает Престиж.
@@ -606,6 +609,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(true);
       setInitError(null);
       try {
+        // Профиль (и ленивый чанк SDK Telegram) готовим до первого запроса:
+        // сервер должен получить подписанный initData, а не гостя.
+        setTgProfile(await initTelegramProfile());
         const res = await gameApi.init();
         setAlerts([]);
         applyServerSync(res, true);
@@ -1265,7 +1271,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateDemoName = useCallback(
     async (newName: string) => {
       renameDemoIdentity(newName);
-      setTgProfile(initTelegramMiniApp());
+      setTgProfile(peekTelegramProfile());
       const res = await gameApi.init();
       applyServerSync(res);
     },

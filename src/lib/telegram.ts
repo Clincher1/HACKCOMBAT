@@ -1,20 +1,60 @@
-import {
-  expandViewport,
-  hapticFeedbackImpactOccurred,
-  hapticFeedbackNotificationOccurred,
-  hapticFeedbackSelectionChanged,
-  init,
-  initDataUser,
-  isHapticFeedbackSupported,
-  miniAppReady,
-  mountMiniAppSync,
-  mountViewport,
-  restoreInitData,
-  retrieveLaunchParams,
-  retrieveRawInitData,
-  setMiniAppBackgroundColor,
-  setMiniAppHeaderColor,
-} from '@telegram-apps/sdk-react';
+/**
+ * HACKER KOMBAT — Telegram-профиль и тактильная отдача.
+ * ----------------------------------------------------------------------------
+ * v1.4 («разгрузка бандла»): SDK Telegram больше НЕ импортируется статически.
+ *
+ * Было: `import {...} from '@telegram-apps/sdk-react'` в самом верху файла.
+ * Этот файл тянет `src/lib/api.ts`, а его — контекст игры, поэтому весь SDK
+ * (≈23.2 kB gzip) попадал в стартовый payload: Vite выносил его в отдельный
+ * чанк, но `index.html` тут же его `modulepreload`-ил, и первый экран ждал
+ * лишние 74 kB raw ещё до запроса профиля.
+ *
+ * Стало: SDK грузится динамическим импортом ровно в тот момент, когда он
+ * реально нужен — на определении Telegram-профиля перед первым запросом к API
+ * (`initTelegramProfile()`), а также из платёжных карточек через их собственные
+ * `import()`. Браузерный гость, которому Telegram-функции не нужны вовсе, ждёт
+ * только сам чанк профиля, а не SDK.
+ *
+ * Правила, которые нельзя ломать:
+ *  • профиль определяется ОДИН раз и кешируется: гостевой id из localStorage не
+ *    должен «перебить» настоящий Telegram-профиль (это была бы потеря прогресса);
+ *  • синхронный `peekTelegramProfile()` отдаёт только уже известный профиль или
+ *    гостя — он нужен первому рендеру и аналитике, но ничего не фиксирует;
+ *  • тактильная отдача никогда не ждёт сеть: если SDK ещё не загружен, работает
+ *    `navigator.vibrate`, а после загрузки — родные haptics Telegram.
+ */
+
+/** Тип модуля SDK без статического импорта: код в бандл не попадает. */
+type TelegramSdkModule = typeof import('@telegram-apps/sdk-react');
+
+let sdk: TelegramSdkModule | null = null;
+let sdkLoading: Promise<TelegramSdkModule | null> | null = null;
+
+/**
+ * Загрузка SDK по требованию. Возвращает `null`, если чанк не загрузился:
+ * игра обязана остаться рабочей (гостевой режим), а не падать на старте.
+ */
+export function loadTelegramSdk(): Promise<TelegramSdkModule | null> {
+  if (sdk) return Promise.resolve(sdk);
+  if (!sdkLoading) {
+    sdkLoading = import('@telegram-apps/sdk-react')
+      .then((module) => {
+        sdk = module;
+        return module;
+      })
+      .catch(() => {
+        // Не кешируем ошибку навсегда: следующий вызов попробует ещё раз.
+        sdkLoading = null;
+        return null;
+      });
+  }
+  return sdkLoading;
+}
+
+/** SDK уже в памяти (нужно тактильной отдаче, чтобы не будить сеть). */
+export function isTelegramSdkLoaded(): boolean {
+  return sdk !== null;
+}
 
 export interface TelegramProfileInfo {
   tgId: number;
@@ -46,9 +86,9 @@ function normalizeStartParam(value: unknown): string | undefined {
  * подтверждается сервером по HMAC initData; этот параметр лишь не даёт
  * потерять код, когда Telegram не продублировал его в tgWebAppData.
  */
-function readTelegramLaunchStartParam(): string | undefined {
+function readTelegramLaunchStartParam(module: TelegramSdkModule): string | undefined {
   try {
-    const launch = retrieveLaunchParams(true) as { tgWebAppStartParam?: unknown };
+    const launch = module.retrieveLaunchParams(true) as { tgWebAppStartParam?: unknown };
     const fromLaunch = normalizeStartParam(launch.tgWebAppStartParam);
     if (fromLaunch) return fromLaunch;
   } catch {
@@ -69,6 +109,7 @@ function readTelegramLaunchStartParam(): string | undefined {
 }
 
 let cachedProfile: TelegramProfileInfo | null = null;
+let profileLoading: Promise<TelegramProfileInfo> | null = null;
 
 function getOrCreateDemoIdentity(): { id: number; name: string } {
   const storageKeyId = 'hk_demo_tg_id';
@@ -86,6 +127,11 @@ function getOrCreateDemoIdentity(): { id: number; name: string } {
   return { id, name };
 }
 
+function buildGuestProfile(): TelegramProfileInfo {
+  const demo = getOrCreateDemoIdentity();
+  return { tgId: demo.id, username: demo.name, rawInitData: '', isInsideTelegram: false };
+}
+
 export function renameDemoIdentity(newName: string): void {
   const clean = newName.trim().slice(0, 24);
   if (!clean) return;
@@ -95,26 +141,25 @@ export function renameDemoIdentity(newName: string): void {
   }
 }
 
-export function initTelegramMiniApp(): TelegramProfileInfo {
-  if (cachedProfile) return cachedProfile;
-
+/** Инициализация Mini App и чтение подписанного профиля из уже загруженного SDK. */
+function readTelegramProfile(module: TelegramSdkModule): TelegramProfileInfo | null {
   try {
-    init();
-    restoreInitData();
+    module.init();
+    module.restoreInitData();
 
     try {
-      mountMiniAppSync();
-      setMiniAppBackgroundColor('var(--ui-panel-deep)');
-      setMiniAppHeaderColor('var(--ui-panel-deep)');
-      miniAppReady();
+      module.mountMiniAppSync();
+      module.setMiniAppBackgroundColor('var(--ui-panel-deep)');
+      module.setMiniAppHeaderColor('var(--ui-panel-deep)');
+      module.miniAppReady();
     } catch {
       // ignore optional color calls if host client is older
     }
 
     try {
-      void mountViewport().then(() => {
+      void module.mountViewport().then(() => {
         try {
-          expandViewport();
+          module.expandViewport();
         } catch {
           // ignore
         }
@@ -123,42 +168,62 @@ export function initTelegramMiniApp(): TelegramProfileInfo {
       // ignore
     }
 
-    const rawInitData = retrieveRawInitData() || '';
-    const user = initDataUser();
+    const rawInitData = module.retrieveRawInitData() || '';
+    const user = module.initDataUser();
 
     if (user?.id) {
-      cachedProfile = {
+      return {
         tgId: user.id,
         username: user.username || user.first_name || `Hacker_${user.id}`,
         photoUrl: user.photo_url,
         rawInitData,
-        startParam: readTelegramLaunchStartParam(),
+        startParam: readTelegramLaunchStartParam(module),
         isInsideTelegram: true,
       };
-      return cachedProfile;
     }
   } catch {
     // Работа вне Telegram WebView (превью в браузере / локальная отладка)
   }
+  return null;
+}
 
-  const demo = getOrCreateDemoIdentity();
-  cachedProfile = {
-    tgId: demo.id,
-    username: demo.name,
-    rawInitData: '',
-    isInsideTelegram: false,
-  };
-  return cachedProfile;
+/**
+ * Профиль для первого запроса к API. Грузит SDK только здесь, поэтому вызов
+ * обязан быть асинхронным: экран загрузки уже нарисован, а сеть к API всё
+ * равно пойдёт после этой строки.
+ */
+export function initTelegramProfile(): Promise<TelegramProfileInfo> {
+  if (cachedProfile) return Promise.resolve(cachedProfile);
+  if (!profileLoading) {
+    profileLoading = (async () => {
+      const module = await loadTelegramSdk();
+      const fromTelegram = module ? readTelegramProfile(module) : null;
+      cachedProfile = fromTelegram ?? buildGuestProfile();
+      return cachedProfile;
+    })();
+  }
+  return profileLoading;
+}
+
+/**
+ * Синхронный снимок профиля для первого рендера и аналитики.
+ * Ничего не фиксирует: если SDK ещё не загружен, это гостевая идентичность,
+ * и настоящий Telegram-профиль заменит её после `initTelegramProfile()`.
+ */
+export function peekTelegramProfile(): TelegramProfileInfo {
+  return cachedProfile ?? buildGuestProfile();
 }
 
 export function triggerHapticImpact(style: 'light' | 'medium' | 'heavy' = 'light'): void {
-  try {
-    if (isHapticFeedbackSupported()) {
-      hapticFeedbackImpactOccurred(style);
-      return;
+  if (sdk) {
+    try {
+      if (sdk.isHapticFeedbackSupported()) {
+        sdk.hapticFeedbackImpactOccurred(style);
+        return;
+      }
+    } catch {
+      // fallback below
     }
-  } catch {
-    // fallback below
   }
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     navigator.vibrate(style === 'heavy' ? 28 : style === 'medium' ? 16 : 8);
@@ -166,13 +231,15 @@ export function triggerHapticImpact(style: 'light' | 'medium' | 'heavy' = 'light
 }
 
 export function triggerHapticNotification(type: 'success' | 'warning' | 'error'): void {
-  try {
-    if (isHapticFeedbackSupported()) {
-      hapticFeedbackNotificationOccurred(type);
-      return;
+  if (sdk) {
+    try {
+      if (sdk.isHapticFeedbackSupported()) {
+        sdk.hapticFeedbackNotificationOccurred(type);
+        return;
+      }
+    } catch {
+      // fallback below
     }
-  } catch {
-    // fallback below
   }
   if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
     navigator.vibrate(type === 'error' ? [40, 30, 50] : [18, 20, 28]);
@@ -180,11 +247,13 @@ export function triggerHapticNotification(type: 'success' | 'warning' | 'error')
 }
 
 export function triggerHapticSelection(): void {
-  try {
-    if (isHapticFeedbackSupported()) {
-      hapticFeedbackSelectionChanged();
+  if (sdk) {
+    try {
+      if (sdk.isHapticFeedbackSupported()) {
+        sdk.hapticFeedbackSelectionChanged();
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
   }
 }

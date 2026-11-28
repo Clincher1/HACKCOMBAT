@@ -80,7 +80,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ open, onClose 
     <ModalFrame
       open={open}
       zIndex={55}
-      cardClassName="w-full max-w-sm rounded-3xl border border-[rgba(var(--ui-primary-rgb),0.35)] bg-[var(--ui-panel)] p-4"
+      cardClassName="w-full max-w-sm sm:max-w-lg rounded-3xl border border-[rgba(var(--ui-primary-rgb),0.35)] bg-[var(--ui-panel)] p-4"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
@@ -105,6 +105,12 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ open, onClose 
         </button>
       </div>
 
+      {/*
+        R6 (пакет «Правки прогона»): на десктопе карточка модала шире
+        (sm:max-w-lg), а сетка идёт в три колонки — иначе при 10+ предметах
+        правая половина модала оставалась пустой. Это правка ширины, не
+        редизайн: те же карточки, тот же порядок, тот же ленивый чанк.
+      */}
       {items.length === 0 ? (
         <div
           data-qa="inventory-empty"
@@ -119,7 +125,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ open, onClose 
           </p>
         </div>
       ) : (
-        <div data-qa="inventory-grid" className="mt-3 grid grid-cols-2 gap-2">
+        <div data-qa="inventory-grid" className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {items.map((stack) => {
             const item = getConsumableItem(stack.key);
             if (!item) return null;
@@ -129,7 +135,7 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ open, onClose 
               <article
                 key={item.key}
                 data-qa={`inventory-card-${item.key}`}
-                className="flex min-w-0 flex-col gap-1.5 rounded-2xl border bg-[var(--ui-panel-deep)] p-2.5"
+                className="flex h-full min-w-0 flex-col gap-1.5 rounded-2xl border bg-[var(--ui-panel-deep)] p-2.5"
                 style={{ borderColor: withAlpha(rarity.border, 0.55) }}
               >
                 <div className="flex items-start justify-between gap-1">
@@ -147,12 +153,23 @@ export const InventoryScreen: React.FC<InventoryScreenProps> = ({ open, onClose 
                     ×{stack.qty}
                   </span>
                 </div>
-                <p className="min-w-0 truncate font-display text-[13px] font-bold text-white">{item.name}</p>
+                {/* R1: имя переносится по словам, а не режется посреди слова.
+                    На 320 px «Стержень охлаждения» встаёт в две строки — это
+                    читаемо, в отличие от «Стержень охлаждени…». */}
+                <p className="min-w-0 break-words font-display text-[13px] font-bold leading-tight text-white">
+                  {item.name}
+                </p>
                 <p className="text-[11px] leading-tight" style={{ color: rarity.text }}>
                   {rarity.label}
                   {item.durationLabel ? ` · ${item.durationLabel}` : ''}
                 </p>
-                <p className="line-clamp-3 text-[11px] leading-snug text-slate-400">{item.description}</p>
+                {/* R1: описание показываем целиком. Раньше стоял line-clamp-3 —
+                    текст обрывался на полуслове без намёка на продолжение, и
+                    игрок не знал, есть ли он вообще. Карточки сетки тянутся по
+                    самой высокой в ряду (h-full), кнопка прижата к низу. */}
+                <p data-qa="inventory-description" className="break-words text-[11px] leading-snug text-slate-400">
+                  {item.description}
+                </p>
                 <button
                   type="button"
                   onClick={() => void applyItem(item.key)}

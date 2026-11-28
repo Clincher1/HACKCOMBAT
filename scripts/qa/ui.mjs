@@ -262,7 +262,7 @@ check(
   hud.includes('hud-glow--secondary') &&
     hud.includes('<CosmeticsIcon') &&
     hud.includes('aria-label="Кибер-Косметика"') &&
-    read('src/components/ui-icons.tsx').includes('Droplet as CosmeticsIcon') && (() => {
+    read('src/components/ui-icons.tsx').includes('Shirt as CosmeticsIcon') && (() => {
       // 44 px = size-11; кнопка обязана жить на общем каркасе пары, а не своей вёрсткой
       const shell = hud.match(/const HUD_GLOW_BUTTON =\s*\n?\s*'([^']+)'/);
       return Boolean(shell) && /\bsize-11\b/.test(shell[1]);
@@ -540,6 +540,186 @@ check(
   'таблицу donations читает только бот-слой (api/_lib/donations.ts)',
   tableReaders.length === 1 && rel(tableReaders[0]) === path.join('api', '_lib', 'donations.ts'),
   tableReaders.map((file) => rel(file)).join(', ')
+);
+
+// ── J. Пакет «Правки прогона»: R1–R6 ───────────────────────────────────────
+/**
+ * Здесь проверяются ровно те дефекты, которые владелец увидел на живом прогоне.
+ * Геометрия считается той же арифметикой, что и в разделе G: ширины берём из
+ * классов (px), текст — по консервативной оценке 0.62/0.72 em на глиф.
+ */
+const deskSource = read('src/components/DeskScene.tsx');
+const alertSource = read('src/components/AlertStack.tsx');
+const iconsSource = read('src/components/ui-icons.tsx');
+const tutorialSource = read('src/components/TutorialModal.tsx');
+const deskStagesSource = read('shared/desk-stages.config.ts');
+// Комментарии не считаются интерфейсом: историю правки («раньше тут был
+// баннер…») писать можно, а проверять — только разметку.
+const deskMarkup = stripComments(deskSource);
+const iconsMarkup = stripComments(iconsSource);
+const inventoryMarkup = stripComments(inventorySource);
+
+// R1. Описание предмета не обрезается, имя переносится по словам.
+check(
+  'R1: описание предмета показано целиком (в карточке нет line-clamp)',
+  !/line-clamp/.test(inventoryMarkup) && inventoryMarkup.includes('data-qa="inventory-description"')
+);
+check(
+  'R1: имя предмета переносится по словам, а не режется посреди слова',
+  /break-words font-display text-\[13px\] font-bold/.test(inventorySource) &&
+    !/truncate font-display text-\[13px\]/.test(inventorySource)
+);
+/**
+ * Модель карточки инвентаря: модал max-w-sm (384), оверлей p-4 (16), сетка
+ * gap-2 (8) в 2 колонки, карточка p-2.5 (10). Считаем самое длинное слово
+ * названия и описания: перенос по словам обязан уложить его в строку.
+ */
+const INVENTORY_CARD_MODEL = { modalMax: 384, outer: 16, gap: 8, card: 10, cols: 2 };
+function inventoryCardInner(model, viewport, cols = model.cols) {
+  const modalW = Math.min(viewport, model.modalMax) - model.outer * 2;
+  const columnW = (modalW - model.gap * (cols - 1)) / cols;
+  return columnW - model.card * 2;
+}
+const longestNameWord = 'охлаждения';
+const longestDescWord = 'переохлаждение';
+const nameWordOverflow = [];
+for (const viewport of [320, 360, 390, 414]) {
+  const inner = inventoryCardInner(INVENTORY_CARD_MODEL, viewport);
+  const nameWidth = textWidth(longestNameWord, 13);
+  const descWidth = textWidth(longestDescWord, 11);
+  if (nameWidth > inner) nameWordOverflow.push(`имя@${viewport}: ${nameWidth.toFixed(1)} > ${inner.toFixed(1)}`);
+  if (descWidth > inner) nameWordOverflow.push(`описание@${viewport}: ${descWidth.toFixed(1)} > ${inner.toFixed(1)}`);
+}
+check(
+  'R1: самое длинное слово названия и описания влезает в карточку на 320–414 px',
+  nameWordOverflow.length === 0,
+  nameWordOverflow.join(' | ') ||
+    `запас ${(inventoryCardInner(INVENTORY_CARD_MODEL, 320) - textWidth(longestDescWord, 11)).toFixed(1)} px на 320`
+);
+
+// R2. «Уровень» — только у игрока, стол — «Этап N/7».
+check(
+  'R2: этапы стола подписаны «Этап N/7» и не используют слово «Ур.»',
+  !/Ур\./.test(stripComments(deskStagesSource)) && /deskStageLabel/.test(deskMarkup) && /deskStageNumber/.test(deskMarkup)
+);
+check(
+  'R2: туториал больше не называет фазы прокачки «Этапами» (нет третьего значения слова)',
+  !/Этап \d+ \(Ур\./.test(tutorialSource) && /Фаза 1 \(Ур\./.test(tutorialSource)
+);
+const PLAYER_LEVEL_LABELS = [
+  'Ур. {derived.level',
+  'Ур. {DESK_LATE_FROM_STAGE}',
+  'Ур. {stageInfo.nextLevel}',
+  'Ур. ${st}',
+];
+const playerLevelOccurrences = PLAYER_LEVEL_LABELS.reduce(
+  (sum, fragment) => sum + (deskMarkup.split(fragment).length - 1),
+  0
+);
+const stageWordCount = (deskMarkup.match(/Ур\./g) ?? []).length;
+check(
+  'R2: в сцене «Ур.» остался только у уровня игрока (следующий этап / полная станция)',
+  stageWordCount === playerLevelOccurrences,
+  `${stageWordCount} вхождений, все — уровень игрока (${playerLevelOccurrences})`
+);
+
+// R3. Баннер ветки не лежит поверх сцены; кнопка «Этапы» не уезжает за край.
+const tapSurfaceIndex = deskSource.indexOf('data-qa="desk-tap"');
+const alignmentIndex = deskSource.indexOf('data-qa="desk-alignment"');
+const tapSurfaceBlock = tapSurfaceIndex >= 0 ? deskSource.slice(tapSurfaceIndex) : '';
+check(
+  'R3: статус ветки — строка в потоке над артом, а не баннер поверх сцены',
+  alignmentIndex > 0 &&
+    alignmentIndex < tapSurfaceIndex &&
+    !stripComments(tapSurfaceBlock).includes('desk-alignment') &&
+    !/БЕЛЫЙ ХАКИНГ/.test(deskMarkup) &&
+    !deskMarkup.includes('absolute top-2.5 left-2.5 right-2.5')
+);
+/**
+ * Модель шапки сцены: main px-3 (12) с каждой стороны, max-w-xl (576), строка
+ * с gap-2 (8), кнопка «Этапы (7/7)» = px-2.5 (10×2) + иконка 14 + зазор 4 +
+ * текст 11 px жирным. Слева обязан остаться минимум 88 px на название этапа.
+ */
+const DESK_HEADER = { main: 12, gap: 8, buttonPadX: 10, icon: 14, iconGap: 4, minTitle: 88 };
+function deskHeaderSlack(viewport) {
+  const column = Math.min(viewport, 576) - DESK_HEADER.main * 2;
+  const buttonText = textWidth('Этапы (7/7)', 11);
+  const button = buttonText + DESK_HEADER.icon + DESK_HEADER.iconGap + DESK_HEADER.buttonPadX * 2;
+  return column - button - DESK_HEADER.gap;
+}
+const headerOverflow = [];
+for (const viewport of [320, 360, 390, 414]) {
+  const slack = deskHeaderSlack(viewport);
+  if (slack < DESK_HEADER.minTitle) headerOverflow.push(`@${viewport}: ${slack.toFixed(1)} < ${DESK_HEADER.minTitle}`);
+}
+check(
+  'R3: кнопка «Этапы» не может уехать за край и не перекрывается на 320–414 px',
+  headerOverflow.length === 0 &&
+    deskSource.includes('shrink-0 flex items-center gap-1 px-2.5 py-1.5') &&
+    deskSource.includes('min-w-0') &&
+    deskSource.includes('data-qa="desk-status"'),
+  headerOverflow.join(' | ') || `минимальный запас ${Math.min(...[320, 360, 390, 414].map(deskHeaderSlack)).toFixed(1)} px`
+);
+
+// R4. Алярм стоит под HUD, а не поверх ресурсов.
+check(
+  'R4: уведомления встают ниже верхней панели (смещение от --hk-hud-h)',
+  alertSource.includes('calc(var(--hk-hud-h, 156px) + 8px)') &&
+    !/fixed top-24/.test(alertSource) &&
+    alertSource.includes('data-qa="alert-stack"')
+);
+check(
+  'R4: HUD публикует свою реальную высоту (ResizeObserver) для этого смещения',
+  hudSource.includes('--hk-hud-h') &&
+    hudSource.includes('ResizeObserver') &&
+    hudSource.includes('getBoundingClientRect().height') &&
+    hudSource.includes('data-qa="hud"')
+);
+/**
+ * Модель HUD на 320 px без онбординга: pt-2/pb-2 (8+8), строка профиля 44,
+ * space-y-1.5 (6), блок валют ≈40 (11 + 13 + отступы), ещё 6, три шкалы
+ * по 6 px с зазором 4. Итог — нижняя граница панели, ниже которой обязан
+ * начинаться алерт даже без наблюдателя.
+ */
+const HUD_HEIGHT_MODEL = 8 + 8 + 44 + 6 + 40 + 6 + 3 * 6 + 2 * 4;
+const ALERT_FALLBACK = Number((alertSource.match(/--hk-hud-h, (\d+)px/) ?? [])[1] ?? 0);
+check(
+  'R4: фолбэк смещения алерта не выше реальной высоты HUD (ресурсы остаются читаемыми)',
+  ALERT_FALLBACK >= HUD_HEIGHT_MODEL,
+  `фолбэк ${ALERT_FALLBACK} px ≥ модели ${HUD_HEIGHT_MODEL} px`
+);
+
+// R5. Капля больше не изображает «Кибер-Косметику» рядом с молнией CPU.
+check(
+  'R5: у косметики отличимый от заряда глиф (футболка вместо капли)',
+  !iconsMarkup.includes('Droplet') &&
+    /Shirt as CosmeticsIcon/.test(iconsMarkup) &&
+    hudSource.includes('<CosmeticsIcon') &&
+    hudSource.includes('aria-label="Кибер-Косметика"') &&
+    hudSource.includes('data-qa="hud-skins"')
+);
+check(
+  'R5: aria-label и data-qa кнопки косметики не изменились',
+  hudSource.includes('aria-label="Кибер-Косметика"') && hudSource.includes('data-qa="hud-skins"')
+);
+
+// R6. На десктопе сетка занимает ширину модала, а не левую треть.
+check(
+  'R6: сетка инвентаря в три колонки на широком экране (правка ширины, не редизайн)',
+  inventorySource.includes('sm:grid-cols-3') &&
+    inventorySource.includes('sm:max-w-lg') &&
+    inventorySource.includes('h-full')
+);
+const wideCardOverflow = [];
+for (const viewport of [480, 640, 1024]) {
+  const inner = inventoryCardInner({ ...INVENTORY_CARD_MODEL, modalMax: 512 }, viewport, 3);
+  if (inner < 110) wideCardOverflow.push(`@${viewport}: ${inner.toFixed(1)} px`);
+}
+check(
+  'R6: колонка карточки на десктопе остаётся не уже 110 px',
+  wideCardOverflow.length === 0,
+  wideCardOverflow.join(' | ') ||
+    `480 px: ${inventoryCardInner({ ...INVENTORY_CARD_MODEL, modalMax: 512 }, 480, 3).toFixed(1)} px`
 );
 
 // ── F. CSS ─────────────────────────────────────────────────────────────────

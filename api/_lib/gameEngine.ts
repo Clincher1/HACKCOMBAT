@@ -105,6 +105,7 @@ import {
   rollHackOutcome,
 } from '../../shared/hack.config';
 import { MISSIONS_CONFIG } from '../../shared/missions.config';
+import { deskStageLabel } from '../../shared/desk-stages.config';
 import {
   getPetAffection,
   getEffectiveHunger,
@@ -3580,7 +3581,9 @@ export async function handleBuyCard(
       alerts.push({
         id: crypto.randomUUID(),
         type: 'success',
-        title: `✨ ЭВОЛЮЦИЯ СТОЛА (УР. ${newDerived.deskStage})!`,
+        // v1.4 (R2): этап стола больше не называется «УР.» — уровень остался
+        // только у игрока, стол подписан «Этап N/7».
+        title: `✨ ЭВОЛЮЦИЯ СТОЛА: ${deskStageLabel(newDerived.deskStage)}!`,
         message: 'Рабочее место хакера обновилось визуально — загляни на вкладку «Стол»!',
       });
     }

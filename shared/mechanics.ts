@@ -1,6 +1,13 @@
 import { getMaxCardLevel } from './cards.config';
 import { CARDS_CONFIG, getCardLevelIncomeMultiplier, MAX_CARD_LEVEL } from './cards.config';
 import { getLevelProgress } from './hack.config';
+import {
+  deskStageNextLevel,
+  deskStageTitle,
+  getDeskStageConfig,
+  getDeskStageForLevel,
+  type DeskStage,
+} from './desk-stages.config';
 import { BASE_UPGRADES_CONFIG, getBaseUpgradeConfig } from './base.config';
 import {
   getEffectiveHunger,
@@ -289,73 +296,35 @@ export function computeAlignment(rep: number, heat: number): AlignmentBranch {
   return 'neutral';
 }
 
-export function computeDeskStage(level: number): 1 | 5 | 10 | 15 | 20 | 25 | 30 {
-  if (level >= 30) return 30;
-  if (level >= 25) return 25;
-  if (level >= 20) return 20;
-  if (level >= 15) return 15;
-  if (level >= 10) return 10;
-  if (level >= 5) return 5;
-  return 1;
+/**
+ * Текущий этап стола по уровню игрока.
+ *
+ * v1.4: тело переехало в shared/desk-stages.config.ts — там же границы этапов
+ * (1–4, 5–9, 10–14, 15–19, 20–24, 25–29, 30+), подписи «Этап N/7» и арты.
+ * Здесь остался только публичный API, которым пользуются движок, коллекция и
+ * сцена: сигнатуры не менялись, поэтому старые вызовы не тронуты.
+ */
+export function computeDeskStage(level: number): DeskStage {
+  return getDeskStageForLevel(level);
 }
 
-export function getDeskStageInfo(stage: 1 | 5 | 10 | 15 | 20 | 25 | 30): {
+/**
+ * Подпись и арт этапа. `title` теперь «Этап 3/7 — Локальный Кластер»: слово
+ * «уровень» осталось только игроку (R2 пакета «Правки прогона»).
+ */
+export function getDeskStageInfo(stage: DeskStage): {
   title: string;
   subtitle: string;
   sceneUrl: string;
   nextLevel: number | null;
 } {
-  switch (stage) {
-    case 1:
-      return {
-        title: 'Ур. 1 — Подпольный Старт',
-        subtitle: 'Один монитор, закат за окном и первый заказ',
-        sceneUrl: '/assets/scenes/stage-01.webp',
-        nextLevel: 5,
-      };
-    case 5:
-      return {
-        title: 'Ур. 5 — Второй Монитор',
-        subtitle: 'Второй монитор и бирюзовый неон под столом',
-        sceneUrl: '/assets/scenes/stage-05.webp',
-        nextLevel: 10,
-      };
-    case 10:
-      return {
-        title: 'Ур. 10 — Локальный Кластер',
-        subtitle: 'Своя серверная стойка у окна с видом на залив',
-        sceneUrl: '/assets/scenes/stage-10.webp',
-        nextLevel: 15,
-      };
-    case 15:
-      return {
-        title: 'Ур. 15 — Тихая Веранда',
-        subtitle: 'Второй монитор на веранде, закат над водой',
-        sceneUrl: '/assets/scenes/stage-15.webp',
-        nextLevel: 20,
-      };
-    case 20:
-      return {
-        title: 'Ур. 20 — Пентхаус',
-        subtitle: 'Три монитора, кресло и панорама залива',
-        sceneUrl: '/assets/scenes/stage-20.webp',
-        nextLevel: 25,
-      };
-    case 25:
-      return {
-        title: 'Ур. 25 — Серверный Бункер',
-        subtitle: 'Бункер под городом: свой дата-центр',
-        sceneUrl: '/assets/scenes/stage-25.webp',
-        nextLevel: 30,
-      };
-    case 30:
-      return {
-        title: 'Ур. 30+ — Командный Зал',
-        subtitle: 'Панорамный зал, закат над бухтой и вся команда рядом',
-        sceneUrl: '/assets/scenes/stage-30.webp',
-        nextLevel: 50,
-      };
-  }
+  const config = getDeskStageConfig(stage);
+  return {
+    title: deskStageTitle(config.stage),
+    subtitle: config.subtitle,
+    sceneUrl: config.sceneUrl,
+    nextLevel: deskStageNextLevel(config.stage),
+  };
 }
 
 /** Собранные бонусы «Базы» (10 пассивных апгрейдов). Значения зажаты в безопасные рамки. */

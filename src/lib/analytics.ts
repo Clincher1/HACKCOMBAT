@@ -12,7 +12,7 @@
  * по ним видно, на каком шаге человек отвалился.
  */
 
-import { initTelegramMiniApp } from './telegram';
+import { peekTelegramProfile } from './telegram';
 
 /**
  * Шаги воронки в порядке прохождения.
@@ -102,7 +102,10 @@ function readIdentity(): TransportIdentity {
   let demoName = 'guest';
   let telegramInitData = '';
   try {
-    const tg = initTelegramMiniApp();
+    // v1.4: синхронный снимок профиля. Ранние события (app_opened) уходят до
+    // загрузки SDK, поэтому для Telegram-игрока там будет гостевой id — сам
+    // initData берётся из window ниже и остаётся верным.
+    const tg = peekTelegramProfile();
     demoId = String(tg.tgId);
     demoName = tg.username;
     telegramInitData = tg.rawInitData;
