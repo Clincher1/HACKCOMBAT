@@ -4,6 +4,7 @@ import buyCard from './_routes/buy-card';
 import click from './_routes/click';
 import contracts from './_routes/contracts';
 import daily from './_routes/daily';
+import dailyGoals from './_routes/daily-goals';
 import dailyIncident from './_routes/daily-incident';
 import dailyTasks from './_routes/daily-tasks';
 import donate from './_routes/donate';
@@ -46,6 +47,7 @@ const routes: Record<string, Handler> = {
   click,
   contracts,
   daily,
+  'daily-goals': dailyGoals,
   'daily-incident': dailyIncident,
   'daily-tasks': dailyTasks,
   donate,

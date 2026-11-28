@@ -109,3 +109,26 @@ from public.players;
   `to_regclass('public.item_drops')` и `to_regprocedure('public.grant_item(uuid,text,text,text)')`.
   Вайп сносит обе таблицы каскадом — они объявлены в `PLAYER_TABLES` (`scripts/lib/wipe-core.mjs`).
 
+## 023: «Цели дня»
+
+- `023_daily_goals.sql` расширяет CHECK `item_drops.source` до
+  `hack | mission | level | daily` (DROP CONSTRAINT + ADD CONSTRAINT: старые строки
+  проверку по-прежнему проходят, данные не читаются и не переписываются) и
+  пересоздаёт `grant_item` с тем же контрактом, добавив `daily` в список разрешённых
+  источников. Состояние доски живёт в существующем `players.stats.dailyGoals`,
+  новых колонок и таблиц нет — старый сейв читается как «доски ещё нет» и получает
+  свежую при первом синке.
+- `claim_daily_goal(p_player_id, p_goal_index, p_chips, p_crypto, p_item_key, p_day)` —
+  одна транзакция: `SELECT ... FOR UPDATE` по игроку (параллельные сборы
+  сериализуются, второй получает `DAILY_GOAL_ALREADY_CLAIMED` без награды),
+  проверка UTC-даты доски, готовности (`progress >= target`) и отметки `claimed`,
+  начисление Chips/Crypto, а на третьей цели — выдача предмета через `grant_item`
+  с `source='daily'` в той же транзакции. Суммы Чипов/Crypto ограничены сверху
+  (`p_chips <= 10`, `p_crypto <= 5`), чтобы клиент не мог прислать свою награду.
+- Функция `SECURITY DEFINER SET search_path = public`; `anon`/`authenticated` не
+  имеют ни прав на таблицы (как в 022), ни `EXECUTE` на функции.
+- После применения проверить `pg_get_constraintdef` для
+  `item_drops_source_check` (в определении есть `daily`) и
+  `to_regprocedure('public.claim_daily_goal(uuid,integer,integer,integer,text,text)')`.
+  Число игроков, суммарные XP/Data и `item_drops` до/после совпадают — миграция
+  ничего не пересчитывает.

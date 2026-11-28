@@ -83,6 +83,9 @@ export const gameApi = {
     apiRequest<ApiSyncResponse>('/api/daily-incident', 'POST', { choiceKey, clicks }),
   claimDailyTask: (taskKey: string, clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/daily-tasks', 'POST', { action: 'claim', taskKey, clicks }),
+  /** v1.6: забрать награду за цель дня. Клиент знает только индекс на доске. */
+  claimDailyGoal: (goalIndex: number, clicks = 0) =>
+    apiRequest<ApiSyncResponse>('/api/daily-goals', 'POST', { action: 'claim', goalIndex, clicks }),
   /** v6.3: активация сезонного леденца (×2 Data на час, раз в сутки). */
   activateLollipop: (clicks = 0) =>
     apiRequest<ApiSyncResponse>('/api/lollipop', 'POST', { action: 'activate', clicks }),

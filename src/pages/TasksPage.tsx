@@ -2,6 +2,7 @@ import { CalendarDays, ChevronRight, ClipboardList, FileText, Inbox, Trophy } fr
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { getGameDayBoundsMs } from '../../shared/mechanics';
+import { DailyGoalsSection } from '../components/DailyGoalsSection';
 import { QuestCard } from '../components/QuestCard';
 import { useGame } from '../context/GameContext';
 import { formatCountdown } from '../lib/format';
@@ -104,12 +105,23 @@ const SectionBody: React.FC<SectionProps> = ({ section, pendingClaims, boostActi
 const MemoSection = React.memo(SectionBody);
 
 export const TasksPage: React.FC = () => {
-  const { player, nowMs, pendingClaims, claimDailyTask, claimContract } = useGame();
+  const { player, nowMs, pendingClaims, claimDailyTask, claimDailyGoal, claimContract } = useGame();
   // Леденец тикает по общему nowMs: чип «×2 сейчас» гаснет сам, без своего таймера.
   const boostActive = isLollipopActive(player?.stats.lollipop, nowMs);
 
   // Секции зависят только от состояния игрока: тик таймера их не пересобирает.
   const sections = React.useMemo(() => (player ? buildQuestSections(player) : []), [player]);
+
+  /**
+   * Цели дня живут отдельной доской (v1.6): индекс приходит из состояния
+   * сервера, поэтому клиент не может «собрать» цель не из сегодняшней тройки.
+   */
+  const onClaimGoal = React.useCallback(
+    (goalIndex: number) => {
+      void claimDailyGoal(goalIndex);
+    },
+    [claimDailyGoal]
+  );
 
   const onClaim = React.useCallback(
     (quest: Quest) => {
@@ -124,11 +136,16 @@ export const TasksPage: React.FC = () => {
 
   if (!player) return null;
 
-  const total = sections.reduce((sum, section) => sum + section.quests.length, 0);
-  const closed = sections.reduce(
-    (sum, section) => sum + section.quests.filter((quest) => quest.status === 'closed').length,
-    0
-  );
+  // Счётчик в шапке честный: цели дня — такие же задания экрана, поэтому они
+  // входят и в total, и в closed (закрытая цель = забранная награда).
+  const goals = player.stats.dailyGoals?.goals ?? [];
+  const total =
+    sections.reduce((sum, section) => sum + section.quests.length, 0) + goals.length;
+  const closed =
+    sections.reduce(
+      (sum, section) => sum + section.quests.filter((quest) => quest.status === 'closed').length,
+      0
+    ) + goals.filter((goal) => goal.claimed).length;
   const dayKey = player.stats.dailyTasks?.dayKey;
 
   return (
@@ -141,9 +158,15 @@ export const TasksPage: React.FC = () => {
           </span>
         </div>
         <p className="mt-1 text-[11px] leading-relaxed text-[var(--ui-text-muted)]">
-          Поручения дня, сюжетные цели и события — всё в одном месте. Награду за готовое забираешь одним тапом.
+          Цели дня, поручения, сюжетные цели и события — всё в одном месте. Награду за готовое забираешь одним тапом.
         </p>
       </header>
+
+      <DailyGoalsSection
+        state={player.stats.dailyGoals}
+        pendingClaims={pendingClaims}
+        onClaim={onClaimGoal}
+      />
 
       {sections.map((section) => (
         <MemoSection

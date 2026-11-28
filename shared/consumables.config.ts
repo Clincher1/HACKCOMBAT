@@ -114,7 +114,11 @@ export const LEVEL_ITEM_MILESTONES = [5, 10, 15, 20] as const;
 /** На уровнях-рубежах выпадает common (80%) или rare (20%), epic — никогда. */
 export const LEVEL_ITEM_RARE_WEIGHT = 20;
 
-export type ItemDropSource = 'hack' | 'mission' | 'level';
+/**
+ * Источник дропа. `daily` (v1.6) — гарантированный предмет за полный сбор трёх
+ * целей дня; расширение CHECK в таблице `item_drops` делает миграция 023.
+ */
+export type ItemDropSource = 'hack' | 'mission' | 'level' | 'daily';
 
 /**
  * Редкость по весам. rng подставляется в тестах (засеянный генератор),
@@ -155,6 +159,18 @@ export function rollItemDrop(
 /** Предмет за уровень-рубеж: common или rare, никогда epic. */
 export function rollLevelItem(rng: () => number = Math.random): ConsumableItemDefinition {
   const rarity: ItemRarity = rng() * 100 < LEVEL_ITEM_RARE_WEIGHT ? 'rare' : 'common';
+  return pickConsumableByRarity(rarity, rng);
+}
+
+/**
+ * Полный сбор целей дня (v1.6): гарантированный предмет, common 80% / rare 20%.
+ * Epic исключён осознанно — ежедневный полный сбор не должен быть источником
+ * лучшего расходника в игре; его дают взломы (3% внутри дропа) и рулетка уровней.
+ */
+export const DAILY_FULL_SET_RARE_WEIGHT = 20;
+
+export function rollDailyFullSetItem(rng: () => number = Math.random): ConsumableItemDefinition {
+  const rarity: ItemRarity = rng() * 100 < DAILY_FULL_SET_RARE_WEIGHT ? 'rare' : 'common';
   return pickConsumableByRarity(rarity, rng);
 }
 

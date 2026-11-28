@@ -117,6 +117,8 @@ export interface GameContextValue {
   claimDailyBonus: () => Promise<void>;
   resolveDailyIncident: (choiceKey: string) => Promise<void>;
   claimDailyTask: (taskKey: string) => Promise<void>;
+  /** v1.6: забрать награду за цель дня по её индексу на доске (0–2). */
+  claimDailyGoal: (goalIndex: number) => Promise<void>;
   /**
    * Оптимистичные заборы наград: id (`daily:<key>`, `season:<action>`) уже
    * отмечены как полученные в UI, ответ сервера ещё летит. Нужен карточкам
@@ -1094,6 +1096,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   /**
+   * v1.6: сбор цели дня. Индекс, а не ключ — доска приходит с сервера, и
+   * клиент не может «придумать» цель, которой нет в сегодняшней тройке.
+   */
+  const claimDailyGoal = useCallback(
+    (goalIndex: number) =>
+      runClaim(`daily-goal:${goalIndex}`, `daily-goal:claim:${goalIndex}`, (clicks) =>
+        gameApi.claimDailyGoal(goalIndex, clicks)
+      ),
+    [runClaim]
+  );
+
+  /**
    * Взлому нужен ответ сервера (seed сессии и подтверждённый итог), а обычный
    * runAction возвращает только void. Это отдельный минимальный путь с той же
    * дисциплиной: дедупликация по ключу, busyKey, применение синка и алерт при
@@ -1588,6 +1602,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyBonus,
       resolveDailyIncident,
       claimDailyTask,
+      claimDailyGoal,
       claimContract,
       activateLollipop,
       startHack,
@@ -1665,6 +1680,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       claimDailyBonus,
       resolveDailyIncident,
       claimDailyTask,
+      claimDailyGoal,
       claimContract,
       activateLollipop,
       startHack,
