@@ -1,4 +1,4 @@
-import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Palette, Scale, Sparkles, Trophy, Volume2, VolumeX } from 'lucide-react';
+import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Scale, Sparkles, Trophy, Volume2, VolumeX } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -42,9 +42,8 @@ export const ProfilePage: React.FC = () => {
     updateDemoName,
     openTutorial,
     busyKey,
-    // v6.9: «Скины» и «Звук» переехали из HUD в профиль — это настройки,
-    // а не игра, и они больше не отнимают места над контентом.
-    setSkinModalOpen,
+    // v1.2: «Скины» уехали из профиля в HUD — единственная дверь в косметику
+    // стоит парой с инвентарём у блока уровня. «Звук» остался настройкой.
     soundMuted,
     toggleSound,
   } = useGame();
@@ -253,14 +252,6 @@ export const ProfilePage: React.FC = () => {
               {storageMode === 'supabase' ? 'Supabase Cloud' : 'Local Sync'}
             </span>
             <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setSkinModalOpen(true)}
-                data-qa="profile-skins"
-                className="inline-flex min-h-[44px] items-center gap-1 rounded-lg border border-[rgba(var(--ui-secondary-rgb),0.35)] bg-[var(--ui-panel)] px-2 text-[11px] font-bold text-[var(--ui-secondary)] cursor-pointer"
-              >
-                <Palette className="h-3 w-3" /> Скины
-              </button>
               <button
                 type="button"
                 onClick={toggleSound}

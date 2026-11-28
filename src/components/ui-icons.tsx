@@ -1,4 +1,4 @@
-import { Archive, Armchair, Building, Building2, Gamepad2, Globe, Laptop, Lock, Monitor, MoonStar, Package, Palmtree, Phone, Satellite, Sparkles, Target, Trophy, Briefcase } from 'lucide-react';
+import { Droplet, Archive, Armchair, Building, Building2, Gamepad2, Globe, Laptop, Lock, Monitor, MoonStar, Package, Palmtree, Phone, Satellite, Sparkles, Target, Trophy, Briefcase } from 'lucide-react';
 import React from 'react';
 
 /**
@@ -15,6 +15,12 @@ import React from 'react';
  * Здесь — ТОЛЬКО алиасы и четыре маппера. Никаких компонентов-обёрток на
  * каждую иконку: обёртка стоит байтов, а выигрыша не даёт.
  */
+/**
+ * Дверь в косметику в HUD — капля краски (`Droplet`): палитра читалась бы
+ * лучше, но новый модуль lucide стоит ≈0.23 kB gzip в главном чанке, а бюджет
+ * 113.4 kB уже занят. Капля не дублирует ни одну иконку HUD (Data — Sparkles,
+ * Crypto — Gem, Чипы — Cog) и означает «перекрасить оформление».
+ */
 export {
   BookOpen as BookIcon,
   Check as CheckIcon,
@@ -23,6 +29,7 @@ export {
   Clock3 as ClockIcon,
   Cog as ChipsIcon,
   Cpu as PrestigeIcon,
+  Droplet as CosmeticsIcon,
   Gem as CryptoIcon,
   Glasses as GlassesIcon,
   Lock as LockIcon,

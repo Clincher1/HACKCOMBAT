@@ -7,17 +7,20 @@ import { LollipopBadge } from './LollipopBadge';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 import { withAlpha } from '../lib/colors';
-import { AvatarFallbackIcon, ChipsIcon, CryptoIcon, DataIcon, LocationIcon, PackageIcon, RepIcon } from './ui-icons';
+import { AvatarFallbackIcon, ChipsIcon, CosmeticsIcon, CryptoIcon, DataIcon, LocationIcon, PackageIcon, RepIcon } from './ui-icons';
 
 /**
  * v1.1: экран инвентаря — ленивый чанк. Внутри ModalFrame и framer-motion,
  * поэтому статический импорт утащил бы анимации в главный чанк (+41 kB gzip).
  * Так HUD получает кнопку бесплатно, а код экрана грузится первым тапом.
  */
-const InventoryScreen = React.lazy(async () => {
-  const module = await import('./InventoryScreen');
-  return { default: module.InventoryScreen };
-});
+const InventoryScreen = React.lazy(async () => ({
+  default: (await import('./InventoryScreen')).InventoryScreen,
+}));
+
+/** Общий каркас кнопок пары «Инвентарь + Косметика»: 44×44, свечение из CSS. */
+const HUD_GLOW_BUTTON =
+  'hud-glow grid size-11 place-items-center rounded-xl border bg-[var(--ui-panel)] transition active:scale-95 cursor-pointer';
 
 /**
  * HACKER KOMBAT — верхняя панель (v6.9, «лёгкий HUD»).
@@ -28,11 +31,13 @@ const InventoryScreen = React.lazy(async () => {
  *
  * Что стало:
  *   • один блок валют (Data / Crypto / Чипы / Rep) — это ЧТЕНИЕ, а не навигация;
- *   • интерактивных элементов в HUD ровно пять: профиль, инвентарь, бонус,
- *     обучение и сезонный леденец (он живёт внутри плитки Data, потому что это
- *     событие, а не раздел меню). Инвентарь добавлен в v1.1 как заметная, но
- *     пока пустая заготовка: кнопка рядом с блоком уровня, экран-заглушка;
- *   • Скины и Звук уехали в профиль — это настройки, а не игра;
+ *   • интерактивных элементов в HUD ровно шесть: профиль, пара
+ *     «Инвентарь + Косметика», бонус, обучение и сезонный леденец (он живёт
+ *     внутри плитки Data, потому что это событие, а не раздел меню);
+ *   • инвентарь (v1.1) — заметная, но пока пустая заготовка: кнопка рядом с
+ *     блоком уровня, экран-заглушка;
+ *   • косметика (v1.2) — единственная дверь в «Кибер-Косметику»: кнопка стоит
+ *     парой с инвентарём, а из профиля убрана, чтобы не было двух входов;
  *   • шкалы XP / CPU / Heat — тонкие полосы одной строкой, Heat только вне
  *     онбординга.
  *
@@ -46,6 +51,7 @@ export const TopHud: React.FC = () => {
     gameplayV3,
     contractIncomePerHour,
     setDailyModalOpen,
+    setSkinModalOpen,
     openTutorial,
     tutorialUnseen,
     nowMs,
@@ -161,18 +167,30 @@ export const TopHud: React.FC = () => {
 
           <div className="flex shrink-0 items-center gap-1.5">
             {/* v1.1: инвентарь. Кнопка рядом с блоком уровня (аватар / «УР. N» /
-                локация), заметно подсвечивается токенами темы (.inventory-glow),
+                локация), заметно подсвечивается токенами темы (.hud-glow),
                 тап-таргет 44×44. Открывает экран-заготовку, механики нет. */}
             <button
               type="button"
               onClick={() => setInventoryOpen(true)}
               data-qa="hud-inventory"
               aria-label="Инвентарь"
-              title="Инвентарь"
-              className="inventory-glow grid h-11 w-11 place-items-center rounded-xl border bg-[var(--ui-panel)] text-[var(--ui-primary)] transition active:scale-95 cursor-pointer"
+              className={`${HUD_GLOW_BUTTON} hud-glow--primary text-[var(--ui-primary)]`}
             >
               <PackageIcon className="h-4 w-4" />
-              <span className="inventory-glow__dot" aria-hidden="true" />
+              <span className="hud-glow__dot" aria-hidden="true" />
+            </button>
+            {/* v1.2: косметика — только здесь, парой с инвентарём. Кнопка из
+                профиля убрана: в косметику теперь ровно одна дверь, рядом с
+                уровнем. Модалка «Кибер-Косметика» живёт в ленивом чанке
+                ModalsAndOverlays, здесь только 44×44 и глиф. */}
+            <button
+              type="button"
+              onClick={() => setSkinModalOpen(true)}
+              data-qa="hud-skins"
+              aria-label="Кибер-Косметика"
+              className={`${HUD_GLOW_BUTTON} hud-glow--secondary text-[var(--ui-secondary)]`}
+            >
+              <CosmeticsIcon className="h-4 w-4" />
             </button>
             <button
               type="button"
