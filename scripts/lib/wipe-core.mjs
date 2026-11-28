@@ -10,7 +10,6 @@
  *
  *   players (uuid pk)  ──CASCADE──▶ achievements, base_upgrades, cards, missions,
  *                                   new_year_candy, pets, team
- *                      ──SET NULL─▶ donations        (денежная история — храним)
  *                      ──CASCADE──▶ client_events    → отвязываем ДО удаления,
  *                                                      чтобы телеметрия осталась
  *   tg-keyed (FK нет):  operator_archive, operator_legacy_cutoff,
@@ -19,6 +18,12 @@
  * Системных таблиц (конфиги, события, счётчики) в public нет — конфиги живут в
  * shared/*.config.ts. Отвязка (а не удаление) client_events — единственное
  * «системное» действие: статистика по дням остаётся, привязки к игрокам нет.
+ *
+ * v1.1: таблица donations — НЕ игровая. Доната в игре нет и не будет (игра
+ * бесплатная), пожертвование автору живёт в боте и в Telegram Stars. Вайп
+ * игроков её не касается вообще: нет шага в плане, нет флага, нет упоминания в
+ * сверках. Строку и саму таблицу не трогаем — это история пожертвований бота.
+ * QA (qa/wipe.mjs) отдельно проверяет, что игровой код её не читает.
  *
  * Требование к базе: player_id в client_events должен быть nullable
  * (supabase/migrations/021_client_events_player_detach.sql). В 019 он NOT NULL,
@@ -42,8 +47,18 @@ export const PLAYER_TABLES = [
   'referrals',
 ];
 
-/** Таблицы, которые обязаны ВЫЖИТЬ (телеметрия — без привязки, деньги — как есть). */
-export const PRESERVED_TABLES = ['client_events', 'donations'];
+/**
+ * Таблицы, которые обязаны ВЫЖИТЬ и остаются в статистике вайпа.
+ * Только телеметрия: она game-side, но обезличивается, а не удаляется.
+ */
+export const PRESERVED_TABLES = ['client_events'];
+
+/**
+ * Таблицы вне игрового контура (бот): вайп игроков не трогает их никогда.
+ * donations — история пожертвований автору в Telegram Stars, к игре не
+ * относится; в плане вайпа её быть не может (гард ниже).
+ */
+export const BOT_TABLES = ['donations'];
 
 /**
  * Шаги вайпа. Порядок важен:
@@ -51,8 +66,7 @@ export const PRESERVED_TABLES = ['client_events', 'donations'];
  *   2) удалить игроков — детей забирает CASCADE;
  *   3) удалить tg-keyed хвосты, где внешних ключей нет.
  */
-export function buildPlan(options = {}) {
-  const includeDonations = options.includeDonations === true;
+export function buildPlan() {
   const plan = [
     {
       table: 'client_events',
@@ -72,15 +86,6 @@ export function buildPlan(options = {}) {
     { table: 'referral_codes', action: 'delete', filterColumn: 'tg_id', note: 'коды приглашений' },
     { table: 'referrals', action: 'delete', filterColumn: 'invitee_tg', note: 'связки «кто позвал»' },
   ];
-
-  if (includeDonations) {
-    plan.push({
-      table: 'donations',
-      action: 'delete',
-      filterColumn: 'tg_id',
-      note: 'ВНИМАНИЕ: удаление денежной истории (только по явному флагу)',
-    });
-  }
 
   return plan;
 }
@@ -106,10 +111,10 @@ export function assertPlanSafe(plan) {
   if (!plan.some((step) => step.table === 'players' && step.action === 'delete')) {
     throw new Error('Вайп: в плане нет удаления players — отказ.');
   }
-  // Деньги по умолчанию не трогаем.
-  for (const money of ['donations']) {
-    if (plan.some((step) => step.table === money) && !plan.some((step) => step.note?.includes('денежной'))) {
-      throw new Error(`Вайп: «${money}» в плане без пометки о денежной истории — отказ.`);
+  // v1.1: денежные/ботовые таблицы в плане вайпа запрещены в принципе.
+  for (const botTable of BOT_TABLES) {
+    if (plan.some((step) => step.table === botTable)) {
+      throw new Error(`Вайп: «${botTable}» — таблица бота, а не игры. В плане вайпа её быть не может.`);
     }
   }
   return plan;

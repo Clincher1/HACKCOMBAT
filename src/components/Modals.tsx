@@ -238,22 +238,21 @@ export const ModalsAndOverlays: React.FC = () => {
                                 <div className="absolute inset-0 bg-gradient-to-t from-[var(--ui-panel-deep)] via-[rgba(var(--ui-panel-deep-rgb),0.45)] to-transparent" />
                               </>
                             )}
-                            <div className="relative flex items-center justify-between gap-1">
-                              <span className="text-[16px] leading-none">{theme.glyph}</span>
-                              {active ? (
-                                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-[var(--ui-panel-deep)] flex items-center gap-0.5">
-                                  <Check className="w-2.5 h-2.5" /> ВКЛ
-                                </span>
-                              ) : (
-                                <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-black/30 text-white/80">
-                                  бесплатно
+                            {/* Та же геометрия, что в онбординге: в верхней строке
+                                только глиф и отметка, текстовый статус — плашкой на
+                                всю ширину карточки (иначе «бесплатно» срезалось). */}
+                            <div className="relative flex items-start justify-between gap-1">
+                              <span className="shrink-0 text-[16px] leading-none">{theme.glyph}</span>
+                              {active && (
+                                <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-white/90 text-[var(--ui-panel-deep)]">
+                                  <Check className="w-2.5 h-2.5" />
                                 </span>
                               )}
                             </div>
-                            <div className="relative font-display font-bold text-[13px] text-white mt-1.5 leading-tight">
+                            <div className="relative font-display font-bold text-[13px] text-white mt-1.5 leading-tight truncate">
                               {theme.name}
                             </div>
-                            <div className="relative text-[11px] text-slate-300/90 mt-0.5 leading-snug">
+                            <div className="relative line-clamp-2 text-[11px] text-slate-300/90 mt-0.5 leading-snug">
                               {theme.tagline}
                             </div>
                             <div
@@ -262,6 +261,14 @@ export const ModalsAndOverlays: React.FC = () => {
                                 background: `linear-gradient(90deg, ${theme.previewFrom}, ${theme.previewTo})`,
                               }}
                             />
+                            <div
+                              data-qa="theme-price"
+                              className={`relative mt-1.5 w-full truncate rounded-md px-1 py-0.5 text-center text-[11px] font-bold ${
+                                active ? 'bg-white/90 font-black text-[var(--ui-panel-deep)]' : 'bg-black/30 text-white/80'
+                              }`}
+                            >
+                              {active ? 'ВКЛЮЧЕНО' : 'бесплатно'}
+                            </div>
                           </button>
                         );
                       })}

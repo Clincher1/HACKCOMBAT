@@ -25,7 +25,6 @@ export {
   Cpu as PrestigeIcon,
   Gem as CryptoIcon,
   Glasses as GlassesIcon,
-  Image as ImageFrameIcon,
   Lock as LockIcon,
   Lollipop as CandiesIcon,
   Map as MapGlyph,

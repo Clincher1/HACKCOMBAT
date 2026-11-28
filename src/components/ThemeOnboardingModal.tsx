@@ -102,7 +102,7 @@ export const ThemeOnboardingModal: React.FC = () => {
                     type="button"
                     disabled={themeBusy}
                     onClick={() => chooseTheme(theme)}
-                    className={`group relative min-h-[238px] overflow-hidden rounded-2xl border p-2.5 text-left transition sm:min-h-[255px] sm:p-3 ${
+                    className={`group relative min-h-[238px] overflow-hidden rounded-2xl border p-2 text-left transition sm:min-h-[255px] sm:p-3 ${
                       selecting
                         ? 'border-white ring-2 ring-white/30'
                         : 'border-slate-700/80 hover:border-white/70'
@@ -126,50 +126,87 @@ export const ThemeOnboardingModal: React.FC = () => {
                       }}
                     />
 
-                    <div className="relative flex h-full flex-col">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[20px] leading-none" aria-hidden="true">
+                    <div className="relative flex h-full min-w-0 flex-col">
+                      {/* Верхняя строка без текста: только глиф и отметка выбора.
+                          Текстовый бейдж в узкой колонке (≈64 px на 320 px экрана)
+                          обрезался по правому краю — он переехал в плашку на всю
+                          ширину карточки, где обрезаться физически не может. */}
+                      <div className="flex items-start justify-between gap-1">
+                        <span className="shrink-0 text-[20px] leading-none" aria-hidden="true">
                           {theme.glyph}
                         </span>
-                        {active || selecting ? (
-                          <span className="inline-flex items-center gap-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[11px] font-black text-[var(--ui-panel-deep)]">
-                            {selecting ? 'СОХРАНЯЕМ' : <><Check className="h-2.5 w-2.5" /> ВЫБРАНО</>}
-                          </span>
-                        ) : (
-                          <span className="rounded-md bg-black/35 px-1.5 py-0.5 text-[11px] font-bold text-white/85">
-                            бесплатно
+                        {(active || selecting) && (
+                          <span className="grid h-4 w-4 shrink-0 place-items-center rounded-full bg-white/90 text-[var(--ui-panel-deep)]">
+                            <Check className="h-2.5 w-2.5" />
                           </span>
                         )}
                       </div>
 
-                      {/* Мини-превью логотипа: игрок видит характер бренда до выбора. */}
-                      <div className="mt-5 rounded-xl border border-white/15 bg-black/25 px-2 py-3 text-center backdrop-blur-[2px]">
-                        <div
-                          className="font-display text-[11px] font-black tracking-[0.22em]"
-                          style={{ color: theme.previewFrom }}
+                      {/* Мини-превью логотипа. Текст живёт в SVG с viewBox и
+                          w-full: он масштабируется по ширине карточки, поэтому
+                          «HACKER KOMBAT» не выходит за рамку ни на одной теме и
+                          ни на одной ширине экрана (320–390 px включительно). */}
+                      <div className="mt-4 min-w-0 overflow-hidden rounded-xl border border-white/15 bg-black/25 px-1 py-2 backdrop-blur-[2px]">
+                        <svg
+                          viewBox="0 0 132 54"
+                          className="mx-auto block h-auto w-full"
+                          preserveAspectRatio="xMidYMid meet"
+                          role="presentation"
+                          aria-hidden="true"
+                          data-qa="theme-preview-logo"
                         >
-                          HACKER
-                        </div>
-                        <div
-                          className="font-display text-[20px] font-black leading-none tracking-[0.08em]"
-                          style={{ color: theme.previewTo, textShadow: `0 0 14px ${withAlpha(theme.previewTo, 0.6)}` }}
-                        >
-                          KOMBAT
-                        </div>
+                          <text
+                            x="66"
+                            y="19"
+                            textAnchor="middle"
+                            className="font-display"
+                            fontSize="15"
+                            fontWeight="900"
+                            letterSpacing="3"
+                            fill={theme.previewFrom}
+                          >
+                            HACKER
+                          </text>
+                          <text
+                            x="66"
+                            y="45"
+                            textAnchor="middle"
+                            className="font-display"
+                            fontSize="25"
+                            fontWeight="900"
+                            letterSpacing="1.4"
+                            fill={theme.previewTo}
+                            style={{ filter: `drop-shadow(0 0 7px ${withAlpha(theme.previewTo, 0.6)})` }}
+                          >
+                            KOMBAT
+                          </text>
+                        </svg>
                       </div>
 
-                      <div className="mt-auto pt-3">
-                        <div className="flex items-center gap-1.5 font-display text-[16px] font-extrabold text-white">
-                          <Palette className="h-3.5 w-3.5" style={{ color: theme.previewFrom }} />
-                          {theme.key === 'femme' ? 'Женская · Neon Muse' : theme.name}
+                      <div className="mt-auto pt-2">
+                        <div className="flex min-w-0 items-center gap-1.5 font-display text-[16px] font-extrabold text-white">
+                          <Palette className="h-3.5 w-3.5 shrink-0" style={{ color: theme.previewFrom }} />
+                          <span className="truncate">{theme.key === 'femme' ? 'Женская · Neon Muse' : theme.name}</span>
                         </div>
-                        <div className="mt-1 text-[11px] leading-snug text-slate-200/85">
+                        <div className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-200/85">
                           {theme.tagline}
                         </div>
                         <div
                           className="mt-2 h-1.5 w-full rounded-full"
                           style={{ background: `linear-gradient(90deg, ${theme.previewFrom}, ${theme.previewTo})` }}
                         />
+                        {/* Статус на всю ширину: «бесплатно» целиком в карточке
+                            при любой ширине экрана (без обрезки по краю). */}
+                        <div
+                          data-qa="theme-price"
+                          className={`mt-2 w-full truncate rounded-md px-0.5 py-0.5 text-center text-[11px] font-bold ${
+                            active || selecting
+                              ? 'bg-white/90 font-black text-[var(--ui-panel-deep)]'
+                              : 'bg-black/35 text-white/85'
+                          }`}
+                        >
+                          {selecting ? 'СОХРАНЯЮ' : active ? 'ВЫБРАНО' : 'бесплатно'}
+                        </div>
                       </div>
                     </div>
                   </button>

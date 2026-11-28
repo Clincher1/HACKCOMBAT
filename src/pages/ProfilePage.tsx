@@ -1,6 +1,6 @@
 import { Award, BookOpen, Cog, Crown, Edit3, Gem, Globe, Palette, Scale, Sparkles, Trophy, Volume2, VolumeX } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   ACHIEVEMENTS_CONFIG,
   PUBLIC_ACHIEVEMENTS_COUNT,
@@ -25,7 +25,7 @@ import { getGameDayKey, getPrestigeMultiplier, getPrestigeRequiredLevel } from '
 import { PRESTIGE_ONE_LINER, prestigeBonusLabel } from '../../shared/prestige.config';
 import type { LeaderboardSort } from '../../shared/types';
 import { useGame } from '../context/GameContext';
-import { AvatarFallbackIcon, CircleBulletIcon, GlassesIcon, ImageFrameIcon, PackageIcon, RepIcon, SparkIcon, TrophyIcon } from '../components/ui-icons';
+import { AvatarFallbackIcon, CircleBulletIcon, GlassesIcon, PackageIcon, RepIcon, SparkIcon, TrophyIcon } from '../components/ui-icons';
 import { formatCompact } from '../lib/format';
 
 export const ProfilePage: React.FC = () => {
@@ -787,27 +787,6 @@ export const ProfilePage: React.FC = () => {
             : `Требуется ${requiredPrestigeLevel} уровень (ещё ${requiredPrestigeLevel - derived.level} ур.)`}
         </button>
       </div>
-
-      {/* Демо-витрина (v4.3): посмотреть все открытия, не гринда до 30 уровня */}
-      <Link
-        to="/demo"
-        className="flex items-center gap-3 rounded-2xl border border-[rgba(var(--ui-secondary-rgb), 0.35)] bg-gradient-to-br from-[var(--ui-panel)] to-[var(--ui-panel)] p-3 transition hover:border-[rgba(var(--ui-secondary-rgb), 0.7)]"
-      >
-        <span className="grid h-10 w-10 place-items-center rounded-xl bg-[rgba(var(--ui-secondary-rgb), 0.15)] text-[20px]" aria-hidden>
-          <ImageFrameIcon className="h-5 w-5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block font-display text-[13px] font-extrabold text-white">
-            Демо-версия: все открытия
-          </span>
-          <span className="mt-0.5 block text-[11px] leading-snug text-slate-400">
-            7 сцен, 48 модулей, 30 контрактов, 80 ачивок — витрина всего контента с ползунком уровня
-          </span>
-        </span>
-        <span className="shrink-0 rounded-lg bg-[var(--ui-secondary)] px-2 py-1 text-[11px] font-extrabold text-[var(--ui-on-success)]">
-          Открыть
-        </span>
-      </Link>
 
       {/* Рефералка: своя ссылка, статистика и правила (v3.5) */}
       <ReferralCard />

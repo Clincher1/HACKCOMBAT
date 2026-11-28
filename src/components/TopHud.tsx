@@ -1,5 +1,5 @@
 import { BookOpen, ChevronRight, Flame, Gift, Zap } from 'lucide-react';
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { resolveEquippedSkins } from '../../shared/skins.config';
 import { ENERGY_REGEN_SECONDS } from '../../shared/mechanics';
@@ -7,7 +7,17 @@ import { LollipopBadge } from './LollipopBadge';
 import { useGame } from '../context/GameContext';
 import { formatCompact } from '../lib/format';
 import { withAlpha } from '../lib/colors';
-import { AvatarFallbackIcon, ChipsIcon, CryptoIcon, DataIcon, LocationIcon, RepIcon } from './ui-icons';
+import { AvatarFallbackIcon, ChipsIcon, CryptoIcon, DataIcon, LocationIcon, PackageIcon, RepIcon } from './ui-icons';
+
+/**
+ * v1.1: экран инвентаря — ленивый чанк. Внутри ModalFrame и framer-motion,
+ * поэтому статический импорт утащил бы анимации в главный чанк (+41 kB gzip).
+ * Так HUD получает кнопку бесплатно, а код экрана грузится первым тапом.
+ */
+const InventoryScreen = React.lazy(async () => {
+  const module = await import('./InventoryScreen');
+  return { default: module.InventoryScreen };
+});
 
 /**
  * HACKER KOMBAT — верхняя панель (v6.9, «лёгкий HUD»).
@@ -18,16 +28,19 @@ import { AvatarFallbackIcon, ChipsIcon, CryptoIcon, DataIcon, LocationIcon, RepI
  *
  * Что стало:
  *   • один блок валют (Data / Crypto / Чипы / Rep) — это ЧТЕНИЕ, а не навигация;
- *   • интерактивных элементов в HUD ровно четыре: профиль, бонус, обучение и
- *     сезонный леденец (он живёт внутри плитки Data, потому что это событие,
- *     а не раздел меню);
+ *   • интерактивных элементов в HUD ровно пять: профиль, инвентарь, бонус,
+ *     обучение и сезонный леденец (он живёт внутри плитки Data, потому что это
+ *     событие, а не раздел меню). Инвентарь добавлен в v1.1 как заметная, но
+ *     пока пустая заготовка: кнопка рядом с блоком уровня, экран-заглушка;
  *   • Скины и Звук уехали в профиль — это настройки, а не игра;
  *   • шкалы XP / CPU / Heat — тонкие полосы одной строкой, Heat только вне
  *     онбординга.
  *
- * Все цвета — токены темы (index.css), иконки — ui-icons, цифры — font-num.
+ * Все цвета — токены темы (index.css), иконки — ui-icons, цифры — Share Tech Mono.
  */
 export const TopHud: React.FC = () => {
+  // v1.1: инвентарь — только UI-заготовка, состояние живёт в самом HUD.
+  const [inventoryOpen, setInventoryOpen] = useState(false);
   const {
     player,
     gameplayV3,
@@ -103,6 +116,7 @@ export const TopHud: React.FC = () => {
   ];
 
   return (
+    <>
     <header className="sticky top-0 z-30 backdrop-blur-xl bg-[rgba(var(--ui-panel-deep-rgb),0.94)] border-b border-[rgba(var(--ui-primary-rgb),0.18)] px-3 pt-2 pb-2">
       <div className="mx-auto max-w-xl space-y-1.5">
         {/* Строка 1: профиль (одна кнопка) + два действия. */}
@@ -146,6 +160,20 @@ export const TopHud: React.FC = () => {
           </Link>
 
           <div className="flex shrink-0 items-center gap-1.5">
+            {/* v1.1: инвентарь. Кнопка рядом с блоком уровня (аватар / «УР. N» /
+                локация), заметно подсвечивается токенами темы (.inventory-glow),
+                тап-таргет 44×44. Открывает экран-заготовку, механики нет. */}
+            <button
+              type="button"
+              onClick={() => setInventoryOpen(true)}
+              data-qa="hud-inventory"
+              aria-label="Инвентарь"
+              title="Инвентарь"
+              className="inventory-glow grid h-11 w-11 place-items-center rounded-xl border bg-[var(--ui-panel)] text-[var(--ui-primary)] transition active:scale-95 cursor-pointer"
+            >
+              <PackageIcon className="h-4 w-4" />
+              <span className="inventory-glow__dot" aria-hidden="true" />
+            </button>
             <button
               type="button"
               onClick={() => setDailyModalOpen(true)}
@@ -274,5 +302,15 @@ export const TopHud: React.FC = () => {
         </div>
       </div>
     </header>
+
+    {/* Экран инвентаря — сосед хедера, а не ребёнок: у header есть backdrop-filter,
+        который создаёт containing block для fixed-подложки. Здесь подложка
+        ModalFrame снова кроет весь экран. */}
+    {inventoryOpen && (
+      <React.Suspense fallback={null}>
+        <InventoryScreen open={inventoryOpen} onClose={() => setInventoryOpen(false)} />
+      </React.Suspense>
+    )}
+    </>
   );
 };

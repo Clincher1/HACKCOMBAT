@@ -43,16 +43,9 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   Object.assign(process.env, env);
 
-  // v6.4: демо-витрина компонентов (/demo) — не игровой экран. В прод-сборке
-  // она вырезается целиком (define → false, динамический import становится
-  // мёртвой веткой и чанк не эмитится). Для отладки витрины:
-  //   VITE_ENABLE_DEMO=1 npm run build
-  const demoEnabled = process.env.VITE_ENABLE_DEMO === '1' || command === 'serve';
-
+  // v1.1: билд-флаг демо-витрины удалён вместе с самой витриной — define-ветки
+  // больше нет, поэтому и мёртвых чанков в сборке не появляется.
   return {
-    define: {
-      __HK_DEMO__: JSON.stringify(demoEnabled),
-    },
     plugins: [react(), tailwindcss(), vercelApiDevPlugin()],
     server: {
       host: '0.0.0.0',
