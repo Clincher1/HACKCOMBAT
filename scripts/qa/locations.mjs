@@ -684,8 +684,10 @@ function expectedStart(mission, player, locationId) {
     /deskBackdrop && !locationArt/.test(sceneSrc) && /!deskBackdrop && !locationArt/.test(sceneSrc)
   );
   check(
-    'панель этапов скрыта вне Комнаты, а место подписано чипом',
-    /showStageBar && !locationArt/.test(sceneSrc) && sceneSrc.includes('data-qa="desk-scene-place"')
+    'панель этапов скрыта вне Комнаты, а место подписано в шапке сцены (v1.5: без чипа тира)',
+    /showStageBar && !locationArt/.test(sceneSrc) &&
+      /locationArt \? activeLocation\.name : stageInfo\.title/.test(sceneSrc) &&
+      !sceneSrc.includes('data-qa="desk-scene-place"')
   );
   check(
     'сцена получила data-атрибут вида (QA и отладка)',

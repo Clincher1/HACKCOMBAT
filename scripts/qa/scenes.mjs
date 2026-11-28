@@ -315,12 +315,33 @@ check(
   engineSource.includes('deskStageLabel(newDerived.deskStage)') &&
     !engineSource.includes('ЭВОЛЮЦИЯ СТОЛА (УР.')
 );
+/**
+ * v1.5 («Чистый стол»): поверх сцены не должно быть НИ ОДНОГО текста про
+ * уровни — ни текущего этапа локации, ни требований будущего. Проверяем
+ * structural: режем разметку по тап-поверхности и ищем там «Ур.», «До Ур.»,
+ * «с Ур.» и тир рабочего места. Плюс отдельно — что чипы уровня не вернулись
+ * в шапку сцены над артом.
+ */
+// Комментарии не интерфейс: историю правки писать можно, проверяем разметку.
+const deskMarkup = deskSource
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .split('\n')
+  .map((line) => (line.trim().startsWith('//') ? '' : line))
+  .join('\n');
+const tapStart = deskMarkup.indexOf('data-qa="desk-tap"');
+const sceneSurface = tapStart >= 0 ? deskMarkup.slice(tapStart) : '';
 check(
-  'D5: в сцене этап не подписан словом «Ур.», уровень остался только игроку',
-  !deskSource.includes('Станция: Ур.') &&
-    !deskSource.includes('След. сцена: Ур.') &&
-    deskSource.includes('Полная станция с Ур.') &&
-    deskSource.includes('Следующий этап с Ур.')
+  'D5: на сцене стола нет ни одного текста про уровни («Ур.», «До Ур. N», «с Ур. N»)',
+  !deskMarkup.includes('До Ур.') &&
+    !deskMarkup.includes('Станция: Ур.') &&
+    !deskMarkup.includes('Полная станция с Ур.') &&
+    !deskMarkup.includes('Следующий этап с Ур.') &&
+    !/Ур\./.test(sceneSurface)
+);
+check(
+  'D6: сцена не подписывает тир рабочего места («Ноутбук» / «Полная станция»)',
+  !deskMarkup.includes('locationArt.label') && !deskMarkup.includes('± Ноутбук') && !deskMarkup.includes('Ноутбук'),
+  'подпись = имя места или название этапа'
 );
 
 console.log(`\nQA: ${pass + fail} checks — PASS ${pass} / FAIL ${fail}`);
