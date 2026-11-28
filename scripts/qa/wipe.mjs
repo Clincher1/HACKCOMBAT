@@ -399,6 +399,13 @@ const clicked = await call(NEW_PLAYER, 'click', { clicks: 20 });
 check('после вайпа: тап работает', clicked.ok === true && (clicked.appliedClicks ?? 0) > 0,
   `appliedClicks ${clicked.appliedClicks}`);
 
+// Миграция, без которой отвязка телеметрии невозможна (player_id NOT NULL в 019).
+// Проверяем по файлу: в QA нет базы, но регресс должен ловиться на ревью.
+const detachMigration = path.join(repoRoot, 'supabase/migrations/021_client_events_player_detach.sql');
+const migrationSql = fs.existsSync(detachMigration) ? fs.readFileSync(detachMigration, 'utf8') : '';
+check('миграция 021: снимает NOT NULL с client_events.player_id',
+  /alter table public\.client_events\s+alter column player_id drop not null/i.test(migrationSql));
+
 // ============================================================================
 console.log('');
 console.log(`Итого: ${pass} pass, ${fail} fail`);
