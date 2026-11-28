@@ -19,19 +19,30 @@ const Tile: React.FC<{
   title: string;
   subtitle: string;
   progress?: string;
+  /** v1.6: точка «есть награда к сбору» — индикатор без новой кнопки в HUD. */
+  dot?: boolean;
   icon: React.ReactNode;
   accent: string;
-}> = ({ to, qa, title, subtitle, progress, icon, accent }) => (
+}> = ({ to, qa, title, subtitle, progress, dot = false, icon, accent }) => (
   <Link
     to={to}
     data-qa={qa}
     className="flex min-h-[44px] min-w-0 items-center gap-2 rounded-xl border border-slate-800 bg-[var(--ui-panel)]/85 px-2.5 py-2 transition hover:border-[var(--ui-primary)]/45"
   >
-    <span
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-lg"
-      style={{ background: `rgba(var(${accent}-rgb), 0.14)`, color: `var(${accent})` }}
-    >
-      {icon}
+    <span className="relative shrink-0">
+      <span
+        className="grid h-8 w-8 place-items-center rounded-lg"
+        style={{ background: `rgba(var(${accent}-rgb), 0.14)`, color: `var(${accent})` }}
+      >
+        {icon}
+      </span>
+      {dot && (
+        <span
+          data-qa={`${qa}-dot`}
+          aria-label="Есть награда к сбору"
+          className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-[var(--ui-success)] ring-2 ring-[var(--ui-panel-deep)]"
+        />
+      )}
     </span>
     <span className="min-w-0 flex-1">
       <span className="flex items-baseline gap-1">
@@ -55,6 +66,11 @@ export const DeskQuickLinks: React.FC = () => {
   const daily = player.stats.dailyTasks;
   const total = daily?.taskKeys.length ?? 0;
   const done = daily ? daily.claimed.filter((key) => daily.taskKeys.includes(key)).length : 0;
+  // Цели дня (v1.6): точка на плитке — единственный индикатор готовой награды.
+  // Считаем из состояния сервера (progress/target уже пришли), без конфига —
+  // так плитка не тянет в чанк стола тексты целей.
+  const goals = player.stats.dailyGoals?.goals ?? [];
+  const goalsReady = goals.some((goal) => !goal.claimed && goal.progress >= goal.target);
 
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -62,7 +78,14 @@ export const DeskQuickLinks: React.FC = () => {
         to="/tasks"
         qa="tasks-teaser"
         title="Задания"
-        subtitle={total > 0 ? `${done}/${total} сегодня` : 'поручения · события'}
+        subtitle={
+          goalsReady
+            ? 'цель дня готова — забери награду'
+            : total > 0
+              ? `${done}/${total} сегодня`
+              : 'цели дня · поручения'
+        }
+        dot={goalsReady}
         icon={<ClipboardList className="h-4 w-4" />}
         accent="--ui-primary"
       />

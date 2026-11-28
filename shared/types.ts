@@ -424,6 +424,37 @@ export interface DailyTaskState {
   claimed: string[];
 }
 
+/**
+ * «Цели дня» (v1.6): три серверные цели на UTC-сутки с ручным сбором.
+ * Отдельная система — контракты дня, ежедневные поручения и дневной бонус
+ * Crypto работают как раньше и с целями не связаны.
+ */
+export type DailyGoalKind = 'taps' | 'hacks' | 'contracts' | 'cpu' | 'data' | 'item_use';
+
+export interface DailyGoalDefinition {
+  key: DailyGoalKind;
+  title: string;
+  /** Шаблон с `{target}` — таргет подставляет конфиг, UI ничего не считает. */
+  description: string;
+  /** Короткая подпись для чипа/точки на входе. */
+  shortTitle: string;
+}
+
+export interface DailyGoalState {
+  key: DailyGoalKind;
+  /** Таргет фиксируется на момент создания доски: уровень не «пересчитывает» день. */
+  target: number;
+  progress: number;
+  claimed: boolean;
+}
+
+export interface DailyGoalsState {
+  version: 1;
+  /** UTC-дата вида YYYY-MM-DD — смена значения означает новую доску. */
+  date: string;
+  goals: DailyGoalState[];
+}
+
 /** Один серверный выбор в ежедневном киберинциденте. */
 export interface DailyIncidentChoiceDefinition {
   key: string;
@@ -513,6 +544,8 @@ export interface PlayerProgressStats {
   activeDayKey?: string | null;
   /** v3.8: три персональных ежедневных поручения и их серверный прогресс. */
   dailyTasks?: DailyTaskState;
+  /** v1.6: три серверные цели дня с ручным сбором награды (UTC-сутки). */
+  dailyGoals?: DailyGoalsState;
   /** v6.1: контракты дня — пассивные цели на тапы, CPU Charge и Heat. */
   contracts?: ContractState;
   /** v6.2: текущая/последняя сессия взлома. */

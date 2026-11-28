@@ -120,6 +120,17 @@ import {
   getDailyTaskDefinitions,
 } from '../../shared/dailyTasks.config';
 import {
+  DAILY_GOALS_PER_DAY,
+  DAILY_GOAL_CRYPTO_REWARD,
+  buildDailyGoalsBoard,
+  getDailyGoalChips,
+  getDailyGoalDefinition,
+  getUtcDayKey,
+  isDailyGoalKind,
+  normalizeDailyGoalsState,
+  type DailyGoalKind,
+} from '../../shared/dailyGoals.config';
+import {
   LOLLIPOP_BOOST_MS,
   canActivateLollipop,
   isLollipopActive,
@@ -154,6 +165,7 @@ import {
   getConsumableItem,
   LEVEL_ITEM_MILESTONES,
   PHOENIX_PROTOCOL_ITEM_KEY,
+  rollDailyFullSetItem,
   rollItemDrop,
   rollLevelItem,
   type ItemDropSource,
@@ -744,6 +756,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
         : null,
     activeDayKey: typeof src.activeDayKey === 'string' ? src.activeDayKey.slice(0, 10) : null,
     dailyTasks: normalizeDailyTaskState(src.dailyTasks),
+    // v1.6: доска целей дня. Старый сейв без поля читается как undefined и
+    // получает свежую доску в syncTimeAndRules — миграция данных не нужна.
+    dailyGoals: normalizeDailyGoalsState(src.dailyGoals),
     contracts: normalizeContractState(src.contracts),
     hackSession: normalizeHackSession(src.hackSession),
     lollipop: normalizeLollipopState(src.lollipop),
@@ -1106,7 +1121,14 @@ function buildItemDropAlert(itemKey: string, source: ItemDropSource): GameAlert 
   const cfg = getConsumableItem(itemKey);
   const name = cfg?.name ?? 'Предмет';
   const rarity = cfg ? ITEM_RARITY_TITLES[cfg.rarity] ?? '' : '';
-  const where = source === 'level' ? 'за новый уровень' : source === 'mission' ? 'за контракт' : 'за взлом';
+  const where =
+    source === 'level'
+      ? 'за новый уровень'
+      : source === 'mission'
+        ? 'за контракт'
+        : source === 'daily'
+          ? 'за полный сбор целей дня'
+          : 'за взлом';
   return {
     id: crypto.randomUUID(),
     type: 'success',
@@ -1245,6 +1267,48 @@ function ensureContracts(record: StoredPlayerRecord, dayKey: string): ContractSt
     state.progress[id] = Math.max(0, Math.min(target, Math.floor(Number(state.progress[id]) || 0)));
   }
   state.claimed = state.claimed.filter((id) => state.ids.includes(id));
+  return state;
+}
+
+/**
+ * Доска целей дня (v1.6).
+ *
+ * Живёт на UTC-сутках и пересоздаётся только при смене даты: таргеты
+ * фиксируются в момент создания, поэтому прокачка уровня среди дня не делает
+ * уже начатую цель дороже. Старый сейв без stats.dailyGoals получает свежую
+ * доску при первом же синке — отдельная миграция данных не нужна.
+ */
+function ensureDailyGoals(
+  record: StoredPlayerRecord,
+  dayKey: string = getUtcDayKey(Date.now())
+) {
+  const current = record.stats.dailyGoals;
+  const valid =
+    current !== undefined &&
+    current.date === dayKey &&
+    current.goals.length === DAILY_GOALS_PER_DAY &&
+    current.goals.every((goal) => isDailyGoalKind(goal.key)) &&
+    new Set(current.goals.map((goal) => goal.key)).size === DAILY_GOALS_PER_DAY;
+
+  if (!valid) {
+    // item_use попадает в доску только если расходник реально есть: иначе цель
+    // недостижима весь день, а не «сложна».
+    const hasConsumables = itemStacks(record).length > 0;
+    record.stats.dailyGoals = buildDailyGoalsBoard(
+      record.tgId,
+      dayKey,
+      deriveStats(record).level,
+      hasConsumables
+    );
+  }
+
+  const state = record.stats.dailyGoals;
+  if (!state) throw new Error('Не удалось подготовить цели дня');
+  for (const goal of state.goals) {
+    goal.target = Math.max(1, Math.floor(goal.target));
+    goal.progress = Math.max(0, Math.min(goal.target, Math.floor(Number(goal.progress) || 0)));
+    goal.claimed = goal.claimed === true;
+  }
   return state;
 }
 
@@ -1408,6 +1472,27 @@ function incrementDailyTaskProgress(
     const task = getDailyTaskDefinition(key);
     if (!task || task.kind !== kind) continue;
     state.progress[key] = Math.min(task.target, (state.progress[key] ?? 0) + Math.floor(amount));
+  }
+}
+
+/**
+ * Прогресс цели дня. Вызывается ТОЛЬКО из серверных хендлеров после того, как
+ * действие уже проверено (античит тапов, исход взлома, исход контракта,
+ * фактическое списание CPU Charge или расходника). Забранная цель прогресс не
+ * двигает: её цифры зафиксированы на моменте сбора.
+ */
+function incrementDailyGoalProgress(
+  record: StoredPlayerRecord,
+  kind: DailyGoalKind,
+  amount: number
+): void {
+  const state = record.stats.dailyGoals;
+  if (!state) return;
+  const step = Math.floor(Number(amount));
+  if (!Number.isFinite(step) || step <= 0) return;
+  for (const goal of state.goals) {
+    if (goal.key !== kind || goal.claimed) continue;
+    goal.progress = Math.min(goal.target, Math.max(0, goal.progress) + step);
   }
 }
 
@@ -2536,6 +2621,9 @@ async function syncTimeAndRules(
   ensureDailyTasks(record, nowDayKey);
   // Контракты дня живут по тем же московским суткам и выдаются здесь же.
   ensureContracts(record, nowDayKey);
+  // Цели дня (v1.6) — отдельная система на UTC-сутках: своя доска из трёх
+  // целей и ручной сбор. Смена даты пересобирает её, всё остальное не трогает.
+  ensureDailyGoals(record, getUtcDayKey(nowMs));
   // Один короткий киберинцидент в сутки добавляет выбор, но не новую валюту
   // и не обязательный гринд. Сценарий фиксируется сервером до смены дня.
   ensureDailyIncident(record.stats, record.tgId, nowDayKey);
@@ -3266,6 +3354,9 @@ export async function handleInventoryAction(
       await syncTimeAndRules(record, mode, alerts);
       const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
       await applyConsumableItem(record, mode, itemKey, alerts);
+      // Цель дня «примени расходник» — только после фактического списания:
+      // applyConsumableItem бросает ошибку раньше, если предмет не списался.
+      incrementDailyGoalProgress(record, 'item_use', 1);
       await syncTimeAndRules(record, mode, alerts);
       await savePlayerCore(record, mode);
       return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
@@ -3468,12 +3559,17 @@ async function applyPendingClicks(
   // «Модификатор канала»: 15 минут ×1.25 Data с тапов. Множитель один и не
   // складывается сам с собой — повторное применение лишь продлевает таймер.
   const channelBoost = isChannelBoostActive(record, nowMs) ? CHANNEL_BOOST_MULTIPLIER : 1;
-  record.data +=
+  const tapDataGain =
     Math.round(validClicks * derived.clickPower * clickBoost * tapLocationBoost * channelBoost * 100) / 100;
+  record.data += tapDataGain;
   record.totalClicks = prevTotalClicks + validClicks;
   record.lastClickBatchAt = nowMs;
   incrementDailyTaskProgress(record, 'tap', validClicks);
   incrementContractProgress(record, 'tap', validClicks);
+  // Цели дня: тапы считаем только после античита (validClicks), а Data — по
+  // фактически начисленной сумме, а не по «сколько клиент прислал».
+  incrementDailyGoalProgress(record, 'taps', validClicks);
+  incrementDailyGoalProgress(record, 'data', tapDataGain);
   incrementSeasonEventProgress(record, 'tap', validClicks);
   return validClicks;
 }
@@ -4099,6 +4195,7 @@ export async function handleMissionAction(
       });
       incrementDailyTaskProgress(record, 'mission_start', 1);
       incrementContractProgress(record, 'cpu', entryCost.energy);
+      incrementDailyGoalProgress(record, 'cpu', entryCost.energy);
       incrementSeasonEventProgress(record, 'mission_start', 1);
 
       if (exploitInjectionUsed) {
@@ -4204,6 +4301,9 @@ export async function handleMissionAction(
     incrementDailyTaskProgress(record, 'mission_complete', 1);
     incrementContractProgress(record, 'mission_complete', 1);
     incrementContractProgress(record, 'heat', heatGain);
+    // Цели дня: контракт засчитывается только чистым успехом, Data — по факту.
+    if (outcome === 'success') incrementDailyGoalProgress(record, 'contracts', 1);
+    incrementDailyGoalProgress(record, 'data', dataGain);
     incrementSeasonEventProgress(record, 'mission_complete', 1);
 
     // Чипы начисляются только за ЧИСТЫЙ успех (частичный результат и пропуск
@@ -4539,6 +4639,145 @@ export async function handleDailyTaskAction(
   });
 }
 
+/** Ошибки RPC claim_daily_goal → человеческий текст для клиента. */
+function describeDailyGoalClaimError(message: string): string {
+  if (message.includes('DAILY_GOAL_ALREADY_CLAIMED')) return 'Награда за эту цель уже получена';
+  if (message.includes('DAILY_GOAL_NOT_READY')) return 'Цель ещё не выполнена';
+  if (message.includes('DAILY_GOAL_DAY_CHANGED')) return 'Доска целей обновилась — обнови экран';
+  if (message.includes('DAILY_GOAL_NO_BOARD')) return 'Доска целей ещё не создана — обнови экран';
+  if (message.includes('DAILY_GOAL_INDEX')) return 'Такой цели нет на сегодняшней доске';
+  if (message.includes('DAILY_GOAL_VERSION')) return 'Доска целей устарела — обнови экран';
+  if (message.includes('GRANT_ITEM_INVALID_SOURCE')) return 'Предмет не выдан: источник не разрешён (нужна миграция 023)';
+  return `Цели дня: ${message}`;
+}
+
+/**
+ * v1.6: сбор награды за цель дня.
+ *
+ * Атомарность держит RPC `claim_daily_goal` (миграция 023): в одной транзакции
+ * проверяются дата, готовность и отметка claimed, начисляются Chips/Crypto и —
+ * если это третья цель — выдаётся предмет через `grant_item(source='daily')`.
+ * Строка игрока берётся `FOR UPDATE`, поэтому два параллельных claim
+ * сериализуются и второй видит уже проставленную отметку.
+ *
+ * Порядок важен: обычное сохранение (sync, хвост кликов, свежая доска) идёт
+ * ДО RPC, а после успешного RPC запись больше не делается — иначе полный
+ * снимок stats из памяти мог бы откатить отметку claimed, уже лежащую в БД.
+ */
+export async function handleDailyGoalAction(
+  user: VerifiedTelegramUser,
+  goalIndex: number,
+  pendingClicks = 0
+): Promise<ApiSyncResponse> {
+  return withPlayerLock(user.tgId, async () => {
+    const { record, mode } = await loadPlayerRecord(user);
+    const alerts: GameAlert[] = [];
+    await syncTimeAndRules(record, mode, alerts);
+
+    const appliedClicks = await applyPendingClicks(record, mode, pendingClicks, 20);
+    await savePlayerCore(record, mode);
+
+    const dayKey = getUtcDayKey(Date.now());
+    const state = ensureDailyGoals(record, dayKey);
+    if (!Number.isInteger(goalIndex) || goalIndex < 0 || goalIndex >= state.goals.length) {
+      throw new Error('Такой цели нет на сегодняшней доске');
+    }
+    const goal = state.goals[goalIndex];
+    if (goal.claimed) throw new Error('Награда за эту цель уже получена');
+    if (goal.progress < goal.target) {
+      throw new Error(`Цель ещё не выполнена: ${goal.progress}/${goal.target}`);
+    }
+
+    const chips = getDailyGoalChips(goal.key);
+    const definition = getDailyGoalDefinition(goal.key);
+    // Полный сбор = все остальные цели уже забраны. Предмет роллится ДО RPC,
+    // чтобы выдача и отметка прошли одной транзакцией (или не прошли вовсе).
+    const fullCollect = state.goals.every((other, index) => index === goalIndex || other.claimed);
+    const item = fullCollect ? rollDailyFullSetItem() : null;
+    const nowIso = new Date().toISOString();
+
+    const pushAlerts = (grantedItemKey: string | null): void => {
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: 'success',
+        title: 'Цель дня закрыта',
+        message: `«${definition?.title ?? goal.key}» · +${chips} Чипов и +${DAILY_GOAL_CRYPTO_REWARD} Crypto.`,
+      });
+      if (grantedItemKey) alerts.push(buildItemDropAlert(grantedItemKey, 'daily'));
+    };
+
+    if (mode === 'memory-fallback') {
+      // Локальный режим: тот же контракт в одном процессе под withPlayerLock.
+      goal.claimed = true;
+      record.chips = Math.max(0, Math.floor(safeNonNeg(record.chips, 0)) + chips);
+      record.crypto = Math.max(0, Math.floor(safeNonNeg(record.crypto, 0)) + DAILY_GOAL_CRYPTO_REWARD);
+      let grantedKey: string | null = null;
+      if (item) {
+        await grantItemToPlayer(record, mode, item.key, 'daily', 'full_collect');
+        record.stats.hasNewItems = true;
+        grantedKey = item.key;
+      }
+      pushAlerts(grantedKey);
+      await savePlayerCore(record, mode);
+      return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+    }
+
+    const sb = getSupabaseAdmin();
+    if (!sb) throw new Error('Supabase недоступен: сбор не подтверждён');
+    const { data, error } = await sb.rpc('claim_daily_goal', {
+      p_player_id: record.id,
+      p_goal_index: goalIndex,
+      p_chips: chips,
+      p_crypto: DAILY_GOAL_CRYPTO_REWARD,
+      p_item_key: item ? item.key : null,
+      p_day: dayKey,
+    });
+    if (error) throw new Error(describeDailyGoalClaimError(error.message));
+
+    const payload = (Array.isArray(data) ? data[0] : data) as
+      | {
+          chips?: number;
+          crypto?: number;
+          goals?: unknown;
+          item_key?: string | null;
+          item_qty?: number | null;
+        }
+      | null
+      | undefined;
+    if (!payload) throw new Error('Цели дня: RPC не вернул состояние доски');
+
+    // Балансы и доска берутся из БД, а не из памяти: RPC — источник истины.
+    record.chips = Math.max(0, Math.floor(safeNonNeg(payload.chips, record.chips)));
+    record.crypto = Math.max(0, Math.floor(safeNonNeg(payload.crypto, record.crypto)));
+    const claimedBoard = normalizeDailyGoalsState({
+      version: 1,
+      date: dayKey,
+      goals: payload.goals,
+    });
+    if (claimedBoard) record.stats.dailyGoals = claimedBoard;
+    else goal.claimed = true;
+
+    let grantedKey: string | null = null;
+    const grantedQty = Math.floor(safeNonNeg(payload.item_qty, 0));
+    if (payload.item_key && grantedQty > 0) {
+      const grantedItemKey = String(payload.item_key);
+      const previous = record.items?.[grantedItemKey];
+      record.items = record.items ?? {};
+      record.items[grantedItemKey] = {
+        key: grantedItemKey,
+        qty: grantedQty,
+        firstAcquiredAt: previous?.firstAcquiredAt ?? nowIso,
+        updatedAt: nowIso,
+      };
+      record.stats.hasNewItems = true;
+      grantedKey = grantedItemKey;
+    }
+
+    pushAlerts(grantedKey);
+    return buildResponse(record, mode, alerts, 0, 0, appliedClicks);
+  });
+}
+
 /**
  * v6.1: забор награды за контракт.
  *
@@ -4806,6 +5045,8 @@ export async function handleHackAction(
       const expectedEnergy = record.energy;
       record.energy = Math.max(0, record.energy - difficulty.cost);
       record.energyUpdated = new Date(nowMs).toISOString();
+      // Цели дня: вход в сессию взлома — такое же серверное списание CPU Charge.
+      incrementDailyGoalProgress(record, 'cpu', difficulty.cost);
       record.stats.hackSession = {
         id: crypto.randomUUID(),
         difficulty: difficulty.key,
@@ -4883,6 +5124,10 @@ export async function handleHackAction(
 
     // Взлом — тоже Heat-событие: контракты с метрикой heat должны его видеть.
     incrementContractProgress(record, 'heat', heatGain);
+    // Цели дня: взлом засчитывается только если узлы реально вскрыты, Data — по
+    // подтверждённой сервером награде.
+    if (safeHits > 0) incrementDailyGoalProgress(record, 'hacks', 1);
+    incrementDailyGoalProgress(record, 'data', dataGain);
 
     if (dataGain > 0) {
       alerts.push({
