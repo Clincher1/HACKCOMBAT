@@ -859,14 +859,17 @@ body[data-theme='femme'] .rounded-2xl {
     linear-gradient(180deg, rgba(16, 24, 32, 0.58) 0%, rgba(9, 12, 16, 0.95) 100%);
 }
 
-/* v1.1: подсветка кнопки инвентаря — только токены темы (--ui-primary-rgb),
-   поэтому она перекрашивается вместе со скином и не тащит хекс в разметку. */
-.inventory-glow { position: relative; animation: inventoryGlowPulse 2.6s ease-in-out infinite; }
-@keyframes inventoryGlowPulse {
-  0%, 100% { box-shadow: 0 0 10px rgba(var(--ui-primary-rgb), 0.22); border-color: rgba(var(--ui-primary-rgb), 0.45); }
-  50% { box-shadow: 0 0 0 3px rgba(var(--ui-primary-rgb), 0.14), 0 0 18px rgba(var(--ui-primary-rgb), 0.55); border-color: rgba(var(--ui-primary-rgb), 0.85); }
+/* v1.2: пара «Инвентарь + Косметика» в HUD. Один пульс, два акцента: цвет
+   приходит из --hud-glow, который выставлен токеном темы (--ui-*-rgb), поэтому
+   хексов в разметке нет и подсветка перекрашивается вместе со скином. */
+.hud-glow { position: relative; animation: hudGlowPulse 2.6s ease-in-out infinite; }
+.hud-glow--primary { --hud-glow: var(--ui-primary-rgb); }
+.hud-glow--secondary { --hud-glow: var(--ui-secondary-rgb); }
+@keyframes hudGlowPulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(var(--hud-glow), 0.22); border-color: rgba(var(--hud-glow), 0.45); }
+  50% { box-shadow: 0 0 0 3px rgba(var(--hud-glow), 0.14), 0 0 18px rgba(var(--hud-glow), 0.55); border-color: rgba(var(--hud-glow), 0.85); }
 }
-.inventory-glow__dot { position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 9999px; background: var(--ui-primary); box-shadow: 0 0 8px var(--ui-primary); }
+.hud-glow__dot { position: absolute; top: -2px; right: -2px; width: 6px; height: 6px; border-radius: 9999px; background: rgb(var(--hud-glow, var(--ui-primary-rgb))); box-shadow: 0 0 8px rgb(var(--hud-glow, var(--ui-primary-rgb))); }
 
 /* Корпоративный квартал — стекло и холодный розовый отблеск. */
 .loc-bg-corpquarter {
@@ -885,6 +888,6 @@ body[data-theme='femme'] .rounded-2xl {
   .daily-incident-panel, .daily-incident-panel::before, .daily-incident-panel::after,
   .daily-incident-panel__signal, .daily-incident-panel__badge, .daily-incident-live-dot,
   .alert-drop, .bd-cloud, .bd-sun, .bd-gull, .bd-bokeh span, .bd-rain, .bd-fog,
-  .inventory-glow { animation: none; }
+  .hud-glow { animation: none; }
   .loc-bg { transition: none; }
 }

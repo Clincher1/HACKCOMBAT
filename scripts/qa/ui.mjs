@@ -240,16 +240,43 @@ check(
 const hud = read('src/components/TopHud.tsx');
 /** Интерактив в HUD = кнопки и ссылки; плитки валют — чтение, а не навигация. */
 const hudInteractive = (hud.match(/<(button|Link)\b/g) ?? []).length;
-check('HUD: не больше 5 интерактивных элементов до контента', hudInteractive <= 5, `${hudInteractive}`);
+check('HUD: не больше 6 интерактивных элементов до контента', hudInteractive <= 6, `${hudInteractive}`);
 check(
   'HUD: валюты — один блок чтения, а не четыре кнопки',
   hud.includes('data-qa="hud-currencies"') && !/currencies\.map\([\s\S]{0,400}<button/.test(hud)
 );
+const profileSource = read('src/pages/ProfilePage.tsx');
 check(
-  'HUD: скины и звук уехали в профиль',
-  !hud.includes('setSkinModalOpen') && !hud.includes('toggleSound') &&
-    read('src/pages/ProfilePage.tsx').includes('data-qa="profile-skins"') &&
-    read('src/pages/ProfilePage.tsx').includes('data-qa="profile-sound"')
+  'косметика: единственная дверь — HUD, пара с инвентарём',
+  hud.includes('data-qa="hud-skins"') &&
+    hud.includes('setSkinModalOpen(true)') &&
+    // кнопка идёт сразу за инвентарём, до бонуса и обучения
+    hud.indexOf('data-qa="hud-inventory"') < hud.indexOf('data-qa="hud-skins"') &&
+    hud.indexOf('data-qa="hud-skins"') < hud.indexOf('setDailyModalOpen(true)') &&
+    // дублей нет: в профиле кнопки скинов больше нет
+    !profileSource.includes('profile-skins') &&
+    !profileSource.includes('setSkinModalOpen')
+);
+check(
+  'косметика: кнопка — 44×44, глиф из хаба, aria-label, свечение токенами',
+  hud.includes('hud-glow--secondary') &&
+    hud.includes('<CosmeticsIcon') &&
+    hud.includes('aria-label="Кибер-Косметика"') &&
+    read('src/components/ui-icons.tsx').includes('Droplet as CosmeticsIcon') && (() => {
+      // 44 px = size-11; кнопка обязана жить на общем каркасе пары, а не своей вёрсткой
+      const shell = hud.match(/const HUD_GLOW_BUTTON =\s*\n?\s*'([^']+)'/);
+      return Boolean(shell) && /\bsize-11\b/.test(shell[1]);
+    })()
+);
+check(
+  'звук остался настройкой профиля',
+  !hud.includes('toggleSound') && profileSource.includes('data-qa="profile-sound"')
+);
+check(
+  'модалка косметики — в ленивом чанке (не в главном бандле)',
+  read('src/App.tsx').includes("const ModalsAndOverlays = React.lazy") &&
+    read('src/App.tsx').includes("await import('./components/Modals')") &&
+    !hud.includes("from './Modals'")
 );
 
 const nav = read('src/components/BottomNav.tsx');
@@ -285,52 +312,111 @@ check(
  *   1) плашка «бесплатно» — теперь на всю ширину карточки, обязана влезать;
  *   2) «HACKER KOMBAT» — SVG с viewBox, обязан масштабироваться, а не обрезаться.
  */
-function themeCardInner(viewport) {
+/**
+ * Две модалки с карточками тем и разной геометрией — считаем каждую своей
+ * моделью, иначе проверка «влезает» врёт (в #73 магазин мерили линейкой
+ * онбординга, и «ВКЛЮЧЕНО» упиралось в край).
+ *
+ *   онбординг:  max-w-lg, оверлей p-3/sm:p-5, контент p-3.5/sm:p-5,
+ *               сетка gap-1.5/sm:gap-2.5, карточка p-1.5/sm:p-3
+ *   косметика:  max-w-md, оверлей p-4, контент p-3/sm:p-5,
+ *               сетка gap-1/sm:gap-2, карточка p-1.5/sm:p-2.5
+ */
+const THEME_CARD_MODELS = [
+  {
+    id: 'онбординг',
+    source: 'src/components/ThemeOnboardingModal.tsx',
+    modalMax: 512,
+    outer: [12, 20],
+    inner: [14, 20],
+    gap: [6, 10],
+    card: [6, 12],
+    pill: 'mt-2 w-full truncate rounded-md px-0.5 py-0.5 text-center text-[11px] font-bold tracking-tight',
+    labels: ['бесплатно', 'ВЫБРАНО', 'СОХРАНЯЮ'],
+  },
+  {
+    id: 'косметика',
+    source: 'src/components/Modals.tsx',
+    modalMax: 448,
+    outer: [16, 16],
+    inner: [12, 20],
+    gap: [4, 8],
+    card: [6, 10],
+    pill: 'mt-1.5 w-full truncate rounded-md px-0.5 py-0.5 text-center text-[11px] font-bold tracking-tight',
+    labels: ['бесплатно', 'ВКЛЮЧЕНО'],
+  },
+];
+
+/** Внутренняя ширина карточки темы в этой модалке (CSS-арифметика пиксель-в-пиксель). */
+function themeCardInner(model, viewport) {
   const narrow = viewport < 640;
-  const modalW = Math.min(viewport, 512) - (narrow ? 12 : 20) * 2; // p-3 / sm:p-5
-  const contentW = modalW - (narrow ? 14 : 20) * 2; // p-3.5 / sm:p-5
-  const gap = narrow ? 8 : 10; // gap-2 / sm:gap-2.5
-  const cardW = (contentW - gap * 2) / 3;
-  return cardW - (narrow ? 8 : 12) * 2; // p-2 / sm:p-3
+  const pick = (pair) => (narrow ? pair[0] : pair[1]);
+  const modalW = Math.min(viewport, model.modalMax) - pick(model.outer) * 2;
+  const contentW = modalW - pick(model.inner) * 2;
+  const cardW = (contentW - pick(model.gap) * 2) / 3;
+  return cardW - pick(model.card) * 2;
 }
 
-/** Ширина строки: консервативная оценка (0.62em на символ + трекинг). */
+/**
+ * Ширина строки: консервативная оценка. Заглавные жирные глифы шире строчных
+ * (0.72em против 0.62em), tracking-tight возвращает 0.025em на каждый зазор.
+ */
 const textWidth = (text, fontSize, letterSpacing = 0) => {
   const perChar = /[А-ЯA-Z]/.test(text[0]) ? 0.72 : 0.62;
   return text.length * fontSize * perChar + Math.max(0, text.length - 1) * letterSpacing;
 };
+const TRACKING_TIGHT_EM = -0.025;
 
 const onboardingSource = read('src/components/ThemeOnboardingModal.tsx');
 const shopSource = read('src/components/Modals.tsx');
+const themeSources = { 'онбординг': onboardingSource, 'косметика': shopSource };
 
-check(
-  'темы: плашка цены — на всю ширину карточки (не может срезаться справа)',
-  (onboardingSource.match(/data-qa="theme-price"/g) ?? []).length === 1 &&
-    onboardingSource.includes('mt-2 w-full truncate rounded-md px-0.5 py-0.5 text-center') &&
-    (shopSource.match(/data-qa="theme-price"/g) ?? []).length === 1 &&
-    shopSource.includes('mt-1.5 w-full truncate rounded-md px-1 py-0.5 text-center')
+const pillMissing = THEME_CARD_MODELS.filter(
+  (model) => !themeSources[model.id].includes(`data-qa="theme-price"`) || !themeSources[model.id].includes(model.pill)
 );
 check(
-  'темы: в верхней строке карточки нет текстового бейджа (только глиф и отметка)',
-  !/justify-between gap-1">\s*<span className="text-\[20px\]/.test(onboardingSource) &&
+  'темы: плашка цены — на всю ширину карточки в обеих модалках (не может срезаться справа)',
+  pillMissing.length === 0,
+  pillMissing.map((model) => model.id).join(', ')
+);
+check(
+  'темы: плашка не занимает узкую верхнюю строку с глифом',
+  (onboardingSource.match(/data-qa="theme-price"/g) ?? []).length === 1 &&
+    (shopSource.match(/data-qa="theme-price"/g) ?? []).length === 1 &&
+    !/justify-between gap-1">\s*<span className="text-\[20px\]/.test(onboardingSource) &&
     !onboardingSource.includes('rounded-md bg-black/35 px-1.5 py-0.5 text-[11px] font-bold text-white/85')
 );
 
-const priceLabels = ['бесплатно', 'ВЫБРАНО', 'СОХРАНЯЮ', 'ВКЛЮЧЕНО'];
 const priceOverflow = [];
-for (const viewport of [320, 360, 390, 414]) {
-  const inner = themeCardInner(viewport);
-  for (const label of priceLabels) {
-    // 11 px — минимальный размер шкалы; px-0.5 = 4 px горизонтальных отступов.
-    // Заглавные статусы шире строчной «бесплатно» — считаем их по 0.72em.
-    const width = textWidth(label, 11, 0) * (label === label.toUpperCase() ? 1 : 1) + 4;
-    if (width > inner) priceOverflow.push(`${label}@${viewport}: ${width.toFixed(1)} > ${inner.toFixed(1)}`);
+for (const model of THEME_CARD_MODELS) {
+  for (const viewport of [320, 360, 390, 414]) {
+    const inner = themeCardInner(model, viewport);
+    for (const label of model.labels) {
+      // 11 px — минимальный размер шкалы; px-0.5 = 4 px горизонтальных отступов.
+      const width = textWidth(label, 11, TRACKING_TIGHT_EM * 11) + 4;
+      if (width > inner) {
+        priceOverflow.push(`${model.id} · ${label}@${viewport}: ${width.toFixed(1)} > ${inner.toFixed(1)}`);
+      }
+    }
   }
 }
+const tightest = (() => {
+  let worst = { slack: Infinity };
+  for (const model of THEME_CARD_MODELS) {
+    for (const viewport of [320, 360, 390, 414]) {
+      const inner = themeCardInner(model, viewport);
+      for (const label of model.labels) {
+        const slack = inner - (textWidth(label, 11, TRACKING_TIGHT_EM * 11) + 4);
+        if (slack < worst.slack) worst = { slack, model: model.id, label, viewport };
+      }
+    }
+  }
+  return worst;
+})();
 check(
-  'темы: «бесплатно» и статусы влезают в карточку на 320–414 px',
+  'темы: «бесплатно» / «ВЫБРАНО» / «ВКЛЮЧЕНО» влезают в карточку на 320–414 px',
   priceOverflow.length === 0,
-  priceOverflow.join(' | ') || `карточка на 320 px: ${themeCardInner(320).toFixed(1)} px`
+  priceOverflow.join(' | ') || `минимальный запас ${tightest.slack.toFixed(1)} px (${tightest.label}@${tightest.viewport}, ${tightest.model})`
 );
 
 const logoMatch = onboardingSource.match(/viewBox="0 0 (\d+) (\d+)"/);
@@ -378,16 +464,19 @@ check(
 );
 check(
   'инвентарь: кнопка ≥ 44 px и иконка из хаба',
-  hudSource.includes('inventory-glow grid h-11 w-11 place-items-center') &&
+  hudSource.includes("'hud-glow grid size-11 place-items-center") &&
+    hudSource.includes('hud-glow--primary') &&
     hudSource.includes('<PackageIcon') &&
     hudSource.includes('aria-label="Инвентарь"')
 );
 check(
-  'инвентарь: подсветка на токенах темы (класс в CSS + prefers-reduced-motion)',
-  cssSrc.includes('.inventory-glow') &&
-    /@keyframes inventoryGlowPulse/.test(cssSrc) &&
-    /--ui-primary-rgb/.test(cssSrc.slice(cssSrc.indexOf('.inventory-glow'))) &&
-    /\.inventory-glow \{ animation: none; \}/.test(cssSrc)
+  'HUD: подсветка пары на токенах темы (класс в CSS + prefers-reduced-motion)',
+  cssSrc.includes('.hud-glow--primary { --hud-glow: var(--ui-primary-rgb); }') &&
+    cssSrc.includes('.hud-glow--secondary { --hud-glow: var(--ui-secondary-rgb); }') &&
+    /@keyframes hudGlowPulse/.test(cssSrc) &&
+    /\.hud-glow \{ animation: none; \}/.test(cssSrc) &&
+    // ни одного хекса в блоке свечения
+    !/#[0-9a-f]{3,8}/i.test(cssSrc.slice(cssSrc.indexOf('.hud-glow'), cssSrc.indexOf('@keyframes hudGlowPulse')))
 );
 check(
   'инвентарь: экран открывается через ModalFrame (подложка без карточки невозможна)',

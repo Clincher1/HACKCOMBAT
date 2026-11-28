@@ -92,7 +92,7 @@ export const ThemeOnboardingModal: React.FC = () => {
               <span>всё бесплатно</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+            <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
               {themes.map((theme) => {
                 const selecting = pendingTheme === theme.key;
                 const active = player.stats.baseTheme === theme.key;
@@ -102,7 +102,7 @@ export const ThemeOnboardingModal: React.FC = () => {
                     type="button"
                     disabled={themeBusy}
                     onClick={() => chooseTheme(theme)}
-                    className={`group relative min-h-[238px] overflow-hidden rounded-2xl border p-2 text-left transition sm:min-h-[255px] sm:p-3 ${
+                    className={`group relative min-h-[238px] overflow-hidden rounded-2xl border p-1.5 text-left transition sm:min-h-[255px] sm:p-3 ${
                       selecting
                         ? 'border-white ring-2 ring-white/30'
                         : 'border-slate-700/80 hover:border-white/70'
@@ -199,7 +199,7 @@ export const ThemeOnboardingModal: React.FC = () => {
                             при любой ширине экрана (без обрезки по краю). */}
                         <div
                           data-qa="theme-price"
-                          className={`mt-2 w-full truncate rounded-md px-0.5 py-0.5 text-center text-[11px] font-bold ${
+                          className={`mt-2 w-full truncate rounded-md px-0.5 py-0.5 text-center text-[11px] font-bold tracking-tight ${
                             active || selecting
                               ? 'bg-white/90 font-black text-[var(--ui-panel-deep)]'
                               : 'bg-black/35 text-white/85'
@@ -215,9 +215,10 @@ export const ThemeOnboardingModal: React.FC = () => {
             </div>
 
             <div className="mt-3 rounded-xl border border-slate-800 bg-[var(--ui-panel-deep)] px-3 py-2.5 text-[11px] leading-relaxed text-slate-400">
-              <strong className="text-slate-200">Можно поменять позже:</strong> открой кнопку{' '}
-              <span className="font-bold text-[var(--ui-secondary)]">«Скины»</span> в верхней панели и выбери{' '}
-              <span className="font-bold text-slate-200">«Базовая тема»</span>. Обе темы остаются бесплатными.
+              <strong className="text-slate-200">Можно поменять позже:</strong> кнопка косметики{' '}
+              <span className="font-bold text-[var(--ui-secondary)]">рядом с инвентарём</span> в верхней панели
+              открывает{' '}
+              <span className="font-bold text-slate-200">«Базовую тему»</span>. Обе темы остаются бесплатными.
             </div>
           </div>
         </motion.div>

@@ -178,7 +178,7 @@ export const ModalsAndOverlays: React.FC = () => {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.92, y: 16 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-secondary-rgb),0.40)] p-5 space-y-3"
+              className="w-full max-w-md max-h-[85vh] overflow-y-auto rounded-2xl bg-[var(--ui-panel)] border border-[rgba(var(--ui-secondary-rgb),0.40)] p-3 space-y-3 sm:p-5"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -205,7 +205,7 @@ export const ModalsAndOverlays: React.FC = () => {
                     <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                       Базовая тема · бесплатно
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1 sm:gap-2">
                       {BASE_THEMES.map((theme) => {
                         const active = baseTheme.key === theme.key;
                         const pending = busyKey === `theme:${theme.key}`;
@@ -215,7 +215,7 @@ export const ModalsAndOverlays: React.FC = () => {
                             type="button"
                             disabled={pending}
                             onClick={() => void setBaseTheme(theme.key)}
-                            className={`relative overflow-hidden rounded-xl border p-2.5 text-left transition cursor-pointer disabled:opacity-60 ${
+                            className={`relative overflow-hidden rounded-xl border p-1.5 text-left transition cursor-pointer disabled:opacity-60 sm:p-2.5 ${
                               active
                                 ? 'border-white/70 ring-1 ring-white/30'
                                 : 'border-slate-700/70 hover:border-slate-500'
@@ -240,7 +240,10 @@ export const ModalsAndOverlays: React.FC = () => {
                             )}
                             {/* Та же геометрия, что в онбординге: в верхней строке
                                 только глиф и отметка, текстовый статус — плашкой на
-                                всю ширину карточки (иначе «бесплатно» срезалось). */}
+                                всю ширину карточки. v1.2: карточка уже (max-w-md
+                                против max-w-lg), поэтому здесь ещё p-1.5, gap-1 и
+                                tracking-tight — «ВКЛЮЧЕНО» больше не упирается
+                                в правый край. */}
                             <div className="relative flex items-start justify-between gap-1">
                               <span className="shrink-0 text-[16px] leading-none">{theme.glyph}</span>
                               {active && (
@@ -263,8 +266,8 @@ export const ModalsAndOverlays: React.FC = () => {
                             />
                             <div
                               data-qa="theme-price"
-                              className={`relative mt-1.5 w-full truncate rounded-md px-1 py-0.5 text-center text-[11px] font-bold ${
-                                active ? 'bg-white/90 font-black text-[var(--ui-panel-deep)]' : 'bg-black/30 text-white/80'
+                              className={`relative mt-1.5 w-full truncate rounded-md px-0.5 py-0.5 text-center text-[11px] font-bold tracking-tight ${
+                                active ? 'bg-white/90 text-[var(--ui-panel-deep)]' : 'bg-black/30 text-white/80'
                               }`}
                             >
                               {active ? 'ВКЛЮЧЕНО' : 'бесплатно'}
