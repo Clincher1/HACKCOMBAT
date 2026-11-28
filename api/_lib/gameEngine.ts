@@ -11,6 +11,8 @@ import {
   isWorldV2Enabled,
 } from '../../shared/config';
 import { isContractReady } from '../../shared/economy.config';
+// v1: объявление о перезапуске — серверный конфиг, в клиентский бандл не идёт.
+import { LAUNCH_ANNOUNCEMENT, LAUNCH_ANNOUNCEMENT_ID } from '../../shared/launch.config';
 import {
   describeLockedLocation,
   getLocation,
@@ -711,6 +713,9 @@ function normalizeStats(raw: unknown): PlayerProgressStats {
     hackFailByType: numRecord(src.hackFailByType, new Set(['bad', 'good', 'neutral', 'grey'])),
     // v6.11: ключ — тир контракта 1..6, значение — успешные взломы этого тира.
     hacksByTier: numRecord(src.hacksByTier, new Set(['1', '2', '3', '4', '5', '6'])),
+    // v1: мусор в jsonb не должен «глушить» анонс навсегда — принимаем только
+    // известный id, всё остальное читается как «ещё не видел».
+    launchAnnouncement: src.launchAnnouncement === LAUNCH_ANNOUNCEMENT_ID ? LAUNCH_ANNOUNCEMENT_ID : undefined,
     totalXpEarned: num(src.totalXpEarned, 1e12),
     lastTapClaimAt:
       typeof src.lastTapClaimAt === 'string' && !Number.isNaN(new Date(src.lastTapClaimAt).getTime())
@@ -2742,6 +2747,20 @@ export async function handleInitPlayer(
         message:
           `${readyContracts.map((mission) => mission.targetName).join(', ')} — ` +
           `до +${rewardSum.toLocaleString('ru-RU')} Data. Заберите награду на экране «Взломы».`,
+      });
+    }
+
+    // v1: ОДНОРАЗОВЫЙ анонс точки запуска. Показываем ровно один раз на
+    // аккаунт — на первом init после вайпа. Флаг ставим ДО сохранения, поэтому
+    // повторный init (в том числе параллельный) второй раз его не покажет.
+    // Никакой магии на старте приложения: это обычное поле players.stats.
+    if (record.stats.launchAnnouncement !== LAUNCH_ANNOUNCEMENT_ID) {
+      record.stats.launchAnnouncement = LAUNCH_ANNOUNCEMENT_ID;
+      alerts.push({
+        id: crypto.randomUUID(),
+        type: LAUNCH_ANNOUNCEMENT.type,
+        title: LAUNCH_ANNOUNCEMENT.title,
+        message: LAUNCH_ANNOUNCEMENT.message,
       });
     }
 

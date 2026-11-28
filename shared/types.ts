@@ -468,6 +468,12 @@ export interface PlayerProgressStats {
    * Живёт в существующем players.stats jsonb — миграции не требуется.
    */
   hacksByTier: Record<string, number>;
+  /**
+   * v1: id объявления о перезапуске, которое игрок уже видел
+   * (shared/launch.config.ts). undefined = ещё не видел → покажем на init.
+   * Живёт в существующем players.stats jsonb — миграции не требуется.
+   */
+  launchAnnouncement?: string;
   /** Всего XP добыто (дублирует players.xp для статистики профиля). */
   totalXpEarned: number;
   /** Когда последний раз начислялась «фоновая копилка тапов» (ISO). */
